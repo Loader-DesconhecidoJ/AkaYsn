@@ -1,0 +1,210 @@
+-- LocalScript em StarterPlayerScripts
+-- Upwalk + ESP (Highlight nos outros players) + Painel arrastável
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+--========================
+-- Funções utilitárias
+--========================
+local function getCharacter(plr)
+	local char = plr.Character or plr.CharacterAdded:Wait()
+	return char
+end
+
+local function getHumanoidRootPart(plr)
+	local char = getCharacter(plr)
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		hrp = char:WaitForChild("HumanoidRootPart")
+	end
+	return hrp
+end
+
+--========================
+-- UI
+--========================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "UpwalkESP_UI"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local container = Instance.new("Frame")
+container.Position = UDim2.new(0.7, 0, 0.7, 0)
+container.Size = UDim2.new(0, 220, 0, 110)
+container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+container.BackgroundTransparency = 0.2
+container.BorderSizePixel = 0
+container.Active = true
+container.Parent = screenGui
+
+local corner = Instance.new("UICorner", container)
+corner.CornerRadius = UDim.new(0, 16)
+
+local list = Instance.new("UIListLayout", container)
+list.Padding = UDim.new(0, 8)
+list.FillDirection = Enum.FillDirection.Vertical
+list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+list.VerticalAlignment = Enum.VerticalAlignment.Center
+
+local function makeButton(text)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -10, 0, 48)
+	btn.Text = text
+	btn.Font = Enum.Font.GothamBold
+	btn.TextScaled = true
+	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.AutoButtonColor = true
+	btn.Parent = container
+
+	local icorner = Instance.new("UICorner", btn)
+	icorner.CornerRadius = UDim.new(0, 12)
+
+	local stroke = Instance.new("UIStroke", btn)
+	stroke.Thickness = 2
+	stroke.Transparency = 0.4
+	stroke.Color = Color3.fromRGB(255, 255, 255)
+
+	return btn
+end
+
+local upwalkBtn = makeButton("Upwalk: OFF")
+local espBtn    = makeButton("ESP: OFF")
+
+--========================
+-- Drag do container
+--========================
+do
+	local dragging = false
+	local dragInput, dragStart, startPos
+
+	local function update(input)
+		local delta = input.Position - dragStart
+		container.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+
+	container.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = container.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	container.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			update(input)
+		end
+	end)
+end
+
+--========================
+-- Lógica: Upwalk
+--========================
+local upwalkEnabled = false
+local ascendSpeed = 18
+local horizontalKeep = true
+local stepConn = nil
+
+local function setUpwalk(state)
+	upwalkEnabled = state
+	upwalkBtn.Text = "Upwalk: " .. (upwalkEnabled and "ON" or "OFF")
+
+	if stepConn then
+		stepConn:Disconnect()
+		stepConn = nil
+	end
+
+	if upwalkEnabled then
+		stepConn = RunService.RenderStepped:Connect(function()
+			local hrp = getHumanoidRootPart(player)
+			if not hrp then return end
+
+			local vel = hrp.AssemblyLinearVelocity
+			local newY = ascendSpeed
+			local newX, newZ = vel.X, vel.Z
+			if not horizontalKeep then newX, newZ = 0, 0 end
+
+			hrp.AssemblyLinearVelocity = Vector3.new(newX, newY, newZ)
+		end)
+	end
+end
+
+upwalkBtn.MouseButton1Click:Connect(function()
+	setUpwalk(not upwalkEnabled)
+end)
+
+--========================
+-- Lógica: ESP (Highlight nos players)
+--========================
+local espEnabled = false
+local highlights = {}
+
+local function createHighlight(char)
+	if not char:FindFirstChild("HumanoidRootPart") then return end
+	if char:FindFirstChild("ESP_Highlight") then return end
+
+	local hl = Instance.new("Highlight")
+	hl.Name = "ESP_Highlight"
+	hl.FillTransparency = 0.8
+	hl.OutlineTransparency = 0
+	hl.FillColor = Color3.fromRGB(0, 170, 255)
+	hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+	hl.Adornee = char
+	hl.Parent = char
+end
+
+local function enableESP()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player then
+			createHighlight(getCharacter(plr))
+			plr.CharacterAdded:Connect(function(char)
+				if espEnabled then
+					task.wait(1) -- espera personagem carregar
+					createHighlight(char)
+				end
+			end)
+		end
+	end
+end
+
+local function disableESP()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Character then
+			local hl = plr.Character:FindFirstChild("ESP_Highlight")
+			if hl then hl:Destroy() end
+		end
+	end
+end
+
+espBtn.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	espBtn.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
+
+	if espEnabled then
+		enableESP()
+	else
+		disableESP()
+	end
+end)
