@@ -19,7 +19,7 @@ local TargetHighlight = nil
 
 -- CONFIG
 local CENTER_RADIUS = 90
-local SMOOTHNESS = 1.1
+local SMOOTHNESS = 1.3
 
 -- =======================
 -- SETUP PERSONAGEM (ANTI-SOLTAR)
