@@ -1,15 +1,18 @@
 -- =========================================
--- UNIVERSAL MOBILE FPS SCRIPT V2
--- EXTREMO + ESTÁVEL + BAIXO USO DE CPU
+-- UNIVERSAL MOBILE FPS SCRIPT
+-- PRESETS + FPS COUNTER
 -- Client-Side | Visual Only
 -- =========================================
 
------------------- PRESET ------------------
--- 1 = FPS EXTREMO
+--------------------------------------------------
+-- 🔧 ESCOLHA O PRESET AQUI
+--------------------------------------------------
+-- 1 = FPS EXTREMO (visual feio, máximo desempenho)
 -- 2 = BALANCEADO (recomendado)
--- 3 = VISUAL LEVE
-local PRESET = 1
---------------------------------------------
+-- 3 = VISUAL LEVE (menos agressivo)
+
+local PRESET = 2
+--------------------------------------------------
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -18,84 +21,90 @@ local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 --------------------------------------------------
--- 🛑 NO SHAKE (LEVE, SEM FORÇAR CPU)
+-- 🛑 NO SHAKE TOTAL
 --------------------------------------------------
 
-local lastCF = camera.CFrame
-local lastFOV = camera.FieldOfView
+local savedCFrame = camera.CFrame
+local savedFOV = camera.FieldOfView
 
 RunService.RenderStepped:Connect(function()
-	camera.CFrame = lastCF
-	camera.FieldOfView = lastFOV
-	lastCF = camera.CFrame
+	camera.CFrame = savedCFrame
+	camera.FieldOfView = savedFOV
+end)
+
+RunService.RenderStepped:Connect(function()
+	savedCFrame = camera.CFrame
 end)
 
 --------------------------------------------------
--- ❄️ ANTI STUTTER INTELIGENTE
+-- ❄️ ANTI DELAY / ANTI FREEZE
 --------------------------------------------------
 
+RunService.RenderStepped:Connect(function()
+	RunService.Heartbeat:Wait()
+end)
+
 task.spawn(function()
-	while task.wait(0.25) do
-		RunService.Heartbeat:Wait()
+	while task.wait(12) do
+		collectgarbage("step", 200)
 	end
 end)
 
-task.spawn(function()
-	while task.wait(15) do
-		collectgarbage("step", 150)
-	end
-end)
-
 --------------------------------------------------
--- 🌑 LIMPEZA DE LUZ (UMA VEZ)
+-- 🌑 LIMPA EFEITOS DE LUZ
 --------------------------------------------------
 
-local function cleanLighting()
-	for _, v in ipairs(Lighting:GetChildren()) do
-		if v:IsA("BloomEffect")
-		or v:IsA("SunRaysEffect")
-		or v:IsA("DepthOfFieldEffect")
-		or v:IsA("ColorCorrectionEffect") then
-			v:Destroy()
-		end
+for _, v in pairs(Lighting:GetChildren()) do
+	if v:IsA("BloomEffect")
+	or v:IsA("SunRaysEffect")
+	or v:IsA("DepthOfFieldEffect")
+	or v:IsA("ColorCorrectionEffect") then
+		v:Destroy()
 	end
 end
 
-cleanLighting()
-
 --------------------------------------------------
--- 🎨 PRESETS DE COR (OTIMIZADOS)
+-- 🎨 CONFIGURAÇÕES POR PRESET
 --------------------------------------------------
-
-local cc = Instance.new("ColorCorrectionEffect")
-cc.Parent = Lighting
 
 if PRESET == 1 then
-	cc.Brightness = -0.1
-	cc.Contrast = 0
-	cc.Saturation = -0.6
+	-- 🔥 FPS EXTREMO
+	local c = Instance.new("ColorCorrectionEffect")
+	c.Brightness = -0.1
+	c.Contrast = 0
+	c.Saturation = -0.6
+	c.Parent = Lighting
+
 	Lighting.ExposureCompensation = -0.6
 	Lighting.GlobalShadows = false
 
 elseif PRESET == 2 then
-	cc.Brightness = -0.05
-	cc.Contrast = 0.03
-	cc.Saturation = -0.3
+	-- ⚖️ BALANCEADO
+	local c = Instance.new("ColorCorrectionEffect")
+	c.Brightness = -0.05
+	c.Contrast = 0.03
+	c.Saturation = -0.3
+	c.Parent = Lighting
+
 	Lighting.ExposureCompensation = -0.4
 	Lighting.GlobalShadows = false
 
-else
-	cc.Brightness = 0
-	cc.Contrast = 0.05
-	cc.Saturation = -0.1
+elseif PRESET == 3 then
+	-- 👁️ VISUAL LEVE
+	local c = Instance.new("ColorCorrectionEffect")
+	c.Brightness = 0
+	c.Contrast = 0.05
+	c.Saturation = -0.1
+	c.Parent = Lighting
+
 	Lighting.ExposureCompensation = -0.2
 end
 
 --------------------------------------------------
--- 🧱 REMOVER TEXTURAS (EVENT-BASED)
+-- 🧱 REMOVER TEXTURAS / VISUAL EM BLOCOS
 --------------------------------------------------
 
-local function optimizeInstance(obj)
+for _, obj in pairs(workspace:GetDescendants()) do
 	if obj:IsA("Texture") or obj:IsA("Decal") then
 		obj:Destroy()
 	elseif obj:IsA("BasePart") then
@@ -103,12 +112,6 @@ local function optimizeInstance(obj)
 		obj.Reflectance = 0
 	end
 end
-
-for _, v in ipairs(workspace:GetDescendants()) do
-	optimizeInstance(v)
-end
-
-workspace.DescendantAdded:Connect(optimizeInstance)
 
 --------------------------------------------------
 -- 🚀 QUALIDADE GRÁFICA MÍNIMA
@@ -120,24 +123,18 @@ settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
 -- 🔥 DESATIVAR EFEITOS PESADOS
 --------------------------------------------------
 
-local function disableEffects(obj)
-	if obj:IsA("ParticleEmitter")
-	or obj:IsA("Trail")
-	or obj:IsA("Smoke")
-	or obj:IsA("Fire")
-	or obj:IsA("Explosion") then
-		obj.Enabled = false
+for _, v in pairs(workspace:GetDescendants()) do
+	if v:IsA("ParticleEmitter")
+	or v:IsA("Trail")
+	or v:IsA("Smoke")
+	or v:IsA("Fire")
+	or v:IsA("Explosion") then
+		v.Enabled = false
 	end
 end
 
-for _, v in ipairs(workspace:GetDescendants()) do
-	disableEffects(v)
-end
-
-workspace.DescendantAdded:Connect(disableEffects)
-
 --------------------------------------------------
--- 🔁 ANTI POST-FX RECRIADO
+-- 🔁 ANTI EFEITOS RECRIADOS
 --------------------------------------------------
 
 Lighting.ChildAdded:Connect(function(child)
@@ -149,47 +146,37 @@ Lighting.ChildAdded:Connect(function(child)
 end)
 
 --------------------------------------------------
--- 📊 FPS COUNTER (MÉDIA REAL, SEM OSCILAÇÃO)
+-- 📊 FPS COUNTER (LEVE / MOBILE)
 --------------------------------------------------
 
 local gui = Instance.new("ScreenGui")
+gui.Name = "FPSCounter"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local lbl = Instance.new("TextLabel")
-lbl.Size = UDim2.new(0,130,0,28)
-lbl.Position = UDim2.new(0,10,0,10)
-lbl.BackgroundTransparency = 0.4
-lbl.BackgroundColor3 = Color3.fromRGB(0,0,0)
-lbl.TextColor3 = Color3.fromRGB(0,255,0)
-lbl.Font = Enum.Font.SourceSansBold
-lbl.TextScaled = true
-lbl.Text = "FPS: --"
-lbl.Parent = gui
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(0,120,0,30)
+label.Position = UDim2.new(0,10,0,10)
+label.BackgroundTransparency = 0.4
+label.BackgroundColor3 = Color3.fromRGB(0,0,0)
+label.TextColor3 = Color3.fromRGB(0,255,0)
+label.TextScaled = true
+label.Font = Enum.Font.SourceSansBold
+label.Text = "FPS: 0"
+label.Parent = gui
 
+local fps = 0
 local frames = 0
-local lastTime = tick()
-local fpsSmooth = 0
+local last = tick()
 
 RunService.RenderStepped:Connect(function()
 	frames += 1
-	local now = tick()
-	if now - lastTime >= 1 then
-		local raw = frames / (now - lastTime)
-		fpsSmooth = fpsSmooth == 0 and raw or (fpsSmooth * 0.7 + raw * 0.3)
-		lbl.Text = "FPS: "..math.floor(fpsSmooth)
+	if tick() - last >= 1 then
+		fps = frames
 		frames = 0
-		lastTime = now
+		last = tick()
+		label.Text = "FPS: "..fps
 	end
-end)
-
---------------------------------------------------
--- ♻️ RESPAWN SAFE
---------------------------------------------------
-
-player.CharacterAdded:Connect(function()
-	task.wait(0.5)
-	cleanLighting()
 end)
 -- SUPER POTATO REAL (FUNCIONA)
 local Lighting = game:GetService("Lighting")
