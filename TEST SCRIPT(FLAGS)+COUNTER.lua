@@ -255,3 +255,127 @@ Lighting.ChildAdded:Connect(function(child)
 		child:Destroy()
 	end
 end)
+
+-- FASTFLAG SIMULATION SCRIPT (MOBILE)
+-- Visual + Performance | Client-Side
+
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local ContentProvider = game:GetService("ContentProvider")
+local camera = workspace.CurrentCamera
+
+--------------------------------------------------
+-- 🚫 SIMULA: FFlagDisablePostFx
+--------------------------------------------------
+
+for _, v in pairs(Lighting:GetChildren()) do
+	if v:IsA("BloomEffect")
+	or v:IsA("SunRaysEffect")
+	or v:IsA("DepthOfFieldEffect")
+	or v:IsA("ColorCorrectionEffect") then
+		v:Destroy()
+	end
+end
+
+local cc = Instance.new("ColorCorrectionEffect")
+cc.Brightness = -0.05
+cc.Contrast = 0.03
+cc.Saturation = -0.30
+cc.Parent = Lighting
+
+Lighting.ExposureCompensation = -0.4
+Lighting.GlobalShadows = false
+
+--------------------------------------------------
+-- 🧱 SIMULA: TextureQualityOverride + SkipMips
+--------------------------------------------------
+
+for _, obj in pairs(workspace:GetDescendants()) do
+	if obj:IsA("Texture") or obj:IsA("Decal") then
+		obj:Destroy()
+	elseif obj:IsA("BasePart") then
+		obj.Material = Enum.Material.Plastic
+		obj.Reflectance = 0
+	end
+end
+
+--------------------------------------------------
+-- 🌍 SIMULA: Terrain simplificado
+--------------------------------------------------
+
+local terrain = workspace:FindFirstChildOfClass("Terrain")
+if terrain then
+	terrain.WaterWaveSize = 0
+	terrain.WaterWaveSpeed = 0
+	terrain.WaterReflectance = 0
+	terrain.WaterTransparency = 1
+end
+
+--------------------------------------------------
+-- 🛑 NO SHAKE (ANTI CAMERA)
+--------------------------------------------------
+
+local lastCFrame = camera.CFrame
+local lastFOV = camera.FieldOfView
+
+RunService.RenderStepped:Connect(function()
+	camera.CFrame = lastCFrame
+	camera.FieldOfView = lastFOV
+end)
+
+RunService.RenderStepped:Connect(function()
+	lastCFrame = camera.CFrame
+end)
+
+--------------------------------------------------
+-- ❄️ ANTI DELAY / GC / STUTTER
+--------------------------------------------------
+
+pcall(function()
+	ContentProvider:PreloadAsync({})
+end)
+
+task.spawn(function()
+	while task.wait(12) do
+		collectgarbage("step", 200)
+	end
+end)
+
+--------------------------------------------------
+-- 🚀 FPS / RENDER OTIMIZADO
+--------------------------------------------------
+
+settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+pcall(function()
+	sethiddenproperty(Lighting, "Technology", Enum.Technology.Compatibility)
+end)
+
+pcall(function()
+	workspace.StreamingEnabled = false
+end)
+
+--------------------------------------------------
+-- 🔥 DESATIVAR EFEITOS PESADOS
+--------------------------------------------------
+
+for _, v in pairs(workspace:GetDescendants()) do
+	if v:IsA("ParticleEmitter")
+	or v:IsA("Trail")
+	or v:IsA("Smoke")
+	or v:IsA("Fire") then
+		v.Enabled = false
+	end
+end
+
+--------------------------------------------------
+-- 🔁 ANTI RECRIAÇÃO DE POSTFX
+--------------------------------------------------
+
+Lighting.ChildAdded:Connect(function(child)
+	if child:IsA("BloomEffect")
+	or child:IsA("SunRaysEffect")
+	or child:IsA("DepthOfFieldEffect") then
+		child:Destroy()
+	end
+end)
