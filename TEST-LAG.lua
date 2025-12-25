@@ -64,7 +64,7 @@ end
 workspace.DescendantAdded:Connect(extremeOptimize)
 
 -- ================= DISTÂNCIA DE RENDER (FAKE LOD) =================
-local MAX_DISTANCE = 350 -- quanto menor, mais FPS
+local MAX_DISTANCE = 300 -- quanto menor, mais FPS
 
 RunService.Heartbeat:Connect(function()
     local char = LocalPlayer.Character
