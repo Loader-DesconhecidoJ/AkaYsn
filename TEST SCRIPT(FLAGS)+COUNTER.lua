@@ -379,3 +379,41 @@ Lighting.ChildAdded:Connect(function(child)
 		child:Destroy()
 	end
 end)
+
+-- SUPER POTATO REAL (FUNCIONA)
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+-- Lighting
+Lighting.GlobalShadows = false
+Lighting.FogEnd = 9e9
+Lighting.Brightness = 0
+Lighting.ClockTime = 14
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+
+-- Remove efeitos
+for _,v in pairs(Lighting:GetChildren()) do
+    if v:IsA("PostEffect") then
+        v:Destroy()
+    end
+end
+
+-- Mundo
+for _,v in pairs(workspace:GetDescendants()) do
+    if v:IsA("BasePart") then
+        v.Material = Enum.Material.SmoothPlastic
+        v.Reflectance = 0
+    elseif v:IsA("Decal") or v:IsA("Texture") then
+        v:Destroy()
+    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+        v.Enabled = false
+    end
+end
+
+-- Remove sombras dinamicamente
+RunService.RenderStepped:Connect(function()
+    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+end)
+
+print("✅ Super Potato ATIVO")
