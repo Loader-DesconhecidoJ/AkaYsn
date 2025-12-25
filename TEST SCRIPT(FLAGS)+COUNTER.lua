@@ -1,4 +1,80 @@
--- =========================================
+
+-- FASTFLAG SIMULATION SCRIPT (MOBILE)
+-- Visual + Render Optimization
+-- Client-Side
+
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+--------------------------------------------------
+-- 🚫 SIMULA: FFlagDisablePostFx = true
+--------------------------------------------------
+
+for _, v in pairs(Lighting:GetChildren()) do
+	if v:IsA("BloomEffect")
+	or v:IsA("SunRaysEffect")
+	or v:IsA("DepthOfFieldEffect")
+	or v:IsA("ColorCorrectionEffect") then
+		v:Destroy()
+	end
+end
+
+--------------------------------------------------
+-- 🌑 SIMULA: FFlagDebugSkyGray = false
+--------------------------------------------------
+
+Lighting.Ambient = Color3.fromRGB(120,120,120)
+Lighting.OutdoorAmbient = Color3.fromRGB(120,120,120)
+Lighting.Brightness = 1
+Lighting.ExposureCompensation = -0.4
+Lighting.GlobalShadows = false
+
+--------------------------------------------------
+-- 🧱 SIMULA: TextureQualityOverride + SkipMips
+--------------------------------------------------
+
+for _, obj in pairs(workspace:GetDescendants()) do
+	if obj:IsA("Texture") or obj:IsA("Decal") then
+		obj:Destroy()
+	elseif obj:IsA("BasePart") then
+		obj.Material = Enum.Material.Plastic
+		obj.Reflectance = 0
+	end
+end
+
+--------------------------------------------------
+-- 🖼️ SIMULA: DFIntTextureQualityOverride = 0
+--------------------------------------------------
+
+settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+--------------------------------------------------
+-- 🎮 SIMULA: MSAA 4x (parcial)
+--------------------------------------------------
+
+pcall(function()
+	sethiddenproperty(Lighting, "Technology", Enum.Technology.Compatibility)
+end)
+
+--------------------------------------------------
+-- ❄️ REDUZ STUTTER (scheduler fake)
+--------------------------------------------------
+
+RunService.RenderStepped:Connect(function()
+	RunService.Heartbeat:Wait()
+end)
+
+--------------------------------------------------
+-- 🔁 ANTI EFEITOS RECRIADOS
+--------------------------------------------------
+
+Lighting.ChildAdded:Connect(function(child)
+	if child:IsA("BloomEffect")
+	or child:IsA("SunRaysEffect")
+	or child:IsA("DepthOfFieldEffect") then
+		child:Destroy()
+	end
+end)-- =========================================
 -- UNIVERSAL MOBILE FPS SCRIPT
 -- PRESETS + FPS COUNTER
 -- Client-Side | Visual Only
