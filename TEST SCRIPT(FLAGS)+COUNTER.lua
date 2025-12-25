@@ -11,7 +11,7 @@
 -- 2 = BALANCEADO (recomendado)
 -- 3 = VISUAL LEVE (menos agressivo)
 
-local PRESET = 2
+local PRESET = 1
 --------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -179,15 +179,14 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 -- FASTFLAG SIMULATION SCRIPT (MOBILE)
--- Visual + Performance | Client-Side
+-- Visual + Render Optimization
+-- Client-Side
 
-local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
-local ContentProvider = game:GetService("ContentProvider")
-local camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
 
 --------------------------------------------------
--- 🚫 SIMULA: FFlagDisablePostFx
+-- 🚫 SIMULA: FFlagDisablePostFx = true
 --------------------------------------------------
 
 for _, v in pairs(Lighting:GetChildren()) do
@@ -199,12 +198,13 @@ for _, v in pairs(Lighting:GetChildren()) do
 	end
 end
 
-local cc = Instance.new("ColorCorrectionEffect")
-cc.Brightness = -0.05
-cc.Contrast = 0.03
-cc.Saturation = -0.30
-cc.Parent = Lighting
+--------------------------------------------------
+-- 🌑 SIMULA: FFlagDebugSkyGray = false
+--------------------------------------------------
 
+Lighting.Ambient = Color3.fromRGB(120,120,120)
+Lighting.OutdoorAmbient = Color3.fromRGB(120,120,120)
+Lighting.Brightness = 1
 Lighting.ExposureCompensation = -0.4
 Lighting.GlobalShadows = false
 
@@ -222,76 +222,29 @@ for _, obj in pairs(workspace:GetDescendants()) do
 end
 
 --------------------------------------------------
--- 🌍 SIMULA: Terrain simplificado
---------------------------------------------------
-
-local terrain = workspace:FindFirstChildOfClass("Terrain")
-if terrain then
-	terrain.WaterWaveSize = 0
-	terrain.WaterWaveSpeed = 0
-	terrain.WaterReflectance = 0
-	terrain.WaterTransparency = 1
-end
-
---------------------------------------------------
--- 🛑 NO SHAKE (ANTI CAMERA)
---------------------------------------------------
-
-local lastCFrame = camera.CFrame
-local lastFOV = camera.FieldOfView
-
-RunService.RenderStepped:Connect(function()
-	camera.CFrame = lastCFrame
-	camera.FieldOfView = lastFOV
-end)
-
-RunService.RenderStepped:Connect(function()
-	lastCFrame = camera.CFrame
-end)
-
---------------------------------------------------
--- ❄️ ANTI DELAY / GC / STUTTER
---------------------------------------------------
-
-pcall(function()
-	ContentProvider:PreloadAsync({})
-end)
-
-task.spawn(function()
-	while task.wait(12) do
-		collectgarbage("step", 200)
-	end
-end)
-
---------------------------------------------------
--- 🚀 FPS / RENDER OTIMIZADO
+-- 🖼️ SIMULA: DFIntTextureQualityOverride = 0
 --------------------------------------------------
 
 settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+--------------------------------------------------
+-- 🎮 SIMULA: MSAA 4x (parcial)
+--------------------------------------------------
 
 pcall(function()
 	sethiddenproperty(Lighting, "Technology", Enum.Technology.Compatibility)
 end)
 
-pcall(function()
-	workspace.StreamingEnabled = false
+--------------------------------------------------
+-- ❄️ REDUZ STUTTER (scheduler fake)
+--------------------------------------------------
+
+RunService.RenderStepped:Connect(function()
+	RunService.Heartbeat:Wait()
 end)
 
 --------------------------------------------------
--- 🔥 DESATIVAR EFEITOS PESADOS
---------------------------------------------------
-
-for _, v in pairs(workspace:GetDescendants()) do
-	if v:IsA("ParticleEmitter")
-	or v:IsA("Trail")
-	or v:IsA("Smoke")
-	or v:IsA("Fire") then
-		v.Enabled = false
-	end
-end
-
---------------------------------------------------
--- 🔁 ANTI RECRIAÇÃO DE POSTFX
+-- 🔁 ANTI EFEITOS RECRIADOS
 --------------------------------------------------
 
 Lighting.ChildAdded:Connect(function(child)
@@ -301,40 +254,3 @@ Lighting.ChildAdded:Connect(function(child)
 		child:Destroy()
 	end
 end)
--- SUPER POTATO REAL (FUNCIONA)
-local Lighting = game:GetService("Lighting")
-local RunService = game:GetService("RunService")
-
--- Lighting
-Lighting.GlobalShadows = false
-Lighting.FogEnd = 9e9
-Lighting.Brightness = 0
-Lighting.ClockTime = 14
-Lighting.EnvironmentDiffuseScale = 0
-Lighting.EnvironmentSpecularScale = 0
-
--- Remove efeitos
-for _,v in pairs(Lighting:GetChildren()) do
-    if v:IsA("PostEffect") then
-        v:Destroy()
-    end
-end
-
--- Mundo
-for _,v in pairs(workspace:GetDescendants()) do
-    if v:IsA("BasePart") then
-        v.Material = Enum.Material.SmoothPlastic
-        v.Reflectance = 0
-    elseif v:IsA("Decal") or v:IsA("Texture") then
-        v:Destroy()
-    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
-        v.Enabled = false
-    end
-end
-
--- Remove sombras dinamicamente
-RunService.RenderStepped:Connect(function()
-    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-end)
-
-print("✅ Super Potato ATIVO")
