@@ -11,7 +11,7 @@
 -- 2 = BALANCEADO (recomendado)
 -- 3 = VISUAL LEVE (menos agressivo)
 
-local PRESET = 2
+local PRESET = 1
 --------------------------------------------------
 
 local Players = game:GetService("Players")
