@@ -519,7 +519,7 @@ function RoClothes(Player)
 	local NPCs = {}
 
 	local PositionPhysicsMultiply = 1
-	local RotationPhysicsMultiply = 5
+	local RotationPhysicsMultiply = 5.1
 
 	-- tail stuff --
 	local includedAccessoryNames = {} -- if ur tail isnt recognized as one, put its name here
@@ -2101,6 +2101,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["mainKnot"] = {
 				["Instance"] = "Mesh",
@@ -2142,7 +2143,7 @@ function RoClothes(Player)
 				},
 				["Function"] = "BBCBallPhysics",
 				["Scale"] = "CockScale",
-				["AdjustScale"] = {"Size", "CFrame"}
+				["AdjustScale"] = {"Size", "CFrame1"}
 			}, 
 
 			["retracted"] = {
@@ -2164,6 +2165,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["tipKnot"] = {
 				["Instance"] = "Mesh",
@@ -2183,6 +2185,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["trShaft"] = {
 				["Instance"] = "Mesh",
@@ -2202,6 +2205,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["tlShaft"] = {
 				["Instance"] = "Mesh",
@@ -2221,6 +2225,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["brShaft"] = {
 				["Instance"] = "Mesh",
@@ -2240,6 +2245,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["blShaft"] = {
 				["Instance"] = "Mesh",
@@ -2259,6 +2265,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["knotSide"] = {
 				["Instance"] = "Mesh",
@@ -2278,6 +2285,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["knotBall"] = {
 				["Instance"] = "Mesh",
@@ -2297,6 +2305,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 
 			["retractedN"] = {
@@ -2318,6 +2327,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["tipKnotN"] = {
 				["Instance"] = "Mesh",
@@ -2337,6 +2347,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["trShaftN"] = {
 				["Instance"] = "Mesh",
@@ -2356,6 +2367,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["tlShaftN"] = {
 				["Instance"] = "Mesh",
@@ -2375,6 +2387,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["brShaftN"] = {
 				["Instance"] = "Mesh",
@@ -2394,6 +2407,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["blShaftN"] = {
 				["Instance"] = "Mesh",
@@ -2413,6 +2427,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["knotSideN"] = {
 				["Instance"] = "Mesh",
@@ -2432,6 +2447,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			["knotBallN"] = {
 				["Instance"] = "Mesh",
@@ -2451,6 +2467,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Main",
 				},
+				["Scale"] = "CockScale",
 			}, 
 			-- CLOTHES PARTS
 			["School Shirt"] = {
@@ -8614,6 +8631,7 @@ function RoClothes(Player)
 					[1] = "Left Leg",
 					[2] = "Left Leg Mesh",
 				},
+				["Scale"] = "LegsScale",
 			},
 			["leftheelstrap"] = {
 				["Instance"] = "Mesh",
@@ -8632,6 +8650,7 @@ function RoClothes(Player)
 					[1] = "Left Leg",
 					[2] = "Left Leg Mesh",
 				},
+				["Scale"] = "LegsScale",
 			},
 			["rightheel"] = {
 				["Instance"] = "Mesh",
@@ -8650,6 +8669,7 @@ function RoClothes(Player)
 					[1] = "Right Leg",
 					[2] = "Right Leg Mesh",
 				},
+				["Scale"] = "LegsScale",
 			},
 			["rightheelstrap"] = {
 				["Instance"] = "Mesh",
@@ -8668,6 +8688,7 @@ function RoClothes(Player)
 					[1] = "Right Leg",
 					[2] = "Right Leg Mesh",
 				},
+				["Scale"] = "LegsScale",
 			},
 			["leftheelcolors"] = {
 				["Instance"] = "Mesh",
@@ -8686,6 +8707,7 @@ function RoClothes(Player)
 					[1] = "Left Leg",
 					[2] = "Left Leg Mesh",
 				},
+				["Scale"] = "LegsScale",
 			},
 			["rightheelcolors"] = {
 				["Instance"] = "Mesh",
@@ -8704,6 +8726,7 @@ function RoClothes(Player)
 					[1] = "Right Leg",
 					[2] = "Right Leg Mesh",
 				},
+				["Scale"] = "LegsScale",
 			},
 		}
 	end
@@ -10492,9 +10515,9 @@ function RoClothes(Player)
 		},
 		["Colorable Heels [Legs6]"] = {
 			["Weld"] = {
-				[1] = "rightheelcolor",
+				[1] = "rightheelcolors",
 				[2] = "rightheelstrap",
-				[3] = "leftheelcolor",
+				[3] = "leftheelcolors",
 				[4] = "leftheelstrap",
 			},
 		},
