@@ -519,7 +519,7 @@ function RoClothes(Player)
 	local NPCs = {}
 
 	local PositionPhysicsMultiply = 1
-	local RotationPhysicsMultiply = 4
+	local RotationPhysicsMultiply = 5
 
 	-- tail stuff --
 	local includedAccessoryNames = {} -- if ur tail isnt recognized as one, put its name here
