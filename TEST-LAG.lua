@@ -127,202 +127,85 @@ RunService.RenderStepped:Connect(function()
 end)
 
 print("[MODO EXTREMO] FPS MAX + Render otimizado ativo")
--- FASTFLAG SIMULATION SCRIPT (MOBILE)
--- Visual + Performance | Client-Side
+--[[ 
+    LOWEST GRAPHICS REAL
+    Workspace + Texturas + Efeitos
+    SEM travamento
+    Mobile Safe
+--]]
 
-local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
-local ContentProvider = game:GetService("ContentProvider")
-local camera = workspace.CurrentCamera
 
---------------------------------------------------
--- 🚫 SIMULA: FFlagDisablePostFx
---------------------------------------------------
+local LocalPlayer = Players.LocalPlayer
 
-for _, v in pairs(Lighting:GetChildren()) do
-	if v:IsA("BloomEffect")
-	or v:IsA("SunRaysEffect")
-	or v:IsA("DepthOfFieldEffect")
-	or v:IsA("ColorCorrectionEffect") then
-		v:Destroy()
-	end
+-- ================= QUALIDADE ENGINE =================
+pcall(function()
+    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+end)
+
+-- ================= ILUMINAÇÃO LOWEST =================
+for _,v in ipairs(Lighting:GetChildren()) do
+    if v:IsA("PostEffect") then
+        v.Enabled = false
+    end
 end
 
-local cc = Instance.new("ColorCorrectionEffect")
-cc.Brightness = -0.05
-cc.Contrast = 0.03
-cc.Saturation = -0.30
-cc.Parent = Lighting
-
-Lighting.ExposureCompensation = -0.4
 Lighting.GlobalShadows = false
-
---------------------------------------------------
--- 🧱 SIMULA: TextureQualityOverride + SkipMips
---------------------------------------------------
-
-for _, obj in pairs(workspace:GetDescendants()) do
-	if obj:IsA("Texture") or obj:IsA("Decal") then
-		obj:Destroy()
-	elseif obj:IsA("BasePart") then
-		obj.Material = Enum.Material.Plastic
-		obj.Reflectance = 0
-	end
-end
-
---------------------------------------------------
--- 🌍 SIMULA: Terrain simplificado
---------------------------------------------------
-
-local terrain = workspace:FindFirstChildOfClass("Terrain")
-if terrain then
-	terrain.WaterWaveSize = 0
-	terrain.WaterWaveSpeed = 0
-	terrain.WaterReflectance = 0
-	terrain.WaterTransparency = 1
-end
-
---------------------------------------------------
--- 🛑 NO SHAKE (ANTI CAMERA)
---------------------------------------------------
-
-local lastCFrame = camera.CFrame
-local lastFOV = camera.FieldOfView
-
-RunService.RenderStepped:Connect(function()
-	camera.CFrame = lastCFrame
-	camera.FieldOfView = lastFOV
-end)
-
-RunService.RenderStepped:Connect(function()
-	lastCFrame = camera.CFrame
-end)
-
---------------------------------------------------
--- ❄️ ANTI DELAY / GC / STUTTER
---------------------------------------------------
-
-pcall(function()
-	ContentProvider:PreloadAsync({})
-end)
-
-task.spawn(function()
-	while task.wait(12) do
-		collectgarbage("step", 200)
-	end
-end)
-
---------------------------------------------------
--- 🚀 FPS / RENDER OTIMIZADO
---------------------------------------------------
-
-settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-
-pcall(function()
-	sethiddenproperty(Lighting, "Technology", Enum.Technology.Compatibility)
-end)
-
-pcall(function()
-	workspace.StreamingEnabled = false
-end)
-
---------------------------------------------------
--- 🔥 DESATIVAR EFEITOS PESADOS
---------------------------------------------------
-
-for _, v in pairs(workspace:GetDescendants()) do
-	if v:IsA("ParticleEmitter")
-	or v:IsA("Trail")
-	or v:IsA("Smoke")
-	or v:IsA("Fire") then
-		v.Enabled = false
-	end
-end
-
---------------------------------------------------
--- 🔁 ANTI RECRIAÇÃO DE POSTFX
---------------------------------------------------
-
-Lighting.ChildAdded:Connect(function(child)
-	if child:IsA("BloomEffect")
-	or child:IsA("SunRaysEffect")
-	or child:IsA("DepthOfFieldEffect") then
-		child:Destroy()
-	end
-end)
--- FASTFLAG SIMULATION SCRIPT (MOBILE)
--- Visual + Render Optimization
--- Client-Side
-
-local Lighting = game:GetService("Lighting")
-local RunService = game:GetService("RunService")
-
---------------------------------------------------
--- 🚫 SIMULA: FFlagDisablePostFx = true
---------------------------------------------------
-
-for _, v in pairs(Lighting:GetChildren()) do
-	if v:IsA("BloomEffect")
-	or v:IsA("SunRaysEffect")
-	or v:IsA("DepthOfFieldEffect")
-	or v:IsA("ColorCorrectionEffect") then
-		v:Destroy()
-	end
-end
-
---------------------------------------------------
--- 🌑 SIMULA: FFlagDebugSkyGray = false
---------------------------------------------------
-
+Lighting.Brightness = 1
+Lighting.FogStart = 0
+Lighting.FogEnd = 9e9
 Lighting.Ambient = Color3.fromRGB(120,120,120)
 Lighting.OutdoorAmbient = Color3.fromRGB(120,120,120)
-Lighting.Brightness = 1
-Lighting.ExposureCompensation = -0.4
-Lighting.GlobalShadows = false
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
 
---------------------------------------------------
--- 🧱 SIMULA: TextureQualityOverride + SkipMips
---------------------------------------------------
+-- ================= FUNÇÃO LOWEST (LEVE) =================
+local function applyLowest(v)
+    -- PARTES
+    if v:IsA("BasePart") then
+        v.Material = Enum.Material.Plastic
+        v.Reflectance = 0
+        v.CastShadow = false
 
-for _, obj in pairs(workspace:GetDescendants()) do
-	if obj:IsA("Texture") or obj:IsA("Decal") then
-		obj:Destroy()
-	elseif obj:IsA("BasePart") then
-		obj.Material = Enum.Material.Plastic
-		obj.Reflectance = 0
-	end
+    -- MESH
+    elseif v:IsA("MeshPart") then
+        v.Material = Enum.Material.Plastic
+        v.TextureID = ""
+        v.CastShadow = false
+
+    -- TEXTURAS
+    elseif v:IsA("Decal") or v:IsA("Texture") then
+        v.Transparency = 1
+
+    -- EFEITOS
+    elseif v:IsA("ParticleEmitter")
+        or v:IsA("Trail")
+        or v:IsA("Fire")
+        or v:IsA("Smoke")
+        or v:IsA("Sparkles") then
+        v.Enabled = false
+    end
 end
 
---------------------------------------------------
--- 🖼️ SIMULA: DFIntTextureQualityOverride = 0
---------------------------------------------------
+-- ================= APLICA UMA VEZ =================
+for _,v in ipairs(workspace:GetDescendants()) do
+    applyLowest(v)
+end
 
-settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-
---------------------------------------------------
--- 🎮 SIMULA: MSAA 4x (parcial)
---------------------------------------------------
-
-pcall(function()
-	sethiddenproperty(Lighting, "Technology", Enum.Technology.Compatibility)
+-- ================= NOVOS OBJETOS (SEM LOOP) =================
+workspace.DescendantAdded:Connect(function(v)
+    applyLowest(v)
 end)
 
---------------------------------------------------
--- ❄️ REDUZ STUTTER (scheduler fake)
---------------------------------------------------
-
-RunService.RenderStepped:Connect(function()
-	RunService.Heartbeat:Wait()
+-- ================= RESPAWN FIX (LEVE) =================
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    for _,v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.LocalTransparencyModifier = 0
+        end
+    end
 end)
 
---------------------------------------------------
--- 🔁 ANTI EFEITOS RECRIADOS
---------------------------------------------------
-
-Lighting.ChildAdded:Connect(function(child)
-	if child:IsA("BloomEffect")
-	or child:IsA("SunRaysEffect")
-	or child:IsA("DepthOfFieldEffect") then
-		child:Destroy()
-	end
-end)
+print("[LOWEST GRAPHICS] Ativo | Estável | Sem travamento")
