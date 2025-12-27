@@ -606,7 +606,7 @@ function RoClothes(Player)
 			CockScale = 1,
 			BreastsScale = 1,
 			ButtsScale = 1,
-			LegsScale = 1,
+			LegsScale = 1.1,
 			BreastsType = 1,
 			TorsoType = 7,
 			ArmType = 3,
