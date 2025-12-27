@@ -7,8 +7,8 @@ local LP = Players.LocalPlayer
 
 --// CONFIG
 local FOV = 120
-local CamSmooth = 1.3
-local AimSmooth = 1.3
+local CamSmooth = 1
+local AimSmooth = 1
 
 --// STATE
 local Enabled = false
