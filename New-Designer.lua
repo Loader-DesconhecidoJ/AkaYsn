@@ -10,15 +10,14 @@ local Enabled = false
 local TargetType = "PLAYERS"
 local LockMode = "CAMLOCK" -- CAMLOCK / AIMLOCK / ASSIST
 local BodyPart = "Head"
-local Target = nil
 local Hue = 0
 local PartMenuOpen = false
 
 --// CONFIG
-local FOV = 100
+local FOV = 120
 local CamSmooth = 0.98
 local AimSmooth = 1
-local AssistStrength = 1
+local AssistStrength = 0.85
 
 --// FOV CIRCLE (AIM ASSIST ONLY)
 local FovCircle = Drawing.new("Circle")
@@ -212,13 +211,11 @@ end)
 targetBtn.MouseButton1Click:Connect(function()
 	TargetType = TargetType=="PLAYERS" and "NPCS" or "PLAYERS"
 	targetBtn.Text = TargetType=="PLAYERS" and "P" or "N"
-	Target=nil
 end)
 
 toggle.MouseButton1Click:Connect(function()
 	Enabled = not Enabled
 	toggle.Text = Enabled and "ON" or "OFF"
-	Target=nil
 end)
 
 partBtn.MouseButton1Click:Connect(function()
@@ -233,27 +230,44 @@ RunService.RenderStepped:Connect(function(dt)
 	toggle.BackgroundColor3 = Color3.fromHSV(Hue,0.85,0.9)
 
 	FovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+	FovCircle.Radius = FOV
 	FovCircle.Visible = Enabled and LockMode=="ASSIST"
 
 	if not Enabled then return end
-	if not Target or not Target.Parent then Target=getTarget() return end
 
 	if LockMode=="CAMLOCK" then
-		Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Target.Position), CamSmooth)
+		local t = getTarget()
+		if t then
+			Camera.CFrame = Camera.CFrame:Lerp(
+				CFrame.new(Camera.CFrame.Position, t.Position),
+				CamSmooth
+			)
+		end
 
 	elseif LockMode=="AIMLOCK" then
-		local char=LP.Character
-		if char and char:FindFirstChild("HumanoidRootPart") then
-			local hrp=char.HumanoidRootPart
-			local look=Vector3.new(Target.Position.X, hrp.Position.Y, Target.Position.Z)
-			hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(hrp.Position, look), AimSmooth)
+		local t = getTarget()
+		if t then
+			local char = LP.Character
+			if char and char:FindFirstChild("HumanoidRootPart") then
+				local hrp = char.HumanoidRootPart
+				local look = Vector3.new(t.Position.X, hrp.Position.Y, t.Position.Z)
+				hrp.CFrame = hrp.CFrame:Lerp(
+					CFrame.new(hrp.Position, look),
+					AimSmooth
+				)
+			end
 		end
 
 	elseif LockMode=="ASSIST" then
-		if not sameTeam(Target) and hasLineOfSight(Target) then
-			local camCF=Camera.CFrame
-			local dir=(Target.Position-camCF.Position).Unit
-			Camera.CFrame = CFrame.new(camCF.Position, camCF.Position + camCF.LookVector:Lerp(dir, AssistStrength))
+		-- 🔥 DETECÇÃO INSTANTÂNEA (SEM DELAY)
+		local assistTarget = getTarget()
+		if assistTarget and not sameTeam(assistTarget) and hasLineOfSight(assistTarget) then
+			local camCF = Camera.CFrame
+			local dir = (assistTarget.Position - camCF.Position).Unit
+			Camera.CFrame = CFrame.new(
+				camCF.Position,
+				camCF.Position + camCF.LookVector:Lerp(dir, AssistStrength)
+			)
 		end
 	end
 end)
