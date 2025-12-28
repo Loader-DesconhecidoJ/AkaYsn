@@ -10,6 +10,7 @@ local Enabled = false
 local TargetType = "PLAYERS"
 local LockMode = "CAMLOCK" -- CAMLOCK / AIMLOCK / ASSIST
 local BodyPart = "Head"
+local LockedTarget = nil
 local Hue = 0
 local PartMenuOpen = false
 
@@ -17,7 +18,7 @@ local PartMenuOpen = false
 local FOV = 120
 local CamSmooth = 0.98
 local AimSmooth = 1
-local AssistStrength = 0.85
+local AssistStrength = 0.95
 
 --// FOV CIRCLE (AIM ASSIST ONLY)
 local FovCircle = Drawing.new("Circle")
@@ -49,7 +50,7 @@ local function sameTeam(part)
 	if TargetType ~= "PLAYERS" then return false end
 	local plr = Players:GetPlayerFromCharacter(part.Parent)
 	if not plr then return false end
-	return LP.Team ~= nil and plr.Team == LP.Team
+	return LP.Team and plr.Team == LP.Team
 end
 
 --// UTILS
@@ -112,158 +113,66 @@ main.BorderSizePixel = 0
 Instance.new("UICorner", main).CornerRadius = UDim.new(0,12)
 
 --// DRAG
-local dragging, startPos, dragStart
+local dragging,startPos,dragStart
 main.InputBegan:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		startPos = main.Position
-		dragStart = i.Position
+	if i.UserInputType==Enum.UserInputType.MouseButton1 then
+		dragging=true
+		startPos=main.Position
+		dragStart=i.Position
 	end
 end)
-
 main.InputChanged:Connect(function(i)
 	if dragging then
-		local delta = i.Position - dragStart
-		main.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
+		local d=i.Position-dragStart
+		main.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
 	end
 end)
-
 UIS.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-		dragging = false
-	end
-end)
-
---// BUTTON FACTORY
-local function sideBtn(text,y)
-	local b = Instance.new("TextButton", main)
-	b.Size = UDim2.new(0,44,0,18)
-	b.Position = UDim2.new(0,6,0,y)
-	b.Text = text
-	b.Font = Enum.Font.GothamBold
-	b.TextSize = 11
-	b.TextColor3 = Color3.new(1,1,1)
-	b.BackgroundColor3 = Color3.fromRGB(35,35,35)
-	b.BorderSizePixel = 0
-	Instance.new("UICorner", b)
-	return b
-end
-
-local targetBtn = sideBtn("P",4)
-local modeBtn   = sideBtn("CAM",20)
-local partBtn   = sideBtn("PART",36)
-
---// TOGGLE
-local toggle = Instance.new("TextButton", main)
-toggle.Size = UDim2.new(0,120,0,30)
-toggle.Position = UDim2.new(0.5,-60,0.5,-15)
-toggle.Text = "OFF"
-toggle.Font = Enum.Font.GothamBold
-toggle.TextSize = 14
-toggle.TextColor3 = Color3.new(1,1,1)
-toggle.BackgroundColor3 = Color3.fromRGB(60,60,60)
-toggle.BorderSizePixel = 0
-Instance.new("UICorner", toggle)
-
---// PART MENU
-local partMenu = Instance.new("Frame", gui)
-partMenu.Size = UDim2.new(0,84,0,90)
-partMenu.Visible = false
-partMenu.BackgroundColor3 = Color3.fromRGB(25,25,25)
-partMenu.BorderSizePixel = 0
-Instance.new("UICorner", partMenu)
-
-local function updatePartMenu()
-	local p,s = partBtn.AbsolutePosition, partBtn.AbsoluteSize
-	partMenu.Position = UDim2.fromOffset(p.X, p.Y + s.Y + 4)
-end
-
-local function partOption(text,y)
-	local b = Instance.new("TextButton", partMenu)
-	b.Size = UDim2.new(1,-8,0,24)
-	b.Position = UDim2.new(0,4,0,y)
-	b.Text = text
-	b.Font = Enum.Font.GothamBold
-	b.TextSize = 11
-	b.TextColor3 = Color3.new(1,1,1)
-	b.BackgroundColor3 = Color3.fromRGB(45,45,45)
-	b.BorderSizePixel = 0
-	Instance.new("UICorner", b)
-	return b
-end
-
-partOption("HEAD",4).MouseButton1Click:Connect(function() BodyPart="Head" partMenu.Visible=false PartMenuOpen=false end)
-partOption("TORSO",32).MouseButton1Click:Connect(function() BodyPart="Torso" partMenu.Visible=false PartMenuOpen=false end)
-partOption("FOOT",60).MouseButton1Click:Connect(function() BodyPart="Foot" partMenu.Visible=false PartMenuOpen=false end)
-
---// BUTTON ACTIONS
-modeBtn.MouseButton1Click:Connect(function()
-	if LockMode == "CAMLOCK" then LockMode="AIMLOCK" modeBtn.Text="AIM"
-	elseif LockMode=="AIMLOCK" then LockMode="ASSIST" modeBtn.Text="AST"
-	else LockMode="CAMLOCK" modeBtn.Text="CAM" end
-end)
-
-targetBtn.MouseButton1Click:Connect(function()
-	TargetType = TargetType=="PLAYERS" and "NPCS" or "PLAYERS"
-	targetBtn.Text = TargetType=="PLAYERS" and "P" or "N"
-end)
-
-toggle.MouseButton1Click:Connect(function()
-	Enabled = not Enabled
-	toggle.Text = Enabled and "ON" or "OFF"
-end)
-
-partBtn.MouseButton1Click:Connect(function()
-	PartMenuOpen = not PartMenuOpen
-	if PartMenuOpen then updatePartMenu() end
-	partMenu.Visible = PartMenuOpen
+	if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end
 end)
 
 --// LOOP
 RunService.RenderStepped:Connect(function(dt)
 	Hue = (Hue + dt*0.5) % 1
-	toggle.BackgroundColor3 = Color3.fromHSV(Hue,0.85,0.9)
 
 	FovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-	FovCircle.Radius = FOV
 	FovCircle.Visible = Enabled and LockMode=="ASSIST"
 
-	if not Enabled then return end
+	if not Enabled then
+		LockedTarget = nil
+		return
+	end
 
-	if LockMode=="CAMLOCK" then
-		local t = getTarget()
-		if t then
-			Camera.CFrame = Camera.CFrame:Lerp(
-				CFrame.new(Camera.CFrame.Position, t.Position),
-				CamSmooth
+	-- 🔒 CAMLOCK & AIMLOCK → ALVO FIXO (NUNCA TROCA)
+	if LockMode ~= "ASSIST" then
+		if not LockedTarget or not LockedTarget.Parent then
+			LockedTarget = getTarget()
+		end
+	end
+
+	if LockMode == "CAMLOCK" and LockedTarget then
+		Camera.CFrame = Camera.CFrame:Lerp(
+			CFrame.new(Camera.CFrame.Position, LockedTarget.Position),
+			CamSmooth
+		)
+
+	elseif LockMode == "AIMLOCK" and LockedTarget then
+		local char = LP.Character
+		if char and char:FindFirstChild("HumanoidRootPart") then
+			local hrp = char.HumanoidRootPart
+			local look = Vector3.new(LockedTarget.Position.X, hrp.Position.Y, LockedTarget.Position.Z)
+			hrp.CFrame = hrp.CFrame:Lerp(
+				CFrame.new(hrp.Position, look),
+				AimSmooth
 			)
 		end
 
-	elseif LockMode=="AIMLOCK" then
+	-- 🎯 AIM ASSIST → DINÂMICO
+	elseif LockMode == "ASSIST" then
 		local t = getTarget()
-		if t then
-			local char = LP.Character
-			if char and char:FindFirstChild("HumanoidRootPart") then
-				local hrp = char.HumanoidRootPart
-				local look = Vector3.new(t.Position.X, hrp.Position.Y, t.Position.Z)
-				hrp.CFrame = hrp.CFrame:Lerp(
-					CFrame.new(hrp.Position, look),
-					AimSmooth
-				)
-			end
-		end
-
-	elseif LockMode=="ASSIST" then
-		-- 🔥 DETECÇÃO INSTANTÂNEA (SEM DELAY)
-		local assistTarget = getTarget()
-		if assistTarget and not sameTeam(assistTarget) and hasLineOfSight(assistTarget) then
+		if t and not sameTeam(t) and hasLineOfSight(t) then
 			local camCF = Camera.CFrame
-			local dir = (assistTarget.Position - camCF.Position).Unit
+			local dir = (t.Position - camCF.Position).Unit
 			Camera.CFrame = CFrame.new(
 				camCF.Position,
 				camCF.Position + camCF.LookVector:Lerp(dir, AssistStrength)
