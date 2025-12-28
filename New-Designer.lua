@@ -18,7 +18,7 @@ local PartMenuOpen = false
 local FOV = 120
 local CamSmooth = 0.98
 local AimSmooth = 1
-local AssistStrength = 0.45
+local AssistStrength = 0.86
 
 --// FOV CIRCLE (AIM ASSIST ONLY)
 local FovCircle = Drawing.new("Circle")
