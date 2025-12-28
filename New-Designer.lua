@@ -14,7 +14,7 @@ local LockedTarget = nil
 local Hue = 0
 
 --// CONFIG
-local FOV = 120
+local FOV = 110
 local CamSmooth = 0.98
 local AimSmooth = 1
 local AssistStrength = 0.96
