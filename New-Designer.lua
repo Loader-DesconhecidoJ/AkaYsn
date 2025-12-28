@@ -60,11 +60,6 @@ local function wallCheck(part)
 	return not r or r.Instance:IsDescendantOf(part.Parent)
 end
 
-local function teamCheck(part)
-	local p = Players:GetPlayerFromCharacter(part.Parent)
-	return p and LP.Team and p.Team == LP.Team
-end
-
 --// TARGET
 local function getTarget()
 	local center = Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y/2)
@@ -95,9 +90,10 @@ end
 local gui = Instance.new("ScreenGui",LP.PlayerGui)
 gui.ResetOnSpawn=false
 
+--// MAIN MENU
 local main = Instance.new("Frame",gui)
-main.Size = UDim2.new(0,220,0,52)
-main.Position = UDim2.new(0.5,-110,0.65,0)
+main.Size = UDim2.new(0,180,0,52) -- largura ajustada
+main.Position = UDim2.new(0.5,-90,0.65,0)
 main.BackgroundColor3 = Color3.fromRGB(18,18,18)
 main.BorderSizePixel = 0
 Instance.new("UICorner",main).CornerRadius = UDim.new(0,14)
@@ -105,15 +101,15 @@ Instance.new("UICorner",main).CornerRadius = UDim.new(0,14)
 --// SIDE BUTTONS
 local function sideBtn(txt,y)
 	local b=Instance.new("TextButton",main)
-	b.Size=UDim2.new(0,40,0,14)
+	b.Size=UDim2.new(0,38,0,14)
 	b.Position=UDim2.new(0,6,0,y)
 	b.Text=txt
 	b.Font=Enum.Font.GothamBold
 	b.TextSize=11
 	b.TextColor3=Color3.new(1,1,1)
 	b.BackgroundColor3=Color3.fromRGB(32,32,32)
-	b.BorderSizePixel=0
-	Instance.new("UICorner",b).CornerRadius=UDim.new(0,6)
+	b.BorderSizePixel = 0
+	Instance.new("UICorner",b).CornerRadius = UDim.new(0,6)
 	return b
 end
 
@@ -123,14 +119,14 @@ local partBtn = sideBtn("PART",32)
 
 --// TOGGLE
 local toggle = Instance.new("TextButton",main)
-toggle.Size=UDim2.new(0,120,0,34)
-toggle.Position=UDim2.new(0.5,-60,0.5,-17)
+toggle.Size = UDim2.new(0,110,0,34)
+toggle.Position = UDim2.new(0.5,-45,0.5,-17) -- movido um pouco para a direita
 toggle.Text="TOGGLE OFF"
 toggle.Font=Enum.Font.GothamMedium
 toggle.TextSize=14
 toggle.TextColor3=Color3.new(1,1,1)
 toggle.BorderSizePixel=0
-Instance.new("UICorner",toggle).CornerRadius=UDim.new(0,12)
+Instance.new("UICorner",toggle).CornerRadius = UDim.new(0,12)
 
 --// DRAG BUTTON 🔄
 local dragBtn = Instance.new("TextButton",gui)
@@ -149,7 +145,7 @@ partMenu.Size=UDim2.new(0,110,0,66)
 partMenu.BackgroundColor3=Color3.fromRGB(22,22,22)
 partMenu.BorderSizePixel=0
 partMenu.Visible=false
-Instance.new("UICorner",partMenu).CornerRadius=UDim.new(0,8)
+Instance.new("UICorner",partMenu).CornerRadius = UDim.new(0,8)
 
 local function partOption(txt,y)
 	local b=Instance.new("TextButton",partMenu)
@@ -198,7 +194,7 @@ h.MouseButton1Click:Connect(function() BodyPart="Head" partMenu.Visible=false en
 t.MouseButton1Click:Connect(function() BodyPart="Torso" partMenu.Visible=false end)
 f.MouseButton1Click:Connect(function() BodyPart="Foot" partMenu.Visible=false end)
 
---// DRAG (PC + MOBILE)
+--// DRAG LOGIC
 local dragging=false
 local dragInput
 local dragStart
@@ -283,7 +279,7 @@ RunService.RenderStepped:Connect(function()
 
 	elseif Mode=="ASSIST" then
 		local t=getTarget()
-		if t and wallCheck(t) and not teamCheck(t) then
+		if t and wallCheck(t) then
 			local cam=Camera.CFrame
 			local dir=(t.Position-cam.Position).Unit
 			Camera.CFrame=CFrame.new(cam.Position,cam.Position+cam.LookVector:Lerp(dir,AssistStrength))
