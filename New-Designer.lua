@@ -120,7 +120,7 @@ local partBtn = sideBtn("PART",32)
 --// TOGGLE
 local toggle = Instance.new("TextButton",main)
 toggle.Size = UDim2.new(0,110,0,34)
-toggle.Position = UDim2.new(0.5,-45,0.5,-17) -- movido um pouco para a direita
+toggle.Position = UDim2.new(0.5,-36,0.5,-17) -- movido um pouco para a direita
 toggle.Text="TOGGLE OFF"
 toggle.Font=Enum.Font.GothamMedium
 toggle.TextSize=14
