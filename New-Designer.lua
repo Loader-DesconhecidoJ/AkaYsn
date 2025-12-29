@@ -17,7 +17,7 @@ local Hue = 0
 local FOV = 110
 local CamSmooth = 0.98
 local AimSmooth = 1
-local AssistStrength = 0.94
+local AssistStrength = 0.96
 
 --// RGB
 local function rgb()
