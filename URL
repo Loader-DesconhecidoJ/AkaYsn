@@ -4,7 +4,7 @@ const app = express();
 app.use(express.json());
 
 // Sua chave OpenAI
-const OPENAI_API_KEY = "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";
+const OPENAI_API_KEY = "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";
 
 // Endpoint da IA
 app.post("/respond", async (req, res) => {
