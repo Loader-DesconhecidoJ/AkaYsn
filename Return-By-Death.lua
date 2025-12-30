@@ -1,10 +1,11 @@
--- Respawn cinematográfico estilo Return by Death + clone ragdoll + dissolve + flash + bloom + câmera distorcida
+-- Respawn cinematográfico estilo Return by Death + clone ragdoll + dissolve + flash + bloom + warp + partículas + slow-motion + rastro
 
 local Players = game:GetService("Players")
 local SoundService = game:GetService("SoundService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
 local player = Players.LocalPlayer
 
 local deathPosition = nil
@@ -45,12 +46,12 @@ bloom.Size = 24
 bloom.Threshold = 0.5
 bloom.Parent = Lighting
 
--- Blur da tela leve para distorção
+-- Blur leve para distorção
 local blur = Instance.new("BlurEffect")
 blur.Size = 0
 blur.Parent = Lighting
 
--- flash + bloom + blur + leve distorção
+-- flash + bloom + blur + warp
 local function screenFlashEffects()
 	for i=0,1,0.1 do
 		flashFrame.BackgroundTransparency = 1 - i*0.6
@@ -69,11 +70,10 @@ local function screenFlashEffects()
 	blur.Size = 0
 end
 
--- ragdoll realista
-local function applyRealRagdoll(clone)
+-- ragdoll do clone
+local function applyRagdoll(clone)
 	local humanoid = clone:FindFirstChildOfClass("Humanoid")
 	if not humanoid then return end
-
 	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 	humanoid.AutoRotate = false
 
@@ -90,7 +90,6 @@ local function applyRealRagdoll(clone)
 			socket.LimitsEnabled = true
 			socket.TwistLimitsEnabled = true
 			socket.Parent = joint.Parent
-
 			joint:Destroy()
 		end
 	end
@@ -101,7 +100,7 @@ local function applyRealRagdoll(clone)
 		root.RotVelocity = Vector3.new(math.random(-2,2), math.random(-2,2), math.random(-2,2))
 	end
 
-	-- desativa colisão entre clone e corpo real
+	-- desativa colisão com corpo real
 	for _, part in ipairs(clone:GetDescendants()) do
 		if part:IsA("BasePart") then
 			part.CanCollide = false
@@ -120,36 +119,42 @@ local function dissolveClone(clone, duration)
 	end
 end
 
--- impacto do clone
-local function setupImpactSound(clone)
-	local root = clone:FindFirstChild("HumanoidRootPart")
-	if not root then return end
-
-	local touchedConnection
-	touchedConnection = root.Touched:Connect(function(hit)
-		if hit and hit:IsA("BasePart") and hit.Parent ~= clone then
-			impactSound:Play()
-			local cam = workspace.CurrentCamera
-			if cam then
-				local originalCFrame = cam.CFrame
-				for i=1,5 do
-					cam.CFrame = originalCFrame * CFrame.new(math.random(-0.2,0.2),math.random(-0.2,0.2),math.random(-0.2,0.2))
-					task.wait(0.03)
-				end
-				cam.CFrame = originalCFrame
-			end
-			touchedConnection:Disconnect()
+-- partículas de energia sutis
+local function addEnergyParticles(clone)
+	for _, part in ipairs(clone:GetDescendants()) do
+		if part:IsA("BasePart") then
+			local emitter = Instance.new("ParticleEmitter")
+			emitter.Texture = "rbxassetid://243660364" -- exemplo de faísca branca
+			emitter.Rate = 5
+			emitter.Lifetime = NumberRange.new(0.5)
+			emitter.Speed = NumberRange.new(1)
+			emitter.Parent = part
+			Debris:AddItem(emitter, 3)
 		end
-	end)
+	end
 end
 
--- efeito de “tempo parado”
-local function freezeTimeBriefly()
+-- rastro de energia
+local function addTrail(clone)
+	local root = clone:FindFirstChild("HumanoidRootPart")
+	if root then
+		local trail = Instance.new("Trail")
+		trail.Attachment0 = Instance.new("Attachment", root)
+		trail.Attachment1 = Instance.new("Attachment", root)
+		trail.Lifetime = 0.3
+		trail.Color = ColorSequence.new(Color3.fromRGB(200,200,255))
+		trail.Parent = root
+		Debris:AddItem(trail, 3)
+	end
+end
+
+-- slow-motion breve
+local function slowMotion()
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("Humanoid") and obj.Parent ~= player.Character then
 			local origSpeed = obj.WalkSpeed
-			obj.WalkSpeed = 0
-			task.delay(0.1, function()
+			obj.WalkSpeed = origSpeed * 0.3
+			task.delay(0.2, function()
 				if obj then obj.WalkSpeed = origSpeed end
 			end)
 		end
@@ -165,7 +170,7 @@ local function onCharacterAdded(character)
 	if deathPosition then
 		root.CFrame = CFrame.new(deathPosition + Vector3.new(0,3,0))
 		reviveSound:Play()
-		freezeTimeBriefly()
+		slowMotion()
 		screenFlashEffects()
 	end
 
@@ -185,8 +190,9 @@ local function onCharacterAdded(character)
 			end
 		end
 
-		applyRealRagdoll(clone)
-		setupImpactSound(clone)
+		applyRagdoll(clone)
+		addEnergyParticles(clone)
+		addTrail(clone)
 
 		-- some com corpo real
 		for _, p in ipairs(character:GetDescendants()) do
