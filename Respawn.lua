@@ -1,103 +1,212 @@
--- Respawn instantâneo + som + "?" com ÓRBITA LARGA ao redor da cabeça
+-- Respawn cinematográfico estilo Return by Death + clone ragdoll + dissolve + flash + bloom + câmera distorcida
 
 local Players = game:GetService("Players")
 local SoundService = game:GetService("SoundService")
 local RunService = game:GetService("RunService")
-
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
+
 local deathPosition = nil
 
 -- SOM
 local REVIVE_SOUND_ID = "rbxassetid://18597544476"
+local IMPACT_SOUND_ID = "rbxassetid://81257331910512"
 local VOLUME = 3
 
--- CONFIG EFEITO (ÓRBITA LARGA)
-local EFFECT_DURATION = 3
-local ORBIT_RADIUS = 0.65        -- MUITO MAIS LARGO
-local ORBIT_HEIGHT = 0.95        -- BAIXO
-local ORBIT_SPEED = 2.2
-local QUESTION_COUNT = 3
-
--- cria som
 local reviveSound = Instance.new("Sound")
 reviveSound.SoundId = REVIVE_SOUND_ID
 reviveSound.Volume = VOLUME
-reviveSound.Looped = false
 reviveSound.Parent = SoundService
 
--- cria um "?"
-local function createQuestion(head)
-	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.fromScale(0.75, 0.75)
-	bb.AlwaysOnTop = true
-	bb.Parent = head
+local impactSound = Instance.new("Sound")
+impactSound.SoundId = IMPACT_SOUND_ID
+impactSound.Volume = VOLUME
+impactSound.Parent = SoundService
 
-	local txt = Instance.new("TextLabel")
-	txt.Size = UDim2.fromScale(1, 1)
-	txt.BackgroundTransparency = 1
-	txt.Text = "?"
-	txt.TextScaled = true
-	txt.Font = Enum.Font.GothamBold
-	txt.TextColor3 = Color3.fromRGB(255, 255, 255)
-	txt.TextStrokeTransparency = 0
-	txt.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-	txt.Parent = bb
+-- GUI do flash
+local flashGui = Instance.new("ScreenGui")
+flashGui.ResetOnSpawn = false
+flashGui.Parent = player:WaitForChild("PlayerGui")
 
-	return bb
+local flashFrame = Instance.new("Frame")
+flashFrame.Size = UDim2.fromScale(1,1)
+flashFrame.Position = UDim2.new(0,0,0,0)
+flashFrame.AnchorPoint = Vector2.new(0,0)
+flashFrame.BackgroundColor3 = Color3.fromRGB(220,220,255)
+flashFrame.BackgroundTransparency = 1
+flashFrame.ZIndex = 1000
+flashFrame.Parent = flashGui
+
+-- Bloom leve
+local bloom = Instance.new("BloomEffect")
+bloom.Intensity = 0
+bloom.Size = 24
+bloom.Threshold = 0.5
+bloom.Parent = Lighting
+
+-- Blur da tela leve para distorção
+local blur = Instance.new("BlurEffect")
+blur.Size = 0
+blur.Parent = Lighting
+
+-- flash + bloom + blur + leve distorção
+local function screenFlashEffects()
+	for i=0,1,0.1 do
+		flashFrame.BackgroundTransparency = 1 - i*0.6
+		bloom.Intensity = i*1
+		blur.Size = i*8
+		task.wait(0.02)
+	end
+	for i=0,1,0.1 do
+		flashFrame.BackgroundTransparency = 0.4 + i*0.6
+		bloom.Intensity = 1 - i*1
+		blur.Size = 8 - i*8
+		task.wait(0.02)
+	end
+	flashFrame.BackgroundTransparency = 1
+	bloom.Intensity = 0
+	blur.Size = 0
 end
 
--- efeito completo
-local function createOrbitQuestions(head)
-	local questions = {}
-	local offsets = {}
+-- ragdoll realista
+local function applyRealRagdoll(clone)
+	local humanoid = clone:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
 
-	-- offsets uniformes (0°, 120°, 240°)
-	for i = 1, QUESTION_COUNT do
-		questions[i] = createQuestion(head)
-		offsets[i] = (math.pi * 2 / QUESTION_COUNT) * (i - 1)
+	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	humanoid.AutoRotate = false
+
+	for _, joint in ipairs(clone:GetDescendants()) do
+		if joint:IsA("Motor6D") then
+			local a1 = Instance.new("Attachment", joint.Part0)
+			local a2 = Instance.new("Attachment", joint.Part1)
+			a1.CFrame = joint.C0
+			a2.CFrame = joint.C1
+
+			local socket = Instance.new("BallSocketConstraint")
+			socket.Attachment0 = a1
+			socket.Attachment1 = a2
+			socket.LimitsEnabled = true
+			socket.TwistLimitsEnabled = true
+			socket.Parent = joint.Parent
+
+			joint:Destroy()
+		end
 	end
 
-	local start = tick()
-	local conn
-	conn = RunService.RenderStepped:Connect(function()
-		local elapsed = tick() - start
-		if elapsed >= EFFECT_DURATION then
-			conn:Disconnect()
-			for _, q in ipairs(questions) do
-				q:Destroy()
-			end
-			return
-		end
+	local root = clone:FindFirstChild("HumanoidRootPart")
+	if root then
+		root.Velocity = Vector3.new(math.random(-5,5), 10, math.random(-5,5))
+		root.RotVelocity = Vector3.new(math.random(-2,2), math.random(-2,2), math.random(-2,2))
+	end
 
-		for i, q in ipairs(questions) do
-			local ang = elapsed * ORBIT_SPEED + offsets[i]
-			local x = math.cos(ang) * ORBIT_RADIUS
-			local z = math.sin(ang) * ORBIT_RADIUS
-			q.StudsOffset = Vector3.new(x, ORBIT_HEIGHT, z)
+	-- desativa colisão entre clone e corpo real
+	for _, part in ipairs(clone:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.CanCollide = false
+		end
+	end
+end
+
+-- dissolve gradual
+local function dissolveClone(clone, duration)
+	for _, part in ipairs(clone:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Material = Enum.Material.SmoothPlastic
+			local tween = TweenService:Create(part, TweenInfo.new(duration), {Transparency = 1})
+			tween:Play()
+		end
+	end
+end
+
+-- impacto do clone
+local function setupImpactSound(clone)
+	local root = clone:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local touchedConnection
+	touchedConnection = root.Touched:Connect(function(hit)
+		if hit and hit:IsA("BasePart") and hit.Parent ~= clone then
+			impactSound:Play()
+			local cam = workspace.CurrentCamera
+			if cam then
+				local originalCFrame = cam.CFrame
+				for i=1,5 do
+					cam.CFrame = originalCFrame * CFrame.new(math.random(-0.2,0.2),math.random(-0.2,0.2),math.random(-0.2,0.2))
+					task.wait(0.03)
+				end
+				cam.CFrame = originalCFrame
+			end
+			touchedConnection:Disconnect()
 		end
 	end)
 end
 
--- personagem nasceu
+-- efeito de “tempo parado”
+local function freezeTimeBriefly()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Humanoid") and obj.Parent ~= player.Character then
+			local origSpeed = obj.WalkSpeed
+			obj.WalkSpeed = 0
+			task.delay(0.1, function()
+				if obj then obj.WalkSpeed = origSpeed end
+			end)
+		end
+	end
+end
+
+-- personagem spawnou
 local function onCharacterAdded(character)
-	local humanoid = character:WaitForChild("Humanoid", 2)
-	local root = character:WaitForChild("HumanoidRootPart", 2)
-	local head = character:WaitForChild("Head", 2)
-	if not humanoid or not root or not head then return end
+	local humanoid = character:WaitForChild("Humanoid")
+	local root = character:WaitForChild("HumanoidRootPart")
+	local head = character:WaitForChild("Head")
 
 	if deathPosition then
-		RunService.RenderStepped:Wait()
-		root.CFrame = CFrame.new(deathPosition + Vector3.new(0, 3, 0))
+		root.CFrame = CFrame.new(deathPosition + Vector3.new(0,3,0))
 		reviveSound:Play()
-		createOrbitQuestions(head)
+		freezeTimeBriefly()
+		screenFlashEffects()
 	end
 
 	humanoid.Died:Connect(function()
-		if character:FindFirstChild("HumanoidRootPart") then
-			deathPosition = character.HumanoidRootPart.Position
+		deathPosition = root.Position
+
+		if character:FindFirstChild("CloneCreated") then return end
+		Instance.new("BoolValue", character).Name = "CloneCreated"
+
+		local clone = character:Clone()
+		clone.Parent = workspace
+		clone:MoveTo(deathPosition)
+
+		for _, v in ipairs(clone:GetDescendants()) do
+			if v:IsA("Script") or v:IsA("LocalScript") then
+				v:Destroy()
+			end
 		end
+
+		applyRealRagdoll(clone)
+		setupImpactSound(clone)
+
+		-- some com corpo real
+		for _, p in ipairs(character:GetDescendants()) do
+			if p:IsA("BasePart") then
+				p.Transparency = 1
+				p.CanCollide = false
+			end
+		end
+
+		-- dissolve gradual do clone depois de 10 segundos
+		task.delay(10, function()
+			dissolveClone(clone, 3)
+			task.delay(3, function()
+				if clone.Parent then clone:Destroy() end
+			end)
+		end)
 	end)
 end
 
 player.CharacterAdded:Connect(onCharacterAdded)
-if player.Character then onCharacterAdded(player.Character) end
+if player.Character then
+	onCharacterAdded(player.Character)
+end
