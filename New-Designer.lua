@@ -120,7 +120,7 @@ local partBtn = sideBtn("PART",32)
 --// TOGGLE
 local toggle = Instance.new("TextButton",main)
 toggle.Size = UDim2.new(0,110,0,34)
-toggle.Position = UDim2.new(0.5,-36,0.5,-17) -- movido para direita
+toggle.Position = UDim2.new(0.5,-36,0.5,-17)
 toggle.Text="TOGGLE OFF"
 toggle.Font=Enum.Font.GothamMedium
 toggle.TextSize=14
@@ -265,8 +265,11 @@ RunService.RenderStepped:Connect(function()
 	end
 
 	if Mode=="CAMLOCK" and LockedTarget then
-		-- Câmera agora mais fixa mesmo com lag
-		Camera.CFrame = CFrame.new(Camera.CFrame.Position, LockedTarget.Position)
+		local targetPart = LockedTarget.Parent:FindFirstChild("HumanoidRootPart") or LockedTarget
+		if targetPart then
+			-- CAMLOCK reforçada, câmera fixa no alvo
+			Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+		end
 		
 	elseif Mode=="AIMLOCK" and LockedTarget then
 		local hrp=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
