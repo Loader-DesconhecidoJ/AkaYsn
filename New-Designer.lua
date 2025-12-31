@@ -15,7 +15,7 @@ local Hue = 0
 
 --// CONFIG
 local FOV = 110
-local CamSmooth = 0.98
+local CamSmooth = 0.35  -- Suavidade menor, mais fixo
 local AimSmooth = 1
 local AssistStrength = 0.96
 
@@ -92,7 +92,7 @@ gui.ResetOnSpawn=false
 
 --// MAIN MENU
 local main = Instance.new("Frame",gui)
-main.Size = UDim2.new(0,180,0,52) -- largura ajustada
+main.Size = UDim2.new(0,180,0,52)
 main.Position = UDim2.new(0.5,-90,0.65,0)
 main.BackgroundColor3 = Color3.fromRGB(18,18,18)
 main.BorderSizePixel = 0
@@ -120,7 +120,7 @@ local partBtn = sideBtn("PART",32)
 --// TOGGLE
 local toggle = Instance.new("TextButton",main)
 toggle.Size = UDim2.new(0,110,0,34)
-toggle.Position = UDim2.new(0.5,-36,0.5,-17) -- movido um pouco para a direita
+toggle.Position = UDim2.new(0.5,-36,0.5,-17) -- movido para direita
 toggle.Text="TOGGLE OFF"
 toggle.Font=Enum.Font.GothamMedium
 toggle.TextSize=14
@@ -265,11 +265,9 @@ RunService.RenderStepped:Connect(function()
 	end
 
 	if Mode=="CAMLOCK" and LockedTarget then
-		Camera.CFrame = Camera.CFrame:Lerp(
-			CFrame.new(Camera.CFrame.Position, LockedTarget.Position),
-			CamSmooth
-		)
-
+		-- Câmera agora mais fixa mesmo com lag
+		Camera.CFrame = CFrame.new(Camera.CFrame.Position, LockedTarget.Position)
+		
 	elseif Mode=="AIMLOCK" and LockedTarget then
 		local hrp=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
 		if hrp then
