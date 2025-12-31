@@ -57,7 +57,7 @@ local function screenFlashEffects()
 		flashFrame.BackgroundTransparency = 1 - i*0.6
 		bloom.Intensity = i*1
 		blur.Size = i*8
-		task.wait(0.02)
+		task.wait(0.01)
 	end
 	for i=0,1,0.1 do
 		flashFrame.BackgroundTransparency = 0.4 + i*0.6
@@ -203,7 +203,7 @@ local function onCharacterAdded(character)
 		end
 
 		-- dissolve gradual do clone depois de 10 segundos
-		task.delay(10, function()
+		task.delay(5, function()
 			dissolveClone(clone, 3)
 			task.delay(3, function()
 				if clone.Parent then clone:Destroy() end
