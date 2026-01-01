@@ -1,6 +1,8 @@
---// EXCLUSIVE MOBILE ANTI-DELAY FINAL
---// 83% partículas | 65% efeitos | render mínimo FORÇADO 390
---// FPS + PING real (leve)
+--// EXCLUSIVE MOBILE ANTI-DELAY DEFINITIVO
+--// Gráfico 1 FORÇADO | Texturas mínimas
+--// 85% partículas | 75% efeitos
+--// Render mínimo FORÇADO 390
+--// FPS + Ping REAL
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -20,15 +22,27 @@ local Camera = workspace.CurrentCamera
 local SOUND_LIMIT = 0.9
 local MAP_LOOP = 10
 local STREAM_MIN = 390
+local GRAPHICS_LEVEL = 1
 
 --==============================
--- GRÁFICO BAIXO
+-- FORÇA GRÁFICO + TEXTURA NO 1
 --==============================
 
-pcall(function()
-	UserSettings.GameSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
-	UserSettings.GameSettings.GraphicsQualityLevel = 1
-	settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+local function forceGraphicsLow()
+	pcall(function()
+		UserSettings.GameSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+		UserSettings.GameSettings.GraphicsQualityLevel = GRAPHICS_LEVEL
+		settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+	end)
+end
+
+forceGraphicsLow()
+
+task.spawn(function()
+	while true do
+		forceGraphicsLow()
+		task.wait(1)
+	end
 end)
 
 --==============================
@@ -65,34 +79,35 @@ Lighting.FogStart = 0
 Lighting.FogEnd = 1e10
 
 --==============================
--- 83% PARTÍCULAS / 65% EFEITOS
+-- 85% PARTÍCULAS / 75% EFEITOS
 --==============================
 
 local function optimizeVisuals(obj)
 
 	if obj:IsA("ParticleEmitter") then
-		obj.Rate *= 0.17
+		obj.Rate *= 0.15
 		obj.Lifetime = NumberRange.new(
-			obj.Lifetime.Min * 0.17,
-			obj.Lifetime.Max * 0.17
+			obj.Lifetime.Min * 0.15,
+			obj.Lifetime.Max * 0.15
 		)
 		obj.Speed = NumberRange.new(
-			obj.Speed.Min * 0.3,
-			obj.Speed.Max * 0.3
+			obj.Speed.Min * 0.25,
+			obj.Speed.Max * 0.25
 		)
 
 	elseif obj:IsA("Trail") or obj:IsA("Beam") then
-		obj.Enabled = math.random() < 0.3
+		obj.Enabled = math.random() < 0.25
 
+	-- 🔻 EFEITOS 75% OFF
 	elseif obj:IsA("ColorCorrectionEffect") then
-		obj.Saturation *= 0.35
-		obj.Contrast *= 0.35
+		obj.Saturation *= 0.25
+		obj.Contrast *= 0.25
 
 	elseif obj:IsA("BloomEffect") then
-		obj.Intensity *= 0.35
+		obj.Intensity *= 0.25
 
 	elseif obj:IsA("BlurEffect") then
-		obj.Size *= 0.35
+		obj.Size *= 0.25
 	end
 end
 
@@ -159,7 +174,7 @@ SoundService.DescendantAdded:Connect(optimizeSound)
 workspace.DescendantAdded:Connect(optimizeSound)
 
 --==============================
--- FPS + PING COUNTER (REAL)
+-- FPS + PING COUNTER
 --==============================
 
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -170,7 +185,7 @@ statsGui.ResetOnSpawn = false
 statsGui.Parent = PlayerGui
 
 local statsLabel = Instance.new("TextLabel")
-statsLabel.Size = UDim2.new(0, 130, 0, 20)
+statsLabel.Size = UDim2.new(0, 140, 0, 20)
 statsLabel.Position = UDim2.new(0, 6, 0, 6)
 statsLabel.BackgroundTransparency = 1
 statsLabel.TextStrokeTransparency = 0.5
@@ -189,8 +204,8 @@ RunService.RenderStepped:Connect(function()
 
 	if now - lastTime >= 0.5 then
 		local fps = math.floor(frames / (now - lastTime))
-
 		local ping = 0
+
 		pcall(function()
 			ping = math.floor(
 				Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
@@ -199,7 +214,6 @@ RunService.RenderStepped:Connect(function()
 
 		statsLabel.Text = "FPS: "..fps.." | Ping: "..ping.."ms"
 
-		-- cor baseada no FPS
 		if fps >= 50 then
 			statsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
 		elseif fps >= 30 then
@@ -215,4 +229,4 @@ end)
 
 RunService:Set3dRenderingEnabled(true)
 
-print("🚀 MOBILE EXCLUSIVE FINAL | FPS + PING | Render mínimo 390")
+print("🔥 ANTI-DELAY FINAL | 75% EFEITOS | 85% PARTÍCULAS | RENDER 390 | FPS+PING")
