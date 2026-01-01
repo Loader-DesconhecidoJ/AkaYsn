@@ -1,249 +1,211 @@
---[[ 
-    MODO EXTREMO - FPS MAX
-    Render otimizado
-    Anti-freeze
-    Mobile Ultra Low
---]]
+--==============================
+-- FPS COUNTER (REAL | LEVE)
+--==============================
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
+local PlayerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 
-local LocalPlayer = Players.LocalPlayer
+local fpsGui = Instance.new("ScreenGui")
+fpsGui.Name = "FPSCounter"
+fpsGui.ResetOnSpawn = false
+fpsGui.Parent = PlayerGui
 
--- ================= QUALIDADE MÍNIMA =================
-pcall(function()
-    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-end)
-
--- ================= ILUMINAÇÃO EXTREMA =================
-for _,v in ipairs(Lighting:GetChildren()) do
-    if v:IsA("PostEffect") then
-        v.Enabled = false
-    end
-end
-
-Lighting.GlobalShadows = false
-Lighting.FogEnd = 1e10
-Lighting.Brightness = 1
-Lighting.EnvironmentDiffuseScale = 0
-Lighting.EnvironmentSpecularScale = 0
-Lighting.OutdoorAmbient = Color3.new(1,1,1)
-Lighting.Ambient = Color3.new(1,1,1)
-
--- ================= RENDER / STREAM =================
-pcall(function()
-    workspace.StreamingEnabled = false
-end)
-
--- ================= OTIMIZAÇÃO AGRESSIVA =================
-local function extremeOptimize(v)
-    if v:IsA("BasePart") then
-        v.Material = Enum.Material.Plastic
-        v.Reflectance = 0
-        v.CastShadow = false
-    elseif v:IsA("MeshPart") then
-        v.Material = Enum.Material.Plastic
-        v.TextureID = ""
-        v.CastShadow = false
-    elseif v:IsA("Decal") or v:IsA("Texture") then
-        v.Transparency = 1
-    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
-        v.Enabled = false
-    elseif v:IsA("Fire") or v:IsA("Smoke") then
-        v.Enabled = false
-    end
-end
-
--- aplica UMA VEZ
-for _,v in ipairs(workspace:GetDescendants()) do
-    extremeOptimize(v)
-end
-
--- só novos objetos (sem loop infinito)
-workspace.DescendantAdded:Connect(extremeOptimize)
-
--- ================= DISTÂNCIA DE RENDER (FAKE LOD) =================
-local MAX_DISTANCE = 300 -- quanto menor, mais FPS
-
-RunService.Heartbeat:Connect(function()
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    local pos = hrp.Position
-    for _,p in ipairs(workspace:GetChildren()) do
-        if p:IsA("BasePart") then
-            local d = (p.Position - pos).Magnitude
-            if d > MAX_DISTANCE then
-                p.LocalTransparencyModifier = 1
-            else
-                p.LocalTransparencyModifier = 0
-            end
-        end
-    end
-end)
-
--- ================= ANIMAÇÕES =================
--- mantém SOMENTE as do player
-workspace.DescendantAdded:Connect(function(v)
-    if LocalPlayer.Character and v:IsDescendantOf(LocalPlayer.Character) then return end
-    if v:IsA("Animator") then
-        v.AnimationPlayed:Connect(function(track)
-            track:Stop()
-        end)
-    end
-end)
-
--- ================= FPS COUNTER REAL =================
-local gui = Instance.new("ScreenGui")
-gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-local label = Instance.new("TextLabel")
-label.Size = UDim2.new(0,140,0,40)
-label.Position = UDim2.new(0,10,0,10)
-label.BackgroundTransparency = 0.3
-label.BackgroundColor3 = Color3.new(0,0,0)
-label.TextColor3 = Color3.fromRGB(0,255,0)
-label.Font = Enum.Font.Code
-label.TextSize = 20
-label.Text = "FPS: 0"
-label.BorderSizePixel = 0
-label.Parent = gui
-Instance.new("UICorner", label).CornerRadius = UDim.new(0,10)
-
-local frames = 0
-local last = tick()
-
-RunService.RenderStepped:Connect(function()
-    frames += 1
-    local now = tick()
-    if now - last >= 1 then
-        label.Text = "FPS: "..math.floor(frames / (now - last))
-        frames = 0
-        last = now
-    end
-end)
-
-print("[MODO EXTREMO] FPS MAX + Render otimizado ativo")
---[[ 
-    LOWEST GRAPHICS REAL + FPS COUNTER
-    Workspace + Texturas + Efeitos
-    Estável | Mobile Safe
---]]
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-
-local LocalPlayer = Players.LocalPlayer
-
--- ================= QUALIDADE ENGINE =================
-pcall(function()
-    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-end)
-
--- ================= ILUMINAÇÃO LOWEST =================
-for _,v in ipairs(Lighting:GetChildren()) do
-    if v:IsA("PostEffect") then
-        v.Enabled = false
-    end
-end
-
-Lighting.GlobalShadows = false
-Lighting.Brightness = 1
-Lighting.FogStart = 0
-Lighting.FogEnd = 9e9
-Lighting.Ambient = Color3.fromRGB(120,120,120)
-Lighting.OutdoorAmbient = Color3.fromRGB(120,120,120)
-Lighting.EnvironmentDiffuseScale = 0
-Lighting.EnvironmentSpecularScale = 0
-
--- ================= FUNÇÃO LOWEST =================
-local function applyLowest(v)
-    if v:IsA("BasePart") then
-        v.Material = Enum.Material.Plastic
-        v.Reflectance = 0
-        v.CastShadow = false
-
-    elseif v:IsA("MeshPart") then
-        v.Material = Enum.Material.Plastic
-        v.TextureID = ""
-        v.CastShadow = false
-
-    elseif v:IsA("Decal") or v:IsA("Texture") then
-        v.Transparency = 1
-
-    elseif v:IsA("ParticleEmitter")
-        or v:IsA("Trail")
-        or v:IsA("Fire")
-        or v:IsA("Smoke")
-        or v:IsA("Sparkles") then
-        v.Enabled = false
-    end
-end
-
--- ================= APLICA UMA VEZ =================
-for _,v in ipairs(workspace:GetDescendants()) do
-    applyLowest(v)
-end
-
--- ================= NOVOS OBJETOS =================
-workspace.DescendantAdded:Connect(applyLowest)
-
--- ================= RESPAWN FIX =================
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(1)
-    for _,v in ipairs(workspace:GetDescendants()) do
-        if v:IsA("BasePart") then
-            v.LocalTransparencyModifier = 0
-        end
-    end
-end)
-
--- ================= FPS COUNTER REAL =================
-local gui = Instance.new("ScreenGui")
-gui.Name = "FPS_COUNTER_REAL"
-gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-local label = Instance.new("TextLabel")
-label.Size = UDim2.new(0,150,0,40)
-label.Position = UDim2.new(0,10,0,10)
-label.BackgroundTransparency = 0.3
-label.BackgroundColor3 = Color3.fromRGB(0,0,0)
-label.TextColor3 = Color3.fromRGB(0,255,0)
-label.Font = Enum.Font.Code
-label.TextSize = 20
-label.BorderSizePixel = 0
-label.Text = "FPS: 0"
-label.Parent = gui
-
-Instance.new("UICorner", label).CornerRadius = UDim.new(0,10)
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(0, 80, 0, 20)
+fpsLabel.Position = UDim2.new(0, 6, 0, 6)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+fpsLabel.TextStrokeTransparency = 0.5
+fpsLabel.Font = Enum.Font.SourceSansBold
+fpsLabel.TextSize = 14
+fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+fpsLabel.Text = "FPS: --"
+fpsLabel.Parent = fpsGui
 
 local frames = 0
 local lastTime = tick()
-local fps = 0
 
 RunService.RenderStepped:Connect(function()
-    frames += 1
-    local now = tick()
-    if now - lastTime >= 1 then
-        fps = math.floor(frames / (now - lastTime))
-        frames = 0
-        lastTime = now
+	frames += 1
+	local now = tick()
 
-        label.Text = "FPS: "..fps
+	if now - lastTime >= 0.5 then
+		local fps = math.floor(frames / (now - lastTime))
+		fpsLabel.Text = "FPS: " .. fps
 
-        if fps >= 40 then
-            label.TextColor3 = Color3.fromRGB(0,255,0)
-        elseif fps >= 25 then
-            label.TextColor3 = Color3.fromRGB(255,170,0)
-        else
-            label.TextColor3 = Color3.fromRGB(255,0,0)
-        end
-    end
+		-- cor dinâmica (opcional, leve)
+		if fps >= 50 then
+			fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+		elseif fps >= 30 then
+			fpsLabel.TextColor3 = Color3.fromRGB(255, 170, 0)
+		else
+			fpsLabel.TextColor3 = Color3.fromRGB(255, 60, 60)
+		end
+
+		frames = 0
+		lastTime = now
+	end
+end)
+--// EXCLUSIVE MOBILE ANTI-DELAY
+--// 83% partículas | 65% efeitos | render mínimo FORÇADO 390
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local SoundService = game:GetService("SoundService")
+local Workspace = game:GetService("Workspace")
+local UserSettings = UserSettings()
+
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+--==============================
+-- CONFIG
+--==============================
+
+local SOUND_LIMIT = 0.9
+local MAP_LOOP = 10
+local STREAM_MIN = 390
+
+--==============================
+-- GRÁFICO BAIXO
+--==============================
+
+pcall(function()
+	UserSettings.GameSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+	UserSettings.GameSettings.GraphicsQualityLevel = 1
+	settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
 end)
 
-print("[LOWEST GRAPHICS + FPS COUNTER] Ativo | Estável")
+--==============================
+-- STREAMING (FORÇA MÍNIMO)
+--==============================
+
+pcall(function()
+	if Workspace.StreamingEnabled then
+		Workspace.StreamingMinRadius = STREAM_MIN
+	end
+end)
+
+task.spawn(function()
+	while true do
+		pcall(function()
+			if Workspace.StreamingEnabled and Workspace.StreamingMinRadius < STREAM_MIN then
+				Workspace.StreamingMinRadius = STREAM_MIN
+			end
+		end)
+		task.wait(3)
+	end
+end)
+
+--==============================
+-- ILUMINAÇÃO LEVE
+--==============================
+
+Lighting.GlobalShadows = false
+Lighting.Technology = Enum.Technology.Compatibility
+Lighting.Brightness = 1.6
+Lighting.EnvironmentDiffuseScale = 0.3
+Lighting.EnvironmentSpecularScale = 0.15
+Lighting.FogStart = 0
+Lighting.FogEnd = 1e10
+
+--==============================
+-- 83% PARTÍCULAS / 65% EFEITOS
+--==============================
+
+local function optimizeVisuals(obj)
+
+	-- Partículas (83% OFF)
+	if obj:IsA("ParticleEmitter") then
+		obj.Rate *= 0.17
+		obj.Lifetime = NumberRange.new(
+			obj.Lifetime.Min * 0.17,
+			obj.Lifetime.Max * 0.17
+		)
+		obj.Speed = NumberRange.new(
+			obj.Speed.Min * 0.3,
+			obj.Speed.Max * 0.3
+		)
+
+	-- Trails / Beams
+	elseif obj:IsA("Trail") or obj:IsA("Beam") then
+		obj.Enabled = math.random() < 0.3
+
+	-- Efeitos (65%)
+	elseif obj:IsA("ColorCorrectionEffect") then
+		obj.Saturation *= 0.35
+		obj.Contrast *= 0.35
+
+	elseif obj:IsA("BloomEffect") then
+		obj.Intensity *= 0.35
+
+	elseif obj:IsA("BlurEffect") then
+		obj.Size *= 0.35
+	end
+end
+
+for _, v in ipairs(game:GetDescendants()) do
+	optimizeVisuals(v)
+end
+game.DescendantAdded:Connect(optimizeVisuals)
+
+--==============================
+-- ANTI TREMOR DE CÂMERA
+--==============================
+
+RunService.RenderStepped:Connect(function()
+	Camera.CameraType = Enum.CameraType.Custom
+	Camera.FieldOfView = 70
+
+	local char = Player.Character
+	if not char then return end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hum and hum.CameraOffset.Magnitude > 0 then
+		hum.CameraOffset = Vector3.zero
+	end
+end)
+
+--==============================
+-- MAPA LEVE
+--==============================
+
+task.spawn(function()
+	while true do
+		for _, obj in ipairs(workspace:GetDescendants()) do
+			if obj:IsA("BasePart") then
+				obj.Material = Enum.Material.Plastic
+				obj.CastShadow = false
+				obj.Reflectance = 0
+			end
+		end
+		task.wait(MAP_LOOP)
+	end
+end)
+
+--==============================
+-- SOM > 0.9s REDUZIDO
+--==============================
+
+local function optimizeSound(sound)
+	if not sound:IsA("Sound") then return end
+	task.spawn(function()
+		pcall(function()
+			if sound.TimeLength == 0 then
+				sound.Loaded:Wait()
+			end
+			if sound.TimeLength > SOUND_LIMIT then
+				sound.Volume *= 0.3
+			end
+		end)
+	end)
+end
+
+for _, s in ipairs(SoundService:GetDescendants()) do
+	optimizeSound(s)
+end
+SoundService.DescendantAdded:Connect(optimizeSound)
+workspace.DescendantAdded:Connect(optimizeSound)
+
+RunService:Set3dRenderingEnabled(true)
+
+print("✅ MOBILE EXCLUSIVE | 83% partículas | 65% efeitos | render mínimo 390")
