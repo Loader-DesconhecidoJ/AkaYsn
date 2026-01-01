@@ -1,58 +1,13 @@
---==============================
--- FPS COUNTER (REAL | LEVE)
---==============================
-
-local PlayerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-
-local fpsGui = Instance.new("ScreenGui")
-fpsGui.Name = "FPSCounter"
-fpsGui.ResetOnSpawn = false
-fpsGui.Parent = PlayerGui
-
-local fpsLabel = Instance.new("TextLabel")
-fpsLabel.Size = UDim2.new(0, 80, 0, 20)
-fpsLabel.Position = UDim2.new(0, 6, 0, 6)
-fpsLabel.BackgroundTransparency = 1
-fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-fpsLabel.TextStrokeTransparency = 0.5
-fpsLabel.Font = Enum.Font.SourceSansBold
-fpsLabel.TextSize = 14
-fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
-fpsLabel.Text = "FPS: --"
-fpsLabel.Parent = fpsGui
-
-local frames = 0
-local lastTime = tick()
-
-RunService.RenderStepped:Connect(function()
-	frames += 1
-	local now = tick()
-
-	if now - lastTime >= 0.5 then
-		local fps = math.floor(frames / (now - lastTime))
-		fpsLabel.Text = "FPS: " .. fps
-
-		-- cor dinâmica (opcional, leve)
-		if fps >= 50 then
-			fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-		elseif fps >= 30 then
-			fpsLabel.TextColor3 = Color3.fromRGB(255, 170, 0)
-		else
-			fpsLabel.TextColor3 = Color3.fromRGB(255, 60, 60)
-		end
-
-		frames = 0
-		lastTime = now
-	end
-end)
---// EXCLUSIVE MOBILE ANTI-DELAY
+--// EXCLUSIVE MOBILE ANTI-DELAY FINAL
 --// 83% partículas | 65% efeitos | render mínimo FORÇADO 390
+--// FPS + PING real (leve)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local SoundService = game:GetService("SoundService")
 local Workspace = game:GetService("Workspace")
+local Stats = game:GetService("Stats")
 local UserSettings = UserSettings()
 
 local Player = Players.LocalPlayer
@@ -115,7 +70,6 @@ Lighting.FogEnd = 1e10
 
 local function optimizeVisuals(obj)
 
-	-- Partículas (83% OFF)
 	if obj:IsA("ParticleEmitter") then
 		obj.Rate *= 0.17
 		obj.Lifetime = NumberRange.new(
@@ -127,11 +81,9 @@ local function optimizeVisuals(obj)
 			obj.Speed.Max * 0.3
 		)
 
-	-- Trails / Beams
 	elseif obj:IsA("Trail") or obj:IsA("Beam") then
 		obj.Enabled = math.random() < 0.3
 
-	-- Efeitos (65%)
 	elseif obj:IsA("ColorCorrectionEffect") then
 		obj.Saturation *= 0.35
 		obj.Contrast *= 0.35
@@ -206,6 +158,61 @@ end
 SoundService.DescendantAdded:Connect(optimizeSound)
 workspace.DescendantAdded:Connect(optimizeSound)
 
+--==============================
+-- FPS + PING COUNTER (REAL)
+--==============================
+
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+local statsGui = Instance.new("ScreenGui")
+statsGui.Name = "FPSPingCounter"
+statsGui.ResetOnSpawn = false
+statsGui.Parent = PlayerGui
+
+local statsLabel = Instance.new("TextLabel")
+statsLabel.Size = UDim2.new(0, 130, 0, 20)
+statsLabel.Position = UDim2.new(0, 6, 0, 6)
+statsLabel.BackgroundTransparency = 1
+statsLabel.TextStrokeTransparency = 0.5
+statsLabel.Font = Enum.Font.SourceSansBold
+statsLabel.TextSize = 14
+statsLabel.TextXAlignment = Enum.TextXAlignment.Left
+statsLabel.Text = "FPS: -- | Ping: --"
+statsLabel.Parent = statsGui
+
+local frames = 0
+local lastTime = tick()
+
+RunService.RenderStepped:Connect(function()
+	frames += 1
+	local now = tick()
+
+	if now - lastTime >= 0.5 then
+		local fps = math.floor(frames / (now - lastTime))
+
+		local ping = 0
+		pcall(function()
+			ping = math.floor(
+				Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+			)
+		end)
+
+		statsLabel.Text = "FPS: "..fps.." | Ping: "..ping.."ms"
+
+		-- cor baseada no FPS
+		if fps >= 50 then
+			statsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+		elseif fps >= 30 then
+			statsLabel.TextColor3 = Color3.fromRGB(255, 170, 0)
+		else
+			statsLabel.TextColor3 = Color3.fromRGB(255, 60, 60)
+		end
+
+		frames = 0
+		lastTime = now
+	end
+end)
+
 RunService:Set3dRenderingEnabled(true)
 
-print("✅ MOBILE EXCLUSIVE | 83% partículas | 65% efeitos | render mínimo 390")
+print("🚀 MOBILE EXCLUSIVE FINAL | FPS + PING | Render mínimo 390")
