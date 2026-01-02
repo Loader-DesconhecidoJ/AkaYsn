@@ -181,9 +181,9 @@ end)
 camBtn.MouseButton1Click:Connect(function()
     if Mode=="CAMLOCK" then Mode="AIMLOCK"
     elseif Mode=="AIMLOCK" then Mode="ASSIST"
-    elseif Mode=="ASSIST" then Mode="LOCKON"
+    elseif Mode=="ASSIST" then Mode="Mistu"
     else Mode="CAMLOCK" end
-    camBtn.Text = Mode=="CAMLOCK" and "CAM" or Mode=="AIMLOCK" and "AIM" or Mode=="ASSIST" and "AST" or "LOCKON"
+    camBtn.Text = Mode=="CAMLOCK" and "CAM" or Mode=="AIMLOCK" and "AIM" or Mode=="ASSIST" and "AST" or "Mst"
     LockedTarget=nil
 end)
 
@@ -312,7 +312,7 @@ RunService.RenderStepped:Connect(function()
         end
     end  
 
-    if Mode=="LOCKON" and LockedTarget then  
+    if Mode=="Mistu" and LockedTarget then  
         local hrp=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")  
         if hrp then  
             local look=Vector3.new(LockedTarget.Position.X,hrp.Position.Y,LockedTarget.Position.Z)  
