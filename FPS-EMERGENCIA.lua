@@ -1,8 +1,7 @@
---// MOBILE EXCLUSIVE ANTI-DELAY + ANTI-CRASH FINAL
---// Gráfico 1 FORÇADO | Render mínimo 390
---// Base: 85% partículas | 75% efeitos
---// Emergência automática + Ultra-emergência MANUAL
---// FPS + Ping REAL
+--// ANTI DELAY + AUTO ULTRA + MODO CRÍTICO
+--// FPS controla agressividade TOTAL
+--// CRÍTICO remove 100% partículas e efeitos
+--// ULTRA/CRÍTICO só sai com FPS >= 40
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,7 +10,6 @@ local SoundService = game:GetService("SoundService")
 local Workspace = game:GetService("Workspace")
 local Stats = game:GetService("Stats")
 local UserSettings = UserSettings()
-local UIS = game:GetService("UserInputService")
 
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -20,32 +18,21 @@ local Camera = workspace.CurrentCamera
 -- CONFIG
 --==============================
 
-local STREAM_MIN = 400
+local STREAM_MIN = 390
 local SOUND_LIMIT = 0.9
-
-local FPS_DANGER = 22
-local FPS_RECOVER = 35
-local PING_DANGER = 220
-
--- Estados
-local Emergency = false
-local UltraEmergency = false
+local FPS_EXIT = 40
 
 --==============================
--- FORÇA GRÁFICO 1 SEMPRE
+-- FORÇA GRÁFICO 1
 --==============================
-
-local function forceGraphicsLow()
-	pcall(function()
-		UserSettings.GameSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
-		UserSettings.GameSettings.GraphicsQualityLevel = 1
-		settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-	end)
-end
 
 task.spawn(function()
 	while true do
-		forceGraphicsLow()
+		pcall(function()
+			UserSettings.GameSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+			UserSettings.GameSettings.GraphicsQualityLevel = 1
+			settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+		end)
 		task.wait(1)
 	end
 end)
@@ -69,68 +56,96 @@ Lighting.Technology = Enum.Technology.Compatibility
 Lighting.FogEnd = 1e10
 
 --==============================
--- OTIMIZAÇÃO VISUAL
+-- NÍVEL POR FPS
 --==============================
 
-local function optimizeVisuals(obj)
-	if obj:IsA("ParticleEmitter") then
-		if UltraEmergency then
-			obj.Enabled = false
-		elseif Emergency then
-			obj.Rate *= 0.05
-			obj.Lifetime = NumberRange.new(0.05, 0.1)
-		else
-			obj.Rate *= 0.15
-			obj.Lifetime = NumberRange.new(
-				obj.Lifetime.Min * 0.15,
-				obj.Lifetime.Max * 0.15
-			)
-		end
-
-	elseif obj:IsA("Trail") or obj:IsA("Beam") then
-		obj.Enabled = not (Emergency or UltraEmergency) and math.random() < 0.25
-
-	elseif obj:IsA("BloomEffect") or obj:IsA("BlurEffect") then
-		obj.Enabled = not (Emergency or UltraEmergency)
-		if not Emergency and not UltraEmergency then
-			obj.Intensity *= 0.25
-		end
-
-	elseif obj:IsA("ColorCorrectionEffect") then
-		if Emergency or UltraEmergency then
-			obj.Enabled = false
-		else
-			obj.Saturation *= 0.25
-			obj.Contrast *= 0.25
-		end
+local function getLevelByFPS(fps)
+	if fps <= 12 then
+		return "CRITICAL"
+	elseif fps <= 21 then
+		return "ULTRA"
+	elseif fps <= 29 then
+		return "EMERGENCY"
+	elseif fps <= 39 then
+		return "LIGHT"
+	else
+		return "NORMAL"
 	end
 end
 
-for _, v in ipairs(game:GetDescendants()) do
-	optimizeVisuals(v)
+--==============================
+-- VISUAIS DINÂMICOS
+--==============================
+
+local function optimizeVisuals(obj, level)
+	if obj:IsA("ParticleEmitter") then
+		if level == "CRITICAL" then
+			obj.Enabled = false -- 100%
+		elseif level == "ULTRA" then
+			obj.Rate *= 0.05
+			obj.Lifetime = NumberRange.new(0.03, 0.08)
+		elseif level == "EMERGENCY" then
+			obj.Rate *= 0.2
+		elseif level == "LIGHT" then
+			obj.Rate *= 0.6
+		end
+
+	elseif obj:IsA("Trail") or obj:IsA("Beam") then
+		if level == "CRITICAL" then
+			obj.Enabled = false
+		elseif level == "ULTRA" then
+			obj.Enabled = false
+		elseif level == "EMERGENCY" then
+			obj.Enabled = math.random() < 0.2
+		elseif level == "LIGHT" then
+			obj.Enabled = math.random() < 0.6
+		end
+
+	elseif obj:IsA("BloomEffect") or obj:IsA("BlurEffect")
+		or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+
+		if level == "CRITICAL" then
+			obj.Enabled = false
+		elseif level == "ULTRA" then
+			obj.Enabled = false
+		elseif level == "EMERGENCY" then
+			obj.Intensity *= 0.25
+		elseif level == "LIGHT" then
+			obj.Intensity *= 0.6
+		end
+
+	elseif obj:IsA("ColorCorrectionEffect") then
+		if level == "CRITICAL" then
+			obj.Enabled = false
+		elseif level == "ULTRA" then
+			obj.Enabled = false
+		elseif level == "EMERGENCY" then
+			obj.Saturation *= 0.25
+			obj.Contrast *= 0.25
+		elseif level == "LIGHT" then
+			obj.Saturation *= 0.6
+		end
+	end
 end
-game.DescendantAdded:Connect(optimizeVisuals)
 
 --==============================
 -- SOM
 --==============================
 
-local function optimizeSound(sound)
-	if not sound:IsA("Sound") then return end
+SoundService.DescendantAdded:Connect(function(s)
+	if not s:IsA("Sound") then return end
 	task.spawn(function()
 		pcall(function()
-			if sound.TimeLength == 0 then sound.Loaded:Wait() end
-			if Emergency or UltraEmergency or sound.TimeLength > SOUND_LIMIT then
-				sound.Volume *= 0.2
+			if s.TimeLength == 0 then s.Loaded:Wait() end
+			if s.TimeLength > SOUND_LIMIT then
+				s.Volume *= 0.2
 			end
 		end)
 	end)
-end
-
-SoundService.DescendantAdded:Connect(optimizeSound)
+end)
 
 --==============================
--- ANTI TREMOR TOTAL
+-- ANTI TREMOR DE CÂMERA
 --==============================
 
 RunService.RenderStepped:Connect(function()
@@ -147,16 +162,14 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --==============================
--- FPS + PING + DETECÇÃO
+-- FPS + PING + AUTO CONTROLE
 --==============================
 
-local PlayerGui = Player:WaitForChild("PlayerGui")
-
-local gui = Instance.new("ScreenGui", PlayerGui)
+local gui = Instance.new("ScreenGui", Player.PlayerGui)
 gui.ResetOnSpawn = false
 
 local label = Instance.new("TextLabel", gui)
-label.Size = UDim2.new(0, 200, 0, 22)
+label.Size = UDim2.new(0, 260, 0, 22)
 label.Position = UDim2.new(0, 6, 0, 6)
 label.BackgroundTransparency = 1
 label.Font = Enum.Font.SourceSansBold
@@ -165,6 +178,7 @@ label.TextXAlignment = Enum.TextXAlignment.Left
 
 local frames = 0
 local last = tick()
+local lockedCritical = false
 
 RunService.RenderStepped:Connect(function()
 	frames += 1
@@ -180,67 +194,35 @@ RunService.RenderStepped:Connect(function()
 			)
 		end)
 
-		-- AUTOMÁTICO (só se Ultra não estiver ativo)
-		if not UltraEmergency then
-			if (fps <= FPS_DANGER or ping >= PING_DANGER) and not Emergency then
-				Emergency = true
-			elseif fps >= FPS_RECOVER and Emergency then
-				Emergency = false
-			end
+		if fps <= 12 then
+			lockedCritical = true
+		elseif lockedCritical and fps >= FPS_EXIT then
+			lockedCritical = false
+		end
+
+		local level = lockedCritical and "CRITICAL" or getLevelByFPS(fps)
+
+		for _, v in ipairs(game:GetDescendants()) do
+			optimizeVisuals(v, level)
 		end
 
 		label.Text =
-			UltraEmergency and ("🛑 ULTRA | FPS: "..fps.." | Ping: "..ping.."ms")
-			or Emergency and ("⚠ EMERGÊNCIA | FPS: "..fps.." | Ping: "..ping.."ms")
-			or ("FPS: "..fps.." | Ping: "..ping.."ms")
+			level == "CRITICAL" and ("💀 CRÍTICO | FPS: "..fps.." | Ping: "..ping.."ms")
+			or level == "ULTRA" and ("🔴 ULTRA | FPS: "..fps.." | Ping: "..ping.."ms")
+			or level == "EMERGENCY" and ("🟠 EMERGÊNCIA | FPS: "..fps.." | Ping: "..ping.."ms")
+			or level == "LIGHT" and ("🟡 LEVE | FPS: "..fps.." | Ping: "..ping.."ms")
+			or ("🟢 FPS: "..fps.." | Ping: "..ping.."ms")
 
 		label.TextColor3 =
-			UltraEmergency and Color3.fromRGB(255, 0, 0)
-			or Emergency and Color3.fromRGB(255, 120, 0)
-			or Color3.fromRGB(0, 255, 0)
+			level == "CRITICAL" and Color3.fromRGB(150,0,0)
+			or level == "ULTRA" and Color3.fromRGB(255,0,0)
+			or level == "EMERGENCY" and Color3.fromRGB(255,150,0)
+			or level == "LIGHT" and Color3.fromRGB(255,255,0)
+			or Color3.fromRGB(0,255,0)
 
 		frames = 0
 		last = now
 	end
 end)
 
---==============================
--- ULTRA-EMERGÊNCIA MANUAL (3 TOQUES / 2s)
---==============================
-
-local touchCount = 0
-local touchStart = 0
-
-UIS.TouchStarted:Connect(function()
-	touchCount += 1
-	if touchCount == 1 then
-		touchStart = tick()
-	end
-
-	if touchCount >= 3 and tick() - touchStart >= 2 then
-		UltraEmergency = not UltraEmergency
-		touchCount = 0
-	end
-end)
-
-UIS.TouchEnded:Connect(function()
-	if tick() - touchStart > 2 then
-		touchCount = 0
-	end
-end)
-
---==============================
--- PRIORIDADE ULTRA
---==============================
-
-task.spawn(function()
-	while true do
-		if UltraEmergency then
-			Emergency = false
-			forceGraphicsLow()
-		end
-		task.wait(0.5)
-	end
-end)
-
-print("🛡️ ANTI-CRASH + ULTRA-EMERGÊNCIA ATIVO")
+print("🛡️ AUTO ULTRA + MODO CRÍTICO ATIVO")
