@@ -1,8 +1,9 @@
---// EXCLUSIVE MOBILE ANTI-DELAY DEFINITIVO
---// Gráfico 1 FORÇADO | Texturas mínimas
---// 85% partículas | 75% efeitos
---// Render mínimo FORÇADO 390
---// FPS + Ping REAL
+--// MOBILE ANTI-DELAY DEFINITIVO
+--// 90% EFEITOS OFF
+--// 85% PARTÍCULAS OFF
+--// RENDER FIXO 390
+--// SKYBOX + SATURAÇÃO OTIMIZADOS
+--// FPS REAL + PING REAL
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -19,16 +20,15 @@ local Camera = workspace.CurrentCamera
 -- CONFIG
 --==============================
 
-local SOUND_LIMIT = 0.9
-local MAP_LOOP = 10
-local STREAM_MIN = 390
+local STREAM_RADIUS = 390
 local GRAPHICS_LEVEL = 1
+local SOUND_LIMIT = 0.9
 
 --==============================
--- FORÇA GRÁFICO + TEXTURA NO 1
+-- GRÁFICO FORÇADO NO 1
 --==============================
 
-local function forceGraphicsLow()
+local function forceGraphics()
 	pcall(function()
 		UserSettings.GameSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
 		UserSettings.GameSettings.GraphicsQualityLevel = GRAPHICS_LEVEL
@@ -36,30 +36,32 @@ local function forceGraphicsLow()
 	end)
 end
 
-forceGraphicsLow()
+forceGraphics()
 
 task.spawn(function()
 	while true do
-		forceGraphicsLow()
-		task.wait(1)
+		forceGraphics()
+		task.wait(2)
 	end
 end)
 
 --==============================
--- STREAMING (FORÇA MÍNIMO)
+-- STREAMING FIXO (390 / 390)
 --==============================
 
 pcall(function()
 	if Workspace.StreamingEnabled then
-		Workspace.StreamingMinRadius = STREAM_MIN
+		Workspace.StreamingMinRadius = STREAM_RADIUS
+		Workspace.StreamingTargetRadius = STREAM_RADIUS
 	end
 end)
 
 task.spawn(function()
 	while true do
 		pcall(function()
-			if Workspace.StreamingEnabled and Workspace.StreamingMinRadius < STREAM_MIN then
-				Workspace.StreamingMinRadius = STREAM_MIN
+			if Workspace.StreamingEnabled then
+				Workspace.StreamingMinRadius = STREAM_RADIUS
+				Workspace.StreamingTargetRadius = STREAM_RADIUS
 			end
 		end)
 		task.wait(3)
@@ -67,23 +69,57 @@ task.spawn(function()
 end)
 
 --==============================
--- ILUMINAÇÃO LEVE
+-- ILUMINAÇÃO + SATURAÇÃO
 --==============================
 
 Lighting.GlobalShadows = false
 Lighting.Technology = Enum.Technology.Compatibility
-Lighting.Brightness = 1.6
+Lighting.Brightness = 1.4
 Lighting.EnvironmentDiffuseScale = 0.3
-Lighting.EnvironmentSpecularScale = 0.15
+Lighting.EnvironmentSpecularScale = 0.1
 Lighting.FogStart = 0
 Lighting.FogEnd = 1e10
 
+-- Skybox leve (não remove tudo)
+for _, v in ipairs(Lighting:GetChildren()) do
+	if v:IsA("Atmosphere") or v:IsA("Clouds") then
+		v:Destroy()
+	end
+end
+
+local color = Instance.new("ColorCorrectionEffect")
+color.Saturation = -0.08
+color.Contrast = -0.05
+color.Parent = Lighting
+
 --==============================
--- 85% PARTÍCULAS / 75% EFEITOS
+-- 90% DOS EFEITOS OFF
 --==============================
 
-local function optimizeVisuals(obj)
+local function optimizeEffects(obj)
+	if obj:IsA("BloomEffect")
+	or obj:IsA("SunRaysEffect")
+	or obj:IsA("DepthOfFieldEffect")
+	or obj:IsA("BlurEffect") then
+		obj.Enabled = false
+	end
 
+	if obj:IsA("ColorCorrectionEffect") then
+		obj.Saturation *= 0.1
+		obj.Contrast *= 0.1
+	end
+end
+
+for _, v in ipairs(game:GetDescendants()) do
+	optimizeEffects(v)
+end
+game.DescendantAdded:Connect(optimizeEffects)
+
+--==============================
+-- PARTÍCULAS (85% OFF)
+--==============================
+
+local function optimizeParticles(obj)
 	if obj:IsA("ParticleEmitter") then
 		obj.Rate *= 0.15
 		obj.Lifetime = NumberRange.new(
@@ -94,46 +130,20 @@ local function optimizeVisuals(obj)
 			obj.Speed.Min * 0.25,
 			obj.Speed.Max * 0.25
 		)
+	end
 
-	elseif obj:IsA("Trail") or obj:IsA("Beam") then
-		obj.Enabled = math.random() < 0.25
-
-	-- 🔻 EFEITOS 75% OFF
-	elseif obj:IsA("ColorCorrectionEffect") then
-		obj.Saturation *= 0.25
-		obj.Contrast *= 0.25
-
-	elseif obj:IsA("BloomEffect") then
-		obj.Intensity *= 0.25
-
-	elseif obj:IsA("BlurEffect") then
-		obj.Size *= 0.25
+	if obj:IsA("Trail") or obj:IsA("Beam") then
+		obj.Enabled = math.random() < 0.15
 	end
 end
 
 for _, v in ipairs(game:GetDescendants()) do
-	optimizeVisuals(v)
+	optimizeParticles(v)
 end
-game.DescendantAdded:Connect(optimizeVisuals)
+game.DescendantAdded:Connect(optimizeParticles)
 
 --==============================
--- ANTI TREMOR DE CÂMERA
---==============================
-
-RunService.RenderStepped:Connect(function()
-	Camera.CameraType = Enum.CameraType.Custom
-	Camera.FieldOfView = 70
-
-	local char = Player.Character
-	if not char then return end
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	if hum and hum.CameraOffset.Magnitude > 0 then
-		hum.CameraOffset = Vector3.zero
-	end
-end)
-
---==============================
--- MAPA LEVE
+-- MAPA ULTRA LEVE
 --==============================
 
 task.spawn(function()
@@ -145,12 +155,12 @@ task.spawn(function()
 				obj.Reflectance = 0
 			end
 		end
-		task.wait(MAP_LOOP)
+		task.wait(10)
 	end
 end)
 
 --==============================
--- SOM > 0.9s REDUZIDO
+-- SOM LONGO REDUZIDO
 --==============================
 
 local function optimizeSound(sound)
@@ -171,62 +181,64 @@ for _, s in ipairs(SoundService:GetDescendants()) do
 	optimizeSound(s)
 end
 SoundService.DescendantAdded:Connect(optimizeSound)
-workspace.DescendantAdded:Connect(optimizeSound)
 
 --==============================
--- FPS + PING COUNTER
+-- ANTI TREMOR DE CÂMERA
 --==============================
 
-local PlayerGui = Player:WaitForChild("PlayerGui")
+RunService.RenderStepped:Connect(function()
+	Camera.CameraType = Enum.CameraType.Custom
+	Camera.FieldOfView = 70
 
-local statsGui = Instance.new("ScreenGui")
-statsGui.Name = "FPSPingCounter"
-statsGui.ResetOnSpawn = false
-statsGui.Parent = PlayerGui
+	local char = Player.Character
+	if not char then return end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.CameraOffset = Vector3.zero
+	end
+end)
 
-local statsLabel = Instance.new("TextLabel")
-statsLabel.Size = UDim2.new(0, 140, 0, 20)
-statsLabel.Position = UDim2.new(0, 6, 0, 6)
-statsLabel.BackgroundTransparency = 1
-statsLabel.TextStrokeTransparency = 0.5
-statsLabel.Font = Enum.Font.SourceSansBold
-statsLabel.TextSize = 14
-statsLabel.TextXAlignment = Enum.TextXAlignment.Left
-statsLabel.Text = "FPS: -- | Ping: --"
-statsLabel.Parent = statsGui
+--==============================
+-- FPS COUNTER REAL + PING REAL
+--==============================
+
+local gui = Instance.new("ScreenGui")
+gui.ResetOnSpawn = false
+gui.Parent = Player:WaitForChild("PlayerGui")
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(0,160,0,20)
+label.Position = UDim2.new(0,6,0,6)
+label.BackgroundTransparency = 1
+label.Font = Enum.Font.SourceSansBold
+label.TextSize = 14
+label.TextXAlignment = Enum.TextXAlignment.Left
+label.Parent = gui
 
 local frames = 0
-local lastTime = tick()
+local lastTime = os.clock()
 
 RunService.RenderStepped:Connect(function()
 	frames += 1
-	local now = tick()
+	local now = os.clock()
 
 	if now - lastTime >= 0.5 then
 		local fps = math.floor(frames / (now - lastTime))
 		local ping = 0
 
 		pcall(function()
-			ping = math.floor(
-				Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
-			)
+			ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
 		end)
 
-		statsLabel.Text = "FPS: "..fps.." | Ping: "..ping.."ms"
-
-		if fps >= 50 then
-			statsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-		elseif fps >= 30 then
-			statsLabel.TextColor3 = Color3.fromRGB(255, 170, 0)
-		else
-			statsLabel.TextColor3 = Color3.fromRGB(255, 60, 60)
-		end
+		label.Text = "FPS: "..fps.." | Ping: "..ping.."ms"
+		label.TextColor3 =
+			fps >= 50 and Color3.fromRGB(0,255,0)
+			or fps >= 30 and Color3.fromRGB(255,170,0)
+			or Color3.fromRGB(255,60,60)
 
 		frames = 0
 		lastTime = now
 	end
 end)
 
-RunService:Set3dRenderingEnabled(true)
-
-print("🔥 ANTI-DELAY FINAL | 75% EFEITOS | 85% PARTÍCULAS | RENDER 390 | FPS+PING")
+print("🔥 ANTI-DELAY | 90% EFEITOS OFF | 85% PARTÍCULAS | FPS REAL | RENDER 390")
