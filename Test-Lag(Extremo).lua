@@ -1,13 +1,13 @@
---// MOBILE ANTI-DELAY EXTREMO
+--// MOBILE ANTI-DELAY EXTREMO FINAL
 --// 100% EFEITOS OFF
 --// 100% PARTÍCULAS OFF
+--// 100% SOM OFF (FUNCIONA)
 --// RENDER FIXO 170
 --// FPS + PING REAL
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
-local SoundService = game:GetService("SoundService")
 local Workspace = game:GetService("Workspace")
 local Stats = game:GetService("Stats")
 local UserSettings = UserSettings()
@@ -21,7 +21,6 @@ local Camera = workspace.CurrentCamera
 
 local STREAM_RADIUS = 150
 local GRAPHICS_LEVEL = 1
-local SOUND_LIMIT = 0.4
 
 --==============================
 -- GRÁFICO FORÇADO NO 1
@@ -71,7 +70,7 @@ end)
 -- REMOVE 100% DOS EFEITOS VISUAIS
 --==============================
 
-local function removeAllEffects(obj)
+local function removeEffects(obj)
 	if obj:IsA("BloomEffect")
 	or obj:IsA("BlurEffect")
 	or obj:IsA("SunRaysEffect")
@@ -85,11 +84,11 @@ local function removeAllEffects(obj)
 end
 
 for _, v in ipairs(game:GetDescendants()) do
-	removeAllEffects(v)
+	removeEffects(v)
 end
-game.DescendantAdded:Connect(removeAllEffects)
+game.DescendantAdded:Connect(removeEffects)
 
--- Iluminação crua (mais leve impossível)
+-- Iluminação mais leve possível
 Lighting.GlobalShadows = false
 Lighting.Technology = Enum.Technology.Compatibility
 Lighting.Brightness = 1.5
@@ -102,7 +101,7 @@ Lighting.FogEnd = 1e10
 -- REMOVE 100% DAS PARTÍCULAS
 --==============================
 
-local function removeAllParticles(obj)
+local function removeParticles(obj)
 	if obj:IsA("ParticleEmitter")
 	or obj:IsA("Trail")
 	or obj:IsA("Beam")
@@ -114,9 +113,9 @@ local function removeAllParticles(obj)
 end
 
 for _, v in ipairs(game:GetDescendants()) do
-	removeAllParticles(v)
+	removeParticles(v)
 end
-game.DescendantAdded:Connect(removeAllParticles)
+game.DescendantAdded:Connect(removeParticles)
 
 --==============================
 -- MAPA ULTRA LEVE
@@ -136,27 +135,45 @@ task.spawn(function()
 end)
 
 --==============================
--- SOM LONGO REDUZIDO
+-- REMOVEDOR DE SOM DEFINITIVO
 --==============================
 
-local function optimizeSound(sound)
+local function muteSound(sound)
 	if not sound:IsA("Sound") then return end
-	task.spawn(function()
-		pcall(function()
-			if sound.TimeLength == 0 then
-				sound.Loaded:Wait()
-			end
-			if sound.TimeLength > SOUND_LIMIT then
-				sound.Volume *= 0.4
-			end
-		end)
+
+	pcall(function()
+		sound.Volume = 0
+		sound.Playing = false
+	end)
+
+	sound:GetPropertyChangedSignal("Volume"):Connect(function()
+		if sound.Volume > 0 then
+			sound.Volume = 0
+		end
+	end)
+
+	sound:GetPropertyChangedSignal("Playing"):Connect(function()
+		if sound.Playing then
+			sound.Volume = 0
+			sound:Stop()
+		end
 	end)
 end
 
-for _, s in ipairs(SoundService:GetDescendants()) do
-	optimizeSound(s)
+-- Sons existentes
+for _, s in ipairs(game:GetDescendants()) do
+	if s:IsA("Sound") then
+		muteSound(s)
+	end
 end
-SoundService.DescendantAdded:Connect(optimizeSound)
+
+-- Sons novos
+game.DescendantAdded:Connect(function(obj)
+	if obj:IsA("Sound") then
+		task.wait()
+		muteSound(obj)
+	end
+end)
 
 --==============================
 -- ANTI TREMOR DE CÂMERA
@@ -175,7 +192,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --==============================
--- FPS COUNTER REAL + PING REAL
+-- FPS + PING REAL
 --==============================
 
 local gui = Instance.new("ScreenGui")
@@ -217,4 +234,4 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
-print("🚀 ANTI-DELAY EXTREMO | 100% EFEITOS OFF | 100% PARTÍCULAS OFF | RENDER 170")
+print("🚀 ANTI-DELAY EXTREMO FINAL | SEM EFEITOS | SEM PARTÍCULAS | SEM SOM | RENDER 170")
