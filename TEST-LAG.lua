@@ -22,7 +22,7 @@ local Camera = workspace.CurrentCamera
 
 local STREAM_RADIUS = 390
 local GRAPHICS_LEVEL = 1
-local SOUND_LIMIT = 0.9
+local SOUND_LIMIT = 0.6
 
 --==============================
 -- GRÁFICO FORÇADO NO 1
