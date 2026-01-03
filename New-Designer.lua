@@ -96,7 +96,7 @@ local function drawAimLockIndicator(targetPart)
         return
     end
 
-    local head = targetPart.Parent:FindFirstChild("𝙃𝙚𝙖𝙙") or targetPart
+    local head = targetPart.Parent:FindFirstChild("Head") or targetPart
     local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0,2,0))
     if not onScreen then
         aimLockArrow.Visible = false
@@ -116,9 +116,9 @@ end
 
 --// UTILS
 local function getPart(char)
-    if BodyPart=="𝙃𝙚𝙖𝙙" then
+    if BodyPart=="Head" then
         return char:FindFirstChild("Head")
-    elseif BodyPart=="𝙏𝙤𝙧𝙨𝙤" then
+    elseif BodyPart=="Torso" then
         return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
     end
 end
@@ -153,7 +153,7 @@ local function getTarget()
         if d<FOV and d<dist then best,dist=part,d end
     end
 
-    if TargetType=="𝙋𝙇𝘼𝙔𝙀𝙍𝙎" then
+    if TargetType=="PLAYERS" then
         for _,p in ipairs(Players:GetPlayers()) do
             if p~=LP and p.Character then check(p.Character) end
         end
@@ -192,15 +192,15 @@ local function sideBtn(txt,y)
     return b
 end
 
-local pBtn = sideBtn("𝙋",4)
-local camBtn = sideBtn("𝘾𝘼𝙈",18)
-local partBtn = sideBtn("𝙋𝘼𝙍𝙏",32)
+local pBtn = sideBtn("P",4)
+local camBtn = sideBtn("CAM",18)
+local partBtn = sideBtn("PART",32)
 
 --// TOGGLE
 local toggle = Instance.new("TextButton",main)
 toggle.Size = UDim2.new(0,110,0,34)
 toggle.Position = UDim2.new(0.5,-36,0.5,-17)
-toggle.Text="𝙏𝙊𝙂𝙂𝙇𝙀 𝙊𝙁𝙁"
+toggle.Text="TOGGLE OFF"
 toggle.Font=Enum.Font.GothamMedium
 toggle.TextSize = 14
 toggle.TextColor3 = Color3.new(1,1,1)
@@ -240,33 +240,33 @@ local function partOption(txt,y)
     return b
 end
 
-local h=partOption("𝙃𝙀𝘼𝘿",4)
-local t=partOption("𝙏𝙊𝙍𝙎𝙊",24)
+local h=partOption("HEAD",4)
+local t=partOption("TORSO",24)
 
 --// BUTTON LOGIC
 toggle.MouseButton1Click:Connect(function()
     Enabled=not Enabled
     LockedTarget=nil
-    toggle.Text=Enabled and "𝙏𝙊𝙂𝙂𝙇𝙀 𝙊𝙉" or "𝙏𝙊𝙂𝙂𝙇𝙀 𝙊𝙁𝙁"
+    toggle.Text=Enabled and "TOGGLE ON" or "TOGGLE OFF"
 end)
 
 pBtn.MouseButton1Click:Connect(function()
-    TargetType = TargetType=="𝙋𝙇𝘼𝙔𝙀𝙍𝙎" and "𝙉𝙋𝘾𝙎" or "𝙋𝙇𝘼𝙔𝙀𝙍𝙎"
-    pBtn.Text = TargetType=="𝙋𝙇𝘼𝙔𝙀𝙍𝙎" and "𝙋" or "𝙉"
+    TargetType = TargetType=="PLAYERS" and "NPCS" or "PLAYERS"
+    pBtn.Text = TargetType=="PLAYERS" and "P" or "N"
     LockedTarget=nil
 end)
 
 camBtn.MouseButton1Click:Connect(function()
-    if Mode=="𝘾𝘼𝙈𝙇𝙊𝘾𝙆" then Mode="𝘼𝙄𝙈𝙇𝙊𝘾𝙆"
-    elseif Mode=="𝘼𝙄𝙈𝙇𝙊𝘾𝙆" then Mode="𝘼𝙎𝙎𝙄𝙎𝙏"
-    elseif Mode=="𝘼𝙎𝙎𝙄𝙎𝙏" then Mode="𝙈𝙞𝙨𝙩𝙪"
-    elseif Mode=="𝙈𝙞𝙨𝙩𝙪" then Mode="𝘾𝘼𝙈𝙇𝙊𝘾𝙆"
-    else Mode="𝘾𝘼𝙈𝙇𝙊𝘾𝙆" end
+    if Mode=="CAMLOCK" then Mode="AIMLOCK"
+    elseif Mode=="AIMLOCK" then Mode="ASSIST"
+    elseif Mode=="ASSIST" then Mode="Mistu"
+    elseif Mode=="Mistu" then Mode="CAMLOCK"
+    else Mode="CAMLOCK" end
 
-    camBtn.Text = Mode=="𝘾𝘼𝙈𝙇𝙊𝘾𝙆" and "𝘾𝘼𝙈"
-    or Mode=="𝘼𝙄𝙈𝙇𝙊𝘾𝙆" and "𝘼𝙄𝙈"
-    or Mode=="𝘼𝙎𝙎𝙄𝙎𝙏" and "𝘼𝙎𝙏"
-    or Mode=="𝙈𝙞𝙨𝙩𝙪" and "𝙈𝙨𝙩"
+    camBtn.Text = Mode=="CAMLOCK" and "CAM"
+    or Mode=="AIMLOCK" and "AIM"
+    or Mode=="ASSIST" and "AST"
+    or Mode=="Mistu" and "Mst"
     LockedTarget=nil
 end)
 
@@ -274,8 +274,8 @@ partBtn.MouseButton1Click:Connect(function()
     partMenu.Visible = not partMenu.Visible
 end)
 
-h.MouseButton1Click:Connect(function() BodyPart="𝙃𝙚𝙖𝙙" partMenu.Visible=false end)
-t.MouseButton1Click:Connect(function() BodyPart="𝙏𝙤𝙧𝙨𝙤" partMenu.Visible=false end)
+h.MouseButton1Click:Connect(function() BodyPart="Head" partMenu.Visible=false end)
+t.MouseButton1Click:Connect(function() BodyPart="Torso" partMenu.Visible=false end)
 
 --// DRAG LOGIC
 local dragging=false
@@ -337,18 +337,18 @@ RunService.RenderStepped:Connect(function()
     end
 
     -- limpeza automática de indicadores se não estiver no modo correto
-    if Mode ~= "𝘾𝘼𝙈𝙇𝙊𝘾𝙆" or not Enabled or not LockedTarget then
+    if Mode ~= "CAMLOCK" or not Enabled or not LockedTarget then
         for _,line in pairs(camLockLines) do line.Visible = false end
         camLockDot.Visible = false
     end
 
-    if Mode ~= "𝘼𝙄𝙈𝙇𝙊𝘾𝙆" or not Enabled or not LockedTarget then
+    if Mode ~= "AIMLOCK" or not Enabled or not LockedTarget then
         aimLockArrow.Visible = false
     end
 
     -- centraliza FOV apenas para AIM ASSIST
     FovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    FovCircle.Visible = Enabled and Mode=="𝘼𝙎𝙎𝙄𝙎𝙏"
+    FovCircle.Visible = Enabled and Mode=="ASSIST"
 
     local t = getTarget()
     if not Enabled or not t then
@@ -365,14 +365,14 @@ RunService.RenderStepped:Connect(function()
         return
     end
 
-    if Mode~="𝘼𝙎𝙎𝙄𝙎𝙏" then
+    if Mode~="ASSIST" then
         if not LockedTarget or not LockedTarget.Parent then
             LockedTarget = getTarget()
         end
     end
 
     --// MODOS
-    if Mode=="𝘾𝘼𝙈𝙇𝙊𝘾𝙆" and LockedTarget then
+    if Mode=="CAMLOCK" and LockedTarget then
         local targetPart = LockedTarget.Parent:FindFirstChild("HumanoidRootPart") or LockedTarget
         if targetPart then
             local camCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
@@ -380,7 +380,7 @@ RunService.RenderStepped:Connect(function()
             drawCamLockIndicator(targetPart)
         end
 
-    elseif Mode=="𝘼𝙄𝙈𝙇𝙊𝘾𝙆" and LockedTarget then
+    elseif Mode=="AIMLOCK" and LockedTarget then
         local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
             local look = Vector3.new(LockedTarget.Position.X, hrp.Position.Y, LockedTarget.Position.Z)
@@ -388,7 +388,7 @@ RunService.RenderStepped:Connect(function()
         end
         drawAimLockIndicator(LockedTarget)
 
-    elseif Mode=="𝘼𝙎𝙎𝙄𝙎𝙏" and t and wallCheck(t) then
+    elseif Mode=="ASSIST" and t and wallCheck(t) then
         local cam = Camera.CFrame
         local dir = (t.Position - cam.Position).Unit
         Camera.CFrame = CFrame.new(cam.Position, cam.Position + cam.LookVector:Lerp(dir, AssistStrength))
@@ -408,7 +408,7 @@ RunService.RenderStepped:Connect(function()
             end    
         end
 
-    elseif Mode=="𝙈𝙞𝙨𝙩𝙪" and LockedTarget then
+    elseif Mode=="Mistu" and LockedTarget then
         local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
             local look = Vector3.new(LockedTarget.Position.X, hrp.Position.Y, LockedTarget.Position.Z)
