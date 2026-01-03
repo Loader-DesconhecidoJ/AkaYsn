@@ -19,7 +19,7 @@ local Camera = workspace.CurrentCamera
 -- CONFIG
 --==============================
 
-local STREAM_RADIUS = 150
+local STREAM_RADIUS = 100
 local GRAPHICS_LEVEL = 1
 
 --==============================
