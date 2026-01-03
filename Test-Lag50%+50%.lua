@@ -1,7 +1,8 @@
 --// MOBILE ANTI-DELAY BALANCEADO
---// 50% EFEITOS OFF
---// 50% PARTÍCULAS OFF
---// RENDER FIXO 450
+--// 50% EFEITOS
+--// 50% PARTÍCULAS
+--// SOM > 0.5s REDUZIDO
+--// RENDER FIXO 170
 --// FPS + PING REAL
 
 local Players = game:GetService("Players")
@@ -19,9 +20,9 @@ local Camera = workspace.CurrentCamera
 -- CONFIG
 --==============================
 
-local STREAM_RADIUS = 450
+local STREAM_RADIUS = 350
 local GRAPHICS_LEVEL = 1
-local SOUND_LIMIT = 0.9
+local SOUND_LIMIT = 0.5
 
 --==============================
 -- GRÁFICO FORÇADO NO 1
@@ -45,7 +46,7 @@ task.spawn(function()
 end)
 
 --==============================
--- STREAMING FIXO (450 / 450)
+-- STREAMING FIXO (170 / 170)
 --==============================
 
 pcall(function()
@@ -68,38 +69,31 @@ task.spawn(function()
 end)
 
 --==============================
--- ILUMINAÇÃO BALANCEADA
+-- ILUMINAÇÃO LEVE (NÃO ZERADA)
 --==============================
 
 Lighting.GlobalShadows = false
 Lighting.Technology = Enum.Technology.Compatibility
 Lighting.Brightness = 1.6
-Lighting.EnvironmentDiffuseScale = 0.45
-Lighting.EnvironmentSpecularScale = 0.25
+Lighting.EnvironmentDiffuseScale = 0.4
+Lighting.EnvironmentSpecularScale = 0.2
 Lighting.FogStart = 0
 Lighting.FogEnd = 1e10
 
--- Skybox leve (mantido)
-for _, v in ipairs(Lighting:GetChildren()) do
-	if v:IsA("Clouds") then
-		v:Destroy()
-	end
-end
-
 local color = Instance.new("ColorCorrectionEffect")
-color.Saturation = -0.04
-color.Contrast = -0.02
+color.Saturation = -0.05
+color.Contrast = -0.05
 color.Parent = Lighting
 
 --==============================
--- 50% DOS EFEITOS OFF
+-- 50% DOS EFEITOS
 --==============================
 
 local function optimizeEffects(obj)
 	if obj:IsA("BloomEffect")
+	or obj:IsA("BlurEffect")
 	or obj:IsA("SunRaysEffect")
-	or obj:IsA("DepthOfFieldEffect")
-	or obj:IsA("BlurEffect") then
+	or obj:IsA("DepthOfFieldEffect") then
 		obj.Enabled = math.random() < 0.5
 	end
 
@@ -115,7 +109,7 @@ end
 game.DescendantAdded:Connect(optimizeEffects)
 
 --==============================
--- PARTÍCULAS (50% OFF)
+-- 50% DAS PARTÍCULAS
 --==============================
 
 local function optimizeParticles(obj)
@@ -159,27 +153,33 @@ task.spawn(function()
 end)
 
 --==============================
--- SOM LONGO REDUZIDO
+-- REMOVEDOR DE SOM > 0.5s (FUNCIONA)
 --==============================
 
 local function optimizeSound(sound)
 	if not sound:IsA("Sound") then return end
+
 	task.spawn(function()
 		pcall(function()
 			if sound.TimeLength == 0 then
 				sound.Loaded:Wait()
 			end
+
 			if sound.TimeLength > SOUND_LIMIT then
-				sound.Volume *= 0.4
+				sound.Volume *= 0.3
 			end
 		end)
 	end)
 end
 
+-- Sons existentes
 for _, s in ipairs(SoundService:GetDescendants()) do
 	optimizeSound(s)
 end
+
+-- Sons novos
 SoundService.DescendantAdded:Connect(optimizeSound)
+workspace.DescendantAdded:Connect(optimizeSound)
 
 --==============================
 -- ANTI TREMOR DE CÂMERA
@@ -198,7 +198,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --==============================
--- FPS COUNTER REAL + PING
+-- FPS + PING REAL
 --==============================
 
 local gui = Instance.new("ScreenGui")
@@ -240,4 +240,4 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
-print("⚡ ANTI-DELAY BALANCEADO | 50% EFEITOS | 50% PARTÍCULAS | RENDER 450")
+print("⚙️ ANTI-DELAY BALANCEADO | 50% EFEITOS | 50% PARTÍCULAS | SOM >0.5s | RENDER 170")
