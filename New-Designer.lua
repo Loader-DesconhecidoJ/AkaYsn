@@ -15,7 +15,7 @@ local Hue = 0
 
 --// CONFIG
 local FOVMax = 110
-local FOVMin = 50 -- FOV mínimo dinâmico
+local FOVMin = 50
 local FOV = FOVMax
 local CamSmooth = 0.35
 local AimSmooth = 1
@@ -34,7 +34,24 @@ FovCircle.NumSides = 64
 FovCircle.Radius = FOV
 FovCircle.Filled = false
 FovCircle.Visible = false
-FovCircle.Color = Color3.fromRGB(255,255,255) -- cor neutra inicial
+FovCircle.Color = Color3.fromRGB(255,255,255)
+
+--// LOCKON VISUAL
+local LockLines = {}
+for i=1,4 do
+    local line = Drawing.new("Line")
+    line.Thickness = 2
+    line.Color = Color3.fromRGB(0,255,255)
+    line.Visible = false
+    table.insert(LockLines, line)
+end
+
+local LockDot = Drawing.new("Circle")
+LockDot.Thickness = 2
+LockDot.Radius = 5
+LockDot.Filled = true
+LockDot.Color = Color3.fromRGB(0,255,255)
+LockDot.Visible = false
 
 --// UTILS
 local function getPart(char)
@@ -108,7 +125,7 @@ local function sideBtn(txt,y)
     b.Font=Enum.Font.GothamBold
     b.TextSize=11
     b.TextColor3=Color3.new(1,1,1)
-    b.BackgroundColor3=Color3.fromRGB(32,32,32)
+    b.BackgroundColor3 = Color3.fromRGB(32,32,32)
     b.BorderSizePixel = 0
     Instance.new("UICorner",b).CornerRadius = UDim.new(0,6)
     return b
@@ -129,7 +146,7 @@ toggle.TextColor3=Color3.new(1,1,1)
 toggle.BorderSizePixel=0
 Instance.new("UICorner",toggle).CornerRadius = UDim.new(0,12)
 
---// DRAG BUTTON 🔄
+--// DRAG BUTTON
 local dragBtn = Instance.new("TextButton",gui)
 dragBtn.Size = UDim2.new(0,32,0,20)
 dragBtn.Text = "🔄"
@@ -182,8 +199,13 @@ camBtn.MouseButton1Click:Connect(function()
     if Mode=="CAMLOCK" then Mode="AIMLOCK"
     elseif Mode=="AIMLOCK" then Mode="ASSIST"
     elseif Mode=="ASSIST" then Mode="Mistu"
+    elseif Mode=="Mistu" then Mode="LOCKON"
     else Mode="CAMLOCK" end
-    camBtn.Text = Mode=="CAMLOCK" and "CAM" or Mode=="AIMLOCK" and "AIM" or Mode=="ASSIST" and "AST" or "Mst"
+    camBtn.Text = Mode=="CAMLOCK" and "CAM" 
+                or Mode=="AIMLOCK" and "AIM" 
+                or Mode=="ASSIST" and "AST" 
+                or Mode=="Mistu" and "Mst"
+                or "LON"
     LockedTarget=nil
 end)
 
@@ -236,10 +258,11 @@ UIS.InputChanged:Connect(function(input)
     end
 end)
 
---// LOOP
+--// MAIN LOOP
 RunService.RenderStepped:Connect(function()
     toggle.BackgroundColor3 = rgb()
 
+    -- atualizar drag
     dragBtn.Position = UDim2.fromOffset(  
         main.AbsolutePosition.X + main.AbsoluteSize.X/2 - 16,  
         main.AbsolutePosition.Y + main.AbsoluteSize.Y + 6  
@@ -252,72 +275,116 @@ RunService.RenderStepped:Connect(function()
         )  
     end  
 
-    -- centraliza sempre
+    -- centraliza FOV apenas para AIM ASSIST
     FovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     FovCircle.Visible = Enabled and Mode=="ASSIST"
 
-    -- se não tiver alvo dentro do FOV, retorna neutro
     local t = getTarget()
     if not Enabled or not t then
+        -- reset FOV neutro
         FOV = FOVMax
         FovCircle.Radius = FOV
-        FovCircle.Color = Color3.fromRGB(255,255,255) -- cor neutra
+        FovCircle.Color = Color3.fromRGB(255,255,255)
     end
 
-    if not Enabled then return end  
+    if not Enabled then
+        -- reset visuais LOCKON
+        for _,line in pairs(LockLines) do line.Visible = false end
+        LockDot.Visible = false
+        FovCircle.Visible = false
+        return
+    end
 
-    if Mode~="ASSIST" then  
-        if not LockedTarget or not LockedTarget.Parent then  
-            LockedTarget=getTarget()  
-        end  
-    end  
+    -- pega alvo para modos que não são ASSIST e LOCKON
+    if Mode~="ASSIST" and Mode~="LOCKON" then
+        if not LockedTarget or not LockedTarget.Parent then
+            LockedTarget = getTarget()
+        end
+    end
 
-    if Mode=="CAMLOCK" and LockedTarget then  
-        local targetPart = LockedTarget.Parent:FindFirstChild("HumanoidRootPart") or LockedTarget  
-        if targetPart then  
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)  
-        end  
-          
-    elseif Mode=="AIMLOCK" and LockedTarget then  
-        local hrp=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")  
-        if hrp then  
-            local look=Vector3.new(LockedTarget.Position.X,hrp.Position.Y,LockedTarget.Position.Z)  
-            hrp.CFrame=hrp.CFrame:Lerp(CFrame.new(hrp.Position,look),AimSmooth)  
-        end  
+    --// MODOS
+    if Mode=="CAMLOCK" and LockedTarget then
+        local targetPart = LockedTarget.Parent:FindFirstChild("HumanoidRootPart") or LockedTarget
+        if targetPart then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+        end
 
-    elseif Mode=="ASSIST" and t and wallCheck(t) then  
-        local cam=Camera.CFrame  
-        local dir=(t.Position-cam.Position).Unit  
-        Camera.CFrame=CFrame.new(cam.Position,cam.Position+cam.LookVector:Lerp(dir,AssistStrength))  
+    elseif Mode=="AIMLOCK" and LockedTarget then
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local look = Vector3.new(LockedTarget.Position.X, hrp.Position.Y, LockedTarget.Position.Z)
+            hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(hrp.Position, look), AimSmooth)
+        end
 
-        -- FOV dinâmico com cor
+    elseif Mode=="ASSIST" and t and wallCheck(t) then
+        local cam = Camera.CFrame
+        local dir = (t.Position - cam.Position).Unit
+        Camera.CFrame = CFrame.new(cam.Position, cam.Position + cam.LookVector:Lerp(dir, AssistStrength))
+
         local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
             local distance = (t.Position - hrp.Position).Magnitude
-            local maxDistance = 100 -- ajuste conforme necessário
-            local ratio = math.clamp(distance / maxDistance, 0, 1)
-
-            -- FOV dinâmico
+            local ratio = math.clamp(distance / 100, 0, 1)
             FOV = FOVMax - ((FOVMax - FOVMin) * ratio)
             FovCircle.Radius = FOV
-
-            -- COR DINÂMICA: verde (longe) → amarelo (médio) → vermelho (perto)
             if ratio < 0.33 then
-                FovCircle.Color = Color3.fromRGB(255,0,0) -- vermelho perto
+                FovCircle.Color = Color3.fromRGB(255,0,0)
             elseif ratio < 0.66 then
-                FovCircle.Color = Color3.fromRGB(255,255,0) -- amarelo médio
+                FovCircle.Color = Color3.fromRGB(255,255,0)
             else
-                FovCircle.Color = Color3.fromRGB(0,255,0) -- verde longe
+                FovCircle.Color = Color3.fromRGB(0,255,0)
             end
         end
-    end  
 
-    if Mode=="Mistu" and LockedTarget then  
-        local hrp=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")  
-        if hrp then  
-            local look=Vector3.new(LockedTarget.Position.X,hrp.Position.Y,LockedTarget.Position.Z)  
-            hrp.CFrame = CFrame.new(hrp.Position, look)  
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, look)  
-        end  
+    elseif Mode=="Mistu" and LockedTarget then
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local look = Vector3.new(LockedTarget.Position.X, hrp.Position.Y, LockedTarget.Position.Z)
+            hrp.CFrame = CFrame.new(hrp.Position, look)
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, look)
+        end
+
+    elseif Mode=="LOCKON" then
+        if not LockedTarget or not LockedTarget.Parent then
+            LockedTarget = getTarget()
+        end
+
+        if LockedTarget and LockedTarget.Parent then
+            local targetPart = LockedTarget.Parent:FindFirstChild("HumanoidRootPart") or getPart(LockedTarget.Parent)
+            if targetPart then
+                -- lock suave ignorando shiftlock
+                local camPos = Camera.CFrame.Position
+                local newCFrame = CFrame.new(camPos, targetPart.Position)
+                Camera.CFrame = Camera.CFrame:Lerp(newCFrame, 0.35)
+
+                -- desenho lock
+                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                if onScreen then
+                    local size = 30
+                    local top = Vector2.new(screenPos.X, screenPos.Y - size)
+                    local right = Vector2.new(screenPos.X + size, screenPos.Y)
+                    local bottom = Vector2.new(screenPos.X, screenPos.Y + size)
+                    local left = Vector2.new(screenPos.X - size, screenPos.Y)
+
+                    LockLines[1].From = top; LockLines[1].To = right
+                    LockLines[2].From = right; LockLines[2].To = bottom
+                    LockLines[3].From = bottom; LockLines[3].To = left
+                    LockLines[4].From = left; LockLines[4].To = top
+
+                    for _,line in pairs(LockLines) do line.Visible = true end
+                    LockDot.Position = Vector2.new(screenPos.X, screenPos.Y)
+                    LockDot.Visible = true
+                else
+                    for _,line in pairs(LockLines) do line.Visible = false end
+                    LockDot.Visible = false
+                end
+            end
+        else
+            for _,line in pairs(LockLines) do line.Visible = false end
+            LockDot.Visible = false
+        end
+
+        -- FOV não aparece no LOCKON
+        FovCircle.Visible = false
     end
 end)
