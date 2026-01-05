@@ -592,18 +592,18 @@ layout.Parent = menuFrame
 
 -- Função para criar botão do menu
 local function menuButton(text)
-	local b = Instance.new("TextButton")
-	b.Size = UDim2.fromOffset(220,46)
-	b.BackgroundColor3 = Color3.fromRGB(60,60,60)
-	b.TextColor3 = Color3.new(1,1,1)
-	b.TextScaled = true
-	b.Font = Enum.Font.GothamBold
-	b.Text = text
-	b.AutoButtonColor = false
-	b.ZIndex = 202
-	b.Parent = menuFrame
-	Instance.new("UICorner", b)
-	return b
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.fromOffset(220,46)
+    b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    b.TextColor3 = Color3.new(1,1,1)
+    b.TextScaled = true
+    b.Font = Enum.Font.GothamBold
+    b.Text = text
+    b.AutoButtonColor = false
+    b.ZIndex = 202
+    b.Parent = menuFrame
+    Instance.new("UICorner", b)
+    return b
 end
 
 -- =========================
@@ -611,11 +611,109 @@ end
 -- =========================
 
 local hotbarBtn = menuButton("Hotbar: Custom")
-local option2Btn = menuButton("Opção 2 (em breve)")
+local option2Btn = menuButton("Opção 2 (Jogo Teleporte)")
 local option3Btn = menuButton("Opção 3 (em breve)")
 
 option2Btn.BackgroundTransparency = 0.4
 option3Btn.BackgroundTransparency = 0.4
+
+-- =========================
+-- NOVO MENU DE JOGOS (Opção 2)
+-- =========================
+
+local gamesMenu = Instance.new("Frame")
+gamesMenu.Size = UDim2.fromOffset(300, 350)  -- Aumentei o tamanho para acomodar os botões dentro
+gamesMenu.Position = UDim2.fromScale(0.5, 0.5)  -- Centraliza no meio da tela
+gamesMenu.AnchorPoint = Vector2.new(0.5, 0.5)  -- Centraliza a âncora
+gamesMenu.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+gamesMenu.Visible = false
+gamesMenu.ZIndex = 201
+gamesMenu.Parent = settingsGui
+Instance.new("UICorner", gamesMenu)
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(120, 120, 120)
+stroke.Thickness = 2
+stroke.Parent = gamesMenu
+
+local gridLayout = Instance.new("UIGridLayout")
+gridLayout.CellSize = UDim2.fromOffset(100, 100)  -- Botões de 100x100 pixels
+gridLayout.CellPadding = UDim2.fromOffset(10, 10)  -- Espaço entre os botões
+gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+gridLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+gridLayout.Parent = gamesMenu
+
+-- Função para criar botões de jogos
+local function createGameButton(gameName, gameId)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.fromOffset(100, 100)  -- Tamanho quadrado dos botões
+    b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.TextScaled = true
+    b.Font = Enum.Font.GothamBold
+    b.Text = gameName
+    b.AutoButtonColor = false
+    b.ZIndex = 202
+    b.Parent = gamesMenu
+    Instance.new("UICorner", b)
+
+    -- Ação do botão (teleportar para o jogo)
+    b.MouseButton1Click:Connect(function()
+        game:GetService("TeleportService"):Teleport(gameId, player)
+    end)
+end
+
+-- Adicionando botões de jogos
+createGameButton("Gun-Grounds-FFA", 12137249458)  -- Troque 123456789 pelo ID do seu jogo
+createGameButton("Natural-Disaster-Survival", 189707)  -- Troque 987654321 pelo ID do seu jogo
+createGameButton("Jogo 3", 112233445)  -- Troque 112233445 pelo ID do seu jogo
+createGameButton("Jogo 4", 556677889)  -- Troque 556677889 pelo ID do seu jogo
+
+-- Animação para abrir o menu de jogos (Teleport Games)
+local function openGamesMenu()
+    gamesMenu.Visible = true
+    TweenService:Create(gamesMenu,
+        TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { Size = UDim2.fromScale(0.5, 0.5) }  -- Ajuste o tamanho conforme necessário
+    ):Play()
+end
+
+-- Animação para fechar o menu de jogos
+local function closeGamesMenu()
+    local tween = TweenService:Create(gamesMenu,
+        TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+        { Size = UDim2.fromScale(0, 0) }
+    )
+    tween:Play()
+    tween.Completed:Wait()
+    gamesMenu.Visible = false
+end
+
+-- Mostrar o menu de jogos ao clicar na opção 2 do menu
+option2Btn.MouseButton1Click:Connect(function()
+    if gamesMenu.Visible then
+        closeGamesMenu()
+    else
+        openGamesMenu()
+    end
+end)
+
+-- Botão de voltar para o menu principal
+local backButton = Instance.new("TextButton")
+backButton.Size = UDim2.fromOffset(220, 46)
+backButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+backButton.TextColor3 = Color3.new(1, 1, 1)
+backButton.TextScaled = true
+backButton.Font = Enum.Font.GothamBold
+backButton.Text = "Voltar"
+backButton.AutoButtonColor = false
+backButton.ZIndex = 202
+backButton.Parent = gamesMenu
+Instance.new("UICorner", backButton)
+
+backButton.MouseButton1Click:Connect(function()
+    closeGamesMenu()  -- Fecha o menu de jogos
+end)
 
 -- =========================
 -- CONTROLE HOTBAR
@@ -624,24 +722,24 @@ option3Btn.BackgroundTransparency = 0.4
 local customHotbarEnabled = true
 
 local function updateHotbarState()
-	if customHotbarEnabled then
-		hotbar.Visible = true
-		pcall(function()
-			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
-		end)
-		hotbarBtn.Text = "Hotbar: Custom"
-	else
-		hotbar.Visible = false
-		pcall(function()
-			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
-		end)
-		hotbarBtn.Text = "Hotbar: Roblox"
-	end
+    if customHotbarEnabled then
+        hotbar.Visible = true
+        pcall(function()
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+        end)
+        hotbarBtn.Text = "Hotbar: Custom"
+    else
+        hotbar.Visible = false
+        pcall(function()
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+        end)
+        hotbarBtn.Text = "Hotbar: Roblox"
+    end
 end
 
 hotbarBtn.MouseButton1Click:Connect(function()
-	customHotbarEnabled = not customHotbarEnabled
-	updateHotbarState()
+    customHotbarEnabled = not customHotbarEnabled
+    updateHotbarState()
 end)
 
 -- =========================
@@ -649,7 +747,7 @@ end)
 -- =========================
 
 settingsBtn.MouseButton1Click:Connect(function()
-	menuFrame.Visible = not menuFrame.Visible
+    menuFrame.Visible = not menuFrame.Visible
 end)
 
 -- estado inicial
