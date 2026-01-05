@@ -636,7 +636,7 @@ settingsGui.Parent = player.PlayerGui
 -- Botão de abrir menu
 local settingsBtn = Instance.new("TextButton")
 settingsBtn.Size = UDim2.fromOffset(44,44)
-settingsBtn.Position = UDim2.fromOffset(20,20)
+settingsBtn.Position = UDim2.fromOffset(20,60)
 settingsBtn.Text = "⚙️"
 settingsBtn.TextSize = 24
 settingsBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
