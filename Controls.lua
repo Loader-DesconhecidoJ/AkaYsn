@@ -5,6 +5,67 @@ local TweenService = game:GetService("TweenService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local StarterGui = game:GetService("StarterGui")
 
+-- =========================
+-- FPS + RELÓGIO (HUD)
+-- =========================
+
+local player = Players.LocalPlayer
+
+-- GUI base (usa a mesma depois)
+local gui = Instance.new("ScreenGui")
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player.PlayerGui
+
+-- FPS
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.fromOffset(120,36)
+fpsLabel.Position = UDim2.fromOffset(20,20)
+fpsLabel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+fpsLabel.BackgroundTransparency = 0.3
+fpsLabel.TextColor3 = Color3.new(1,1,1)
+fpsLabel.Font = Enum.Font.GothamBold
+fpsLabel.TextSize = 18
+fpsLabel.Text = "FPS: 0"
+fpsLabel.ZIndex = 300
+fpsLabel.Parent = gui
+Instance.new("UICorner", fpsLabel)
+
+-- RELÓGIO
+local clockLabel = Instance.new("TextLabel")
+clockLabel.Size = UDim2.fromOffset(150,36)
+clockLabel.Position = UDim2.new(1,-170,0,20)
+clockLabel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+clockLabel.BackgroundTransparency = 0.3
+clockLabel.TextColor3 = Color3.new(1,1,1)
+clockLabel.Font = Enum.Font.GothamBold
+clockLabel.TextSize = 18
+clockLabel.Text = "--:--:--"
+clockLabel.ZIndex = 300
+clockLabel.Parent = gui
+Instance.new("UICorner", clockLabel)
+
+-- CONTADOR FPS
+local frames = 0
+local last = tick()
+
+RunService.RenderStepped:Connect(function()
+	frames += 1
+	if tick() - last >= 1 then
+		fpsLabel.Text = "FPS: "..frames
+		frames = 0
+		last = tick()
+	end
+end)
+
+-- ATUALIZA RELÓGIO
+task.spawn(function()
+	while true do
+		clockLabel.Text = os.date("%H:%M:%S")
+		task.wait(1)
+	end
+end)
+
 -- === DESATIVAR CONTROLES PADRÃO DO ROBLOX MOBILE ===
 
 pcall(function()
@@ -559,7 +620,7 @@ settingsGui.Parent = player.PlayerGui
 -- Botão de abrir menu
 local settingsBtn = Instance.new("TextButton")
 settingsBtn.Size = UDim2.fromOffset(44,44)
-settingsBtn.Position = UDim2.fromOffset(20,20)
+settingsBtn.Position = UDim2.fromOffset(20,60)
 settingsBtn.Text = "⚙️"
 settingsBtn.TextSize = 24
 settingsBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
@@ -665,7 +726,7 @@ end
 
 -- Adicionando botões de jogos
 createGameButton("Gun-Grounds-FFA", 12137249458)  -- Troque 123456789 pelo ID do seu jogo
-createGameButton("Natural-Disaster-Survival", 189707)  -- Troque 987654321 pelo ID do seu jogo
+createGameButton("Jogo 2", 987654321)  -- Troque 987654321 pelo ID do seu jogo
 createGameButton("Jogo 3", 112233445)  -- Troque 112233445 pelo ID do seu jogo
 createGameButton("Jogo 4", 556677889)  -- Troque 556677889 pelo ID do seu jogo
 
@@ -740,15 +801,4 @@ end
 hotbarBtn.MouseButton1Click:Connect(function()
     customHotbarEnabled = not customHotbarEnabled
     updateHotbarState()
-end)
-
--- =========================
--- ABRIR / FECHAR MENU
--- =========================
-
-settingsBtn.MouseButton1Click:Connect(function()
-    menuFrame.Visible = not menuFrame.Visible
-end)
-
--- estado inicial
-updateHotbarState()
+e
