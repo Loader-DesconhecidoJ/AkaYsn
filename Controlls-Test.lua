@@ -849,6 +849,7 @@ end
 local fpsBtn = menuActionButton("Desativar FPS", toggleFPS)
 local clockBtn = menuActionButton("Desativar Relógio", toggleClock)
 local actionBtn = menuActionButton("Desativar Botões A B X Y", toggleActionButtons)
+
 -- =========================
 -- CONTROLE HOTBAR
 -- =========================
@@ -862,4 +863,27 @@ local function updateHotbarState()
             StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
         end)
         hotbarBtn.Text = "Hotbar: Custom"
-    e
+    else
+        hotbar.Visible = false
+        pcall(function()
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+        end)
+        hotbarBtn.Text = "Hotbar: Roblox"
+    end
+end
+
+hotbarBtn.MouseButton1Click:Connect(function()
+    customHotbarEnabled = not customHotbarEnabled
+    updateHotbarState()
+end)
+
+-- =========================
+-- ABRIR / FECHAR MENU
+-- =========================
+
+settingsBtn.MouseButton1Click:Connect(function()
+    menuFrame.Visible = not menuFrame.Visible
+end)
+
+-- estado inicial
+updateHotbarState()
