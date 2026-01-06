@@ -180,6 +180,39 @@ local btnX = actionBtn(0,gap,"X",Color3.fromRGB(60,120,200))
 local btnB = actionBtn(gap*2,gap,"B",Color3.fromRGB(200,60,60))
 local btnA = actionBtn(gap,gap*2,"A",Color3.fromRGB(60,200,120))
 
+-- BOTÃO DE PULO CUSTOMIZADO
+local jumpBtn = Instance.new("TextButton")
+jumpBtn.Size = UDim2.fromOffset(96,96)
+jumpBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+jumpBtn.Text = "↑"
+jumpBtn.TextScaled = true
+jumpBtn.Font = Enum.Font.GothamBold
+jumpBtn.TextColor3 = Color3.new(1,1,1)
+jumpBtn.ZIndex = 50
+jumpBtn.Visible = false
+jumpBtn.Parent = gui
+
+Instance.new("UICorner", jumpBtn).CornerRadius = UDim.new(1,0)
+
+local Camera = workspace.CurrentCamera
+local function updateJumpPosition()
+	jumpBtn.Position = UDim2.new(0,160,1,-170)
+end
+updateJumpPosition()
+Camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateJumpPosition)
+
+jumpBtn.InputBegan:Connect(function(i)
+	if i.UserInputType ~= Enum.UserInputType.Touch then return end
+	pressToSize(jumpBtn, UDim2.fromOffset(84,84))
+	humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+end)
+
+jumpBtn.InputEnded:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.Touch then
+		pressToSize(jumpBtn, UDim2.fromOffset(96,96))
+	end
+end)
+
 
 ---
 
@@ -537,12 +570,20 @@ local function updateControlPositions()
 	local margin = math.clamp(viewport.X * 0.04, 16, 40)
 
 	-- D-PAD (lado esquerdo)
-dpad.Position = UDim2.new(
-	0, 
-	margin + 30, -- mais pra direita
-	1, 
-	- dpad.Size.Y.Offset - margin - 20
-)
+	dpad.Position = UDim2.new(
+		0,
+		margin + 30,
+		1,
+		- dpad.Size.Y.Offset - margin - 20
+	)
+
+	-- BOTÃO DE PULO (espelhado do D-PAD)
+	jumpBtn.Position = UDim2.new(
+		1,
+		- jumpBtn.Size.X.Offset - margin - 30,
+		1,
+		- dpad.Size.Y.Offset - margin - -40
+	)
 
 	-- ACTION PAD (lado direito)
 actionPad.Position = UDim2.new(
@@ -646,9 +687,34 @@ end
 local hotbarBtn = menuButton("Hotbar: Custom")
 local option2Btn = menuButton("Opção 2 (Jogo Teleporte)")
 local option3Btn = menuButton("Opção 3 (em breve)")
+local jumpToggleBtn = menuButton("Controles: A B X Y")
 
 option2Btn.BackgroundTransparency = 0.4
 option3Btn.BackgroundTransparency = 0.4
+
+local usingJumpOnly = false
+
+local function updateControlMode()
+	btnA.Visible = not usingJumpOnly
+	btnB.Visible = not usingJumpOnly
+	btnX.Visible = not usingJumpOnly
+	btnY.Visible = not usingJumpOnly
+
+	jumpBtn.Visible = usingJumpOnly
+
+	if usingJumpOnly then
+		jumpToggleBtn.Text = "Controles: Pulo"
+	else
+		jumpToggleBtn.Text = "Controles: A B X Y"
+	end
+end
+
+jumpToggleBtn.MouseButton1Click:Connect(function()
+	usingJumpOnly = not usingJumpOnly
+	updateControlMode()
+end)
+
+updateControlMode()
 
 -- =========================
 -- NOVO MENU DE JOGOS (Opção 2)
