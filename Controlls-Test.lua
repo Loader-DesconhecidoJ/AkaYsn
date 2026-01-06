@@ -647,8 +647,8 @@ Instance.new("UICorner", settingsBtn)
 
 -- Painel do menu
 local menuFrame = Instance.new("Frame")
-menuFrame.Size = UDim2.fromOffset(260,220)
-menuFrame.Position = UDim2.fromOffset(20,70)
+menuFrame.Size = UDim2.fromOffset(260, 220)  -- Dimensões ajustadas
+menuFrame.Position = UDim2.fromOffset(480, 70)  -- Mover o menu mais pra direita
 menuFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 menuFrame.Visible = false
 menuFrame.ZIndex = 201
@@ -660,12 +660,20 @@ stroke.Color = Color3.fromRGB(120,120,120)
 stroke.Thickness = 2
 stroke.Parent = menuFrame
 
--- Layout
+-- Layout (incluindo scroll)
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.fromOffset(260, 180)  -- Ajustando o tamanho para incluir a rolagem
+scrollFrame.Position = UDim2.fromOffset(0, 40)  -- Ajustando a posição para dar espaço ao título
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarImageTransparency = 0.4
+scrollFrame.ZIndex = 202
+scrollFrame.Parent = menuFrame
+
 local layout = Instance.new("UIListLayout")
 layout.Padding = UDim.new(0,12)
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-layout.VerticalAlignment = Enum.VerticalAlignment.Center
-layout.Parent = menuFrame
+layout.VerticalAlignment = Enum.VerticalAlignment.Top
+layout.Parent = scrollFrame
 
 -- Função para criar botão do menu
 local function menuButton(text)
@@ -678,7 +686,7 @@ local function menuButton(text)
     b.Text = text
     b.AutoButtonColor = false
     b.ZIndex = 202
-    b.Parent = menuFrame
+    b.Parent = scrollFrame
     Instance.new("UICorner", b)
     return b
 end
@@ -807,8 +815,7 @@ local function menuActionButton(text, callback)
     b.Text = text
     b.AutoButtonColor = false
     b.ZIndex = 202
-    b.Parent = menuFrame
-    Instance.new("UICorner", b)
+    b.Parent = scrollFrame
 
     -- Ação do botão
     b.MouseButton1Click:Connect(function()
@@ -838,12 +845,7 @@ end
 
 -- Função para desativar os botões A B X Y
 local function toggleActionButtons()
-    if actionPad.Visible then
-        actionPad.Visible = false
-    else
-        actionPad.Visible = true
-    end
-end
+    if actionPad.Visible
 
 -- Adicionando os botões de desativação no menu
 local fpsBtn = menuActionButton("Desativar FPS", toggleFPS)
