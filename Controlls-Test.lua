@@ -844,13 +844,18 @@ local function toggleClock()
 end
 
 -- Função para desativar os botões A B X Y
-local function toggleActionButtons()
-    if actionPad.Visible
+local function toggleAction
+    if actionPad.Visible then
+        actionPad.Visible = false
+    else
+        actionPad.Visible = true
+    end
+end
 
 -- Adicionando os botões de desativação no menu
---local fpsBtn = menuActionButton("Desativar FPS", toggleFPS)
---local clockBtn = menuActionButton("Desativar Relógio", toggleClock)
---local actionBtn = menuActionButton("Desativar Botões A B X Y", toggleActionButtons)
+local fpsBtn = menuActionButton("Desativar FPS", toggleFPS)
+local clockBtn = menuActionButton("Desativar Relógio", toggleClock)
+local actionBtn = menuActionButton("Desativar Botões A B X Y", toggleActionButtons)
 
 -- =========================
 -- CONTROLE HOTBAR
