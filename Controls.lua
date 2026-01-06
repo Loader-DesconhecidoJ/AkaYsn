@@ -5,83 +5,6 @@ local TweenService = game:GetService("TweenService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local StarterGui = game:GetService("StarterGui")
 
--- =========================
--- FPS + RELÓGIO (HUD RGB)
--- =========================
-
-local player = Players.LocalPlayer
-
--- GUI base
-local gui = Instance.new("ScreenGui")
-gui.ResetOnSpawn = false
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Parent = player.PlayerGui
-
--- FPS
-local fpsLabel = Instance.new("TextLabel")
-fpsLabel.Size = UDim2.fromOffset(120,30)
-fpsLabel.Position = UDim2.fromOffset(20,20)
-fpsLabel.BackgroundTransparency = 1 -- remove fundo
-fpsLabel.TextColor3 = Color3.new(1,1,1)
-fpsLabel.Font = Enum.Font.GothamBold
-fpsLabel.TextSize = 18
-fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
-fpsLabel.Text = "FPS: 0"
-fpsLabel.ZIndex = 300
-fpsLabel.Parent = gui
-
--- RELÓGIO
-local clockLabel = Instance.new("TextLabel")
-clockLabel.Size = UDim2.fromOffset(160,30)
-clockLabel.Position = UDim2.new(1,-180,0,20)
-clockLabel.BackgroundTransparency = 1 -- remove fundo
-clockLabel.TextColor3 = Color3.new(1,1,1)
-clockLabel.Font = Enum.Font.GothamBold
-clockLabel.TextSize = 18
-clockLabel.TextXAlignment = Enum.TextXAlignment.Right
-clockLabel.Text = "--:--:--"
-clockLabel.ZIndex = 300
-clockLabel.Parent = gui
-
--- =========================
--- RGB ANIMADO
--- =========================
-
-local hue = 0
-
-RunService.RenderStepped:Connect(function(dt)
-	hue = (hue + dt * 0.15) % 1
-	local color = Color3.fromHSV(hue, 1, 1)
-	fpsLabel.TextColor3 = color
-	clockLabel.TextColor3 = color
-end)
-
--- =========================
--- CONTADOR FPS
--- =========================
-
-local frames = 0
-local last = tick()
-
-RunService.RenderStepped:Connect(function()
-	frames += 1
-	if tick() - last >= 1 then
-		fpsLabel.Text = "FPS: "..frames
-		frames = 0
-		last = tick()
-	end
-end)
-
--- =========================
--- ATUALIZA RELÓGIO
--- =========================
-
-task.spawn(function()
-	while true do
-		clockLabel.Text = os.date("%H:%M:%S")
-		task.wait(1)
-	end
-end)
 -- === DESATIVAR CONTROLES PADRÃO DO ROBLOX MOBILE ===
 
 pcall(function()
@@ -162,7 +85,7 @@ Instance.new("UICorner", b).CornerRadius = UDim.new(0.25,0)
 return b
 end
 
-local gap = 69
+local gap = 70
 
 local up = dpadBtn(gap, 0, "↑")
 local down = dpadBtn(gap, gap*2, "↓")
@@ -239,7 +162,7 @@ local function actionBtn(x,y,t,c)
 end
 
 -- layout estilo controle
-local gap = 60
+local gap = 70
 
 local btnY = actionBtn(gap,0,"Y",Color3.fromRGB(200,200,60))
 local btnX = actionBtn(0,gap,"X",Color3.fromRGB(60,120,200))
@@ -636,7 +559,7 @@ settingsGui.Parent = player.PlayerGui
 -- Botão de abrir menu
 local settingsBtn = Instance.new("TextButton")
 settingsBtn.Size = UDim2.fromOffset(44,44)
-settingsBtn.Position = UDim2.fromOffset(20,60)
+settingsBtn.Position = UDim2.fromOffset(20,20)
 settingsBtn.Text = "⚙️"
 settingsBtn.TextSize = 24
 settingsBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
@@ -647,13 +570,34 @@ Instance.new("UICorner", settingsBtn)
 
 -- Painel do menu
 local menuFrame = Instance.new("Frame")
-menuFrame.Size = UDim2.fromOffset(260,220)
+menuFrame.Size = UDim2.fromOffset(260,220)  -- Tamanho do menu
 menuFrame.Position = UDim2.fromOffset(20,70)
 menuFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 menuFrame.Visible = false
 menuFrame.ZIndex = 201
 menuFrame.Parent = settingsGui
 Instance.new("UICorner", menuFrame)
+
+-- =========================
+-- SCROLL NO MENU DE CONFIGURAÇÕES
+-- =========================
+
+-- Criar o ScrollingFrame dentro do menuFrame
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.fromOffset(260, 180)  -- Reduzido para permitir o cabeçalho
+scrollFrame.Position = UDim2.fromOffset(0, 0)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 10  -- Espessura da barra de rolagem
+scrollFrame.ZIndex = 200
+scrollFrame.Parent = menuFrame
+
+-- Layout para os botões dentro do ScrollingFrame
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 12)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+listLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = scrollFrame
 
 local stroke = Instance.new("UIStroke")
 stroke.Color = Color3.fromRGB(120,120,120)
@@ -667,21 +611,22 @@ layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.VerticalAlignment = Enum.VerticalAlignment.Center
 layout.Parent = menuFrame
 
--- Função para criar botão do menu
+-- Função para criar botões dentro do scrollFrame
 local function menuButton(text)
     local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(220,46)
-    b.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    b.TextColor3 = Color3.new(1,1,1)
+    b.Size = UDim2.fromOffset(220, 46)
+    b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    b.TextColor3 = Color3.new(1, 1, 1)
     b.TextScaled = true
     b.Font = Enum.Font.GothamBold
     b.Text = text
     b.AutoButtonColor = false
     b.ZIndex = 202
-    b.Parent = menuFrame
+    b.Parent = scrollFrame  -- Botões agora são filhos de scrollFrame
     Instance.new("UICorner", b)
     return b
 end
+
 
 -- =========================
 -- BOTÕES DO MENU (3)
