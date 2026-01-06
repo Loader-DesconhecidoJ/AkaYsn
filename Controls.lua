@@ -32,9 +32,20 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local backpack = player:WaitForChild("Backpack")
 
-player.CharacterAdded:Connect(function(char)
-character = char
-humanoid = char:WaitForChild("Humanoid")
+-- Evento para quando o jogador morrer
+player.CharacterAdded:Connect(function(character)
+    -- Desabilita a hotbar padrão do Roblox após a morte
+    pcall(function()
+        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+    end)
+    
+    -- Reaplica a hotbar customizada após a morte
+    updateHotbarState()  -- Faz a hotbar customizada reaparecer
+end)
+
+-- Garantir que a hotbar seja sempre customizada ao entrar no jogo
+pcall(function()
+    StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 end)
 
 -- GUI
