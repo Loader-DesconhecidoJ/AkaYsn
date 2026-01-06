@@ -162,7 +162,7 @@ Instance.new("UICorner", b).CornerRadius = UDim.new(0.25,0)
 return b
 end
 
-local gap = 70
+local gap = 69
 
 local up = dpadBtn(gap, 0, "↑")
 local down = dpadBtn(gap, gap*2, "↓")
@@ -239,7 +239,7 @@ local function actionBtn(x,y,t,c)
 end
 
 -- layout estilo controle
-local gap = 70
+local gap = 60
 
 local btnY = actionBtn(gap,0,"Y",Color3.fromRGB(200,200,60))
 local btnX = actionBtn(0,gap,"X",Color3.fromRGB(60,120,200))
