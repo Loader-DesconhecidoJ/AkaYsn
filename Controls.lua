@@ -28,20 +28,29 @@ end)
 
 -- PLAYER
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
+local player = Players.LocalPlayer
 local backpack = player:WaitForChild("Backpack")
 
--- Evento para quando o jogador morrer
-player.CharacterAdded:Connect(function(character)
-    -- Desabilita a hotbar padrão do Roblox após a morte
-    pcall(function()
-        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
-    end)
-    
-    -- Reaplica a hotbar customizada após a morte
-    updateHotbarState()  -- Faz a hotbar customizada reaparecer
-end)
+-- ===== PERSONAGEM ATUAL (CORRETO) =====
+local character
+local humanoid
+
+local function setupCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+
+	-- reconecta hotbar no personagem novo
+	character.ChildAdded:Connect(updateHotbar)
+	character.ChildRemoved:Connect(updateHotbar)
+end
+
+-- primeira vez
+if player.Character then
+	setupCharacter(player.Character)
+end
+
+-- quando morrer / renascer
+player.CharacterAdded:Connect(setupCharacter)
 
 -- Garantir que a hotbar seja sempre customizada ao entrar no jogo
 pcall(function()
@@ -350,32 +359,102 @@ pressToSize(btnA, UDim2.fromOffset(60,60))
 end
 end)
 
+local INTERACT_DISTANCE = 12
+local Camera = workspace.CurrentCamera
+local holdingPrompt = nil
+
+local function getCenterPrompt()
+	local viewport = Camera.ViewportSize
+	local ray = Camera:ViewportPointToRay(
+		viewport.X / 2,
+		viewport.Y / 2
+	)
+
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = {character}
+	params.FilterType = Enum.RaycastFilterType.Blacklist
+
+	local result = workspace:Raycast(
+		ray.Origin,
+		ray.Direction * INTERACT_DISTANCE,
+		params
+	)
+
+	if not result then return nil end
+
+	local hit = result.Instance
+	if not hit then return nil end
+
+	return hit:FindFirstChildOfClass("ProximityPrompt")
+		or hit.Parent:FindFirstChildOfClass("ProximityPrompt")
+end
+
+-- QUANDO APERTA X
 btnX.InputBegan:Connect(function(i)
-if i.UserInputType ~= Enum.UserInputType.Touch then return end
-pressToSize(btnX, UDim2.fromOffset(54,54))
-for _,t in ipairs(character:GetChildren()) do
-if t:IsA("Tool") then
-t:Activate()
-return
-end
-end
+	if i.UserInputType ~= Enum.UserInputType.Touch then return end
+	pressToSize(btnX, UDim2.fromOffset(54,54))
+
+	-- PRIORIDADE 1: TOOL NA MÃO
+	for _, tool in ipairs(character:GetChildren()) do
+		if tool:IsA("Tool") then
+			tool:Activate()
+			return
+		end
+	end
+
+	-- PRIORIDADE 2: PROXIMITY PROMPT
+	local prompt = getCenterPrompt()
+	if not prompt or not prompt.Enabled then return end
+
+	-- clique simples
+	if prompt.HoldDuration == 0 then
+		ProximityPromptService:TriggerPrompt(prompt)
+	else
+		-- interação de segurar
+		holdingPrompt = prompt
+		ProximityPromptService:BeginPromptHold(prompt)
+	end
 end)
+
+-- QUANDO SOLTA X
 btnX.InputEnded:Connect(function(i)
-if i.UserInputType == Enum.UserInputType.Touch then
-pressToSize(btnX, UDim2.fromOffset(60,60))
-end
+	if i.UserInputType ~= Enum.UserInputType.Touch then return end
+	pressToSize(btnX, UDim2.fromOffset(60,60))
+
+	if holdingPrompt then
+		ProximityPromptService:EndPromptHold(holdingPrompt)
+		holdingPrompt = nil
+	end
+end)
+
+btnX.InputEnded:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.Touch then
+		pressToSize(btnX, UDim2.fromOffset(60,60))
+	end
 end)
 
 btnB.InputBegan:Connect(function(i)
-if i.UserInputType == Enum.UserInputType.Touch then
-pressToSize(btnB, UDim2.fromOffset(54,54))
-StarterGui:SetCore("OpenMenu")
-end
+	if i.UserInputType ~= Enum.UserInputType.Touch then return end
+	pressToSize(btnB, UDim2.fromOffset(54,54))
+
+	for _, tool in ipairs(character:GetChildren()) do
+		if tool:IsA("Tool") then
+			tool.Parent = workspace
+
+			if tool:FindFirstChild("Handle") then
+				tool.Handle.CFrame =
+					character.HumanoidRootPart.CFrame *
+					CFrame.new(0, 0, -2)
+			end
+			return
+		end
+	end
 end)
+
 btnB.InputEnded:Connect(function(i)
-if i.UserInputType == Enum.UserInputType.Touch then
-pressToSize(btnB, UDim2.fromOffset(60,60))
-end
+	if i.UserInputType == Enum.UserInputType.Touch then
+		pressToSize(btnB, UDim2.fromOffset(60,60))
+	end
 end)
 
 -- HOTBAR CUSTOMIZADA (BUG FIX + GLOW RGB)
@@ -556,8 +635,7 @@ end
 
 backpack.ChildAdded:Connect(updateHotbar)
 backpack.ChildRemoved:Connect(updateHotbar)
-character.ChildAdded:Connect(updateHotbar)
-character.ChildRemoved:Connect(updateHotbar)
+
 
 task.wait(0.2)
 updateHotbar()
