@@ -633,9 +633,25 @@ end
 
 -- EVENTOS
 
-backpack.ChildAdded:Connect(updateHotbar)
-backpack.ChildRemoved:Connect(updateHotbar)
+backpack.ChildAdded:Connect(function(child)
+    print("Item adicionado à mochila:", child.Name)
+    updateHotbar()
+end)
 
+backpack.ChildRemoved:Connect(function(child)
+    print("Item removido da mochila:", child.Name)
+    updateHotbar()
+end)
+
+character.ChildAdded:Connect(function(child)
+    print("Item adicionado ao personagem:", child.Name)
+    updateHotbar()
+end)
+
+character.ChildRemoved:Connect(function(child)
+    print("Item removido do personagem:", child.Name)
+    updateHotbar()
+end)
 
 task.wait(0.2)
 updateHotbar()
