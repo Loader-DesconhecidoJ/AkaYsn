@@ -647,8 +647,8 @@ Instance.new("UICorner", settingsBtn)
 
 -- Painel do menu
 local menuFrame = Instance.new("Frame")
-menuFrame.Size = UDim2.fromOffset(260, 220)  -- Dimensões ajustadas
-menuFrame.Position = UDim2.fromOffset(480, 70)  -- Mover o menu mais pra direita
+menuFrame.Size = UDim2.fromOffset(260,220)
+menuFrame.Position = UDim2.fromOffset(20,70)
 menuFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 menuFrame.Visible = false
 menuFrame.ZIndex = 201
@@ -660,23 +660,15 @@ stroke.Color = Color3.fromRGB(120,120,120)
 stroke.Thickness = 2
 stroke.Parent = menuFrame
 
--- Layout (incluindo scroll)
-local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.fromOffset(260, 180)  -- Ajustando o tamanho para incluir a rolagem
-scrollFrame.Position = UDim2.fromOffset(0, 40)  -- Ajustando a posição para dar espaço ao título
-scrollFrame.BackgroundTransparency = 1
-scrollFrame.ScrollBarImageTransparency = 0.4
-scrollFrame.ZIndex = 202
-scrollFrame.Parent = menuFrame
-
+-- Layout
 local layout = Instance.new("UIListLayout")
 layout.Padding = UDim.new(0,12)
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-layout.VerticalAlignment = Enum.VerticalAlignment.Top
-layout.Parent = scrollFrame
+layout.VerticalAlignment = Enum.VerticalAlignment.Center
+layout.Parent = menuFrame
 
 -- Função para criar botão do menu
-local function menuButton(text)
+local function menuButton(text, callback)
     local b = Instance.new("TextButton")
     b.Size = UDim2.fromOffset(220,46)
     b.BackgroundColor3 = Color3.fromRGB(60,60,60)
@@ -686,8 +678,11 @@ local function menuButton(text)
     b.Text = text
     b.AutoButtonColor = false
     b.ZIndex = 202
-    b.Parent = scrollFrame
+    b.Parent = menuFrame
     Instance.new("UICorner", b)
+
+    b.MouseButton1Click:Connect(callback)
+
     return b
 end
 
@@ -742,9 +737,9 @@ local function createGameButton(gameName, gameId)
     b.Parent = gamesMenu
     Instance.new("UICorner", b)
 
-    -- Ação do botão (teleportar para o jogo)  
-    b.MouseButton1Click:Connect(function()  
-        game:GetService("TeleportService"):Teleport(gameId, player)  
+    -- Ação do botão (teleportar para o jogo)
+    b.MouseButton1Click:Connect(function()
+        game:GetService("TeleportService"):Teleport(gameId, player)
     end)
 end
 
@@ -801,63 +796,6 @@ backButton.MouseButton1Click:Connect(function()
 end)
 
 -- =========================
--- NOVOS BOTÕES NO MENU DE CONFIGURAÇÕES
--- =========================
-
--- Função para criar botões de ações
-local function menuActionButton(text, callback)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(220, 46)
-    b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    b.TextColor3 = Color3.new(1, 1, 1)
-    b.TextScaled = true
-    b.Font = Enum.Font.GothamBold
-    b.Text = text
-    b.AutoButtonColor = false
-    b.ZIndex = 202
-    b.Parent = scrollFrame
-
-    -- Ação do botão
-    b.MouseButton1Click:Connect(function()
-        callback()
-    end)
-
-    return b
-end
-
--- Função para desativar o FPS
-local function toggleFPS()
-    if fpsLabel.Visible then
-        fpsLabel.Visible = false
-    else
-        fpsLabel.Visible = true
-    end
-end
-
--- Função para desativar o relógio
-local function toggleClock()
-    if clockLabel.Visible then
-        clockLabel.Visible = false
-    else
-        clockLabel.Visible = true
-    end
-end
-
--- Função para desativar os botões A B X Y
-local function toggleAction
-    if actionPad.Visible then
-        actionPad.Visible = false
-    else
-        actionPad.Visible = true
-    end
-end
-
--- Adicionando os botões de desativação no menu
-local fpsBtn = menuActionButton("Desativar FPS", toggleFPS)
-local clockBtn = menuActionButton("Desativar Relógio", toggleClock)
-local actionBtn = menuActionButton("Desativar Botões A B X Y", toggleActionButtons)
-
--- =========================
 -- CONTROLE HOTBAR
 -- =========================
 
@@ -872,25 +810,49 @@ local function updateHotbarState()
         hotbarBtn.Text = "Hotbar: Custom"
     else
         hotbar.Visible = false
-        pcall(function()
-            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
-        end)
-        hotbarBtn.Text = "Hotbar: Roblox"
+        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+        hotbarBtn.Text = "Hotbar: Default"
     end
 end
 
-hotbarBtn.MouseButton1Click:Connect(function()
-    customHotbarEnabled = not customHotbarEnabled
-    updateHotbarState()
-end)
-
 -- =========================
--- ABRIR / FECHAR MENU
+-- SCROLL NO MENU CONFIG
 -- =========================
 
-settingsBtn.MouseButton1Click:Connect(function()
-    menuFrame.Visible = not menuFrame.Visible
-end)
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.fromOffset(260, 300)  -- Tamanho maior para acomodar o conteúdo
+scrollFrame.Position = UDim2.fromOffset(20, 70)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.Parent = menuFrame
 
--- estado inicial
-updateHotbarState()
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 12)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.VerticalAlignment = Enum.VerticalAlignment.Top
+layout.Parent = scrollFrame
+
+-- Botões para ativar/desativar FPS, Relógio e Controles
+local fpsEnabled = true
+local clockEnabled = true
+local controlsEnabled = true
+
+local function toggleFPS()
+    fpsEnabled = not fpsEnabled
+    fpsLabel.Visible = fpsEnabled
+end
+
+local function toggleClock()
+    clockEnabled = not clockEnabled
+    clockLabel.Visible = clockEnabled
+end
+
+local function toggleControls()
+    controlsEnabled = not controlsEnabled
+    dpad.Visible = controlsEnabled
+    actionPad.Visible = controlsEnabled
+end
+
+-- Botões no menu para controlar as opções
+local fpsBtn = menuButton("FPS: On", function()
+    toggle
