@@ -426,12 +426,6 @@ btnX.InputEnded:Connect(function(i)
 	end
 end)
 
-btnX.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.Touch then
-		pressToSize(btnX, UDim2.fromOffset(60,60))
-	end
-end)
-
 btnB.InputBegan:Connect(function(i)
 	if i.UserInputType ~= Enum.UserInputType.Touch then return end
 	pressToSize(btnB, UDim2.fromOffset(54,54))
