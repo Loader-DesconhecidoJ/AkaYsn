@@ -665,7 +665,7 @@ local function updateControlPositions()
 	-- D-PAD (lado esquerdo)
 	dpad.Position = UDim2.new(
 		0,
-		margin + -5,
+		margin + 10,
 		1,
 		- dpad.Size.Y.Offset - margin - 15
 	)
@@ -683,7 +683,7 @@ actionPad.Position = UDim2.new(
 	1, 
 	- actionPad.Size.X.Offset - margin - -10, -- mais pra direita
 	1, 
-	- actionPad.Size.Y.Offset - margin + 0  -- mais pra baixo
+	- actionPad.Size.Y.Offset - margin + 10  -- mais pra baixo
 )
 end
 
