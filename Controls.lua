@@ -666,9 +666,9 @@ local function updateControlPositions()
 	-- D-PAD (lado esquerdo)
 	dpad.Position = UDim2.new(
 		0,
-		margin + 30,
+		margin + -5,
 		1,
-		- dpad.Size.Y.Offset - margin - 20
+		- dpad.Size.Y.Offset - margin - 15
 	)
 
 	-- BOTÃO DE PULO (espelhado do D-PAD)
@@ -682,9 +682,9 @@ local function updateControlPositions()
 	-- ACTION PAD (lado direito)
 actionPad.Position = UDim2.new(
 	1, 
-	- actionPad.Size.X.Offset - margin - 5, -- mais pra direita
+	- actionPad.Size.X.Offset - margin - -10, -- mais pra direita
 	1, 
-	- actionPad.Size.Y.Offset - margin + 10  -- mais pra baixo
+	- actionPad.Size.Y.Offset - margin + 0  -- mais pra baixo
 )
 end
 
