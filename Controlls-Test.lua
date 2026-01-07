@@ -710,7 +710,7 @@ settingsBtn.Text = "⚙️"
 settingsBtn.TextSize = 24
 settingsBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
 settingsBtn.TextColor3 = Color3.new(1,1,1)
-settingsBtn.ZIndex = 200
+settingsBtn.ZIndex = 210  -- Maior valor de ZIndex
 settingsBtn.Parent = settingsGui
 Instance.new("UICorner", settingsBtn)
 
@@ -720,7 +720,7 @@ menuFrame.Size = UDim2.fromOffset(260,220)  -- Tamanho do menu
 menuFrame.Position = UDim2.fromOffset(20,70)
 menuFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 menuFrame.Visible = false
-menuFrame.ZIndex = 201
+menuFrame.ZIndex = 200  -- Menor que o botão de configurações
 menuFrame.Parent = settingsGui
 Instance.new("UICorner", menuFrame)
 
