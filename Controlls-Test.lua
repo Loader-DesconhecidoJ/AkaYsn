@@ -889,6 +889,7 @@ option3Btn.BackgroundTransparency = 0.4
 
 local usingJumpOnly = false
 
+-- Função para alternar entre os modos de controle
 local function updateControlMode()
 	btnA.Visible = not usingJumpOnly
 	btnB.Visible = not usingJumpOnly
@@ -904,6 +905,75 @@ local function updateControlMode()
         analogJoystick.Visible = false
     end
 end
+
+-- Joystick Analógico
+local analogJoystick = Instance.new("Frame")
+analogJoystick.Size = UDim2.fromOffset(150, 150)
+analogJoystick.Position = UDim2.new(0, 100, 1, -250)  -- Posição do joystick
+analogJoystick.BackgroundTransparency = 1
+analogJoystick.Visible = false
+analogJoystick.ZIndex = 20
+analogJoystick.Parent = gui
+
+-- Criando o centro do joystick
+local analogBase = Instance.new("Frame")
+analogBase.Size = UDim2.fromOffset(80, 80)
+analogBase.Position = UDim2.fromOffset(35, 35)
+analogBase.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+analogBase.BackgroundTransparency = 0.4
+analogBase.ZIndex = 21
+analogBase.Parent = analogJoystick
+Instance.new("UICorner", analogBase).CornerRadius = UDim.new(1, 0)
+
+-- Criando a alavanca do joystick
+local analogStick = Instance.new("Frame")
+analogStick.Size = UDim2.fromOffset(30, 30)
+analogStick.Position = UDim2.fromOffset(25, 25)
+analogStick.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+analogStick.ZIndex = 22
+analogStick.Parent = analogBase
+Instance.new("UICorner", analogStick).CornerRadius = UDim.new(0.5, 0)
+
+local moveVector = Vector3.zero
+local moveSpeed = 10
+
+local dragging = false
+local initialPosition = UDim2.new(0.5, 0, 0.5, 0)
+
+-- Detecta o toque para movimentar a alavanca
+analogBase.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+    end
+end)
+
+analogBase.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.Touch then
+        -- Calcula o movimento do joystick
+        local touchPos = input.Position
+        local basePos = analogJoystick.AbsolutePosition
+        local direction = touchPos - basePos
+        direction = direction.Unit * math.min(direction.Magnitude, 40)  -- Limita o movimento a um círculo de raio 40
+
+        analogStick.Position = UDim2.fromOffset(direction.X + 25, direction.Y + 25)
+        moveVector = Vector3.new(direction.X, 0, direction.Y) * moveSpeed
+    end
+end)
+
+analogBase.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+        analogStick.Position = initialPosition  -- Retorna a alavanca para o centro
+        moveVector = Vector3.zero
+    end
+end)
+
+-- Atualizando o movimento do personagem
+RunService.RenderStepped:Connect(function()
+    if analogEnabled then
+        humanoid:Move(moveVector, true)
+    end
+end)
 
 	if usingJumpOnly then
 		jumpToggleBtn.Text = "Controles: Pulo"
@@ -986,6 +1056,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- Atualiza o controle inicialmente
 updateControlMode()
 
 -- =========================
