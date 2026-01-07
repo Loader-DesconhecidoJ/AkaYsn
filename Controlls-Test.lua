@@ -499,6 +499,23 @@ icon.BackgroundTransparency = 1
 icon.ZIndex = 20
 icon.Parent = btn
 
+-- NÚMERO DO SLOT (CANTINHO)
+local numberLabel = Instance.new("TextLabel")
+numberLabel.Size = UDim2.fromOffset(18,18)
+numberLabel.Position = UDim2.fromOffset(4,4)
+numberLabel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+numberLabel.BackgroundTransparency = 0.2
+numberLabel.Text = tostring(index)
+numberLabel.TextScaled = true
+numberLabel.Font = Enum.Font.GothamBold
+numberLabel.TextColor3 = Color3.fromRGB(230,230,230)
+numberLabel.ZIndex = 21
+numberLabel.Parent = btn
+
+local numCorner = Instance.new("UICorner")
+numCorner.CornerRadius = UDim.new(0.4,0)
+numCorner.Parent = numberLabel
+	
 return {
 Button = btn,
 Icon = icon,
