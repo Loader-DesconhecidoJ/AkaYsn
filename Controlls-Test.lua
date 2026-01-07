@@ -135,9 +135,10 @@ bindMove(left, Vector3.new(-1,0,0))
 bindMove(right, Vector3.new(1,0,0))
 
 RunService.RenderStepped:Connect(function()
-humanoid:Move(moveVec, true)
+	if humanoid and humanoid.Parent then
+		humanoid:Move(moveVec, true)
+	end
 end)
-
 
 ---
 
