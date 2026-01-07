@@ -734,7 +734,7 @@ scrollFrame.Size = UDim2.fromOffset(260, 180)  -- Reduzido para permitir o cabe�
 scrollFrame.Position = UDim2.fromOffset(0, 0)
 scrollFrame.BackgroundTransparency = 1
 scrollFrame.ScrollBarThickness = 10  -- Espessura da barra de rolagem
-scrollFrame.ZIndex = 200
+scrollFrame.ZIndex = 200  -- Mesmo valor de zIndex do menu
 scrollFrame.Parent = menuFrame
 
 -- Layout para os botões dentro do ScrollingFrame
@@ -744,18 +744,6 @@ listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 listLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Parent = scrollFrame
-
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(120,120,120)
-stroke.Thickness = 2
-stroke.Parent = menuFrame
-
--- Layout
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0,12)
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-layout.VerticalAlignment = Enum.VerticalAlignment.Center
-layout.Parent = menuFrame
 
 -- Função para criar botões dentro do scrollFrame
 local function menuButton(text)
@@ -767,7 +755,7 @@ local function menuButton(text)
     b.Font = Enum.Font.GothamBold
     b.Text = text
     b.AutoButtonColor = false
-    b.ZIndex = 202
+    b.ZIndex = 202  -- Valor maior que o menu mas menor que o botão de configuração
     b.Parent = scrollFrame  -- Botões agora são filhos de scrollFrame
     Instance.new("UICorner", b)
     return b
@@ -908,7 +896,7 @@ backButton.MouseButton1Click:Connect(function()
 end)
 
 -- =========================
--- RELÓGIO E FPS
+-- RELÓGIO
 -- =========================
 
 -- Função para criar o relógio no canto superior direito
@@ -921,24 +909,9 @@ local function createClock()
     clockLabel.Font = Enum.Font.GothamBold
     clockLabel.TextSize = 20
     clockLabel.Text = "00:00"
-    clockLabel.ZIndex = 202
+    clockLabel.ZIndex = 190  -- ZIndex menor que o botão de configurações
     clockLabel.Parent = settingsGui  -- Coloca no ScreenGui do menu
     return clockLabel
-end
-
--- Função para criar o contador de FPS no canto superior esquerdo
-local function createFPSCounter()
-    local fpsLabel = Instance.new("TextLabel")
-    fpsLabel.Size = UDim2.fromOffset(100, 50)
-    fpsLabel.Position = UDim2.fromOffset(10, 10)
-    fpsLabel.BackgroundTransparency = 1
-    fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    fpsLabel.Font = Enum.Font.GothamBold
-    fpsLabel.TextSize = 20
-    fpsLabel.Text = "FPS: 0"
-    fpsLabel.ZIndex = 202
-    fpsLabel.Parent = settingsGui  -- Coloca no ScreenGui do menu
-    return fpsLabel
 end
 
 -- Função para atualizar o relógio
@@ -950,45 +923,20 @@ local function updateClock(clockLabel)
     end
 end
 
--- Função para calcular e exibir o FPS
-local function updateFPS(fpsLabel)
-    local lastFrameTime = tick()
-    local frameCount = 0
-    local fps = 0
-    
-    while true do
-        frameCount = frameCount + 1
-        if tick() - lastFrameTime >= 1 then
-            fps = frameCount
-            frameCount = 0
-            lastFrameTime = tick()
-            fpsLabel.Text = "FPS: " .. tostring(fps)
-        end
-        wait(0.1)  -- Checa a cada 100ms
-    end
-end
-
--- Inicializa os dois
+-- Inicializa o relógio
 local clockLabel = createClock()
-local fpsLabel = createFPSCounter()
 
--- Começa a atualização do relógio e FPS em threads separadas
+-- Começa a atualização do relógio em uma thread separada
 task.spawn(function()
     updateClock(clockLabel)
-end)
-
-task.spawn(function()
-    updateFPS(fpsLabel)
 end)
 
 -- Adiciona a funcionalidade ao botão da Opção 3 no menu
 option3Btn.MouseButton1Click:Connect(function()
     if clockLabel.Visible then
         clockLabel.Visible = false
-        fpsLabel.Visible = false
     else
         clockLabel.Visible = true
-        fpsLabel.Visible = true
     end
 end)
 
