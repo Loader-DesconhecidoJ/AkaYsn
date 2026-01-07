@@ -5,36 +5,6 @@ local TweenService = game:GetService("TweenService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local StarterGui = game:GetService("StarterGui")
 
--- Variáveis do player
-local player = Players.LocalPlayer
-local backpack = player:WaitForChild("Backpack")
-
--- Função para desativar a hotbar do Roblox
-local function disableRobloxHotbar()
-    pcall(function()
-        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false) -- Desativa a mochila do Roblox
-        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Hotbar, false)   -- Desativa a hotbar do Roblox
-    end)
-end
-
--- Ativa ou desativa a hotbar personalizada
-local customHotbarEnabled = true  -- Defina como 'true' se a hotbar personalizada deve ser ativada
-
--- Função para garantir que a hotbar do Roblox esteja desativada
-task.spawn(function()
-    while true do
-        if customHotbarEnabled then
-            disableRobloxHotbar()
-        else
-            pcall(function()
-                StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true) -- Restaura a mochila
-                StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Hotbar, true)   -- Restaura a hotbar
-            end)
-        end
-        task.wait(1)  -- Verifica a cada 1 segundo
-    end
-end)
-
 -- === DESATIVAR CONTROLES PADRÃO DO ROBLOX MOBILE ===
 
 pcall(function()
@@ -60,30 +30,22 @@ end)
 local player = Players.LocalPlayer
 local backpack = player:WaitForChild("Backpack")
 
--- 3. Quando o personagem é adicionado ao jogador (resetado ou renascido)
-player.CharacterAdded:Connect(function()
-    task.wait(1)  -- Aguarda um pouco para garantir que o personagem tenha sido completamente reiniciado
-    updateHotbar()  -- Atualiza a hotbar com os itens corretos
-    refreshInventory()  -- Atualiza o inventário para refletir os itens corretos
-end)
-
 -- ===== PERSONAGEM ATUAL (CORRETO) =====
 local character
 local humanoid
 
--- Função para configurar o personagem
 local function setupCharacter(char)
-    character = char
-    humanoid = char:WaitForChild("Humanoid")
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
 
-    -- Reconecta hotbar no personagem novo
-    character.ChildAdded:Connect(updateHotbar)
-    character.ChildRemoved:Connect(updateHotbar)
+	-- reconecta hotbar no personagem novo
+	character.ChildAdded:Connect(updateHotbar)
+	character.ChildRemoved:Connect(updateHotbar)
 end
 
 -- primeira vez
 if player.Character then
-    setupCharacter(player.Character)
+	setupCharacter(player.Character)
 end
 
 -- quando morrer / renascer
@@ -325,95 +287,58 @@ t.Completed:Wait()
 invContainer.Visible = false
 end
 
--- Função para atualizar o inventário customizado
 local function refreshInventory()
-    -- Limpar os itens antigos do inventário
-    for _, c in ipairs(invGui:GetChildren()) do
-        if c:IsA("ImageButton") then
-            c:Destroy()  -- Limpa o inventário
-        end
-    end
-
-    -- Atualizar o inventário com os itens da mochila e do personagem
-    for _, tool in ipairs(backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            local slot = Instance.new("ImageButton")
-            slot.BackgroundColor3 = Color3.fromRGB(60,60,60)
-            slot.ZIndex = 17
-            slot.Parent = invGui
-            Instance.new("UICorner", slot)
-
-            -- Verificar se a ferramenta tem um ícone atribuído
-            if tool.TextureId ~= "" then
-                slot.Image = tool.TextureId  -- Atualiza o ícone do slot
-            else
-                -- Caso a ferramenta não tenha ícone, pode exibir um texto alternativo
-                local txt = Instance.new("TextLabel")
-                txt.Size = UDim2.fromScale(1,1)
-                txt.BackgroundTransparency = 1
-                txt.Text = tool.Name
-                txt.TextWrapped = true
-                txt.TextScaled = true
-                txt.TextColor3 = Color3.new(1,1,1)
-                txt.ZIndex = 18
-                txt.Parent = slot
-            end
-
-            -- Ao clicar no item do inventário, equipar a ferramenta no personagem
-            slot.MouseButton1Click:Connect(function()
-                tool.Parent = character  -- Equipando o item
-                closeInventory()  -- Fechar o inventário
-            end)
-        end
-    end
-
-    -- Também inclui itens que já estão no personagem
-    for _, tool in ipairs(character:GetChildren()) do
-        if tool:IsA("Tool") then
-            local slot = Instance.new("ImageButton")
-            slot.BackgroundColor3 = Color3.fromRGB(60,60,60)
-            slot.ZIndex = 17
-            slot.Parent = invGui
-            Instance.new("UICorner", slot)
-
-            -- Verificar se a ferramenta tem um ícone atribuído
-            if tool.TextureId ~= "" then
-                slot.Image = tool.TextureId  -- Atualiza o ícone do slot
-            else
-                -- Caso a ferramenta não tenha ícone, pode exibir um texto alternativo
-                local txt = Instance.new("TextLabel")
-                txt.Size = UDim2.fromScale(1,1)
-                txt.BackgroundTransparency = 1
-                txt.Text = tool.Name
-                txt.TextWrapped = true
-                txt.TextScaled = true
-                txt.TextColor3 = Color3.new(1,1,1)
-                txt.ZIndex = 18
-                txt.Parent = slot
-            end
-
-            -- Ao clicar no item do inventário, equipar a ferramenta no personagem
-            slot.MouseButton1Click:Connect(function()
-                tool.Parent = character  -- Equipando o item
-                closeInventory()  -- Fechar o inventário
-            end)
-        end
-    end
+for _,c in ipairs(invGui:GetChildren()) do
+if c:IsA("ImageButton") then c:Destroy() end
 end
+
+for _,tool in ipairs(backpack:GetChildren()) do
+if tool:IsA("Tool") then
+local slot = Instance.new("ImageButton")
+slot.BackgroundColor3 = Color3.fromRGB(60,60,60)
+slot.ZIndex = 17
+slot.Parent = invGui
+Instance.new("UICorner", slot)
+
+if tool.TextureId ~= "" then
+slot.Image = tool.TextureId
+else
+local txt = Instance.new("TextLabel")
+txt.Size = UDim2.fromScale(1,1)
+txt.BackgroundTransparency = 1
+txt.Text = tool.Name
+txt.TextWrapped = true
+txt.TextScaled = true
+txt.TextColor3 = Color3.new(1,1,1)
+txt.ZIndex = 18
+txt.Parent = slot
+end
+
+slot.MouseButton1Click:Connect(function()
+tool.Parent = character
+closeInventory()
+end)
+
+end
+
+end
+
+end
+
 
 ---
 
 -- AÇÕES
 
 btnY.InputBegan:Connect(function(i)
-    if i.UserInputType ~= Enum.UserInputType.Touch then return end
-    pressToSize(btnY, UDim2.fromOffset(66,66))
-    refreshInventory()  -- Atualiza o inventário
-    if invContainer.Visible then
-        closeInventory()
-    else
-        openInventory()
-    end
+if i.UserInputType ~= Enum.UserInputType.Touch then return end
+pressToSize(btnY, UDim2.fromOffset(66,66))
+refreshInventory()
+if invContainer.Visible then
+closeInventory()
+else
+openInventory()
+end
 end)
 btnY.InputEnded:Connect(function(i)
 if i.UserInputType == Enum.UserInputType.Touch then
@@ -627,127 +552,108 @@ end
 -- UPDATE HOTBAR (BACKPACK + CHARACTER)
 
 local function getAllTools()
-    local tools = {}
+local tools = {}
 
-    -- Verificando se há ferramentas na mochila
-    for _, t in ipairs(backpack:GetChildren()) do
-        if t:IsA("Tool") then
-            table.insert(tools, t)
-        end
-    end
-
-    -- Verificando se há ferramentas no personagem
-    for _, t in ipairs(character:GetChildren()) do
-        if t:IsA("Tool") then
-            table.insert(tools, t)
-        end
-    end
-
-    return tools
+for _,t in ipairs(backpack:GetChildren()) do
+if t:IsA("Tool") then
+table.insert(tools, t)
+end
+end
+for _,t in ipairs(character:GetChildren()) do
+if t:IsA("Tool") then
+table.insert(tools, t)
+end
 end
 
--- Função para atualizar a hotbar personalizada
+return tools
+
+end
+
 local function updateHotbar()
-    -- Limpar os slots da hotbar
-    for _, slot in ipairs(hotSlots) do
-        stopGlow(slot)
-        slot.Tool = nil
-        slot.Icon.Image = ""  -- Limpar o ícone
-    end
-
-    -- Obter todos os itens da mochila e do personagem
-    local tools = getAllTools()
-
-    -- Atualiza os slots da hotbar com os itens
-    for i = 1, math.min(#tools, MAX_SLOTS) do
-        local tool = tools[i]
-        local slot = hotSlots[i]
-        slot.Tool = tool
-
-        -- Verificar se a ferramenta tem um ícone atribuído
-        if tool.TextureId ~= "" then
-            slot.Icon.Image = tool.TextureId -- Atualiza o ícone do slot
-        else
-            slot.Icon.Image = ""  -- Caso não tenha ícone, deixa em branco
-        end
-
-        -- Aplica o efeito de brilho (glow) na ferramenta se ela estiver equipada no personagem
-        if tool.Parent == character then
-            slot.Stroke.Thickness = 3
-            startGlow(slot)
-        end
-    end
+for _,slot in ipairs(hotSlots) do
+stopGlow(slot)
+slot.Tool = nil
+slot.Icon.Image = ""
 end
 
----
+local tools = getAllTools()
 
--- Input Hotbar (Equipar / Desequipar)
-for _, slot in ipairs(hotSlots) do
-    slot.Button.InputBegan:Connect(function(i)
-        if i.UserInputType ~= Enum.UserInputType.Touch then return end
-        if not slot.Tool then return end
+for i = 1, math.min(#tools, MAX_SLOTS) do
+local tool = tools[i]
+local slot = hotSlots[i]
+slot.Tool = tool
 
-        -- Animar o botão ao ser pressionado
-        pressToSize(slot.Button, UDim2.fromOffset(54,54))
+if tool.TextureId ~= "" then
+slot.Icon.Image = tool.TextureId
+end
 
-        -- Se a ferramenta estiver no personagem, remova-a e a coloque na mochila
-        if slot.Tool.Parent == character then
-            slot.Tool.Parent = backpack
-        else
-            -- Caso contrário, equipe a ferramenta no personagem
-            slot.Tool.Parent = character
-        end
+if tool.Parent == character then
+slot.Stroke.Thickness = 3
+startGlow(slot)
+end
 
-        -- Após a ação, atualize a hotbar para refletir a mudança
-        task.wait()
-        updateHotbar()
-    end)
+end
 
-    -- Ao soltar o botão, retorne ao tamanho original
-    slot.Button.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.Touch then
-            pressToSize(slot.Button, UDim2.fromOffset(60,60))
-        end
-    end)
 end
 
 
 ---
 
--- ===== EVENTOS =====
+-- INPUT HOTBAR (EQUIPAR / DESEQUIPAR)
 
--- Atualiza a hotbar e o inventário quando um item for adicionado ou removido
+for _,slot in ipairs(hotSlots) do
+slot.Button.InputBegan:Connect(function(i)
+if i.UserInputType ~= Enum.UserInputType.Touch then return end
+if not slot.Tool then return end
+
+pressToSize(slot.Button, UDim2.fromOffset(54,54))
+
+if slot.Tool.Parent == character then
+slot.Tool.Parent = backpack
+else
+slot.Tool.Parent = character
+end
+
+task.wait()
+updateHotbar()
+
+end)
+
+slot.Button.InputEnded:Connect(function(i)
+if i.UserInputType == Enum.UserInputType.Touch then
+pressToSize(slot.Button, UDim2.fromOffset(60,60))
+end
+end)
+
+end
+
+
+---
+
+-- EVENTOS
+
 backpack.ChildAdded:Connect(function(child)
     print("Item adicionado à mochila:", child.Name)
-    updateHotbar()  -- Atualiza a hotbar com os itens
-    refreshInventory()  -- Atualiza o inventário para refletir os itens
+    updateHotbar()
 end)
 
 backpack.ChildRemoved:Connect(function(child)
     print("Item removido da mochila:", child.Name)
-    updateHotbar()  -- Atualiza a hotbar com os itens
-    refreshInventory()  -- Atualiza o inventário para refletir os itens
+    updateHotbar()
 end)
 
 character.ChildAdded:Connect(function(child)
     print("Item adicionado ao personagem:", child.Name)
-    updateHotbar()  -- Atualiza a hotbar com os itens
-    refreshInventory()  -- Atualiza o inventário para refletir os itens
+    updateHotbar()
 end)
 
 character.ChildRemoved:Connect(function(child)
     print("Item removido do personagem:", child.Name)
-    updateHotbar()  -- Atualiza a hotbar com os itens
-    refreshInventory()  -- Atualiza o inventário para refletir os itens
+    updateHotbar()
 end)
 
--- Quando o personagem for resetado ou renascido, chamamos a atualização da hotbar
-player.CharacterAdded:Connect(function()
-    task.wait(1)  -- Aguarda um pouco para garantir que o personagem tenha sido completamente reiniciado
-    updateHotbar()  -- Atualiza a hotbar com os itens corretos
-    refreshInventory()  -- Atualiza o inventário para refletir os itens corretos
-end)
-
+task.wait(0.2)
+updateHotbar()
 -- === ADAPTAÇÃO AUTOMÁTICA À TELA (D-PAD + A B X Y) ===
 
 local Camera = workspace.CurrentCamera
@@ -759,9 +665,9 @@ local function updateControlPositions()
 	-- D-PAD (lado esquerdo)
 	dpad.Position = UDim2.new(
 		0,
-		margin + 30,
+		margin + -5,
 		1,
-		- dpad.Size.Y.Offset - margin - 20
+		- dpad.Size.Y.Offset - margin - 15
 	)
 
 	-- BOTÃO DE PULO (espelhado do D-PAD)
@@ -769,15 +675,15 @@ local function updateControlPositions()
 		1,
 		- jumpBtn.Size.X.Offset - margin - 30,
 		1,
-		- dpad.Size.Y.Offset - margin - -40
+		- dpad.Size.Y.Offset - margin - -35
 	)
 
 	-- ACTION PAD (lado direito)
 actionPad.Position = UDim2.new(
 	1, 
-	- actionPad.Size.X.Offset - margin - 5, -- mais pra direita
+	- actionPad.Size.X.Offset - margin - -10, -- mais pra direita
 	1, 
-	- actionPad.Size.Y.Offset - margin + 10  -- mais pra baixo
+	- actionPad.Size.Y.Offset - margin + 0  -- mais pra baixo
 )
 end
 
@@ -786,6 +692,7 @@ updateControlPositions()
 
 -- Atualiza se a tela mudar (rotação / resize)
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateControlPositions)
+
 -- =========================
 -- MENU DE CONFIGURAÇÕES
 -- =========================
@@ -866,22 +773,13 @@ local function menuButton(text)
     return b
 end
 
-
 -- =========================
 -- BOTÕES DO MENU (3)
 -- =========================
 
 local hotbarBtn = menuButton("Hotbar: Custom")
 local option2Btn = menuButton("Opção 2 (Jogo Teleporte)")
-local option3Btn = menuButton("Opção 3 (D-Pad para Analógico)")
--- Inicializa a variável para saber se o analógico está ativado ou não
-local analogEnabled = false
-
--- Função para alternar entre os modos de controle
-option3Btn.MouseButton1Click:Connect(function()
-    analogEnabled = not analogEnabled
-    updateControlMode()  -- Atualiza o modo de controle
-end)
+local option3Btn = menuButton("Opção 3 (em breve)") -- Vai controlar o relógio e FPS
 local jumpToggleBtn = menuButton("Controles: A B X Y")
 
 option2Btn.BackgroundTransparency = 0.4
@@ -889,174 +787,26 @@ option3Btn.BackgroundTransparency = 0.4
 
 local usingJumpOnly = false
 
--- Função para alternar entre os modos de controle
 local function updateControlMode()
-	btnA.Visible = not usingJumpOnly
-	btnB.Visible = not usingJumpOnly
-	btnX.Visible = not usingJumpOnly
-	btnY.Visible = not usingJumpOnly
-	jumpBtn.Visible = usingJumpOnly
-	dpad.Visible = not analogEnabled
+    btnA.Visible = not usingJumpOnly
+    btnB.Visible = not usingJumpOnly
+    btnX.Visible = not usingJumpOnly
+    btnY.Visible = not usingJumpOnly
 
-    -- Se analógico estiver ativado, ocultamos o D-Pad e mostramos o joystick
-    if analogEnabled then
-        analogJoystick.Visible = true
+    jumpBtn.Visible = usingJumpOnly
+
+    if usingJumpOnly then
+        jumpToggleBtn.Text = "Controles: Pulo"
     else
-        analogJoystick.Visible = false
+        jumpToggleBtn.Text = "Controles: A B X Y"
     end
-end
-
--- Joystick Analógico
-local analogJoystick = Instance.new("Frame")
-analogJoystick.Size = UDim2.fromOffset(150, 150)
-analogJoystick.Position = UDim2.new(0, 100, 1, -250)  -- Posição do joystick
-analogJoystick.BackgroundTransparency = 1
-analogJoystick.Visible = false
-analogJoystick.ZIndex = 20
-analogJoystick.Parent = gui
-
--- Criando o centro do joystick
-local analogBase = Instance.new("Frame")
-analogBase.Size = UDim2.fromOffset(80, 80)
-analogBase.Position = UDim2.fromOffset(35, 35)
-analogBase.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-analogBase.BackgroundTransparency = 0.4
-analogBase.ZIndex = 21
-analogBase.Parent = analogJoystick
-Instance.new("UICorner", analogBase).CornerRadius = UDim.new(1, 0)
-
--- Criando a alavanca do joystick
-local analogStick = Instance.new("Frame")
-analogStick.Size = UDim2.fromOffset(30, 30)
-analogStick.Position = UDim2.fromOffset(25, 25)
-analogStick.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-analogStick.ZIndex = 22
-analogStick.Parent = analogBase
-Instance.new("UICorner", analogStick).CornerRadius = UDim.new(0.5, 0)
-
-local moveVector = Vector3.zero
-local moveSpeed = 10
-
-local dragging = false
-local initialPosition = UDim2.new(0.5, 0, 0.5, 0)
-
--- Detecta o toque para movimentar a alavanca
-analogBase.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-    end
-end)
-
-analogBase.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.Touch then
-        -- Calcula o movimento do joystick
-        local touchPos = input.Position
-        local basePos = analogJoystick.AbsolutePosition
-        local direction = touchPos - basePos
-        direction = direction.Unit * math.min(direction.Magnitude, 40)  -- Limita o movimento a um círculo de raio 40
-
-        analogStick.Position = UDim2.fromOffset(direction.X + 25, direction.Y + 25)
-        moveVector = Vector3.new(direction.X, 0, direction.Y) * moveSpeed
-    end
-end)
-
-analogBase.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-        analogStick.Position = initialPosition  -- Retorna a alavanca para o centro
-        moveVector = Vector3.zero
-    end
-end)
-
--- Atualizando o movimento do personagem
-RunService.RenderStepped:Connect(function()
-    if analogEnabled then
-        humanoid:Move(moveVector, true)
-    end
-end)
-
-	if usingJumpOnly then
-		jumpToggleBtn.Text = "Controles: Pulo"
-	else
-		jumpToggleBtn.Text = "Controles: A B X Y"
-	end
 end
 
 jumpToggleBtn.MouseButton1Click:Connect(function()
-	usingJumpOnly = not usingJumpOnly
-	updateControlMode()
+    usingJumpOnly = not usingJumpOnly
+    updateControlMode()
 end)
 
--- Joystick Analógico
-local analogJoystick = Instance.new("Frame")
-analogJoystick.Size = UDim2.fromOffset(150, 150)
-analogJoystick.Position = UDim2.new(0, 100, 1, -250)  -- Posição do joystick
-analogJoystick.BackgroundTransparency = 1
-analogJoystick.Visible = false
-analogJoystick.ZIndex = 20
-analogJoystick.Parent = gui
-
--- Criando o centro do joystick
-local analogBase = Instance.new("Frame")
-analogBase.Size = UDim2.fromOffset(80, 80)
-analogBase.Position = UDim2.fromOffset(35, 35)
-analogBase.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-analogBase.BackgroundTransparency = 0.4
-analogBase.ZIndex = 21
-analogBase.Parent = analogJoystick
-Instance.new("UICorner", analogBase).CornerRadius = UDim.new(1, 0)
-
--- Criando a alavanca do joystick
-local analogStick = Instance.new("Frame")
-analogStick.Size = UDim2.fromOffset(30, 30)
-analogStick.Position = UDim2.fromOffset(25, 25)
-analogStick.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-analogStick.ZIndex = 22
-analogStick.Parent = analogBase
-Instance.new("UICorner", analogStick).CornerRadius = UDim.new(0.5, 0)
-
-local moveVector = Vector3.zero
-local moveSpeed = 10
-
--- Detecta o toque para movimentar a alavanca
-local dragging = false
-local initialPosition = UDim2.new(0.5, 0, 0.5, 0)
-
-analogBase.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-    end
-end)
-
-analogBase.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.Touch then
-        -- Calcula o movimento do joystick
-        local touchPos = input.Position
-        local basePos = analogJoystick.AbsolutePosition
-        local direction = touchPos - basePos
-        direction = direction.Unit * math.min(direction.Magnitude, 40)  -- Limita o movimento a um círculo de raio 40
-
-        analogStick.Position = UDim2.fromOffset(direction.X + 25, direction.Y + 25)
-        moveVector = Vector3.new(direction.X, 0, direction.Y) * moveSpeed
-    end
-end)
-
-analogBase.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-        analogStick.Position = initialPosition  -- Retorna a alavanca para o centro
-        moveVector = Vector3.zero
-    end
-end)
-
--- Atualizando o movimento do personagem
-RunService.RenderStepped:Connect(function()
-    if analogEnabled then
-        humanoid:Move(moveVector, true)
-    end
-end)
-
--- Atualiza o controle inicialmente
 updateControlMode()
 
 -- =========================
@@ -1155,6 +905,91 @@ Instance.new("UICorner", backButton)
 
 backButton.MouseButton1Click:Connect(function()
     closeGamesMenu()  -- Fecha o menu de jogos
+end)
+
+-- =========================
+-- RELÓGIO E FPS
+-- =========================
+
+-- Função para criar o relógio no canto superior direito
+local function createClock()
+    local clockLabel = Instance.new("TextLabel")
+    clockLabel.Size = UDim2.fromOffset(200, 50)
+    clockLabel.Position = UDim2.fromScale(1, 0) - UDim2.fromOffset(220, 10)
+    clockLabel.BackgroundTransparency = 1
+    clockLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    clockLabel.Font = Enum.Font.GothamBold
+    clockLabel.TextSize = 20
+    clockLabel.Text = "00:00"
+    clockLabel.ZIndex = 202
+    clockLabel.Parent = settingsGui  -- Coloca no ScreenGui do menu
+    return clockLabel
+end
+
+-- Função para criar o contador de FPS no canto superior esquerdo
+local function createFPSCounter()
+    local fpsLabel = Instance.new("TextLabel")
+    fpsLabel.Size = UDim2.fromOffset(100, 50)
+    fpsLabel.Position = UDim2.fromOffset(10, 10)
+    fpsLabel.BackgroundTransparency = 1
+    fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    fpsLabel.Font = Enum.Font.GothamBold
+    fpsLabel.TextSize = 20
+    fpsLabel.Text = "FPS: 0"
+    fpsLabel.ZIndex = 202
+    fpsLabel.Parent = settingsGui  -- Coloca no ScreenGui do menu
+    return fpsLabel
+end
+
+-- Função para atualizar o relógio
+local function updateClock(clockLabel)
+    while true do
+        local time = os.date("%H:%M")  -- Pega a hora e minuto
+        clockLabel.Text = time
+        wait(1)  -- Atualiza a cada segundo
+    end
+end
+
+-- Função para calcular e exibir o FPS
+local function updateFPS(fpsLabel)
+    local lastFrameTime = tick()
+    local frameCount = 0
+    local fps = 0
+    
+    while true do
+        frameCount = frameCount + 1
+        if tick() - lastFrameTime >= 1 then
+            fps = frameCount
+            frameCount = 0
+            lastFrameTime = tick()
+            fpsLabel.Text = "FPS: " .. tostring(fps)
+        end
+        wait(0.1)  -- Checa a cada 100ms
+    end
+end
+
+-- Inicializa os dois
+local clockLabel = createClock()
+local fpsLabel = createFPSCounter()
+
+-- Começa a atualização do relógio e FPS em threads separadas
+task.spawn(function()
+    updateClock(clockLabel)
+end)
+
+task.spawn(function()
+    updateFPS(fpsLabel)
+end)
+
+-- Adiciona a funcionalidade ao botão da Opção 3 no menu
+option3Btn.MouseButton1Click:Connect(function()
+    if clockLabel.Visible then
+        clockLabel.Visible = false
+        fpsLabel.Visible = false
+    else
+        clockLabel.Visible = true
+        fpsLabel.Visible = true
+    end
 end)
 
 -- =========================
