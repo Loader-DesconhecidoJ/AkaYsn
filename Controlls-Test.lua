@@ -600,31 +600,39 @@ end
 ---
 
 -- INPUT HOTBAR (EQUIPAR / DESEQUIPAR)
-
 for _,slot in ipairs(hotSlots) do
-slot.Button.InputBegan:Connect(function(i)
-if i.UserInputType ~= Enum.UserInputType.Touch then return end
-if not slot.Tool then return end
+    slot.Button.InputBegan:Connect(function(i)
+        if i.UserInputType ~= Enum.UserInputType.Touch then return end
+        if not slot.Tool then return end
 
-pressToSize(slot.Button, UDim2.fromOffset(54,54))
+        pressToSize(slot.Button, UDim2.fromOffset(54,54))
 
-if slot.Tool.Parent == character then
-slot.Tool.Parent = backpack
-else
-slot.Tool.Parent = character
-end
+        -- Verifica se o item já está equipado no personagem
+        if slot.Tool.Parent == character then
+            -- Se o item já estiver no personagem, o remove e coloca de volta na mochila
+            slot.Tool.Parent = backpack
+        else
+            -- Caso contrário, move o item para o personagem
+            slot.Tool.Parent = character
+        end
 
-task.wait()
-updateHotbar()
+        -- Garantir que apenas um item esteja na Hotbar de cada vez
+        -- Remover outros itens da Hotbar antes de equipar o novo
+        for _,otherSlot in ipairs(hotSlots) do
+            if otherSlot ~= slot and otherSlot.Tool then
+                otherSlot.Tool.Parent = backpack  -- Remove os outros itens
+            end
+        end
 
-end)
+        task.wait()
+        updateHotbar()
+    end)
 
-slot.Button.InputEnded:Connect(function(i)
-if i.UserInputType == Enum.UserInputType.Touch then
-pressToSize(slot.Button, UDim2.fromOffset(60,60))
-end
-end)
-
+    slot.Button.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.Touch then
+            pressToSize(slot.Button, UDim2.fromOffset(60,60))
+        end
+    end)
 end
 
 
@@ -948,17 +956,13 @@ local customHotbarEnabled = true
 
 local function updateHotbarState()
     if customHotbarEnabled then
+        -- Exibe a Hotbar Custom
         hotbar.Visible = true
-        pcall(function()
-            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
-        end)
         hotbarBtn.Text = "Hotbar: Custom"
     else
+        -- Oculta a Hotbar Custom
         hotbar.Visible = false
-        pcall(function()
-            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
-        end)
-        hotbarBtn.Text = "Hotbar: Roblox"
+        hotbarBtn.Text = "Hotbar: Oculta"
     end
 end
 
