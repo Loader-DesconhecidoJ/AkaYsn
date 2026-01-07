@@ -28,7 +28,6 @@ end)
 
 -- PLAYER
 local player = Players.LocalPlayer
-local player = Players.LocalPlayer
 local backpack = player:WaitForChild("Backpack")
 
 -- ===== PERSONAGEM ATUAL (CORRETO) =====
