@@ -470,7 +470,7 @@ hotbar.BackgroundTransparency = 1
 hotbar.ZIndex = 18
 hotbar.Parent = gui
 
-local MAX_SLOTS = 5
+local MAX_SLOTS = 6
 local hotSlots = {}
 local glowTweens = {}
 
