@@ -676,7 +676,7 @@ local function updateControlPositions()
 		1,
 		- jumpBtn.Size.X.Offset - margin - 30,
 		1,
-		- dpad.Size.Y.Offset - margin - -40
+		- dpad.Size.Y.Offset - margin - -35
 	)
 
 	-- ACTION PAD (lado direito)
@@ -858,7 +858,7 @@ end
 
 -- Adicionando botões de jogos
 createGameButton("Gun-Grounds-FFA", 12137249458)  -- Troque 123456789 pelo ID do seu jogo
-createGameButton("Jogo 2", 987654321)  -- Troque 987654321 pelo ID do seu jogo
+createGameButton("Nothingness", 6252985844)  -- Troque 987654321 pelo ID do seu jogo
 createGameButton("Jogo 3", 112233445)  -- Troque 112233445 pelo ID do seu jogo
 createGameButton("Jogo 4", 556677889)  -- Troque 556677889 pelo ID do seu jogo
 
