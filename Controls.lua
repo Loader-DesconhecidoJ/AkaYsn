@@ -864,29 +864,43 @@ local jumpToggleBtn = menuButton("Controles: A B X Y")
 option2Btn.BackgroundTransparency = 0.4
 option3Btn.BackgroundTransparency = 0.4
 
-local usingJumpOnly = false
+-- 1 = A B X Y | 2 = Pulo | 3 = Oculto
+local controlMode = 1
 
 local function updateControlMode()
-    btnA.Visible = not usingJumpOnly
-    btnB.Visible = not usingJumpOnly
-    btnX.Visible = not usingJumpOnly
-    btnY.Visible = not usingJumpOnly
+	-- Oculta tudo primeiro
+	btnA.Visible = false
+	btnB.Visible = false
+	btnX.Visible = false
+	btnY.Visible = false
+	jumpBtn.Visible = false
 
-    jumpBtn.Visible = usingJumpOnly
+	if controlMode == 1 then
+		-- MODO A B X Y
+		btnA.Visible = true
+		btnB.Visible = true
+		btnX.Visible = true
+		btnY.Visible = true
+		jumpToggleBtn.Text = "Controles: A B X Y"
 
-    if usingJumpOnly then
-        jumpToggleBtn.Text = "Controles: Pulo"
-    else
-        jumpToggleBtn.Text = "Controles: A B X Y"
-    end
+	elseif controlMode == 2 then
+		-- MODO PULO CUSTOM
+		jumpBtn.Visible = true
+		jumpToggleBtn.Text = "Controles: Pulo"
+
+	elseif controlMode == 3 then
+		-- MODO OCULTO
+		jumpToggleBtn.Text = "Controles: Oculto"
+	end
 end
 
 jumpToggleBtn.MouseButton1Click:Connect(function()
-    usingJumpOnly = not usingJumpOnly
-    updateControlMode()
+	controlMode += 1
+	if controlMode > 3 then
+		controlMode = 1
+	end
+	updateControlMode()
 end)
-
-updateControlMode()
 
 -- =========================
 -- NOVO MENU DE JOGOS (Opção 2)
