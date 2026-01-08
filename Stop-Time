@@ -1,0 +1,276 @@
+-- SERVICES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- ESTADO
+local timeStopped = false
+local button
+local originalWalkSpeed
+local enemyVFX = {}
+local colorEffect
+
+-- SOM
+local function playSound(id, volume)
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxassetid://" .. id
+	sound.Volume = volume or 1
+	sound.Parent = workspace
+	sound:Play()
+	sound.Ended:Once(function()
+		sound:Destroy()
+	end)
+end
+
+-- BOOST VELOCIDADE
+local function boostPlayerSpeed(enable)
+	local char = player.Character
+	if not char then return end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+
+	if not originalWalkSpeed then
+		originalWalkSpeed = hum.WalkSpeed
+	end
+
+	hum.WalkSpeed = enable and originalWalkSpeed * 2 or originalWalkSpeed
+end
+
+-- CAMERA SHAKE
+local function cameraShake(duration, magnitude)
+	local start = tick()
+	local original = camera.CFrame
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		if tick() - start > duration then
+			camera.CFrame = original
+			conn:Disconnect()
+			return
+		end
+		camera.CFrame = original * CFrame.new(
+			(math.random()-0.5)*magnitude,
+			(math.random()-0.5)*magnitude,
+			0
+		)
+	end)
+end
+
+-- PARTICULAS INIMIGOS
+local function enemyVFXParticle(part)
+	local p = Instance.new("ParticleEmitter")
+	p.Texture = "rbxassetid://243660364"
+	p.Rate = 40
+	p.Lifetime = NumberRange.new(0.4, 0.8)
+	p.Speed = NumberRange.new(0.5, 1)
+	p.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0,0.6),
+		NumberSequenceKeypoint.new(1,0)
+	})
+	p.LightEmission = 0.6
+	p.Parent = part
+	return p
+end
+
+-- CRIAR ESFERA (GENÉRICA)
+local function createSphere(gui, color, transparency, z)
+	local sphere = Instance.new("Frame")
+	sphere.AnchorPoint = Vector2.new(0.5,0.5)
+	sphere.Position = UDim2.fromScale(0.5,0.5)
+	sphere.Size = UDim2.fromOffset(0,0)
+	sphere.BackgroundColor3 = color
+	sphere.BackgroundTransparency = transparency
+	sphere.BorderSizePixel = 0
+	sphere.ZIndex = z
+	sphere.Parent = gui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1,0)
+	corner.Parent = sphere
+
+	return sphere
+end
+
+-- VFX ATIVAR (DUPLO + ROXO)
+local function activateVFX()
+	local gui = player.PlayerGui:WaitForChild("TimeStopGUI")
+
+	for i = 1, 2 do
+		local gold = createSphere(gui, Color3.fromRGB(255,215,0), 0.3, 20)
+		local purple = createSphere(gui, Color3.fromRGB(140,0,255), 0.5, 15)
+
+		TweenService:Create(
+			gold,
+			TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{Size = UDim2.fromOffset(3000,3000)}
+		):Play()
+
+		task.wait(0.1)
+
+		TweenService:Create(
+			purple,
+			TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{Size = UDim2.fromOffset(3000,3000)}
+		):Play()
+
+		Debris:AddItem(gold, 0.6)
+		Debris:AddItem(purple, 0.6)
+
+		task.wait(0.15)
+	end
+
+	-- INVERTER CORES
+	colorEffect = Instance.new("ColorCorrectionEffect")
+	colorEffect.Parent = Lighting
+	colorEffect.Contrast = 1
+	colorEffect.Saturation = -1
+	colorEffect.Brightness = 0
+end
+
+-- VFX DESATIVAR (DUPLO + ROXO)
+local function deactivateVFX()
+	if colorEffect then
+		colorEffect:Destroy()
+		colorEffect = nil
+	end
+
+	local gui = player.PlayerGui:WaitForChild("TimeStopGUI")
+
+	for i = 1, 2 do
+		local purple = createSphere(gui, Color3.fromRGB(140,0,255), 0.5, 15)
+		local gold = createSphere(gui, Color3.fromRGB(255,215,0), 0.3, 20)
+
+		purple.Size = UDim2.fromOffset(3000,3000)
+		gold.Size = UDim2.fromOffset(3000,3000)
+
+		TweenService:Create(
+			purple,
+			TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{Size = UDim2.fromOffset(0,0)}
+		):Play()
+
+		task.wait(0.1)
+
+		TweenService:Create(
+			gold,
+			TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{Size = UDim2.fromOffset(0,0)}
+		):Play()
+
+		Debris:AddItem(purple, 0.6)
+		Debris:AddItem(gold, 0.6)
+
+		task.wait(0.15)
+	end
+end
+
+-- ATIVAR TIME STOP
+local function stopTime()
+	if timeStopped then return end
+	timeStopped = true
+
+	playSound(7514417921, 5)
+
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Character then
+			enemyVFX[plr] = {}
+			for _, part in pairs(plr.Character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.Anchored = true
+					table.insert(enemyVFX[plr], enemyVFXParticle(part))
+				end
+			end
+		end
+	end
+
+	activateVFX()
+	boostPlayerSpeed(true)
+	cameraShake(0.35, 0.6)
+
+	button.Text = "Desativar Time Stop"
+end
+
+-- DESATIVAR TIME STOP
+local function releaseTime()
+	if not timeStopped then return end
+	timeStopped = false
+
+	playSound(97139043906890, 5)
+
+	for plr, vfxs in pairs(enemyVFX) do
+		if plr.Character then
+			for _, part in pairs(plr.Character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.Anchored = false
+				end
+			end
+		end
+		for _, v in pairs(vfxs) do
+			if v then v:Destroy() end
+		end
+	end
+	enemyVFX = {}
+
+	deactivateVFX()
+	boostPlayerSpeed(false)
+	cameraShake(0.25, 0.4)
+
+	button.Text = "Ativar Time Stop"
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "TimeStopGUI"
+gui.ResetOnSpawn = false
+gui.Parent = player.PlayerGui
+
+button = Instance.new("TextButton")
+button.Size = UDim2.fromOffset(150,50)
+button.Position = UDim2.fromScale(0.5,0.1)
+button.AnchorPoint = Vector2.new(0.5,0)
+button.BackgroundColor3 = Color3.fromRGB(30,30,30)
+button.TextColor3 = Color3.fromRGB(255,215,0)
+button.Font = Enum.Font.GothamBold
+button.TextScaled = true
+button.Text = "Ativar Time Stop"
+button.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0,12)
+corner.Parent = button
+
+-- ARRASTAR
+local dragging, dragStart, startPos
+button.InputBegan:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = i.Position
+		startPos = button.Position
+		i.Changed:Once(function()
+			dragging = false
+		end)
+	end
+end)
+
+button.InputChanged:Connect(function(i)
+	if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = i.Position - dragStart
+		button.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+button.MouseButton1Click:Connect(function()
+	if timeStopped then
+		releaseTime()
+	else
+		stopTime()
+	end
+end)
