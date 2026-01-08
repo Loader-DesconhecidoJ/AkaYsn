@@ -33,6 +33,7 @@ local backpack = player:WaitForChild("Backpack")
 -- ===== PERSONAGEM ATUAL (CORRETO) =====
 local character
 local humanoid
+local updateHotbar -- 🔥 IMPORTANTE
 
 local function setupCharacter(char)
 	character = char
@@ -289,41 +290,55 @@ invContainer.Visible = false
 end
 
 local function refreshInventory()
-for _,c in ipairs(invGui:GetChildren()) do
-if c:IsA("ImageButton") then c:Destroy() end
-end
+	-- limpa slots antigos
+	for _,c in ipairs(invGui:GetChildren()) do
+		if c:IsA("ImageButton") then
+			c:Destroy()
+		end
+	end
 
-for _,tool in ipairs(backpack:GetChildren()) do
-if tool:IsA("Tool") then
-local slot = Instance.new("ImageButton")
-slot.BackgroundColor3 = Color3.fromRGB(60,60,60)
-slot.ZIndex = 17
-slot.Parent = invGui
-Instance.new("UICorner", slot)
+	local function addTool(tool)
+		if not tool:IsA("Tool") then return end
 
-if tool.TextureId ~= "" then
-slot.Image = tool.TextureId
-else
-local txt = Instance.new("TextLabel")
-txt.Size = UDim2.fromScale(1,1)
-txt.BackgroundTransparency = 1
-txt.Text = tool.Name
-txt.TextWrapped = true
-txt.TextScaled = true
-txt.TextColor3 = Color3.new(1,1,1)
-txt.ZIndex = 18
-txt.Parent = slot
-end
+		local slot = Instance.new("ImageButton")
+		slot.Size = UDim2.fromOffset(70,70)
+		slot.BackgroundColor3 = Color3.fromRGB(60,60,60)
+		slot.ZIndex = 17
+		slot.Parent = invGui
+		Instance.new("UICorner", slot)
 
-slot.MouseButton1Click:Connect(function()
-tool.Parent = character
-closeInventory()
-end)
+		if tool.TextureId ~= "" then
+			slot.Image = tool.TextureId
+		else
+			local txt = Instance.new("TextLabel")
+			txt.Size = UDim2.fromScale(1,1)
+			txt.BackgroundTransparency = 1
+			txt.Text = tool.Name
+			txt.TextWrapped = true
+			txt.TextScaled = true
+			txt.TextColor3 = Color3.new(1,1,1)
+			txt.ZIndex = 18
+			txt.Parent = slot
+		end
 
-end
+		-- CLIQUE NO ITEM
+		slot.MouseButton1Click:Connect(function()
+			-- equipa
+			tool.Parent = character
+			updateHotbar()
+			closeInventory()
+		end)
+	end
 
-end
+	-- 🔹 ADD ITENS DO BACKPACK
+	for _,tool in ipairs(backpack:GetChildren()) do
+		addTool(tool)
+	end
 
+	-- 🔹 ADD ITENS EQUIPADOS (CHARACTER)
+	for _,tool in ipairs(character:GetChildren()) do
+		addTool(tool)
+	end
 end
 
 
@@ -435,6 +450,9 @@ btnB.InputBegan:Connect(function(i)
 		if tool:IsA("Tool") then
 			tool.Parent = workspace
 
+removeToolFromSlot(tool)
+updateHotbar()
+
 			if tool:FindFirstChild("Handle") then
 				tool.Handle.CFrame =
 					character.HumanoidRootPart.CFrame *
@@ -469,11 +487,15 @@ local MAX_SLOTS = 6
 local hotSlots = {}
 local glowTweens = {}
 
+-- MAPA FIXO DE SLOTS (IMPORTANTE)
+local toolSlotMap = {}   -- Tool -> número do slot
+local slotToolMap = {}   -- número do slot -> Tool
+
 local GLOW_COLORS = {
-Color3.fromRGB(0,255,0),
-Color3.fromRGB(0,170,255),
-Color3.fromRGB(255,60,60),
-Color3.fromRGB(255,220,0)
+    Color3.fromRGB(0,255,0),
+    Color3.fromRGB(0,170,255),
+    Color3.fromRGB(255,60,60),
+    Color3.fromRGB(255,220,0)
 }
 
 local function createSlot(index)
@@ -561,53 +583,75 @@ end
 
 ---
 
+-- REMOVE TOOL DO SLOT FIXO (quando dropa ou some)
+local function removeToolFromSlot(tool)
+	local slotIndex = toolSlotMap[tool]
+	if slotIndex then
+		toolSlotMap[tool] = nil
+		slotToolMap[slotIndex] = nil
+	end
+end
+
 -- UPDATE HOTBAR (BACKPACK + CHARACTER)
-
-local function getAllTools()
-local tools = {}
-
-for _,t in ipairs(backpack:GetChildren()) do
-if t:IsA("Tool") then
-table.insert(tools, t)
-end
-end
-for _,t in ipairs(character:GetChildren()) do
-if t:IsA("Tool") then
-table.insert(tools, t)
-end
-end
-
-return tools
-
-end
-
 local function updateHotbar()
-for _,slot in ipairs(hotSlots) do
-stopGlow(slot)
-slot.Tool = nil
-slot.Icon.Image = ""
+
+	-- REMOVE TOOLS QUE NÃO ESTÃO MAIS NO BACKPACK NEM NO CHARACTER
+	for tool, slotIndex in pairs(toolSlotMap) do
+		if tool.Parent ~= backpack and tool.Parent ~= character then
+			removeToolFromSlot(tool)
+		end
+	end
+
+	-- limpa visual
+	for i,slot in ipairs(hotSlots) do
+		stopGlow(slot)
+		slot.Tool = nil
+		slot.Icon.Image = ""
+	end
+
+	-- garante slot fixo pra novas tools
+	local function assignSlot(tool)
+		if toolSlotMap[tool] then return end
+
+		for i = 1, MAX_SLOTS do
+			if not slotToolMap[i] then
+				toolSlotMap[tool] = i
+				slotToolMap[i] = tool
+				break
+			end
+		end
+	end
+
+	-- registra tools novas
+	for _,tool in ipairs(backpack:GetChildren()) do
+		if tool:IsA("Tool") then
+			assignSlot(tool)
+		end
+	end
+
+	for _,tool in ipairs(character:GetChildren()) do
+		if tool:IsA("Tool") then
+			assignSlot(tool)
+		end
+	end
+
+	-- desenha hotbar
+	for tool,slotIndex in pairs(toolSlotMap) do
+		if hotSlots[slotIndex] then
+			local slot = hotSlots[slotIndex]
+			slot.Tool = tool
+
+			if tool.TextureId ~= "" then
+				slot.Icon.Image = tool.TextureId
+			end
+
+			if tool.Parent == character then
+				slot.Stroke.Thickness = 3
+				startGlow(slot)
+			end
+		end
+	end
 end
-
-local tools = getAllTools()
-
-for i = 1, math.min(#tools, MAX_SLOTS) do
-local tool = tools[i]
-local slot = hotSlots[i]
-slot.Tool = tool
-
-if tool.TextureId ~= "" then
-slot.Icon.Image = tool.TextureId
-end
-
-if tool.Parent == character then
-slot.Stroke.Thickness = 3
-startGlow(slot)
-end
-
-end
-
-end
-
 
 ---
 
@@ -964,24 +1008,50 @@ end)
 -- CONTROLE HOTBAR
 -- =========================
 
-local customHotbarEnabled = true
+-- =========================
+-- CONTROLE DE HOTBAR (3 MODOS)
+-- =========================
 
-local function updateHotbarState()
-    if customHotbarEnabled then
-        -- Exibe a Hotbar Custom
-        hotbar.Visible = true
-        hotbarBtn.Text = "Hotbar: Custom"
-    else
-        -- Oculta a Hotbar Custom
-        hotbar.Visible = false
-        hotbarBtn.Text = "Hotbar: Oculta"
-    end
+-- 1 = Custom | 2 = Padrão Roblox | 3 = Oculta tudo
+local hotbarMode = 1
+
+local function applyHotbarMode()
+	if hotbarMode == 1 then
+		-- HOTBAR CUSTOM
+		hotbar.Visible = true
+		pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		end)
+		hotbarBtn.Text = "Hotbar: Custom"
+
+	elseif hotbarMode == 2 then
+		-- HOTBAR PADRÃO ROBLOX
+		hotbar.Visible = false
+		pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+		end)
+		hotbarBtn.Text = "Hotbar: Padrão"
+
+	elseif hotbarMode == 3 then
+		-- OCULTAR TUDO
+		hotbar.Visible = false
+		pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		end)
+		hotbarBtn.Text = "Hotbar: Oculta"
+	end
 end
 
 hotbarBtn.MouseButton1Click:Connect(function()
-    customHotbarEnabled = not customHotbarEnabled
-    updateHotbarState()
+	hotbarMode += 1
+	if hotbarMode > 3 then
+		hotbarMode = 1
+	end
+	applyHotbarMode()
 end)
+
+-- estado inicial
+applyHotbarMode()
 
 -- =========================
 -- ABRIR / FECHAR MENU
