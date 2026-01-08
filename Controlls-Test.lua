@@ -101,7 +101,20 @@ b.BackgroundTransparency = 0.15
 b.AutoButtonColor = false
 b.ZIndex = 21
 b.Parent = dpad
-Instance.new("UICorner", b).CornerRadius = UDim.new(0.25,0)
+
+-- DESIGN NOVO D-PAD
+b.BackgroundColor3 = Color3.fromRGB(20,20,20)
+b.BackgroundTransparency = 0.25
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1,0)
+corner.Parent = b
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(120,120,120)
+stroke.Thickness = 1.5
+stroke.Parent = b
+
 return b
 end
 
@@ -164,7 +177,29 @@ local function actionBtn(x,y,t,c)
 	b.AutoButtonColor = false
 	b.ZIndex = 21
 	b.Parent = actionPad
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0.35,0)
+	local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0) -- 🔥 deixa 100% redondo
+corner.Parent = b
+	
+	-- DESIGN FLUTUANTE A B X Y
+local stroke = Instance.new("UIStroke")
+stroke.Color = c
+stroke.Thickness = 2
+stroke.Transparency = 0.4
+stroke.Parent = b
+
+-- SOMBRA CORRETA (ALINHADA)
+local shadow = Instance.new("Frame")
+shadow.Size = b.Size
+shadow.Position = b.Position + UDim2.fromOffset(0,4)
+shadow.BackgroundColor3 = Color3.new(0,0,0)
+shadow.BackgroundTransparency = 0.6
+shadow.ZIndex = b.ZIndex - 1
+shadow.Parent = actionPad
+
+local shadowCorner = Instance.new("UICorner")
+shadowCorner.CornerRadius = UDim.new(1,0)
+shadowCorner.Parent = shadow
 
 	-- animação de pressão
 	local original = b.Size
@@ -178,6 +213,14 @@ local function actionBtn(x,y,t,c)
 			pressToSize(b, original)
 		end
 	end)
+	
+	local function syncShadow()
+	shadow.Size = b.Size
+	shadow.Position = b.Position + UDim2.fromOffset(0,4)
+end
+
+b:GetPropertyChangedSignal("Size"):Connect(syncShadow)
+b:GetPropertyChangedSignal("Position"):Connect(syncShadow)
 
 	return b
 end
@@ -204,6 +247,13 @@ jumpBtn.Parent = gui
 
 Instance.new("UICorner", jumpBtn).CornerRadius = UDim.new(1,0)
 
+-- ANEL DE DESTAQUE DO PULO
+local ring = Instance.new("UIStroke")
+ring.Color = Color3.fromRGB(0,170,255)
+ring.Thickness = 2
+ring.Transparency = 0.4
+ring.Parent = jumpBtn
+
 local Camera = workspace.CurrentCamera
 local function updateJumpPosition()
 	jumpBtn.Position = UDim2.new(0,160,1,-170)
@@ -212,12 +262,26 @@ updateJumpPosition()
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateJumpPosition)
 
 jumpBtn.InputBegan:Connect(function(i)
+
+TweenService:Create(
+	ring,
+	TweenInfo.new(0.15),
+	{Thickness = 5}
+):Play()
+
 	if i.UserInputType ~= Enum.UserInputType.Touch then return end
 	pressToSize(jumpBtn, UDim2.fromOffset(84,84))
 	humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 end)
 
 jumpBtn.InputEnded:Connect(function(i)
+
+TweenService:Create(
+	ring,
+	TweenInfo.new(0.15),
+	{Thickness = 2}
+):Play()
+
 	if i.UserInputType == Enum.UserInputType.Touch then
 		pressToSize(jumpBtn, UDim2.fromOffset(96,96))
 	end
@@ -310,11 +374,16 @@ local function refreshInventory()
 		local slot = Instance.new("ImageButton")
 		slot.Size = UDim2.fromOffset(70,70)
 		slot.BackgroundColor3 = equipado
-			and Color3.fromRGB(40,160,80)   -- VERDE
-			or  Color3.fromRGB(60,60,60)
+	and Color3.fromRGB(30,140,90)
+	or Color3.fromRGB(35,35,35)
 		slot.ZIndex = 17
 		slot.Parent = invGui
 		Instance.new("UICorner", slot)
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = equipado and Color3.fromRGB(0,255,140) or Color3.fromRGB(90,90,90)
+stroke.Thickness = equipado and 2 or 1
+stroke.Parent = slot
 
 		if tool.TextureId ~= "" then
 			slot.Image = tool.TextureId
@@ -1077,6 +1146,17 @@ local function createClock()
     clockLabel.Text = "00:00"
     clockLabel.ZIndex = 190  -- ZIndex menor que o botão de configurações
     clockLabel.Parent = settingsGui  -- Coloca no ScreenGui do menu
+    clockLabel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+clockLabel.BackgroundTransparency = 0.2
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1,0)
+corner.Parent = clockLabel
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(120,120,120)
+stroke.Thickness = 1
+stroke.Parent = clockLabel
     return clockLabel
 end
 
