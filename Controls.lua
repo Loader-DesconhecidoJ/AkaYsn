@@ -994,24 +994,50 @@ end)
 -- CONTROLE HOTBAR
 -- =========================
 
-local customHotbarEnabled = true
+-- =========================
+-- CONTROLE DE HOTBAR (3 MODOS)
+-- =========================
 
-local function updateHotbarState()
-    if customHotbarEnabled then
-        -- Exibe a Hotbar Custom
-        hotbar.Visible = true
-        hotbarBtn.Text = "Hotbar: Custom"
-    else
-        -- Oculta a Hotbar Custom
-        hotbar.Visible = false
-        hotbarBtn.Text = "Hotbar: Oculta"
-    end
+-- 1 = Custom | 2 = Padrão Roblox | 3 = Oculta tudo
+local hotbarMode = 1
+
+local function applyHotbarMode()
+	if hotbarMode == 1 then
+		-- HOTBAR CUSTOM
+		hotbar.Visible = true
+		pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		end)
+		hotbarBtn.Text = "Hotbar: Custom"
+
+	elseif hotbarMode == 2 then
+		-- HOTBAR PADRÃO ROBLOX
+		hotbar.Visible = false
+		pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+		end)
+		hotbarBtn.Text = "Hotbar: Padrão"
+
+	elseif hotbarMode == 3 then
+		-- OCULTAR TUDO
+		hotbar.Visible = false
+		pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		end)
+		hotbarBtn.Text = "Hotbar: Oculta"
+	end
 end
 
 hotbarBtn.MouseButton1Click:Connect(function()
-    customHotbarEnabled = not customHotbarEnabled
-    updateHotbarState()
+	hotbarMode += 1
+	if hotbarMode > 3 then
+		hotbarMode = 1
+	end
+	applyHotbarMode()
 end)
+
+-- estado inicial
+applyHotbarMode()
 
 -- =========================
 -- ABRIR / FECHAR MENU
