@@ -70,9 +70,9 @@ gui.Parent = player.PlayerGui
 
 local function pressToSize(btn, size)
 TweenService:Create(
-btn,
-TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-{ Size = size }
+    btn,
+    TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    { Size = size, BackgroundTransparency = 0.1 } -- levemente mais sólido ao pressionar
 ):Play()
 end
 
@@ -164,29 +164,40 @@ actionPad.BackgroundTransparency = 1
 actionPad.ZIndex = 20
 actionPad.Parent = gui
 
-local function actionBtn(x,y,t,c)
+local function actionBtn(x,y,t,color)
 	local b = Instance.new("TextButton")
 	b.Size = UDim2.fromOffset(70,70)
 	b.Position = UDim2.fromOffset(x,y)
 	b.Text = t
 	b.TextScaled = true
 	b.Font = Enum.Font.GothamBold
-	b.BackgroundColor3 = c
+	b.BackgroundColor3 = Color3.fromRGB(25,25,25) 
 	b.TextColor3 = Color3.new(1,1,1)
-	b.BackgroundTransparency = 0.12
+	b.BackgroundTransparency = 0.2
 	b.AutoButtonColor = false
 	b.ZIndex = 21
 	b.Parent = actionPad
-	local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(1, 0) -- 🔥 deixa 100% redondo
-corner.Parent = b
 	
-	-- DESIGN FLUTUANTE A B X Y
-local stroke = Instance.new("UIStroke")
-stroke.Color = c
-stroke.Thickness = 2
-stroke.Transparency = 0.4
+	local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0.5,0) -- arredondado estilo Xbox
+corner.Parent = b
+
+	-- UIStroke para borda sutil
+	local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(100,100,100) -- cinza
+stroke.Thickness = 1.5
 stroke.Parent = b
+
+	-- Sombra suave
+	local shadow = Instance.new("ImageLabel")
+	shadow.Size = b.Size
+	shadow.Position = b.Position + UDim2.fromOffset(0,6)
+	shadow.BackgroundTransparency = 1
+	shadow.Image = "rbxassetid://10716487417" -- Sombra circular sutil
+	shadow.ImageColor3 = Color3.fromRGB(0,0,0)
+	shadow.ImageTransparency = 0.6
+	shadow.ZIndex = 20
+	shadow.Parent = actionPad
 	
 	-- animação de pressão
 	local original = b.Size
@@ -200,41 +211,46 @@ stroke.Parent = b
 			pressToSize(b, original)
 		end
 	end)
-	
-	local function syncShadow()
-	shadow.Size = b.Size
-	shadow.Position = b.Position + UDim2.fromOffset(0,4)
-end
 
-b:GetPropertyChangedSignal("Size"):Connect(syncShadow)
-b:GetPropertyChangedSignal("Position"):Connect(syncShadow)
+	local function syncShadow()
+		shadow.Size = b.Size
+		shadow.Position = b.Position + UDim2.fromOffset(0,6)
+	end
+
+	b:GetPropertyChangedSignal("Size"):Connect(syncShadow)
+	b:GetPropertyChangedSignal("Position"):Connect(syncShadow)
 
 	return b
 end
 
 -- layout estilo controle
-local gap = 70
+local COLOR_X = Color3.fromRGB(0, 125, 255)   -- azul
+local COLOR_Y = Color3.fromRGB(255, 185, 0)   -- amarelo
+local COLOR_A = Color3.fromRGB(0, 200, 0)     -- verde
+local COLOR_B = Color3.fromRGB(255, 0, 0)     -- vermelho
 
-local btnY = actionBtn(gap,0,"Y",Color3.fromRGB(200,200,60))
-local btnX = actionBtn(0,gap,"X",Color3.fromRGB(60,120,200))
-local btnB = actionBtn(gap*2,gap,"B",Color3.fromRGB(200,60,60))
-local btnA = actionBtn(gap,gap*2,"A",Color3.fromRGB(60,200,120))
+local gap = 70
+local btnY = actionBtn(gap,0,"Y",COLOR_Y)
+local btnX = actionBtn(0,gap,"X",COLOR_X)
+local btnB = actionBtn(gap*2,gap,"B",COLOR_B)
+local btnA = actionBtn(gap,gap*2,"A",COLOR_A)
 
 -- BOTÃO DE PULO CUSTOMIZADO
 local jumpBtn = Instance.new("TextButton")
 jumpBtn.Size = UDim2.fromOffset(96,96)
-jumpBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
-jumpBtn.Text = "↑"
+jumpBtn.BackgroundColor3 = Color3.fromRGB(25,25,25) -- preto escuro
+jumpBtn.Text = "A" -- símbolo do Xbox Series S
 jumpBtn.TextScaled = true
 jumpBtn.Font = Enum.Font.GothamBold
-jumpBtn.TextColor3 = Color3.new(1,1,1)
+jumpBtn.TextColor3 = Color3.fromRGB(0,200,0) -- verde "A"
 jumpBtn.ZIndex = 50
 jumpBtn.Visible = false
 jumpBtn.Parent = gui
 
-Instance.new("UICorner", jumpBtn).CornerRadius = UDim.new(1,0)
+-- Arredondar completamente
+Instance.new("UICorner", jumpBtn).CornerRadius = UDim.new(0.5,0)
 
--- ANEL DE DESTAQUE DO PULO
+-- Anel de destaque Xbox
 local ring = Instance.new("UIStroke")
 ring.Color = Color3.fromRGB(0,170,255)
 ring.Thickness = 2
