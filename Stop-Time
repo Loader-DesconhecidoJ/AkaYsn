@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -14,19 +15,21 @@ local originalWalkSpeed
 local enemyVFX = {}
 local colorEffect
 
+--------------------------------------------------
 -- SOM
+--------------------------------------------------
 local function playSound(id, volume)
 	local sound = Instance.new("Sound")
 	sound.SoundId = "rbxassetid://" .. id
 	sound.Volume = volume or 1
 	sound.Parent = workspace
 	sound:Play()
-	sound.Ended:Once(function()
-		sound:Destroy()
-	end)
+	Debris:AddItem(sound, 8)
 end
 
+--------------------------------------------------
 -- BOOST VELOCIDADE
+--------------------------------------------------
 local function boostPlayerSpeed(enable)
 	local char = player.Character
 	if not char then return end
@@ -40,7 +43,9 @@ local function boostPlayerSpeed(enable)
 	hum.WalkSpeed = enable and originalWalkSpeed * 2 or originalWalkSpeed
 end
 
+--------------------------------------------------
 -- CAMERA SHAKE
+--------------------------------------------------
 local function cameraShake(duration, magnitude)
 	local start = tick()
 	local original = camera.CFrame
@@ -59,7 +64,9 @@ local function cameraShake(duration, magnitude)
 	end)
 end
 
+--------------------------------------------------
 -- PARTICULAS INIMIGOS
+--------------------------------------------------
 local function enemyVFXParticle(part)
 	local p = Instance.new("ParticleEmitter")
 	p.Texture = "rbxassetid://243660364"
@@ -75,7 +82,9 @@ local function enemyVFXParticle(part)
 	return p
 end
 
--- CRIAR ESFERA (GENÉRICA)
+--------------------------------------------------
+-- CRIAR ESFERA PERFEITA
+--------------------------------------------------
 local function createSphere(gui, color, transparency, z)
 	local sphere = Instance.new("Frame")
 	sphere.AnchorPoint = Vector2.new(0.5,0.5)
@@ -94,33 +103,51 @@ local function createSphere(gui, color, transparency, z)
 	return sphere
 end
 
--- VFX ATIVAR (DUPLO + ROXO)
+--------------------------------------------------
+-- ONDAS SONORAS (EXPLOSÃO)
+--------------------------------------------------
+local function soundWave(gui, color, transparency, size, time)
+	local wave = createSphere(gui, color, transparency, 10)
+	TweenService:Create(
+		wave,
+		TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{Size = UDim2.fromOffset(size, size)}
+	):Play()
+	Debris:AddItem(wave, time)
+end
+
+--------------------------------------------------
+-- VFX ATIVAR
+--------------------------------------------------
 local function activateVFX()
 	local gui = player.PlayerGui:WaitForChild("TimeStopGUI")
 
-	for i = 1, 2 do
-		local gold = createSphere(gui, Color3.fromRGB(255,215,0), 0.3, 20)
-		local purple = createSphere(gui, Color3.fromRGB(140,0,255), 0.5, 15)
+	-- ONDAS SONORAS
+	soundWave(gui, Color3.fromRGB(0,0,0), 0.35, 2800, 0.35)
+	task.wait(0.05)
+	soundWave(gui, Color3.fromRGB(120,120,120), 0.45, 3000, 0.4)
 
-		TweenService:Create(
-			gold,
-			TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{Size = UDim2.fromOffset(3000,3000)}
-		):Play()
+	-- ESFERA DOURADA
+	local gold = createSphere(gui, Color3.fromRGB(255,215,0), 0.3, 20)
+	TweenService:Create(
+		gold,
+		TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{Size = UDim2.fromOffset(3000,3000)}
+	):Play()
+	Debris:AddItem(gold, 0.5)
 
-		task.wait(0.1)
+	task.wait(0.35)
 
-		TweenService:Create(
-			purple,
-			TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{Size = UDim2.fromOffset(3000,3000)}
-		):Play()
+	-- ESFERA ROXA
+	local purple = createSphere(gui, Color3.fromRGB(140,0,255), 0.45, 18)
+	TweenService:Create(
+		purple,
+		TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{Size = UDim2.fromOffset(3000,3000)}
+	):Play()
+	Debris:AddItem(purple, 0.5)
 
-		Debris:AddItem(gold, 0.6)
-		Debris:AddItem(purple, 0.6)
-
-		task.wait(0.15)
-	end
+	task.wait(0.4)
 
 	-- INVERTER CORES
 	colorEffect = Instance.new("ColorCorrectionEffect")
@@ -130,7 +157,9 @@ local function activateVFX()
 	colorEffect.Brightness = 0
 end
 
--- VFX DESATIVAR (DUPLO + ROXO)
+--------------------------------------------------
+-- VFX DESATIVAR
+--------------------------------------------------
 local function deactivateVFX()
 	if colorEffect then
 		colorEffect:Destroy()
@@ -139,40 +168,37 @@ local function deactivateVFX()
 
 	local gui = player.PlayerGui:WaitForChild("TimeStopGUI")
 
-	for i = 1, 2 do
-		local purple = createSphere(gui, Color3.fromRGB(140,0,255), 0.5, 15)
-		local gold = createSphere(gui, Color3.fromRGB(255,215,0), 0.3, 20)
+	-- ROXO DIMINUINDO
+	local purple = createSphere(gui, Color3.fromRGB(140,0,255), 0.45, 18)
+	purple.Size = UDim2.fromOffset(3000,3000)
+	TweenService:Create(
+		purple,
+		TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{Size = UDim2.fromOffset(0,0)}
+	):Play()
+	Debris:AddItem(purple, 0.4)
 
-		purple.Size = UDim2.fromOffset(3000,3000)
-		gold.Size = UDim2.fromOffset(3000,3000)
+	task.wait(0.35)
 
-		TweenService:Create(
-			purple,
-			TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{Size = UDim2.fromOffset(0,0)}
-		):Play()
-
-		task.wait(0.1)
-
-		TweenService:Create(
-			gold,
-			TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{Size = UDim2.fromOffset(0,0)}
-		):Play()
-
-		Debris:AddItem(purple, 0.6)
-		Debris:AddItem(gold, 0.6)
-
-		task.wait(0.15)
-	end
+	-- DOURADO DIMINUINDO
+	local gold = createSphere(gui, Color3.fromRGB(255,215,0), 0.3, 20)
+	gold.Size = UDim2.fromOffset(3000,3000)
+	TweenService:Create(
+		gold,
+		TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{Size = UDim2.fromOffset(0,0)}
+	):Play()
+	Debris:AddItem(gold, 0.45)
 end
 
+--------------------------------------------------
 -- ATIVAR TIME STOP
+--------------------------------------------------
 local function stopTime()
 	if timeStopped then return end
 	timeStopped = true
 
-	playSound(7514417921, 3)
+	playSound(7514417921, 5)
 
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr ~= player and plr.Character then
@@ -193,7 +219,9 @@ local function stopTime()
 	button.Text = "Desativar Time Stop"
 end
 
+--------------------------------------------------
 -- DESATIVAR TIME STOP
+--------------------------------------------------
 local function releaseTime()
 	if not timeStopped then return end
 	timeStopped = false
@@ -221,7 +249,9 @@ local function releaseTime()
 	button.Text = "Ativar Time Stop"
 end
 
+--------------------------------------------------
 -- GUI
+--------------------------------------------------
 local gui = Instance.new("ScreenGui")
 gui.Name = "TimeStopGUI"
 gui.ResetOnSpawn = false
@@ -242,7 +272,9 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0,12)
 corner.Parent = button
 
--- ARRASTAR
+--------------------------------------------------
+-- ARRASTAR BOTÃO
+--------------------------------------------------
 local dragging, dragStart, startPos
 button.InputBegan:Connect(function(i)
 	if i.UserInputType == Enum.UserInputType.MouseButton1 then
