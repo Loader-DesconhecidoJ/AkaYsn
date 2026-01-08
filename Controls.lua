@@ -857,8 +857,8 @@ end
 -- =========================
 
 local hotbarBtn = menuButton("Hotbar: Custom")
-local option2Btn = menuButton("Opção 2 (Jogo Teleporte)")
-local option3Btn = menuButton("Opção 3 (em breve)") -- Vai controlar o relógio e FPS
+local option2Btn = menuButton("Game Telepor")
+local option3Btn = menuButton("Relógio") -- Vai controlar o relógio e FPS
 local jumpToggleBtn = menuButton("Controles: A B X Y")
 
 option2Btn.BackgroundTransparency = 0.4
@@ -1044,10 +1044,6 @@ option3Btn.MouseButton1Click:Connect(function()
         clockLabel.Visible = true
     end
 end)
-
--- =========================
--- CONTROLE HOTBAR
--- =========================
 
 -- =========================
 -- CONTROLE DE HOTBAR (3 MODOS)
