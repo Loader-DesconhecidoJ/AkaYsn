@@ -33,6 +33,7 @@ local backpack = player:WaitForChild("Backpack")
 -- ===== PERSONAGEM ATUAL (CORRETO) =====
 local character
 local humanoid
+local updateHotbar -- 🔥 IMPORTANTE
 
 local function setupCharacter(char)
 	character = char
@@ -135,9 +136,10 @@ bindMove(left, Vector3.new(-1,0,0))
 bindMove(right, Vector3.new(1,0,0))
 
 RunService.RenderStepped:Connect(function()
-humanoid:Move(moveVec, true)
+	if humanoid and humanoid.Parent then
+		humanoid:Move(moveVec, true)
+	end
 end)
-
 
 ---
 
@@ -426,12 +428,6 @@ btnX.InputEnded:Connect(function(i)
 	end
 end)
 
-btnX.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.Touch then
-		pressToSize(btnX, UDim2.fromOffset(60,60))
-	end
-end)
-
 btnB.InputBegan:Connect(function(i)
 	if i.UserInputType ~= Enum.UserInputType.Touch then return end
 	pressToSize(btnB, UDim2.fromOffset(54,54))
@@ -439,6 +435,9 @@ btnB.InputBegan:Connect(function(i)
 	for _, tool in ipairs(character:GetChildren()) do
 		if tool:IsA("Tool") then
 			tool.Parent = workspace
+
+removeToolFromSlot(tool)
+updateHotbar()
 
 			if tool:FindFirstChild("Handle") then
 				tool.Handle.CFrame =
@@ -470,15 +469,19 @@ hotbar.BackgroundTransparency = 1
 hotbar.ZIndex = 18
 hotbar.Parent = gui
 
-local MAX_SLOTS = 5
+local MAX_SLOTS = 6
 local hotSlots = {}
 local glowTweens = {}
 
+-- MAPA FIXO DE SLOTS (IMPORTANTE)
+local toolSlotMap = {}   -- Tool -> número do slot
+local slotToolMap = {}   -- número do slot -> Tool
+
 local GLOW_COLORS = {
-Color3.fromRGB(0,255,0),
-Color3.fromRGB(0,170,255),
-Color3.fromRGB(255,60,60),
-Color3.fromRGB(255,220,0)
+    Color3.fromRGB(0,255,0),
+    Color3.fromRGB(0,170,255),
+    Color3.fromRGB(255,60,60),
+    Color3.fromRGB(255,220,0)
 }
 
 local function createSlot(index)
@@ -504,6 +507,23 @@ icon.BackgroundTransparency = 1
 icon.ZIndex = 20
 icon.Parent = btn
 
+-- NÚMERO DO SLOT (CANTINHO)
+local numberLabel = Instance.new("TextLabel")
+numberLabel.Size = UDim2.fromOffset(18,18)
+numberLabel.Position = UDim2.fromOffset(4,4)
+numberLabel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+numberLabel.BackgroundTransparency = 0.2
+numberLabel.Text = tostring(index)
+numberLabel.TextScaled = true
+numberLabel.Font = Enum.Font.GothamBold
+numberLabel.TextColor3 = Color3.fromRGB(230,230,230)
+numberLabel.ZIndex = 21
+numberLabel.Parent = btn
+
+local numCorner = Instance.new("UICorner")
+numCorner.CornerRadius = UDim.new(0.4,0)
+numCorner.Parent = numberLabel
+	
 return {
 Button = btn,
 Icon = icon,
@@ -549,82 +569,112 @@ end
 
 ---
 
+-- REMOVE TOOL DO SLOT FIXO (quando dropa ou some)
+local function removeToolFromSlot(tool)
+	local slotIndex = toolSlotMap[tool]
+	if slotIndex then
+		toolSlotMap[tool] = nil
+		slotToolMap[slotIndex] = nil
+	end
+end
+
 -- UPDATE HOTBAR (BACKPACK + CHARACTER)
-
-local function getAllTools()
-local tools = {}
-
-for _,t in ipairs(backpack:GetChildren()) do
-if t:IsA("Tool") then
-table.insert(tools, t)
-end
-end
-for _,t in ipairs(character:GetChildren()) do
-if t:IsA("Tool") then
-table.insert(tools, t)
-end
-end
-
-return tools
-
-end
-
 local function updateHotbar()
-for _,slot in ipairs(hotSlots) do
-stopGlow(slot)
-slot.Tool = nil
-slot.Icon.Image = ""
+
+	-- REMOVE TOOLS QUE NÃO ESTÃO MAIS NO BACKPACK NEM NO CHARACTER
+	for tool, slotIndex in pairs(toolSlotMap) do
+		if tool.Parent ~= backpack and tool.Parent ~= character then
+			removeToolFromSlot(tool)
+		end
+	end
+
+	-- limpa visual
+	for i,slot in ipairs(hotSlots) do
+		stopGlow(slot)
+		slot.Tool = nil
+		slot.Icon.Image = ""
+	end
+
+	-- garante slot fixo pra novas tools
+	local function assignSlot(tool)
+		if toolSlotMap[tool] then return end
+
+		for i = 1, MAX_SLOTS do
+			if not slotToolMap[i] then
+				toolSlotMap[tool] = i
+				slotToolMap[i] = tool
+				break
+			end
+		end
+	end
+
+	-- registra tools novas
+	for _,tool in ipairs(backpack:GetChildren()) do
+		if tool:IsA("Tool") then
+			assignSlot(tool)
+		end
+	end
+
+	for _,tool in ipairs(character:GetChildren()) do
+		if tool:IsA("Tool") then
+			assignSlot(tool)
+		end
+	end
+
+	-- desenha hotbar
+	for tool,slotIndex in pairs(toolSlotMap) do
+		if hotSlots[slotIndex] then
+			local slot = hotSlots[slotIndex]
+			slot.Tool = tool
+
+			if tool.TextureId ~= "" then
+				slot.Icon.Image = tool.TextureId
+			end
+
+			if tool.Parent == character then
+				slot.Stroke.Thickness = 3
+				startGlow(slot)
+			end
+		end
+	end
 end
-
-local tools = getAllTools()
-
-for i = 1, math.min(#tools, MAX_SLOTS) do
-local tool = tools[i]
-local slot = hotSlots[i]
-slot.Tool = tool
-
-if tool.TextureId ~= "" then
-slot.Icon.Image = tool.TextureId
-end
-
-if tool.Parent == character then
-slot.Stroke.Thickness = 3
-startGlow(slot)
-end
-
-end
-
-end
-
 
 ---
 
 -- INPUT HOTBAR (EQUIPAR / DESEQUIPAR)
-
 for _,slot in ipairs(hotSlots) do
-slot.Button.InputBegan:Connect(function(i)
-if i.UserInputType ~= Enum.UserInputType.Touch then return end
-if not slot.Tool then return end
+    slot.Button.InputBegan:Connect(function(i)
+        if i.UserInputType ~= Enum.UserInputType.Touch then return end
+        if not slot.Tool then return end
 
-pressToSize(slot.Button, UDim2.fromOffset(54,54))
+        pressToSize(slot.Button, UDim2.fromOffset(54,54))
 
-if slot.Tool.Parent == character then
-slot.Tool.Parent = backpack
-else
-slot.Tool.Parent = character
-end
+        -- Verifica se o item já está equipado no personagem
+        if slot.Tool.Parent == character then
+            -- Se o item já estiver no personagem, o remove e coloca de volta na mochila
+            slot.Tool.Parent = backpack
+        else
+            -- Caso contrário, move o item para o personagem
+            slot.Tool.Parent = character
+        end
 
-task.wait()
-updateHotbar()
+        -- Garantir que apenas um item esteja na Hotbar de cada vez
+        -- Remover outros itens da Hotbar antes de equipar o novo
+        for _,otherSlot in ipairs(hotSlots) do
+            if otherSlot ~= slot and otherSlot.Tool then
+                otherSlot.Tool.Parent = backpack  -- Remove os outros itens
+            end
+        end
 
-end)
+        task.wait()
+        updateHotbar()
+    end)
 
-slot.Button.InputEnded:Connect(function(i)
-if i.UserInputType == Enum.UserInputType.Touch then
-pressToSize(slot.Button, UDim2.fromOffset(60,60))
-end
-end)
-
+    slot.Button.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.Touch then
+            pressToSize(slot.Button, UDim2.fromOffset(60,60))
+        end
+    end)
 end
 
 
@@ -665,7 +715,7 @@ local function updateControlPositions()
 	-- D-PAD (lado esquerdo)
 	dpad.Position = UDim2.new(
 		0,
-		margin + -5,
+		margin + 10,
 		1,
 		- dpad.Size.Y.Offset - margin - 15
 	)
@@ -683,7 +733,7 @@ actionPad.Position = UDim2.new(
 	1, 
 	- actionPad.Size.X.Offset - margin - -10, -- mais pra direita
 	1, 
-	- actionPad.Size.Y.Offset - margin + 0  -- mais pra baixo
+	- actionPad.Size.Y.Offset - margin + 10  -- mais pra baixo
 )
 end
 
@@ -692,6 +742,7 @@ updateControlPositions()
 
 -- Atualiza se a tela mudar (rotação / resize)
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateControlPositions)
+
 -- =========================
 -- MENU DE CONFIGURAÇÕES
 -- =========================
@@ -709,7 +760,7 @@ settingsBtn.Text = "⚙️"
 settingsBtn.TextSize = 24
 settingsBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
 settingsBtn.TextColor3 = Color3.new(1,1,1)
-settingsBtn.ZIndex = 200
+settingsBtn.ZIndex = 210  -- Maior valor de ZIndex
 settingsBtn.Parent = settingsGui
 Instance.new("UICorner", settingsBtn)
 
@@ -719,7 +770,7 @@ menuFrame.Size = UDim2.fromOffset(260,220)  -- Tamanho do menu
 menuFrame.Position = UDim2.fromOffset(20,70)
 menuFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 menuFrame.Visible = false
-menuFrame.ZIndex = 201
+menuFrame.ZIndex = 200  -- Menor que o botão de configurações
 menuFrame.Parent = settingsGui
 Instance.new("UICorner", menuFrame)
 
@@ -733,7 +784,7 @@ scrollFrame.Size = UDim2.fromOffset(260, 180)  -- Reduzido para permitir o cabe�
 scrollFrame.Position = UDim2.fromOffset(0, 0)
 scrollFrame.BackgroundTransparency = 1
 scrollFrame.ScrollBarThickness = 10  -- Espessura da barra de rolagem
-scrollFrame.ZIndex = 200
+scrollFrame.ZIndex = 200  -- Mesmo valor de zIndex do menu
 scrollFrame.Parent = menuFrame
 
 -- Layout para os botões dentro do ScrollingFrame
@@ -743,18 +794,6 @@ listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 listLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Parent = scrollFrame
-
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(120,120,120)
-stroke.Thickness = 2
-stroke.Parent = menuFrame
-
--- Layout
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0,12)
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-layout.VerticalAlignment = Enum.VerticalAlignment.Center
-layout.Parent = menuFrame
 
 -- Função para criar botões dentro do scrollFrame
 local function menuButton(text)
@@ -766,12 +805,11 @@ local function menuButton(text)
     b.Font = Enum.Font.GothamBold
     b.Text = text
     b.AutoButtonColor = false
-    b.ZIndex = 202
+    b.ZIndex = 202  -- Valor maior que o menu mas menor que o botão de configuração
     b.Parent = scrollFrame  -- Botões agora são filhos de scrollFrame
     Instance.new("UICorner", b)
     return b
 end
-
 
 -- =========================
 -- BOTÕES DO MENU (3)
@@ -779,7 +817,7 @@ end
 
 local hotbarBtn = menuButton("Hotbar: Custom")
 local option2Btn = menuButton("Opção 2 (Jogo Teleporte)")
-local option3Btn = menuButton("Opção 3 (em breve)")
+local option3Btn = menuButton("Opção 3 (em breve)") -- Vai controlar o relógio e FPS
 local jumpToggleBtn = menuButton("Controles: A B X Y")
 
 option2Btn.BackgroundTransparency = 0.4
@@ -788,23 +826,23 @@ option3Btn.BackgroundTransparency = 0.4
 local usingJumpOnly = false
 
 local function updateControlMode()
-	btnA.Visible = not usingJumpOnly
-	btnB.Visible = not usingJumpOnly
-	btnX.Visible = not usingJumpOnly
-	btnY.Visible = not usingJumpOnly
+    btnA.Visible = not usingJumpOnly
+    btnB.Visible = not usingJumpOnly
+    btnX.Visible = not usingJumpOnly
+    btnY.Visible = not usingJumpOnly
 
-	jumpBtn.Visible = usingJumpOnly
+    jumpBtn.Visible = usingJumpOnly
 
-	if usingJumpOnly then
-		jumpToggleBtn.Text = "Controles: Pulo"
-	else
-		jumpToggleBtn.Text = "Controles: A B X Y"
-	end
+    if usingJumpOnly then
+        jumpToggleBtn.Text = "Controles: Pulo"
+    else
+        jumpToggleBtn.Text = "Controles: A B X Y"
+    end
 end
 
 jumpToggleBtn.MouseButton1Click:Connect(function()
-	usingJumpOnly = not usingJumpOnly
-	updateControlMode()
+    usingJumpOnly = not usingJumpOnly
+    updateControlMode()
 end)
 
 updateControlMode()
@@ -908,6 +946,51 @@ backButton.MouseButton1Click:Connect(function()
 end)
 
 -- =========================
+-- RELÓGIO
+-- =========================
+
+-- Função para criar o relógio no canto superior direito
+local function createClock()
+    local clockLabel = Instance.new("TextLabel")
+    clockLabel.Size = UDim2.fromOffset(200, 50)
+    clockLabel.Position = UDim2.fromScale(1, 0) - UDim2.fromOffset(220, 10)
+    clockLabel.BackgroundTransparency = 1
+    clockLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    clockLabel.Font = Enum.Font.GothamBold
+    clockLabel.TextSize = 20
+    clockLabel.Text = "00:00"
+    clockLabel.ZIndex = 190  -- ZIndex menor que o botão de configurações
+    clockLabel.Parent = settingsGui  -- Coloca no ScreenGui do menu
+    return clockLabel
+end
+
+-- Função para atualizar o relógio
+local function updateClock(clockLabel)
+    while true do
+        local time = os.date("%H:%M")  -- Pega a hora e minuto
+        clockLabel.Text = time
+        wait(1)  -- Atualiza a cada segundo
+    end
+end
+
+-- Inicializa o relógio
+local clockLabel = createClock()
+
+-- Começa a atualização do relógio em uma thread separada
+task.spawn(function()
+    updateClock(clockLabel)
+end)
+
+-- Adiciona a funcionalidade ao botão da Opção 3 no menu
+option3Btn.MouseButton1Click:Connect(function()
+    if clockLabel.Visible then
+        clockLabel.Visible = false
+    else
+        clockLabel.Visible = true
+    end
+end)
+
+-- =========================
 -- CONTROLE HOTBAR
 -- =========================
 
@@ -915,17 +998,13 @@ local customHotbarEnabled = true
 
 local function updateHotbarState()
     if customHotbarEnabled then
+        -- Exibe a Hotbar Custom
         hotbar.Visible = true
-        pcall(function()
-            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
-        end)
         hotbarBtn.Text = "Hotbar: Custom"
     else
+        -- Oculta a Hotbar Custom
         hotbar.Visible = false
-        pcall(function()
-            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
-        end)
-        hotbarBtn.Text = "Hotbar: Roblox"
+        hotbarBtn.Text = "Hotbar: Oculta"
     end
 end
 
