@@ -290,19 +290,28 @@ invContainer.Visible = false
 end
 
 local function refreshInventory()
-	-- limpa slots antigos
+	-- limpar slots antigos
 	for _,c in ipairs(invGui:GetChildren()) do
 		if c:IsA("ImageButton") then
 			c:Destroy()
 		end
 	end
 
-	local function addTool(tool)
+	-- evita duplicar tool
+	local shown = {}
+
+	local function criarItem(tool)
 		if not tool:IsA("Tool") then return end
+		if shown[tool] then return end
+		shown[tool] = true
+
+		local equipado = (tool.Parent == character)
 
 		local slot = Instance.new("ImageButton")
 		slot.Size = UDim2.fromOffset(70,70)
-		slot.BackgroundColor3 = Color3.fromRGB(60,60,60)
+		slot.BackgroundColor3 = equipado
+			and Color3.fromRGB(40,160,80)   -- VERDE
+			or  Color3.fromRGB(60,60,60)
 		slot.ZIndex = 17
 		slot.Parent = invGui
 		Instance.new("UICorner", slot)
@@ -314,30 +323,48 @@ local function refreshInventory()
 			txt.Size = UDim2.fromScale(1,1)
 			txt.BackgroundTransparency = 1
 			txt.Text = tool.Name
-			txt.TextWrapped = true
 			txt.TextScaled = true
 			txt.TextColor3 = Color3.new(1,1,1)
-			txt.ZIndex = 18
 			txt.Parent = slot
 		end
 
-		-- CLIQUE NO ITEM
+		-- TEXTO "EQUIPADO"
+		if equipado then
+			local tag = Instance.new("TextLabel")
+			tag.Size = UDim2.fromScale(1,0.3)
+			tag.Position = UDim2.fromScale(0,0.7)
+			tag.BackgroundColor3 = Color3.fromRGB(20,20,20)
+			tag.BackgroundTransparency = 0.2
+			tag.Text = "EQUIPADO"
+			tag.TextScaled = true
+			tag.Font = Enum.Font.GothamBold
+			tag.TextColor3 = Color3.fromRGB(200,255,200)
+			tag.ZIndex = 18
+			tag.Parent = slot
+			Instance.new("UICorner", tag)
+		end
+
+		-- EQUIPAR / DESEQUIPAR
 		slot.MouseButton1Click:Connect(function()
-			-- equipa
-			tool.Parent = character
+			if tool.Parent == character then
+				tool.Parent = backpack
+			else
+				tool.Parent = character
+			end
+			task.wait()
 			updateHotbar()
-			closeInventory()
+			refreshInventory()
 		end)
 	end
 
-	-- 🔹 ADD ITENS DO BACKPACK
+	-- mochila
 	for _,tool in ipairs(backpack:GetChildren()) do
-		addTool(tool)
+		criarItem(tool)
 	end
 
-	-- 🔹 ADD ITENS EQUIPADOS (CHARACTER)
+	-- equipados
 	for _,tool in ipairs(character:GetChildren()) do
-		addTool(tool)
+		criarItem(tool)
 	end
 end
 
@@ -830,36 +857,50 @@ end
 -- =========================
 
 local hotbarBtn = menuButton("Hotbar: Custom")
-local option2Btn = menuButton("Opção 2 (Jogo Teleporte)")
-local option3Btn = menuButton("Opção 3 (em breve)") -- Vai controlar o relógio e FPS
+local option2Btn = menuButton("Game Telepor")
+local option3Btn = menuButton("Relógio") -- Vai controlar o relógio e FPS
 local jumpToggleBtn = menuButton("Controles: A B X Y")
 
 option2Btn.BackgroundTransparency = 0.4
 option3Btn.BackgroundTransparency = 0.4
 
-local usingJumpOnly = false
+-- 1 = A B X Y | 2 = Pulo | 3 = Oculto
+local controlMode = 1
 
 local function updateControlMode()
-    btnA.Visible = not usingJumpOnly
-    btnB.Visible = not usingJumpOnly
-    btnX.Visible = not usingJumpOnly
-    btnY.Visible = not usingJumpOnly
+	-- Oculta tudo primeiro
+	btnA.Visible = false
+	btnB.Visible = false
+	btnX.Visible = false
+	btnY.Visible = false
+	jumpBtn.Visible = false
 
-    jumpBtn.Visible = usingJumpOnly
+	if controlMode == 1 then
+		-- MODO A B X Y
+		btnA.Visible = true
+		btnB.Visible = true
+		btnX.Visible = true
+		btnY.Visible = true
+		jumpToggleBtn.Text = "Controles: A B X Y"
 
-    if usingJumpOnly then
-        jumpToggleBtn.Text = "Controles: Pulo"
-    else
-        jumpToggleBtn.Text = "Controles: A B X Y"
-    end
+	elseif controlMode == 2 then
+		-- MODO PULO CUSTOM
+		jumpBtn.Visible = true
+		jumpToggleBtn.Text = "Controles: Pulo"
+
+	elseif controlMode == 3 then
+		-- MODO OCULTO
+		jumpToggleBtn.Text = "Controles: Oculto"
+	end
 end
 
 jumpToggleBtn.MouseButton1Click:Connect(function()
-    usingJumpOnly = not usingJumpOnly
-    updateControlMode()
+	controlMode += 1
+	if controlMode > 3 then
+		controlMode = 1
+	end
+	updateControlMode()
 end)
-
-updateControlMode()
 
 -- =========================
 -- NOVO MENU DE JOGOS (Opção 2)
@@ -887,31 +928,92 @@ gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 gridLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 gridLayout.Parent = gamesMenu
 
--- Função para criar botões de jogos
-local function createGameButton(gameName, gameId)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(100, 100)  -- Tamanho quadrado dos botões
-    b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    b.TextColor3 = Color3.new(1, 1, 1)
-    b.TextScaled = true
-    b.Font = Enum.Font.GothamBold
-    b.Text = gameName
-    b.AutoButtonColor = false
-    b.ZIndex = 202
-    b.Parent = gamesMenu
-    Instance.new("UICorner", b)
+-- CARD DE JOGO COM IMAGEM + EFEITOS
+local function createGameButton(gameName, gameId, imageId)
 
-    -- Ação do botão (teleportar para o jogo)
-    b.MouseButton1Click:Connect(function()
-        game:GetService("TeleportService"):Teleport(gameId, player)
-    end)
+	local card = Instance.new("ImageButton")
+	card.Size = UDim2.fromOffset(100, 100)
+	card.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	card.Image = "rbxassetid://" .. imageId
+	card.ScaleType = Enum.ScaleType.Crop
+	card.AutoButtonColor = false
+	card.ZIndex = 202
+	card.Parent = gamesMenu
+	Instance.new("UICorner", card).CornerRadius = UDim.new(0.2,0)
+
+	-- Sombra simples
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(120,120,120)
+	stroke.Thickness = 1.5
+	stroke.Parent = card
+
+	-- Barra inferior do nome
+	local bottom = Instance.new("Frame")
+	bottom.Size = UDim2.fromScale(1,0.28)
+	bottom.Position = UDim2.fromScale(0,0.72)
+	bottom.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	bottom.BackgroundTransparency = 0.35
+	bottom.ZIndex = 203
+	bottom.Parent = card
+	Instance.new("UICorner", bottom).CornerRadius = UDim.new(0.15,0)
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.fromScale(1,1)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = gameName
+	nameLabel.TextScaled = true
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextColor3 = Color3.new(1,1,1)
+	nameLabel.ZIndex = 204
+	nameLabel.Parent = bottom
+
+	-- EFEITO DE TOQUE
+	local scale = Instance.new("UIScale")
+	scale.Scale = 1
+	scale.Parent = card
+
+	card.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.Touch then
+			TweenService:Create(
+				scale,
+				TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{Scale = 0.92}
+			):Play()
+
+			TweenService:Create(
+				stroke,
+				TweenInfo.new(0.08),
+				{Color = Color3.fromRGB(0,170,255)}
+			):Play()
+		end
+	end)
+
+	card.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.Touch then
+			TweenService:Create(
+				scale,
+				TweenInfo.new(0.1),
+				{Scale = 1}
+			):Play()
+
+			TweenService:Create(
+				stroke,
+				TweenInfo.new(0.1),
+				{Color = Color3.fromRGB(120,120,120)}
+			):Play()
+		end
+	end)
+
+	card.MouseButton1Click:Connect(function()
+		game:GetService("TeleportService"):Teleport(gameId, player)
+	end)
 end
 
 -- Adicionando botões de jogos
-createGameButton("Gun-Grounds-FFA", 12137249458)  -- Troque 123456789 pelo ID do seu jogo
-createGameButton("Nothingness", 6252985844)  -- Troque 987654321 pelo ID do seu jogo
-createGameButton("Jogo 3", 112233445)  -- Troque 112233445 pelo ID do seu jogo
-createGameButton("Jogo 4", 556677889)  -- Troque 556677889 pelo ID do seu jogo
+createGameButton("Gun-Grounds-FFA", 12137249458, 12137249458)
+createGameButton("Nothingness", 6252985844, 6252985844)
+createGameButton("Jogo 3", 112233445, 112233445)
+createGameButton("Jogo 4", 556677889, 556677889)
 
 -- Animação para abrir o menu de jogos (Teleport Games)
 local function openGamesMenu()
@@ -1003,10 +1105,6 @@ option3Btn.MouseButton1Click:Connect(function()
         clockLabel.Visible = true
     end
 end)
-
--- =========================
--- CONTROLE HOTBAR
--- =========================
 
 -- =========================
 -- CONTROLE DE HOTBAR (3 MODOS)
