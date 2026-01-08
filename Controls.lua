@@ -70,9 +70,9 @@ gui.Parent = player.PlayerGui
 
 local function pressToSize(btn, size)
 TweenService:Create(
-btn,
-TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-{ Size = size }
+    btn,
+    TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    { Size = size, BackgroundTransparency = 0.1 } -- levemente mais sólido ao pressionar
 ):Play()
 end
 
@@ -101,7 +101,20 @@ b.BackgroundTransparency = 0.15
 b.AutoButtonColor = false
 b.ZIndex = 21
 b.Parent = dpad
-Instance.new("UICorner", b).CornerRadius = UDim.new(0.25,0)
+
+-- DESIGN NOVO D-PAD
+b.BackgroundColor3 = Color3.fromRGB(20,20,20)
+b.BackgroundTransparency = 0.25
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1,0)
+corner.Parent = b
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(120,120,120)
+stroke.Thickness = 1.5
+stroke.Parent = b
+
 return b
 end
 
@@ -151,21 +164,41 @@ actionPad.BackgroundTransparency = 1
 actionPad.ZIndex = 20
 actionPad.Parent = gui
 
-local function actionBtn(x,y,t,c)
+local function actionBtn(x,y,t,color)
 	local b = Instance.new("TextButton")
 	b.Size = UDim2.fromOffset(70,70)
 	b.Position = UDim2.fromOffset(x,y)
 	b.Text = t
 	b.TextScaled = true
 	b.Font = Enum.Font.GothamBold
-	b.BackgroundColor3 = c
+	b.BackgroundColor3 = Color3.fromRGB(25,25,25) 
 	b.TextColor3 = Color3.new(1,1,1)
-	b.BackgroundTransparency = 0.12
+	b.BackgroundTransparency = 0.2
 	b.AutoButtonColor = false
 	b.ZIndex = 21
 	b.Parent = actionPad
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0.35,0)
+	
+	local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0.5,0) -- arredondado estilo Xbox
+corner.Parent = b
 
+	-- UIStroke para borda sutil
+	local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(100,100,100) -- cinza
+stroke.Thickness = 1.5
+stroke.Parent = b
+
+	-- Sombra suave
+	local shadow = Instance.new("ImageLabel")
+	shadow.Size = b.Size
+	shadow.Position = b.Position + UDim2.fromOffset(0,6)
+	shadow.BackgroundTransparency = 1
+	shadow.Image = "rbxassetid://10716487417" -- Sombra circular sutil
+	shadow.ImageColor3 = Color3.fromRGB(0,0,0)
+	shadow.ImageTransparency = 0.6
+	shadow.ZIndex = 20
+	shadow.Parent = actionPad
+	
 	-- animação de pressão
 	local original = b.Size
 	b.InputBegan:Connect(function(i)
@@ -179,30 +212,50 @@ local function actionBtn(x,y,t,c)
 		end
 	end)
 
+	local function syncShadow()
+		shadow.Size = b.Size
+		shadow.Position = b.Position + UDim2.fromOffset(0,6)
+	end
+
+	b:GetPropertyChangedSignal("Size"):Connect(syncShadow)
+	b:GetPropertyChangedSignal("Position"):Connect(syncShadow)
+
 	return b
 end
 
 -- layout estilo controle
-local gap = 70
+local COLOR_X = Color3.fromRGB(0, 125, 255)   -- azul
+local COLOR_Y = Color3.fromRGB(255, 185, 0)   -- amarelo
+local COLOR_A = Color3.fromRGB(0, 200, 0)     -- verde
+local COLOR_B = Color3.fromRGB(255, 0, 0)     -- vermelho
 
-local btnY = actionBtn(gap,0,"Y",Color3.fromRGB(200,200,60))
-local btnX = actionBtn(0,gap,"X",Color3.fromRGB(60,120,200))
-local btnB = actionBtn(gap*2,gap,"B",Color3.fromRGB(200,60,60))
-local btnA = actionBtn(gap,gap*2,"A",Color3.fromRGB(60,200,120))
+local gap = 70
+local btnY = actionBtn(gap,0,"Y",COLOR_Y)
+local btnX = actionBtn(0,gap,"X",COLOR_X)
+local btnB = actionBtn(gap*2,gap,"B",COLOR_B)
+local btnA = actionBtn(gap,gap*2,"A",COLOR_A)
 
 -- BOTÃO DE PULO CUSTOMIZADO
 local jumpBtn = Instance.new("TextButton")
 jumpBtn.Size = UDim2.fromOffset(96,96)
-jumpBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
-jumpBtn.Text = "↑"
+jumpBtn.BackgroundColor3 = Color3.fromRGB(25,25,25) -- preto escuro
+jumpBtn.Text = "A" -- símbolo do Xbox Series S
 jumpBtn.TextScaled = true
 jumpBtn.Font = Enum.Font.GothamBold
-jumpBtn.TextColor3 = Color3.new(1,1,1)
+jumpBtn.TextColor3 = Color3.fromRGB(0,200,0) -- verde "A"
 jumpBtn.ZIndex = 50
 jumpBtn.Visible = false
 jumpBtn.Parent = gui
 
-Instance.new("UICorner", jumpBtn).CornerRadius = UDim.new(1,0)
+-- Arredondar completamente
+Instance.new("UICorner", jumpBtn).CornerRadius = UDim.new(0.5,0)
+
+-- Anel de destaque Xbox
+local ring = Instance.new("UIStroke")
+ring.Color = Color3.fromRGB(0,170,255)
+ring.Thickness = 2
+ring.Transparency = 0.4
+ring.Parent = jumpBtn
 
 local Camera = workspace.CurrentCamera
 local function updateJumpPosition()
@@ -212,12 +265,26 @@ updateJumpPosition()
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateJumpPosition)
 
 jumpBtn.InputBegan:Connect(function(i)
+
+TweenService:Create(
+	ring,
+	TweenInfo.new(0.15),
+	{Thickness = 5}
+):Play()
+
 	if i.UserInputType ~= Enum.UserInputType.Touch then return end
 	pressToSize(jumpBtn, UDim2.fromOffset(84,84))
 	humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 end)
 
 jumpBtn.InputEnded:Connect(function(i)
+
+TweenService:Create(
+	ring,
+	TweenInfo.new(0.15),
+	{Thickness = 2}
+):Play()
+
 	if i.UserInputType == Enum.UserInputType.Touch then
 		pressToSize(jumpBtn, UDim2.fromOffset(96,96))
 	end
@@ -226,21 +293,23 @@ end)
 
 ---
 
--- INVENTÁRIO (NÃO BLOQUEIA TOQUE)
+-- =========================
+-- INVENTÁRIO (ESTILO XBOX SERIES S)
+-- =========================
 
 local invContainer = Instance.new("Frame")
 invContainer.AnchorPoint = Vector2.new(0.5,0.5)
 invContainer.Position = UDim2.fromScale(0.5,0.5)
 invContainer.Size = UDim2.fromScale(0,0)
-invContainer.BackgroundColor3 = Color3.fromRGB(25,25,25)
+invContainer.BackgroundColor3 = Color3.fromRGB(18,18,18) -- fundo escuro Xbox
 invContainer.Visible = false
 invContainer.ZIndex = 15
-invContainer.Active = false
+invContainer.Active = true
 invContainer.Parent = gui
-Instance.new("UICorner", invContainer)
+Instance.new("UICorner", invContainer).CornerRadius = UDim.new(0.05,0)
 
 local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(160,160,160)
+stroke.Color = Color3.fromRGB(70,70,70)
 stroke.Thickness = 2
 stroke.Parent = invContainer
 
@@ -250,14 +319,14 @@ title.BackgroundTransparency = 1
 title.Text = "Inventário"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 26
-title.TextColor3 = Color3.fromRGB(230,230,230)
+title.TextColor3 = Color3.fromRGB(200,200,200)
 title.ZIndex = 16
 title.Parent = invContainer
 
 local invGui = Instance.new("ScrollingFrame")
 invGui.Position = UDim2.fromOffset(10,50)
 invGui.Size = UDim2.new(1,-20,1,-60)
-invGui.ScrollBarImageTransparency = 0.4
+invGui.ScrollBarImageTransparency = 0.6
 invGui.BackgroundTransparency = 1
 invGui.ZIndex = 16
 invGui.Parent = invContainer
@@ -268,104 +337,108 @@ grid.CellPadding = UDim2.fromOffset(10,10)
 grid.Parent = invGui
 
 grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-invGui.CanvasSize = UDim2.fromOffset(0, grid.AbsoluteContentSize.Y + 20)
+    invGui.CanvasSize = UDim2.fromOffset(0, grid.AbsoluteContentSize.Y + 20)
 end)
 
 local function openInventory()
-invContainer.Visible = true
-TweenService:Create(invContainer,
-TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-{Size = UDim2.fromScale(0.4,0.45)}
-):Play()
+    invContainer.Visible = true
+    TweenService:Create(invContainer,
+        TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Size = UDim2.fromScale(0.42,0.48)}
+    ):Play()
 end
 
 local function closeInventory()
-local t = TweenService:Create(invContainer,
-TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-{Size = UDim2.fromScale(0,0)}
-)
-t:Play()
-t.Completed:Wait()
-invContainer.Visible = false
+    local t = TweenService:Create(invContainer,
+        TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+        {Size = UDim2.fromScale(0,0)}
+    )
+    t:Play()
+    t.Completed:Wait()
+    invContainer.Visible = false
 end
 
 local function refreshInventory()
-	-- limpar slots antigos
-	for _,c in ipairs(invGui:GetChildren()) do
-		if c:IsA("ImageButton") then
-			c:Destroy()
-		end
-	end
+    -- limpar slots antigos
+    for _,c in ipairs(invGui:GetChildren()) do
+        if c:IsA("ImageButton") then
+            c:Destroy()
+        end
+    end
 
-	-- evita duplicar tool
-	local shown = {}
+    local shown = {}
 
-	local function criarItem(tool)
-		if not tool:IsA("Tool") then return end
-		if shown[tool] then return end
-		shown[tool] = true
+    local function criarItem(tool)
+        if not tool:IsA("Tool") then return end
+        if shown[tool] then return end
+        shown[tool] = true
 
-		local equipado = (tool.Parent == character)
+        local equipado = (tool.Parent == character)
 
-		local slot = Instance.new("ImageButton")
-		slot.Size = UDim2.fromOffset(70,70)
-		slot.BackgroundColor3 = equipado
-			and Color3.fromRGB(40,160,80)   -- VERDE
-			or  Color3.fromRGB(60,60,60)
-		slot.ZIndex = 17
-		slot.Parent = invGui
-		Instance.new("UICorner", slot)
+        local slot = Instance.new("ImageButton")
+        slot.Size = UDim2.fromOffset(70,70)
+        slot.BackgroundColor3 = equipado and Color3.fromRGB(25,120,25) or Color3.fromRGB(30,30,30)
+        slot.ZIndex = 17
+        slot.Parent = invGui
+        Instance.new("UICorner", slot).CornerRadius = UDim.new(0.2,0)
 
-		if tool.TextureId ~= "" then
-			slot.Image = tool.TextureId
-		else
-			local txt = Instance.new("TextLabel")
-			txt.Size = UDim2.fromScale(1,1)
-			txt.BackgroundTransparency = 1
-			txt.Text = tool.Name
-			txt.TextScaled = true
-			txt.TextColor3 = Color3.new(1,1,1)
-			txt.Parent = slot
-		end
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = equipado and Color3.fromRGB(0,255,140) or Color3.fromRGB(70,70,70)
+        stroke.Thickness = equipado and 2.5 or 1.5
+        stroke.Parent = slot
 
-		-- TEXTO "EQUIPADO"
-		if equipado then
-			local tag = Instance.new("TextLabel")
-			tag.Size = UDim2.fromScale(1,0.3)
-			tag.Position = UDim2.fromScale(0,0.7)
-			tag.BackgroundColor3 = Color3.fromRGB(20,20,20)
-			tag.BackgroundTransparency = 0.2
-			tag.Text = "EQUIPADO"
-			tag.TextScaled = true
-			tag.Font = Enum.Font.GothamBold
-			tag.TextColor3 = Color3.fromRGB(200,255,200)
-			tag.ZIndex = 18
-			tag.Parent = slot
-			Instance.new("UICorner", tag)
-		end
+        -- Icone ou texto
+        if tool.TextureId ~= "" then
+            slot.Image = tool.TextureId
+        else
+            local txt = Instance.new("TextLabel")
+            txt.Size = UDim2.fromScale(1,1)
+            txt.BackgroundTransparency = 1
+            txt.Text = tool.Name
+            txt.TextScaled = true
+            txt.TextColor3 = Color3.new(1,1,1)
+            txt.Font = Enum.Font.GothamBold
+            txt.Parent = slot
+        end
 
-		-- EQUIPAR / DESEQUIPAR
-		slot.MouseButton1Click:Connect(function()
-			if tool.Parent == character then
-				tool.Parent = backpack
-			else
-				tool.Parent = character
-			end
-			task.wait()
-			updateHotbar()
-			refreshInventory()
-		end)
-	end
+        -- TEXTO EQUIPADO
+        if equipado then
+            local tag = Instance.new("TextLabel")
+            tag.Size = UDim2.fromScale(1,0.3)
+            tag.Position = UDim2.fromScale(0,0.7)
+            tag.BackgroundColor3 = Color3.fromRGB(10,10,10)
+            tag.BackgroundTransparency = 0.2
+            tag.Text = "EQUIPADO"
+            tag.TextScaled = true
+            tag.Font = Enum.Font.GothamBold
+            tag.TextColor3 = Color3.fromRGB(0,255,140)
+            tag.ZIndex = 18
+            tag.Parent = slot
+            Instance.new("UICorner", tag).CornerRadius = UDim.new(0.2,0)
+        end
 
-	-- mochila
-	for _,tool in ipairs(backpack:GetChildren()) do
-		criarItem(tool)
-	end
+        -- Equipar / desequipar
+        slot.MouseButton1Click:Connect(function()
+            if tool.Parent == character then
+                tool.Parent = backpack
+            else
+                tool.Parent = character
+            end
+            task.wait()
+            updateHotbar()
+            refreshInventory()
+        end)
+    end
 
-	-- equipados
-	for _,tool in ipairs(character:GetChildren()) do
-		criarItem(tool)
-	end
+    -- mochila
+    for _,tool in ipairs(backpack:GetChildren()) do
+        criarItem(tool)
+    end
+
+    -- equipados
+    for _,tool in ipairs(character:GetChildren()) do
+        criarItem(tool)
+    end
 end
 
 
@@ -928,31 +1001,92 @@ gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 gridLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 gridLayout.Parent = gamesMenu
 
--- Função para criar botões de jogos
-local function createGameButton(gameName, gameId)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(100, 100)  -- Tamanho quadrado dos botões
-    b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    b.TextColor3 = Color3.new(1, 1, 1)
-    b.TextScaled = true
-    b.Font = Enum.Font.GothamBold
-    b.Text = gameName
-    b.AutoButtonColor = false
-    b.ZIndex = 202
-    b.Parent = gamesMenu
-    Instance.new("UICorner", b)
+-- CARD DE JOGO COM IMAGEM + EFEITOS
+local function createGameButton(gameName, gameId, imageId)
 
-    -- Ação do botão (teleportar para o jogo)
-    b.MouseButton1Click:Connect(function()
-        game:GetService("TeleportService"):Teleport(gameId, player)
-    end)
+	local card = Instance.new("ImageButton")
+	card.Size = UDim2.fromOffset(100, 100)
+	card.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	card.Image = "rbxassetid://" .. imageId
+	card.ScaleType = Enum.ScaleType.Crop
+	card.AutoButtonColor = false
+	card.ZIndex = 202
+	card.Parent = gamesMenu
+	Instance.new("UICorner", card).CornerRadius = UDim.new(0.2,0)
+
+	-- Sombra simples
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(120,120,120)
+	stroke.Thickness = 1.5
+	stroke.Parent = card
+
+	-- Barra inferior do nome
+	local bottom = Instance.new("Frame")
+	bottom.Size = UDim2.fromScale(1,0.28)
+	bottom.Position = UDim2.fromScale(0,0.72)
+	bottom.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	bottom.BackgroundTransparency = 0.35
+	bottom.ZIndex = 203
+	bottom.Parent = card
+	Instance.new("UICorner", bottom).CornerRadius = UDim.new(0.15,0)
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.fromScale(1,1)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = gameName
+	nameLabel.TextScaled = true
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextColor3 = Color3.new(1,1,1)
+	nameLabel.ZIndex = 204
+	nameLabel.Parent = bottom
+
+	-- EFEITO DE TOQUE
+	local scale = Instance.new("UIScale")
+	scale.Scale = 1
+	scale.Parent = card
+
+	card.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.Touch then
+			TweenService:Create(
+				scale,
+				TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{Scale = 0.92}
+			):Play()
+
+			TweenService:Create(
+				stroke,
+				TweenInfo.new(0.08),
+				{Color = Color3.fromRGB(0,170,255)}
+			):Play()
+		end
+	end)
+
+	card.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.Touch then
+			TweenService:Create(
+				scale,
+				TweenInfo.new(0.1),
+				{Scale = 1}
+			):Play()
+
+			TweenService:Create(
+				stroke,
+				TweenInfo.new(0.1),
+				{Color = Color3.fromRGB(120,120,120)}
+			):Play()
+		end
+	end)
+
+	card.MouseButton1Click:Connect(function()
+		game:GetService("TeleportService"):Teleport(gameId, player)
+	end)
 end
 
 -- Adicionando botões de jogos
-createGameButton("Gun-Grounds-FFA", 12137249458)  -- Troque 123456789 pelo ID do seu jogo
-createGameButton("Nothingness", 6252985844)  -- Troque 987654321 pelo ID do seu jogo
-createGameButton("Jogo 3", 112233445)  -- Troque 112233445 pelo ID do seu jogo
-createGameButton("Jogo 4", 556677889)  -- Troque 556677889 pelo ID do seu jogo
+createGameButton("Gun-Grounds-FFA", 12137249458, 12137249458)
+createGameButton("Nothingness", 6252985844, 6252985844)
+createGameButton("Jogo 3", 112233445, 112233445)
+createGameButton("Jogo 4", 556677889, 556677889)
 
 -- Animação para abrir o menu de jogos (Teleport Games)
 local function openGamesMenu()
@@ -1016,6 +1150,17 @@ local function createClock()
     clockLabel.Text = "00:00"
     clockLabel.ZIndex = 190  -- ZIndex menor que o botão de configurações
     clockLabel.Parent = settingsGui  -- Coloca no ScreenGui do menu
+    clockLabel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+clockLabel.BackgroundTransparency = 0.2
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1,0)
+corner.Parent = clockLabel
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(120,120,120)
+stroke.Thickness = 1
+stroke.Parent = clockLabel
     return clockLabel
 end
 
