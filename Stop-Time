@@ -172,7 +172,7 @@ local function stopTime()
 	if timeStopped then return end
 	timeStopped = true
 
-	playSound(7514417921, 5)
+	playSound(7514417921, 3)
 
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr ~= player and plr.Character then
