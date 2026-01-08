@@ -187,20 +187,7 @@ stroke.Color = c
 stroke.Thickness = 2
 stroke.Transparency = 0.4
 stroke.Parent = b
-
--- SOMBRA CORRETA (ALINHADA)
-local shadow = Instance.new("Frame")
-shadow.Size = b.Size
-shadow.Position = b.Position + UDim2.fromOffset(0,4)
-shadow.BackgroundColor3 = Color3.new(0,0,0)
-shadow.BackgroundTransparency = 0.6
-shadow.ZIndex = b.ZIndex - 1
-shadow.Parent = actionPad
-
-local shadowCorner = Instance.new("UICorner")
-shadowCorner.CornerRadius = UDim.new(1,0)
-shadowCorner.Parent = shadow
-
+	
 	-- animação de pressão
 	local original = b.Size
 	b.InputBegan:Connect(function(i)
