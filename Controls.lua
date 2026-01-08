@@ -290,41 +290,82 @@ invContainer.Visible = false
 end
 
 local function refreshInventory()
-for _,c in ipairs(invGui:GetChildren()) do
-if c:IsA("ImageButton") then c:Destroy() end
-end
+	-- limpar slots antigos
+	for _,c in ipairs(invGui:GetChildren()) do
+		if c:IsA("ImageButton") then
+			c:Destroy()
+		end
+	end
 
-for _,tool in ipairs(backpack:GetChildren()) do
-if tool:IsA("Tool") then
-local slot = Instance.new("ImageButton")
-slot.BackgroundColor3 = Color3.fromRGB(60,60,60)
-slot.ZIndex = 17
-slot.Parent = invGui
-Instance.new("UICorner", slot)
+	-- evita duplicar tool
+	local shown = {}
 
-if tool.TextureId ~= "" then
-slot.Image = tool.TextureId
-else
-local txt = Instance.new("TextLabel")
-txt.Size = UDim2.fromScale(1,1)
-txt.BackgroundTransparency = 1
-txt.Text = tool.Name
-txt.TextWrapped = true
-txt.TextScaled = true
-txt.TextColor3 = Color3.new(1,1,1)
-txt.ZIndex = 18
-txt.Parent = slot
-end
+	local function criarItem(tool)
+		if not tool:IsA("Tool") then return end
+		if shown[tool] then return end
+		shown[tool] = true
 
-slot.MouseButton1Click:Connect(function()
-tool.Parent = character
-closeInventory()
-end)
+		local equipado = (tool.Parent == character)
 
-end
+		local slot = Instance.new("ImageButton")
+		slot.Size = UDim2.fromOffset(70,70)
+		slot.BackgroundColor3 = equipado
+			and Color3.fromRGB(40,160,80)   -- VERDE
+			or  Color3.fromRGB(60,60,60)
+		slot.ZIndex = 17
+		slot.Parent = invGui
+		Instance.new("UICorner", slot)
 
-end
+		if tool.TextureId ~= "" then
+			slot.Image = tool.TextureId
+		else
+			local txt = Instance.new("TextLabel")
+			txt.Size = UDim2.fromScale(1,1)
+			txt.BackgroundTransparency = 1
+			txt.Text = tool.Name
+			txt.TextScaled = true
+			txt.TextColor3 = Color3.new(1,1,1)
+			txt.Parent = slot
+		end
 
+		-- TEXTO "EQUIPADO"
+		if equipado then
+			local tag = Instance.new("TextLabel")
+			tag.Size = UDim2.fromScale(1,0.3)
+			tag.Position = UDim2.fromScale(0,0.7)
+			tag.BackgroundColor3 = Color3.fromRGB(20,20,20)
+			tag.BackgroundTransparency = 0.2
+			tag.Text = "EQUIPADO"
+			tag.TextScaled = true
+			tag.Font = Enum.Font.GothamBold
+			tag.TextColor3 = Color3.fromRGB(200,255,200)
+			tag.ZIndex = 18
+			tag.Parent = slot
+			Instance.new("UICorner", tag)
+		end
+
+		-- EQUIPAR / DESEQUIPAR
+		slot.MouseButton1Click:Connect(function()
+			if tool.Parent == character then
+				tool.Parent = backpack
+			else
+				tool.Parent = character
+			end
+			task.wait()
+			updateHotbar()
+			refreshInventory()
+		end)
+	end
+
+	-- mochila
+	for _,tool in ipairs(backpack:GetChildren()) do
+		criarItem(tool)
+	end
+
+	-- equipados
+	for _,tool in ipairs(character:GetChildren()) do
+		criarItem(tool)
+	end
 end
 
 
