@@ -11,10 +11,10 @@ local camera = workspace.CurrentCamera
 --------------------------------------------------
 -- CONFIG
 --------------------------------------------------
-local MAX_TIME_NORMAL = 60
-local MAX_TIME_PERFECT = 30
-local MAX_TIME_RANGE = 15
-local COOLDOWN_NORMAL = 8
+local MAX_TIME_NORMAL = 30
+local MAX_TIME_PERFECT = 60
+local MAX_TIME_RANGE = 10
+local COOLDOWN_NORMAL = 10
 local COOLDOWN_RANGE = 30
 local COLOR_DELAY = 0.2
 local SPEED_MULT = 2
@@ -55,6 +55,7 @@ local normalSoundInstance
 local perfectSoundInstance
 local currentAnimTrack
 local vignetteGui
+local fixedCameraCFrame -- para Range fix
 
 --------------------------------------------------
 -- FUNÇÃO DE SOM
@@ -139,18 +140,18 @@ local function cameraShake(duration,magnitude)
 	end)
 end
 
+-- FIX CAMERA RANGE
 local function cameraRangeEffect()
 	local blur = Instance.new("BlurEffect")
 	blur.Size = 8
 	blur.Parent = Lighting
+	fixedCameraCFrame = camera.CFrame -- fixa onde ativou
 
-	local start = tick()
-	local originalCFrame = camera.CFrame
 	local conn
 	conn = RunService.RenderStepped:Connect(function()
 		if not timeStopped or currentStopType~="Range" then
 			blur:Destroy()
-			camera.CFrame = originalCFrame
+			camera.CFrame = player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.CFrame or camera.CFrame
 			conn:Disconnect()
 			return
 		end
@@ -159,7 +160,7 @@ local function cameraRangeEffect()
 			(math.cos(tick()*2)*0.3),
 			0
 		)
-		camera.CFrame = originalCFrame * offset
+		camera.CFrame = fixedCameraCFrame * offset
 	end)
 end
 
@@ -357,6 +358,12 @@ local function playActivationAnimation()
 
 	currentAnimTrack = hum:LoadAnimation(anim)
 	currentAnimTrack:Play()
+
+	-- AUMENTA A VELOCIDADE DA ANIMAÇÃO PARA NORMAL
+	if currentStopType=="Normal" then
+		currentAnimTrack:AdjustSpeed(2.5)
+	end
+
 	if currentStopType=="Perfect" then
 		task.delay(2,function()
 			if currentAnimTrack then
@@ -401,11 +408,18 @@ end
 --------------------------------------------------
 -- TIME STOP
 --------------------------------------------------
+local rangeCameraCFrame -- guarda a câmera durante Range
+
 local function stopTime()
 	if timeStopped or locked then return end
 	timeStopped = true
 	currentStopType,maxTime = pickTimeStopType()
 	startTime = tick()
+
+	-- Guarda a posição da câmera se for Range
+	if currentStopType == "Range" then
+		rangeCameraCFrame = camera.CFrame
+	end
 
 	if currentStopType=="Normal" then
 		normalSoundInstance = playSound(SOUND_NORMAL_ACT,5)
@@ -413,7 +427,7 @@ local function stopTime()
 	elseif currentStopType=="Perfect" then
 		perfectSoundInstance = playSound(SOUND_PERFECT_ACT,5)
 		perfectExtraSoundInstance = playSound(SOUND_PERFECT_EXTRA,5)
-		showWarning("⚠️🌟The Perfect Time🌟⚠️",Color3.fromRGB(255,255,0))
+		showWarning("⚠️Perfect Time⚠️",Color3.fromRGB(255,255,0))
 		explosionParticles(Color3.fromRGB(255,215,0),Color3.fromRGB(255,140,0))
 	elseif currentStopType=="Range" then
 		playSound(SOUND_RANGE_ACT,5)
@@ -426,7 +440,9 @@ local function stopTime()
 	freezeWorld()
 	activateVFX()
 	boostPlayerSpeed(true)
-	zoomCamera(55,0.25)
+	if currentStopType ~= "Range" then
+		zoomCamera(55,0.25)
+	end
 	cameraShake(0.35,0.6)
 
 	button.Text = "Desativar Time Stop"
@@ -442,20 +458,24 @@ local function stopTime()
 		end)
 	end)
 
+	-- Loop de atualização do Stop Time
 	task.spawn(function()
 		while timeStopped do
 			if tick()-startTime>=maxTime then
 				releaseTime(true)
 				break
 			end
-			task.wait(0.2)
+
+			-- trava a câmera na posição do Range
+			if currentStopType == "Range" and rangeCameraCFrame then
+				camera.CFrame = rangeCameraCFrame
+			end
+
+			task.wait(0.02)
 		end
 	end)
 end
 
---------------------------------------------------
--- RELEASE TIME
---------------------------------------------------
 function releaseTime(fromLimit)
 	if not timeStopped then return end
 	timeStopped = false
@@ -464,7 +484,6 @@ function releaseTime(fromLimit)
 		currentAnimTrack:Stop()
 		currentAnimTrack=nil
 	end
-
 	if rangeSoundInstance then rangeSoundInstance:Stop(); rangeSoundInstance=nil end
 	if normalSoundInstance then normalSoundInstance:Stop(); normalSoundInstance=nil end
 	if perfectSoundInstance then perfectSoundInstance:Stop(); perfectSoundInstance=nil end
@@ -481,8 +500,17 @@ function releaseTime(fromLimit)
 	unfreezeWorld()
 	deactivateVFX()
 	boostPlayerSpeed(false)
-	zoomCamera(70,0.25)
+	if currentStopType ~= "Range" then
+		zoomCamera(70,0.25)
+	else
+		-- volta a câmera para seguir o personagem
+		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			camera.CFrame = CFrame.new(player.Character.HumanoidRootPart.Position + Vector3.new(0,2,6), player.Character.HumanoidRootPart.Position)
+		end
+	end
 	cameraShake(0.25,0.4)
+
+	rangeCameraCFrame = nil -- limpa referência
 
 	if fromLimit then
 		if currentStopType=="Range" then
@@ -515,6 +543,7 @@ button.Text = "Ativar Time Stop"
 button.Parent = gui
 Instance.new("UICorner", button).CornerRadius = UDim.new(0,12)
 
+-- Conexão do botão
 button.MouseButton1Click:Connect(function()
 	if locked then return end
 	if timeStopped then
