@@ -14,10 +14,25 @@ local camera = workspace.CurrentCamera
 local MAX_TIME_NORMAL = 60
 local MAX_TIME_PERFECT = 30
 local MAX_TIME_RANGE = 15
-local COOLDOWN = 8
+local COOLDOWN_NORMAL = 8
+local COOLDOWN_RANGE = 30
 local COLOR_DELAY = 0.2
 local SPEED_MULT = 2
-local ACTIVATE_ANIM = "rbxassetid://108059270529140"
+local WARNING_DISPLAY_TIME = 2 -- Tempo que o aviso fica na tela
+local ANIM_NORMAL = "rbxassetid://108059270529140"
+local ANIM_PERFECT = "rbxassetid://91674885900854"
+local ANIM_RANGE = "rbxassetid://83940178849662"
+
+-- SOUNDS
+local SOUND_NORMAL_ACT = 6675048510
+local SOUND_NORMAL_DEACT = 97139043906890
+local SOUND_PERFECT_ACT = 2553928644
+local SOUND_PERFECT_EXTRA = 5104670875
+local SOUND_PERFECT_DEACT = 97139043906890
+local SOUND_RANGE_ACT = 5104670875
+local SOUND_RANGE_LOOP = 130792013637723
+local SOUND_RANGE_DEACT = 97139043906890
+local SOUND_COOLDOWN = 1839847326
 
 --------------------------------------------------
 -- ESTADO
@@ -32,23 +47,33 @@ local colorEffect
 local fovTween
 local currentStopType = "Normal"
 local maxTime = MAX_TIME_NORMAL
+local warningLabel
+local rangeSoundInstance
+local cooldownSoundInstance
+local perfectExtraSoundInstance
+local normalSoundInstance
+local perfectSoundInstance
+local currentAnimTrack
+local vignetteGui
 
 --------------------------------------------------
--- SOM
+-- FUNÇÃO DE SOM
 --------------------------------------------------
-local function playSound(id, volume)
+local function playSound(id, volume, looped)
 	local sound = Instance.new("Sound")
-	sound.SoundId = "rbxassetid://" .. id
+	sound.SoundId = "rbxassetid://"..id
 	sound.Volume = volume or 1
+	if looped then sound.Looped = true end
 	sound.Parent = workspace
 	sound:Play()
-	Debris:AddItem(sound, 6)
+	Debris:AddItem(sound, looped and 50 or 6)
+	return sound
 end
 
 --------------------------------------------------
 -- PARTICULAS EXPLOSÃO
 --------------------------------------------------
-local function explosionParticles()
+local function explosionParticles(color1,color2)
 	local part = Instance.new("Part")
 	part.Anchored = true
 	part.CanCollide = false
@@ -59,8 +84,8 @@ local function explosionParticles()
 	local p = Instance.new("ParticleEmitter")
 	p.Texture = "rbxassetid://243660364"
 	p.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(20,20,20)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(120,120,120))
+		ColorSequenceKeypoint.new(0,color1),
+		ColorSequenceKeypoint.new(1,color2)
 	}
 	p.Size = NumberSequence.new{
 		NumberSequenceKeypoint.new(0,0.6),
@@ -72,7 +97,7 @@ local function explosionParticles()
 	p:Emit(30)
 	p.Parent = part
 
-	Debris:AddItem(part, 1)
+	Debris:AddItem(part,1)
 end
 
 --------------------------------------------------
@@ -84,29 +109,29 @@ local function boostPlayerSpeed(enable)
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
 	if not originalWalkSpeed then originalWalkSpeed = hum.WalkSpeed end
-	hum.WalkSpeed = enable and originalWalkSpeed * SPEED_MULT or originalWalkSpeed
+	hum.WalkSpeed = enable and originalWalkSpeed*SPEED_MULT or originalWalkSpeed
 end
 
 --------------------------------------------------
 -- CAMERA ZOOM + SHAKE
 --------------------------------------------------
-local function zoomCamera(targetFov, time)
+local function zoomCamera(targetFov,time)
 	if fovTween then fovTween:Cancel() end
-	fovTween = TweenService:Create(camera, TweenInfo.new(time, Enum.EasingStyle.Quad), {FieldOfView = targetFov})
+	fovTween = TweenService:Create(camera,TweenInfo.new(time,Enum.EasingStyle.Quad),{FieldOfView=targetFov})
 	fovTween:Play()
 end
 
-local function cameraShake(duration, magnitude)
+local function cameraShake(duration,magnitude)
 	local start = tick()
 	local original = camera.CFrame
 	local conn
 	conn = RunService.RenderStepped:Connect(function()
-		if tick() - start > duration then
+		if tick()-start>duration then
 			camera.CFrame = original
 			conn:Disconnect()
 			return
 		end
-		camera.CFrame = original * CFrame.new(
+		camera.CFrame = original*CFrame.new(
 			(math.random()-0.5)*magnitude,
 			(math.random()-0.5)*magnitude,
 			0
@@ -114,11 +139,35 @@ local function cameraShake(duration, magnitude)
 	end)
 end
 
+local function cameraRangeEffect()
+	local blur = Instance.new("BlurEffect")
+	blur.Size = 8
+	blur.Parent = Lighting
+
+	local start = tick()
+	local originalCFrame = camera.CFrame
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		if not timeStopped or currentStopType~="Range" then
+			blur:Destroy()
+			camera.CFrame = originalCFrame
+			conn:Disconnect()
+			return
+		end
+		local offset = CFrame.new(
+			(math.sin(tick()*2)*0.3),
+			(math.cos(tick()*2)*0.3),
+			0
+		)
+		camera.CFrame = originalCFrame * offset
+	end)
+end
+
 --------------------------------------------------
 -- CONGELAR MUNDO
 --------------------------------------------------
 local function freezeWorld()
-	for _, obj in ipairs(workspace:GetDescendants()) do
+	for _,obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) then
 			if not obj.Anchored then
 				frozenParts[obj] = true
@@ -138,9 +187,67 @@ local function unfreezeWorld()
 end
 
 --------------------------------------------------
+-- GUI VIGNETTE (Stop Time Range)
+--------------------------------------------------
+local function createVignette()
+	if vignetteGui then vignetteGui:Destroy() end
+	vignetteGui = Instance.new("ScreenGui")
+	vignetteGui.Name = "VignetteGui"
+	vignetteGui.ResetOnSpawn = false
+	vignetteGui.Parent = player.PlayerGui
+
+	local corners = {}
+	local positions = {
+		Vector2.new(0,0),
+		Vector2.new(1,0),
+		Vector2.new(0,1),
+		Vector2.new(1,1),
+	}
+	for i,pos in ipairs(positions) do
+		local corner = Instance.new("Frame",vignetteGui)
+		corner.Size = UDim2.new(0.2,0,0.2,0)
+		corner.Position = UDim2.new(pos.X,0,pos.Y,0)
+		corner.BackgroundColor3 = Color3.new(0,0,0)
+		corner.BackgroundTransparency = 0.5
+		corners[i] = corner
+	end
+
+	task.spawn(function()
+		while timeStopped and currentStopType=="Range" and rangeSoundInstance do
+			local rand = math.random()
+			if rand<0.33 then
+				colorEffect.TintColor = Color3.fromRGB(255,255,255)
+				colorEffect.Contrast = 1
+				colorEffect.Saturation = -0.5
+			elseif rand<0.66 then
+				colorEffect.TintColor = Color3.fromRGB(0,255,255)
+				colorEffect.Contrast = 2
+				colorEffect.Saturation = -1
+			else
+				colorEffect.TintColor = Color3.fromRGB(math.random(0,255),math.random(0,255),math.random(0,255))
+				colorEffect.Contrast = math.random()*2
+				colorEffect.Saturation = math.random()*2-1
+			end
+			for _,corner in ipairs(corners) do
+				corner.BackgroundTransparency = math.random()*0.5 + 0.3
+			end
+			task.wait(0.15)
+		end
+		for _,corner in ipairs(corners) do
+			corner.BackgroundTransparency = 0.5
+		end
+		if colorEffect then
+			colorEffect.Saturation = 0
+			colorEffect.Contrast = 1
+			colorEffect.TintColor = Color3.fromRGB(255,255,255)
+		end
+	end)
+end
+
+--------------------------------------------------
 -- ESFERAS GUI
 --------------------------------------------------
-local function createSphere(gui, color, transparency, z)
+local function createSphere(gui,color,transparency,z)
 	local sphere = Instance.new("Frame")
 	sphere.AnchorPoint = Vector2.new(0.5,0.5)
 	sphere.Position = UDim2.fromScale(0.5,0.5)
@@ -150,7 +257,7 @@ local function createSphere(gui, color, transparency, z)
 	sphere.BorderSizePixel = 0
 	sphere.ZIndex = z
 	sphere.Parent = gui
-	Instance.new("UICorner", sphere).CornerRadius = UDim.new(1,0)
+	Instance.new("UICorner",sphere).CornerRadius = UDim.new(1,0)
 	return sphere
 end
 
@@ -159,24 +266,29 @@ end
 --------------------------------------------------
 local function activateVFX()
 	local gui = player.PlayerGui:WaitForChild("TimeStopGUI")
-	local gold = createSphere(gui, Color3.fromRGB(255,215,0), 0.35, 20)
-	TweenService:Create(gold, TweenInfo.new(0.3), {Size = UDim2.fromOffset(3000,3000)}):Play()
-	Debris:AddItem(gold, 0.6)
+	local gold = createSphere(gui,Color3.fromRGB(255,215,0),0.35,20)
+	TweenService:Create(gold,TweenInfo.new(0.3),{Size=UDim2.fromOffset(3000,3000)}):Play()
+	Debris:AddItem(gold,0.6)
 	task.wait(COLOR_DELAY)
 
-	local orange = createSphere(gui, Color3.fromRGB(255,140,0), 0.35, 19)
-	TweenService:Create(orange, TweenInfo.new(0.3), {Size = UDim2.fromOffset(3000,3000)}):Play()
-	Debris:AddItem(orange, 0.6)
+	local orange = createSphere(gui,Color3.fromRGB(255,140,0),0.35,19)
+	TweenService:Create(orange,TweenInfo.new(0.3),{Size=UDim2.fromOffset(3000,3000)}):Play()
+	Debris:AddItem(orange,0.6)
 	task.wait(COLOR_DELAY)
 
-	local purple = createSphere(gui, Color3.fromRGB(140,0,255), 0.45, 18)
-	TweenService:Create(purple, TweenInfo.new(0.35), {Size = UDim2.fromOffset(3000,3000)}):Play()
-	Debris:AddItem(purple, 0.6)
+	local purple = createSphere(gui,Color3.fromRGB(140,0,255),0.45,18)
+	TweenService:Create(purple,TweenInfo.new(0.35),{Size=UDim2.fromOffset(3000,3000)}):Play()
+	Debris:AddItem(purple,0.6)
 
 	colorEffect = Instance.new("ColorCorrectionEffect")
 	colorEffect.Parent = Lighting
 	colorEffect.Saturation = -1
 	colorEffect.Contrast = 1
+
+	if currentStopType=="Range" then
+		createVignette()
+		cameraRangeEffect()
+	end
 end
 
 --------------------------------------------------
@@ -184,17 +296,41 @@ end
 --------------------------------------------------
 local function deactivateVFX()
 	if colorEffect then colorEffect:Destroy(); colorEffect=nil end
+	if vignetteGui then vignetteGui:Destroy(); vignetteGui=nil end
 	local gui = player.PlayerGui:WaitForChild("TimeStopGUI")
-	local function shrink(color, transparency, delay)
+	local function shrink(color,transparency,delay)
 		task.wait(delay)
-		local s = createSphere(gui, color, transparency, 20)
+		local s = createSphere(gui,color,transparency,20)
 		s.Size = UDim2.fromOffset(3000,3000)
-		TweenService:Create(s, TweenInfo.new(0.3), {Size = UDim2.fromOffset(0,0)}):Play()
-		Debris:AddItem(s, 0.4)
+		TweenService:Create(s,TweenInfo.new(0.3),{Size=UDim2.fromOffset(0,0)}):Play()
+		Debris:AddItem(s,0.4)
 	end
-	shrink(Color3.fromRGB(140,0,255), 0.45, 0)
-	shrink(Color3.fromRGB(255,140,0), 0.35, COLOR_DELAY)
-	shrink(Color3.fromRGB(255,215,0), 0.35, COLOR_DELAY*2)
+	shrink(Color3.fromRGB(140,0,255),0.45,0)
+	shrink(Color3.fromRGB(255,140,0),0.35,COLOR_DELAY)
+	shrink(Color3.fromRGB(255,215,0),0.35,COLOR_DELAY*2)
+end
+
+--------------------------------------------------
+-- AVISO NA TELA
+--------------------------------------------------
+local function showWarning(text,color)
+	if not warningLabel then
+		warningLabel = Instance.new("TextLabel")
+		warningLabel.Size = UDim2.fromOffset(300,50)
+		warningLabel.Position = UDim2.new(0.5,0,0.05,0)
+		warningLabel.AnchorPoint = Vector2.new(0.5,0)
+		warningLabel.BackgroundTransparency = 1
+		warningLabel.TextScaled = true
+		warningLabel.Font = Enum.Font.GothamBold
+		warningLabel.Parent = player.PlayerGui:WaitForChild("TimeStopGUI")
+	end
+	warningLabel.Text = text
+	warningLabel.TextColor3 = color
+	warningLabel.TextTransparency = 1
+	TweenService:Create(warningLabel,TweenInfo.new(0.5),{TextTransparency=0}):Play()
+	task.delay(WARNING_DISPLAY_TIME,function()
+		TweenService:Create(warningLabel,TweenInfo.new(0.5),{TextTransparency=1}):Play()
+	end)
 end
 
 --------------------------------------------------
@@ -205,10 +341,30 @@ local function playActivationAnimation()
 	if not char then return end
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
+
+	if currentAnimTrack then
+		currentAnimTrack:Stop()
+	end
+
 	local anim = Instance.new("Animation")
-	anim.AnimationId = ACTIVATE_ANIM
-	local track = hum:LoadAnimation(anim)
-	track:Play()
+	if currentStopType=="Normal" then
+		anim.AnimationId = ANIM_NORMAL
+	elseif currentStopType=="Perfect" then
+		anim.AnimationId = ANIM_PERFECT
+	elseif currentStopType=="Range" then
+		anim.AnimationId = ANIM_RANGE
+	end
+
+	currentAnimTrack = hum:LoadAnimation(anim)
+	currentAnimTrack:Play()
+	if currentStopType=="Perfect" then
+		task.delay(2,function()
+			if currentAnimTrack then
+				currentAnimTrack:Stop()
+				currentAnimTrack=nil
+			end
+		end)
+	end
 end
 
 --------------------------------------------------
@@ -216,7 +372,7 @@ end
 --------------------------------------------------
 local function pickTimeStopType()
 	local r = math.random()
-	if r <= 0.7 then
+	if r <= 0.6 then
 		return "Normal", MAX_TIME_NORMAL
 	elseif r <= 0.9 then
 		return "Perfect", MAX_TIME_PERFECT
@@ -228,15 +384,18 @@ end
 --------------------------------------------------
 -- COOLDOWN
 --------------------------------------------------
-local function startCooldown()
+local function startCooldown(duration)
 	locked = true
-	playSound(1839847326,3)
-	for i=COOLDOWN,1,-1 do
+	cooldownSoundInstance = playSound(SOUND_COOLDOWN,3,true)
+	for i=duration,1,-1 do
 		button.Text = "Cooldown "..i
 		task.wait(1)
 	end
 	button.Text = "Ativar Time Stop"
 	locked = false
+	if cooldownSoundInstance then
+		cooldownSoundInstance:Stop()
+	end
 end
 
 --------------------------------------------------
@@ -245,13 +404,25 @@ end
 local function stopTime()
 	if timeStopped or locked then return end
 	timeStopped = true
-	currentStopType, maxTime = pickTimeStopType()
+	currentStopType,maxTime = pickTimeStopType()
 	startTime = tick()
 
-	playSound(7514417921,5)
-	explosionParticles()
-	playActivationAnimation()
+	if currentStopType=="Normal" then
+		normalSoundInstance = playSound(SOUND_NORMAL_ACT,5)
+		explosionParticles(Color3.fromRGB(20,20,20),Color3.fromRGB(120,120,120))
+	elseif currentStopType=="Perfect" then
+		perfectSoundInstance = playSound(SOUND_PERFECT_ACT,5)
+		perfectExtraSoundInstance = playSound(SOUND_PERFECT_EXTRA,5)
+		showWarning("⚠️🌟The Perfect Time🌟⚠️",Color3.fromRGB(255,255,0))
+		explosionParticles(Color3.fromRGB(255,215,0),Color3.fromRGB(255,140,0))
+	elseif currentStopType=="Range" then
+		playSound(SOUND_RANGE_ACT,5)
+		rangeSoundInstance = playSound(SOUND_RANGE_LOOP,1.5,true)
+		showWarning("👾Time is a fault field👾",Color3.fromRGB(0,255,255))
+		explosionParticles(Color3.fromRGB(0,150,255),Color3.fromRGB(0,50,255))
+	end
 
+	playActivationAnimation()
 	freezeWorld()
 	activateVFX()
 	boostPlayerSpeed(true)
@@ -260,7 +431,6 @@ local function stopTime()
 
 	button.Text = "Desativar Time Stop"
 
-	-- Freeze para players que entrarem enquanto o Time Stop está ativo
 	Players.PlayerAdded:Connect(function(plr)
 		plr.CharacterAdded:Connect(function(char)
 			if timeStopped then
@@ -274,7 +444,7 @@ local function stopTime()
 
 	task.spawn(function()
 		while timeStopped do
-			if tick() - startTime >= maxTime then
+			if tick()-startTime>=maxTime then
 				releaseTime(true)
 				break
 			end
@@ -290,7 +460,24 @@ function releaseTime(fromLimit)
 	if not timeStopped then return end
 	timeStopped = false
 
-	playSound(97139043906890,5)
+	if currentAnimTrack then
+		currentAnimTrack:Stop()
+		currentAnimTrack=nil
+	end
+
+	if rangeSoundInstance then rangeSoundInstance:Stop(); rangeSoundInstance=nil end
+	if normalSoundInstance then normalSoundInstance:Stop(); normalSoundInstance=nil end
+	if perfectSoundInstance then perfectSoundInstance:Stop(); perfectSoundInstance=nil end
+	if perfectExtraSoundInstance then perfectExtraSoundInstance:Stop(); perfectExtraSoundInstance=nil end
+
+	if currentStopType=="Normal" then
+		playSound(SOUND_NORMAL_DEACT,5)
+	elseif currentStopType=="Perfect" then
+		playSound(SOUND_PERFECT_DEACT,5)
+	elseif currentStopType=="Range" then
+		playSound(SOUND_RANGE_DEACT,5)
+	end
+
 	unfreezeWorld()
 	deactivateVFX()
 	boostPlayerSpeed(false)
@@ -298,7 +485,11 @@ function releaseTime(fromLimit)
 	cameraShake(0.25,0.4)
 
 	if fromLimit then
-		startCooldown()
+		if currentStopType=="Range" then
+			startCooldown(COOLDOWN_RANGE)
+		else
+			startCooldown(COOLDOWN_NORMAL)
+		end
 	else
 		button.Text = "Ativar Time Stop"
 	end
@@ -322,7 +513,6 @@ button.Font = Enum.Font.GothamBold
 button.TextScaled = true
 button.Text = "Ativar Time Stop"
 button.Parent = gui
-
 Instance.new("UICorner", button).CornerRadius = UDim.new(0,12)
 
 button.MouseButton1Click:Connect(function()
