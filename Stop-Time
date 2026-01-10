@@ -12,7 +12,7 @@ local camera = workspace.CurrentCamera
 -- CONFIG
 --------------------------------------------------
 local MAX_TIME_NORMAL = 30
-local MAX_TIME_PERFECT = 60
+local MAX_TIME_PERFECT = 50
 local MAX_TIME_RANGE = 10
 local COOLDOWN_NORMAL = 10
 local COOLDOWN_RANGE = 30
