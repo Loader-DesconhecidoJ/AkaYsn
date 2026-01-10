@@ -11,7 +11,9 @@ local camera = workspace.CurrentCamera
 --------------------------------------------------
 -- CONFIG
 --------------------------------------------------
-local MAX_TIME = 60
+local MAX_TIME_NORMAL = 60
+local MAX_TIME_PERFECT = 30
+local MAX_TIME_RANGE = 15
 local COOLDOWN = 8
 local COLOR_DELAY = 0.2
 local SPEED_MULT = 2
@@ -28,6 +30,8 @@ local originalWalkSpeed
 local frozenParts = {}
 local colorEffect
 local fovTween
+local currentStopType = "Normal"
+local maxTime = MAX_TIME_NORMAL
 
 --------------------------------------------------
 -- SOM
@@ -79,11 +83,7 @@ local function boostPlayerSpeed(enable)
 	if not char then return end
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
-
-	if not originalWalkSpeed then
-		originalWalkSpeed = hum.WalkSpeed
-	end
-
+	if not originalWalkSpeed then originalWalkSpeed = hum.WalkSpeed end
 	hum.WalkSpeed = enable and originalWalkSpeed * SPEED_MULT or originalWalkSpeed
 end
 
@@ -92,11 +92,7 @@ end
 --------------------------------------------------
 local function zoomCamera(targetFov, time)
 	if fovTween then fovTween:Cancel() end
-	fovTween = TweenService:Create(
-		camera,
-		TweenInfo.new(time, Enum.EasingStyle.Quad),
-		{FieldOfView = targetFov}
-	)
+	fovTween = TweenService:Create(camera, TweenInfo.new(time, Enum.EasingStyle.Quad), {FieldOfView = targetFov})
 	fovTween:Play()
 end
 
@@ -154,7 +150,6 @@ local function createSphere(gui, color, transparency, z)
 	sphere.BorderSizePixel = 0
 	sphere.ZIndex = z
 	sphere.Parent = gui
-
 	Instance.new("UICorner", sphere).CornerRadius = UDim.new(1,0)
 	return sphere
 end
@@ -164,17 +159,14 @@ end
 --------------------------------------------------
 local function activateVFX()
 	local gui = player.PlayerGui:WaitForChild("TimeStopGUI")
-
 	local gold = createSphere(gui, Color3.fromRGB(255,215,0), 0.35, 20)
 	TweenService:Create(gold, TweenInfo.new(0.3), {Size = UDim2.fromOffset(3000,3000)}):Play()
 	Debris:AddItem(gold, 0.6)
-
 	task.wait(COLOR_DELAY)
 
 	local orange = createSphere(gui, Color3.fromRGB(255,140,0), 0.35, 19)
 	TweenService:Create(orange, TweenInfo.new(0.3), {Size = UDim2.fromOffset(3000,3000)}):Play()
 	Debris:AddItem(orange, 0.6)
-
 	task.wait(COLOR_DELAY)
 
 	local purple = createSphere(gui, Color3.fromRGB(140,0,255), 0.45, 18)
@@ -191,13 +183,8 @@ end
 -- VFX DESATIVAR
 --------------------------------------------------
 local function deactivateVFX()
-	if colorEffect then
-		colorEffect:Destroy()
-		colorEffect = nil
-	end
-
+	if colorEffect then colorEffect:Destroy(); colorEffect=nil end
 	local gui = player.PlayerGui:WaitForChild("TimeStopGUI")
-
 	local function shrink(color, transparency, delay)
 		task.wait(delay)
 		local s = createSphere(gui, color, transparency, 20)
@@ -205,7 +192,6 @@ local function deactivateVFX()
 		TweenService:Create(s, TweenInfo.new(0.3), {Size = UDim2.fromOffset(0,0)}):Play()
 		Debris:AddItem(s, 0.4)
 	end
-
 	shrink(Color3.fromRGB(140,0,255), 0.45, 0)
 	shrink(Color3.fromRGB(255,140,0), 0.35, COLOR_DELAY)
 	shrink(Color3.fromRGB(255,215,0), 0.35, COLOR_DELAY*2)
@@ -219,7 +205,6 @@ local function playActivationAnimation()
 	if not char then return end
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
-
 	local anim = Instance.new("Animation")
 	anim.AnimationId = ACTIVATE_ANIM
 	local track = hum:LoadAnimation(anim)
@@ -227,41 +212,69 @@ local function playActivationAnimation()
 end
 
 --------------------------------------------------
--- TIME STOP
+-- ESCOLHER TIPO DE TIME STOP
+--------------------------------------------------
+local function pickTimeStopType()
+	local r = math.random()
+	if r <= 0.7 then
+		return "Normal", MAX_TIME_NORMAL
+	elseif r <= 0.9 then
+		return "Perfect", MAX_TIME_PERFECT
+	else
+		return "Range", MAX_TIME_RANGE
+	end
+end
+
+--------------------------------------------------
+-- COOLDOWN
 --------------------------------------------------
 local function startCooldown()
 	locked = true
-	playSound(1839847326, 3)
-
-	for i = COOLDOWN,1,-1 do
+	playSound(1839847326,3)
+	for i=COOLDOWN,1,-1 do
 		button.Text = "Cooldown "..i
 		task.wait(1)
 	end
-
 	button.Text = "Ativar Time Stop"
 	locked = false
 end
 
+--------------------------------------------------
+-- TIME STOP
+--------------------------------------------------
 local function stopTime()
 	if timeStopped or locked then return end
 	timeStopped = true
+	currentStopType, maxTime = pickTimeStopType()
 	startTime = tick()
 
-	playSound(7514417921, 5)
+	playSound(7514417921,5)
 	explosionParticles()
 	playActivationAnimation()
 
 	freezeWorld()
 	activateVFX()
 	boostPlayerSpeed(true)
-	zoomCamera(55, 0.25)
-	cameraShake(0.35, 0.6)
+	zoomCamera(55,0.25)
+	cameraShake(0.35,0.6)
 
 	button.Text = "Desativar Time Stop"
 
+	-- Freeze para players que entrarem enquanto o Time Stop está ativo
+	Players.PlayerAdded:Connect(function(plr)
+		plr.CharacterAdded:Connect(function(char)
+			if timeStopped then
+				task.wait(0.05)
+				for _,p in ipairs(char:GetDescendants()) do
+					if p:IsA("BasePart") then p.Anchored = true end
+				end
+			end
+		end)
+	end)
+
 	task.spawn(function()
 		while timeStopped do
-			if tick() - startTime >= MAX_TIME then
+			if tick() - startTime >= maxTime then
 				releaseTime(true)
 				break
 			end
@@ -270,17 +283,19 @@ local function stopTime()
 	end)
 end
 
+--------------------------------------------------
+-- RELEASE TIME
+--------------------------------------------------
 function releaseTime(fromLimit)
 	if not timeStopped then return end
 	timeStopped = false
 
-	playSound(97139043906890, 5)
-
+	playSound(97139043906890,5)
 	unfreezeWorld()
 	deactivateVFX()
 	boostPlayerSpeed(false)
-	zoomCamera(70, 0.25)
-	cameraShake(0.25, 0.4)
+	zoomCamera(70,0.25)
+	cameraShake(0.25,0.4)
 
 	if fromLimit then
 		startCooldown()
@@ -288,22 +303,6 @@ function releaseTime(fromLimit)
 		button.Text = "Ativar Time Stop"
 	end
 end
-
---------------------------------------------------
--- FREEZE PLAYERS (JOIN / RESPAWN)
---------------------------------------------------
-Players.PlayerAdded:Connect(function(plr)
-	plr.CharacterAdded:Connect(function(char)
-		if timeStopped then
-			task.wait(0.1)
-			for _,p in ipairs(char:GetDescendants()) do
-				if p:IsA("BasePart") then
-					p.Anchored = true
-				end
-			end
-		end
-	end)
-end)
 
 --------------------------------------------------
 -- GUI
