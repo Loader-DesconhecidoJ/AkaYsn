@@ -360,7 +360,7 @@ local function createAfterImage()
     clone.Name = "SlowTimeShadow"
     clone.PrimaryPart = clone:FindFirstChild("HumanoidRootPart")
     local backOffset = hrp.CFrame.LookVector * CONFIG.AFTERIMAGE_OFFSET
-    clone:SetPrimaryPartCFrame(hrp.CFrame - backOffset + Vector3.new(0,0.1,0))
+    clone:SetPrimaryPartCFrame(hrp.CFrame - backOffset + Vector3.new(0,0,0))
 
     for _, obj in ipairs(clone:GetDescendants()) do
         if obj:IsA("BasePart") then
@@ -446,7 +446,7 @@ local function enableWorldEffect()
 
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= player and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
-            plr.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 0.5 * CONFIG.TIME_SLOW_SCALE
+            plr.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 20 * CONFIG.TIME_SLOW_SCALE
         end
     end
     workspace.Gravity = 196.2 * CONFIG.TIME_SLOW_SCALE
