@@ -446,7 +446,7 @@ local function enableWorldEffect()
 
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= player and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
-            plr.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16 * CONFIG.TIME_SLOW_SCALE
+            plr.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 0.5 * CONFIG.TIME_SLOW_SCALE
         end
     end
     workspace.Gravity = 196.2 * CONFIG.TIME_SLOW_SCALE
