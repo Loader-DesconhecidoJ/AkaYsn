@@ -297,3 +297,331 @@ UserInputService.InputEnded:Connect(function(input)
     end
     isDragging = false
 end)
+
+-- SLOW TIME DAVID MARTINEZ (AFTERIMAGE ATRÁS DAS COSTAS - R6/R15 + SONS - CORRIGIDO MOVIMENTO)
+
+-- SERVICES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- CONFIG
+local CONFIG = {
+    DURATION = 60,
+    BOOST_SPEED = 50,
+    AFTERIMAGE_RATE = 0.2,
+    AFTERIMAGE_OFFSET = 2,
+    TIME_SLOW_SCALE = 0.5,
+    SHAKE_INTENSITY = 0.5,
+    SHAKE_DURATION = 0.1,
+    COLORS = {
+        Color3.fromRGB(0,255,128),
+        Color3.fromRGB(128,255,128),
+        Color3.fromRGB(128,255,192),
+        Color3.fromRGB(0,255,255),
+        Color3.fromRGB(0,128,255),
+        Color3.fromRGB(128,0,255),
+        Color3.fromRGB(255,0,255)
+    },
+    SOUND_ACTIVATE = 123844681344865,
+    SOUND_MOVE = 81793359483683,
+    SOUND_DEACTIVATE = 118534165523355
+}
+
+-- STATE
+local slowActive = false
+local cooldownActive = false
+local afterimageConn = nil
+local slowStartTime = 0
+local button = nil
+local blurEffect = nil
+local colorCorrection = nil
+local sphereEffect = nil
+local colorIndex = 1
+local moveSound = nil
+local moveSoundConn = nil
+
+-- AFTERIMAGE ATRÁS DAS COSTAS
+local function createAfterImage()
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.MoveDirection.Magnitude == 0 then return end
+
+    local clone = char:Clone()
+    clone.Name = "SlowTimeShadow"
+    clone.PrimaryPart = clone:FindFirstChild("HumanoidRootPart")
+    local backOffset = hrp.CFrame.LookVector * CONFIG.AFTERIMAGE_OFFSET
+    clone:SetPrimaryPartCFrame(hrp.CFrame - backOffset + Vector3.new(0,0.1,0))
+
+    for _, obj in ipairs(clone:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            obj.Anchored = true
+            obj.CanCollide = false
+            obj.Material = Enum.Material.Neon
+            obj.Color = CONFIG.COLORS[colorIndex]
+            obj.Transparency = 0.5
+        elseif obj:IsA("Accessory") then
+            for _, part in ipairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Anchored = true
+                    part.CanCollide = false
+                    part.Material = Enum.Material.Neon
+                    part.Color = CONFIG.COLORS[colorIndex]
+                    part.Transparency = 0.5
+                end
+            end
+        else
+            obj:Destroy()
+        end
+    end
+
+    clone.Parent = workspace
+    for _, p in ipairs(clone:GetDescendants()) do
+        if p:IsA("BasePart") then
+            TweenService:Create(p, TweenInfo.new(0.8), {Transparency = 1}):Play()
+        end
+    end
+    Debris:AddItem(clone,1)
+
+    colorIndex = colorIndex + 1
+    if colorIndex > #CONFIG.COLORS then colorIndex = 1 end
+end
+
+-- ANIMAÇÃO ESFERA
+local function animateSphere(expand)
+    if sphereEffect then sphereEffect:Destroy() end
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+    sphereEffect = Instance.new("Part")
+    sphereEffect.Shape = Enum.PartType.Ball
+    sphereEffect.Material = Enum.Material.Neon
+    sphereEffect.Anchored = true
+    sphereEffect.CanCollide = false
+    sphereEffect.Transparency = 0.5
+    sphereEffect.Color = CONFIG.COLORS[math.random(1,#CONFIG.COLORS)]
+    sphereEffect.Position = char.HumanoidRootPart.Position
+    sphereEffect.Parent = workspace
+
+    local startSize = expand and Vector3.new(1,1,1) or Vector3.new(50,50,50)
+    local endSize = expand and Vector3.new(50,50,50) or Vector3.new(1,1,1)
+    local endTransparency = expand and 0.8 or 1
+
+    sphereEffect.Size = startSize
+    TweenService:Create(sphereEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Size=endSize, Transparency=endTransparency}):Play()
+    Debris:AddItem(sphereEffect,0.6)
+
+    if expand then
+        local originalPos = camera.CFrame
+        for i=1,5 do
+            camera.CFrame = camera.CFrame * CFrame.new(
+                math.random(-CONFIG.SHAKE_INTENSITY,CONFIG.SHAKE_INTENSITY),
+                math.random(-CONFIG.SHAKE_INTENSITY,CONFIG.SHAKE_INTENSITY),
+                0
+            )
+            task.wait(CONFIG.SHAKE_DURATION/5)
+        end
+        camera.CFrame = originalPos
+    end
+end
+
+-- MUNDO LENTO
+local function enableWorldEffect()
+    colorCorrection = Instance.new("ColorCorrectionEffect")
+    colorCorrection.Name = "SlowTimeColor"
+    colorCorrection.TintColor = Color3.fromRGB(0,255,128)
+    colorCorrection.Contrast = 1
+    colorCorrection.Saturation = 0
+    colorCorrection.Parent = Lighting
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
+            plr.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16 * CONFIG.TIME_SLOW_SCALE
+        end
+    end
+    workspace.Gravity = 196.2 * CONFIG.TIME_SLOW_SCALE
+end
+
+local function disableWorldEffect()
+    if colorCorrection then colorCorrection:Destroy() colorCorrection=nil end
+    workspace.Gravity = 196.2
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
+            plr.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
+        end
+    end
+end
+
+-- SONS
+local function playSound(id, loop)
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://"..id
+    sound.Looped = loop or false
+    sound.Volume = 1
+    sound.Parent = workspace
+    sound:Play()
+    if not loop then
+        Debris:AddItem(sound, 3)
+    end
+    return sound
+end
+
+-- ATIVAR SLOW TIME
+local function activateSlowTime()
+    if slowActive or cooldownActive then return end
+    slowActive = true
+    slowStartTime = tick()
+
+    local char = player.Character
+    if char and char:FindFirstChildOfClass("Humanoid") then
+        char.Humanoid.WalkSpeed = CONFIG.BOOST_SPEED
+    end
+
+    -- toca som de ativar
+    playSound(CONFIG.SOUND_ACTIVATE)
+
+    animateSphere(true)
+    enableWorldEffect()
+
+    afterimageConn = RunService.RenderStepped:Connect(function()
+        createAfterImage()
+        task.wait(CONFIG.AFTERIMAGE_RATE)
+    end)
+
+    -- som andando (só enquanto slowActive)
+    if moveSoundConn then moveSoundConn:Disconnect() end
+    moveSoundConn = RunService.RenderStepped:Connect(function()
+        if slowActive then
+            local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.MoveDirection.Magnitude > 0 then
+                if not moveSound then
+                    moveSound = playSound(CONFIG.SOUND_MOVE,true)
+                end
+            else
+                if moveSound then
+                    moveSound:Stop()
+                    moveSound:Destroy()
+                    moveSound = nil
+                end
+            end
+        elseif moveSound then
+            moveSound:Stop()
+            moveSound:Destroy()
+            moveSound=nil
+        end
+    end)
+
+    task.spawn(function()
+        while slowActive do
+            local elapsed = tick() - slowStartTime
+            if elapsed >= CONFIG.DURATION then
+                deactivateSlowTime(true)
+                break
+            elseif elapsed >= 56 then
+                if not blurEffect then
+                    blurEffect = Instance.new("BlurEffect")
+                    blurEffect.Size = 0
+                    blurEffect.Parent = Lighting
+                    TweenService:Create(blurEffect, TweenInfo.new(4), {Size=30}):Play()
+                end
+            end
+            task.wait(0.1)
+        end
+    end)
+end
+
+-- DESATIVAR SLOW TIME
+function deactivateSlowTime(auto)
+    if not slowActive then return end
+    slowActive = false
+
+    if afterimageConn then
+        afterimageConn:Disconnect()
+        afterimageConn=nil
+    end
+
+    if moveSound then
+        moveSound:Stop()
+        moveSound:Destroy()
+        moveSound = nil
+    end
+    if moveSoundConn then
+        moveSoundConn:Disconnect()
+        moveSoundConn = nil
+    end
+
+    local char = player.Character
+    if char and char:FindFirstChildOfClass("Humanoid") then
+        char.Humanoid.WalkSpeed = 16
+    end
+
+    -- toca som de desativar
+    playSound(CONFIG.SOUND_DEACTIVATE)
+
+    animateSphere(false)
+    disableWorldEffect()
+
+    if blurEffect then
+        blurEffect:Destroy()
+        blurEffect=nil
+    end
+
+    cooldownActive = true
+    local cooldownTime = auto and 30 or 10
+    task.spawn(function()
+        for i=cooldownTime,1,-1 do
+            if button then button.TextLabel.Text="⏳ "..i end
+            task.wait(1)
+        end
+        if button then button.TextLabel.Text="⏱" end
+        cooldownActive=false
+    end)
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "SlowTimeGui"
+gui.ResetOnSpawn = false
+gui.Parent = player.PlayerGui
+
+button = Instance.new("Frame")
+button.Size = UDim2.fromOffset(70,70)
+button.Position = UDim2.fromScale(0.7,0.02)
+button.BackgroundColor3 = Color3.fromRGB(0,128,128)
+button.BackgroundTransparency = 0.2
+button.Parent = gui
+
+Instance.new("UICorner",button).CornerRadius = UDim.new(1,0)
+local stroke = Instance.new("UIStroke",button)
+stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(0,255,255)
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.fromScale(1,1)
+label.BackgroundTransparency = 1
+label.Text = "⏱"
+label.TextScaled = true
+label.Font = Enum.Font.GothamBold
+label.TextColor3 = Color3.fromRGB(255,255,0)
+label.Parent = button
+
+-- INPUT
+button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if not slowActive and not cooldownActive then
+            activateSlowTime()
+        elseif slowActive then
+            deactivateSlowTime(false)
+        end
+    end
+end)
