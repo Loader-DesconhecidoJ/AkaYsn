@@ -1,0 +1,299 @@
+-- SANDEVISTAN DAVID MARTINEZ (CYBERPUNK)
+
+-- SERVICES
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- CONFIG
+local DASH_DISTANCE = 35
+local DASH_TIME = 0.18
+local COOLDOWN = 5
+local AFTERIMAGE_RATE = 0.05
+local TIME_SLOW_SCALE = 0.35
+
+-- 🔊 SFX
+local SFX_DASH_START = 103247005619946
+local SFX_DASH_END = 0
+local SFX_COOLDOWN_READY = 0
+
+-- STATE
+local canDash = true
+local isHolding = false
+local isDragging = false
+local startInputPos
+local afterimageConn
+local originalClockRate = 1
+local allowDrag = false -- Modo arrastar
+
+-- SOUND
+local function playSound(id, volume)
+    if id == 0 then return end
+    local s = Instance.new("Sound")
+    s.SoundId = "rbxassetid://" .. id
+    s.Volume = volume or 1
+    s.Parent = workspace
+    s:Play()
+    Debris:AddItem(s, 6)
+end
+
+-- SHADOW ILLUSION COLORIDO (R6 e R15 COM ESCALA DE CORES HTML)
+local function createShadowIllusion()
+    local char = player.Character
+    if not char then return end
+    local clone = char:Clone()
+    clone.Name = "DavidShadow"
+
+    local isR6 = char:FindFirstChild("Torso") and not char:FindFirstChild("UpperTorso")
+    local colorsR15 = {
+        Color3.fromRGB(30,144,255), -- DodgerBlue
+        Color3.fromRGB(0,191,255),  -- DeepSkyBlue
+        Color3.fromRGB(0,255,255),  -- Aqua / Cyan
+        Color3.fromRGB(0,255,255)   -- Cyan
+    }
+
+    for _, obj in ipairs(clone:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            obj.Anchored = true
+            obj.CanCollide = false
+            obj.Material = Enum.Material.Neon
+            if isR6 then
+                obj.Color = Color3.fromRGB(199,21,133) -- MediumVioletRed
+            else
+                obj.Color = colorsR15[math.random(1,#colorsR15)]
+            end
+            obj.Transparency = 0.5
+        elseif obj:IsA("Accessory") then
+            for _, part in ipairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Anchored = true
+                    part.CanCollide = false
+                    part.Material = Enum.Material.Neon
+                    if isR6 then
+                        part.Color = Color3.fromRGB(199,21,133)
+                    else
+                        part.Color = colorsR15[math.random(1,#colorsR15)]
+                    end
+                    part.Transparency = 0.5
+                end
+            end
+        else
+            obj:Destroy()
+        end
+    end
+
+    clone.Parent = workspace
+
+    for _, p in ipairs(clone:GetDescendants()) do
+        if p:IsA("BasePart") then
+            TweenService:Create(p, TweenInfo.new(0.6), {Transparency = 1}):Play()
+        end
+    end
+
+    Debris:AddItem(clone, 0.7)
+end
+
+-- TIME SLOW
+local function setTimeSlow(enable)
+    if enable then
+        originalClockRate = workspace:GetRealPhysicsFPS() or 1
+        RunService:Set3dRenderingEnabled(true)
+        workspace.Gravity = 196.2 * TIME_SLOW_SCALE
+    else
+        workspace.Gravity = 196.2
+    end
+end
+
+-- SANDEVISTAN FX
+local function sandevistanFX(enable)
+    if enable then
+        local blur = Instance.new("BlurEffect")
+        blur.Name = "DashBlur"
+        blur.Size = 16
+        blur.Parent = Lighting
+
+        local color = Instance.new("ColorCorrectionEffect")
+        color.Name = "DashColor"
+        color.Contrast = 2
+        color.Saturation = -0.5
+        color.TintColor = Color3.fromRGB(0,200,255)
+        color.Parent = Lighting
+
+        TweenService:Create(camera, TweenInfo.new(0.15), {FieldOfView=95}):Play()
+    else
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v.Name == "DashBlur" or v.Name == "DashColor" then
+                v:Destroy()
+            end
+        end
+        TweenService:Create(camera, TweenInfo.new(0.15), {FieldOfView=70}):Play()
+    end
+end
+
+-- DASH
+local function dash(button)
+    if not canDash then return end
+    canDash = false
+
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    playSound(SFX_DASH_START,3)
+    sandevistanFX(true)
+    setTimeSlow(true)
+
+    afterimageConn = RunService.RenderStepped:Connect(function()
+        createShadowIllusion()
+        task.wait(AFTERIMAGE_RATE)
+    end)
+
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(1e6,1e6,1e6)
+    bv.Velocity = camera.CFrame.LookVector * (DASH_DISTANCE / DASH_TIME)
+    bv.Parent = hrp
+    Debris:AddItem(bv,DASH_TIME)
+
+    task.delay(DASH_TIME,function()
+        if afterimageConn then
+            afterimageConn:Disconnect()
+            afterimageConn = nil
+        end
+        setTimeSlow(false)
+        sandevistanFX(false)
+    end)
+
+    -- COOLDOWN
+    task.spawn(function()
+        for i = COOLDOWN,1,-1 do
+            button.TextLabel.Text = "⏳ "..i
+            task.wait(1)
+        end
+        button.TextLabel.Text = "⚡"
+        playSound(SFX_COOLDOWN_READY,3)
+        canDash = true
+    end)
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "DashGui"
+gui.ResetOnSpawn = false
+gui.Parent = player.PlayerGui
+
+-- DASH BUTTON
+local button = Instance.new("Frame")
+button.Size = UDim2.fromOffset(70,70)
+button.Position = UDim2.fromScale(0.85,0.7)
+button.BackgroundColor3 = Color3.fromRGB(120,120,120)
+button.BackgroundTransparency = 0.1
+button.Parent = gui
+
+local buttonStroke = Instance.new("UIStroke")
+buttonStroke.Parent = button
+buttonStroke.Thickness = 2
+buttonStroke.Color = Color3.fromRGB(0,200,255)
+buttonStroke.Enabled = false -- destaque no modo arrastar
+
+Instance.new("UICorner",button).CornerRadius = UDim.new(1,0)
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.fromScale(1,1)
+label.BackgroundTransparency = 1
+label.Text = "⚡"
+label.TextScaled = true
+label.Font = Enum.Font.GothamBold
+label.TextColor3 = Color3.fromRGB(0,200,255)
+label.Parent = button
+
+-- MENU CONFIG
+local mainButton = Instance.new("TextButton")
+mainButton.Size = UDim2.fromOffset(50,50)
+mainButton.Position = UDim2.fromScale(0.02,0.02) -- canto superior esquerdo
+mainButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
+mainButton.TextColor3 = Color3.fromRGB(0,200,255)
+mainButton.Text = "⚙️" -- ícone
+mainButton.Font = Enum.Font.GothamBold
+mainButton.TextScaled = true
+mainButton.Parent = gui
+Instance.new("UICorner", mainButton).CornerRadius = UDim.new(0.5,0)
+Instance.new("UIStroke", mainButton).Thickness = 2
+
+local menuFrame = Instance.new("Frame")
+menuFrame.Size = UDim2.fromOffset(300,200)
+menuFrame.Position = UDim2.fromScale(0.5,0.5)
+menuFrame.AnchorPoint = Vector2.new(0.5,0.5)
+menuFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+menuFrame.BackgroundTransparency = 0.2
+menuFrame.Visible = false
+menuFrame.Parent = gui
+Instance.new("UICorner", menuFrame).CornerRadius = UDim.new(0,15)
+Instance.new("UIStroke", menuFrame).Thickness = 2
+
+local dragToggleButton = Instance.new("TextButton")
+dragToggleButton.Size = UDim2.fromOffset(200,50)
+dragToggleButton.Position = UDim2.fromScale(0.5,0.5)
+dragToggleButton.AnchorPoint = Vector2.new(0.5,0.5)
+dragToggleButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
+dragToggleButton.TextColor3 = Color3.fromRGB(0,200,255)
+dragToggleButton.Text = "Arrastar: OFF"
+dragToggleButton.Font = Enum.Font.GothamBold
+dragToggleButton.TextScaled = true
+dragToggleButton.Parent = menuFrame
+Instance.new("UICorner", dragToggleButton).CornerRadius = UDim.new(0,10)
+Instance.new("UIStroke", dragToggleButton).Thickness = 2
+
+-- TOGGLE MODO DRAG
+dragToggleButton.MouseButton1Click:Connect(function()
+    allowDrag = not allowDrag
+    dragToggleButton.Text = allowDrag and "Arrastar: ON" or "Arrastar: OFF"
+    buttonStroke.Enabled = allowDrag
+end)
+
+-- ABRIR E FECHAR MENU
+mainButton.MouseButton1Click:Connect(function()
+    if menuFrame.Visible then
+        TweenService:Create(menuFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position=UDim2.fromScale(0.5,0)}):Play()
+        task.delay(0.3,function() menuFrame.Visible = false end)
+    else
+        menuFrame.Visible = true
+        menuFrame.Position = UDim2.fromScale(0.5,0)
+        TweenService:Create(menuFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position=UDim2.fromScale(0.5,0.5)}):Play()
+    end
+end)
+
+-- INPUT DASH BUTTON
+button.InputBegan:Connect(function(input)
+    if not allowDrag and not canDash then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isHolding = true
+        startInputPos = input.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if not isHolding then return end
+    if allowDrag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        isDragging = true
+        button.Position = UDim2.fromScale(
+            input.Position.X / camera.ViewportSize.X,
+            input.Position.Y / camera.ViewportSize.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if not isHolding then return end
+    isHolding = false
+    if not isDragging and not allowDrag then
+        dash(button)
+    end
+    isDragging = false
+end)
