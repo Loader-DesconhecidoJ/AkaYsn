@@ -360,7 +360,7 @@ local function createAfterImage()
     clone.Name = "SlowTimeShadow"
     clone.PrimaryPart = clone:FindFirstChild("HumanoidRootPart")
     local backOffset = hrp.CFrame.LookVector * CONFIG.AFTERIMAGE_OFFSET
-    clone:SetPrimaryPartCFrame(hrp.CFrame - backOffset + Vector3.new(0,0,0))
+    clone:SetPrimaryPartCFrame(hrp.CFrame - backOffset + Vector3.new(0,0.5,0))
 
     for _, obj in ipairs(clone:GetDescendants()) do
         if obj:IsA("BasePart") then
@@ -446,7 +446,7 @@ local function enableWorldEffect()
 
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= player and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
-            plr.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 20 * CONFIG.TIME_SLOW_SCALE
+            plr.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16 * CONFIG.TIME_SLOW_SCALE
         end
     end
     workspace.Gravity = 196.2 * CONFIG.TIME_SLOW_SCALE
@@ -498,28 +498,31 @@ local function activateSlowTime()
         task.wait(CONFIG.AFTERIMAGE_RATE)
     end)
 
-    -- som andando (só enquanto slowActive)
-    if moveSoundConn then moveSoundConn:Disconnect() end
-    moveSoundConn = RunService.RenderStepped:Connect(function()
+    -- Dentro do activateSlowTime
+if moveSoundConn then moveSoundConn:Disconnect() end
+moveSoundConn = RunService.RenderStepped:Connect(function()
+    local char = player.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        -- Força o WalkSpeed sempre que SlowTime estiver ativo
         if slowActive then
-            local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-            if hum and hum.MoveDirection.Magnitude > 0 then
-                if not moveSound then
-                    moveSound = playSound(CONFIG.SOUND_MOVE,true)
-                end
-            else
-                if moveSound then
-                    moveSound:Stop()
-                    moveSound:Destroy()
-                    moveSound = nil
-                end
-            end
-        elseif moveSound then
-            moveSound:Stop()
-            moveSound:Destroy()
-            moveSound=nil
+            hum.WalkSpeed = CONFIG.BOOST_SPEED
+        else
+            hum.WalkSpeed = 16
         end
-    end)
+    end
+
+    -- Som andando
+    if hum and hum.MoveDirection.Magnitude > 0 and slowActive then
+        if not moveSound then
+            moveSound = playSound(CONFIG.SOUND_MOVE,true)
+        end
+    elseif moveSound then
+        moveSound:Stop()
+        moveSound:Destroy()
+        moveSound = nil
+    end
+end)
 
     task.spawn(function()
         while slowActive do
