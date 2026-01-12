@@ -60,6 +60,55 @@ local colorCorrection
 local sphereEffect
 local colorIndex = 1
 local allowDrag = false
+local slowBoostBV
+local slowBoostConn
+
+local function enableSlowBoost()
+    local char = player.Character
+    if not char then return end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+
+    slowBoostBV = Instance.new("BodyVelocity")
+    slowBoostBV.MaxForce = Vector3.new(1e6, 0, 1e6)
+    slowBoostBV.Velocity = Vector3.zero
+    slowBoostBV.Parent = hrp
+
+    slowBoostConn = RunService.RenderStepped:Connect(function()
+        if not slowActive then return end
+        local dir = hum.MoveDirection
+        if dir.Magnitude > 0 then
+            slowBoostBV.Velocity = dir * CONFIG.SLOW_BOOST_SPEED
+        else
+            slowBoostBV.Velocity = Vector3.zero
+        end
+    end)
+end
+
+local function disableSlowBoost()
+    if slowBoostConn then
+        slowBoostConn:Disconnect()
+        slowBoostConn = nil
+    end
+    if slowBoostBV then
+        slowBoostBV:Destroy()
+        slowBoostBV = nil
+    end
+end
+
+local function setCharacterCollision(enabled)
+    local char = player.Character
+    if not char then return end
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if part.Name ~= "HumanoidRootPart" then
+    part.CanCollide = enabled
+end
+        end
+    end
+end
 
 -- AFTERIMAGE CONNECTIONS
 local dashAfterimageConn
@@ -143,33 +192,55 @@ end
 local function dash(button)
     if not canDash then return end
     canDash = false
+
     local char = player.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+
+    -- DESLIGA BOOST DO SLOW PRA NÃO CONFLITAR
+    if slowActive then
+        disableSlowBoost()
+    end
+
+    -- SEM COLISÃO DURANTE O DASH
+    setCharacterCollision(false)
+
     playSound(CONFIG.SOUND_DASH_START, false, 3)
     sandevistanFX(true)
     setTimeSlow(true)
 
     dashAfterimageConn = RunService.RenderStepped:Connect(function()
         createShadowIllusion(CONFIG.COLORS)
-        task.wait(CONFIG.AFTERIMAGE_RATE)
     end)
 
     local bv = Instance.new("BodyVelocity")
-    bv.MaxForce = Vector3.new(1e6,1e6,1e6)
+    bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
     bv.Velocity = camera.CFrame.LookVector * (CONFIG.DASH_DISTANCE / CONFIG.DASH_TIME)
-    bv.Parent = char.HumanoidRootPart
+    bv.Parent = hrp
     Debris:AddItem(bv, CONFIG.DASH_TIME)
 
-    task.delay(CONFIG.DASH_TIME,function()
-        if dashAfterimageConn then dashAfterimageConn:Disconnect() dashAfterimageConn=nil end
+    task.delay(CONFIG.DASH_TIME, function()
+        if dashAfterimageConn then
+            dashAfterimageConn:Disconnect()
+            dashAfterimageConn = nil
+        end
+
         setTimeSlow(false)
         sandevistanFX(false)
+
+        -- RESTAURA COLISÃO
+        setCharacterCollision(true)
+
+        -- RELIGA O BOOST SE O SLOW AINDA ESTIVER ATIVO
+        if slowActive then
+            enableSlowBoost()
+        end
     end)
 
     local dashCooldown = slowActive and 1 or CONFIG.COOLDOWN
     task.spawn(function()
-        for i = dashCooldown,1,-1 do
-            button.TextLabel.Text = "⏳ "..i
+        for i = dashCooldown, 1, -1 do
+            button.TextLabel.Text = "⏳ " .. i
             task.wait(1)
         end
         button.TextLabel.Text = "⚡"
@@ -296,12 +367,12 @@ local function activateSlowTime()
 
     local char = player.Character
     if char and char:FindFirstChildOfClass("Humanoid") then
-        char.Humanoid.WalkSpeed = CONFIG.SLOW_BOOST_SPEED
     end
 
     playSound(CONFIG.SOUND_SLOW_ACTIVATE)
-    animateSphere(true)
-    enableWorldEffect()
+animateSphere(true)
+enableWorldEffect()
+enableSlowBoost()
 
     slowAfterimageConn = RunService.RenderStepped:Connect(function()
         local char = player.Character
@@ -343,6 +414,7 @@ function deactivateSlowTime(auto)
     playSound(CONFIG.SOUND_SLOW_DEACTIVATE)
     animateSphere(false)
     disableWorldEffect()
+    disableSlowBoost()
 
     if blurEffect then blurEffect:Destroy() blurEffect=nil end
 
@@ -508,4 +580,7 @@ configButton.MouseButton1Click:Connect(function()
     else
         configButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100) -- desligado
     end
+end)
+player.CharacterAdded:Connect(function()
+    disableSlowBoost()
 end)
