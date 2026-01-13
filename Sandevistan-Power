@@ -16,7 +16,7 @@ local CONFIG = {
     -- DASH
     DASH_DISTANCE = 35,
     DASH_TIME = 0.18,
-    COOLDOWN = 10, -- padrão normal
+    COOLDOWN = 5, -- padrão normal
     AFTERIMAGE_RATE = 0.05,
     TIME_SLOW_SCALE = 0.35,
     COLORS = {
