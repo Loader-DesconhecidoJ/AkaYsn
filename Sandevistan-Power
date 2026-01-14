@@ -439,14 +439,15 @@ dashGui.Parent = player.PlayerGui
 local dashButton = Instance.new("Frame")
 dashButton.Size = UDim2.fromOffset(70,70)
 dashButton.Position = UDim2.fromScale(0.85,0.7)
-dashButton.BackgroundColor3 = Color3.fromRGB(120,120,120)
+dashButton.BackgroundColor3 = Color3.fromRGB(180,150,0) -- amarelo escuro
 dashButton.BackgroundTransparency = 0.1
 dashButton.Parent = dashGui
 Instance.new("UICorner",dashButton).CornerRadius = UDim.new(1,0)
+
 local dashStroke = Instance.new("UIStroke", dashButton)
 dashStroke.Thickness = 2
-dashStroke.Color = Color3.fromRGB(0,200,255)
-dashStroke.Enabled = false
+dashStroke.Color = Color3.fromRGB(255,255,0) -- borda amarela
+dashStroke.Enabled = true
 
 local dashLabel = Instance.new("TextLabel")
 dashLabel.Size = UDim2.fromScale(1,1)
@@ -454,7 +455,7 @@ dashLabel.BackgroundTransparency = 1
 dashLabel.Text = "⚡"
 dashLabel.TextScaled = true
 dashLabel.Font = Enum.Font.GothamBold
-dashLabel.TextColor3 = Color3.fromRGB(0,200,255)
+dashLabel.TextColor3 = Color3.fromRGB(0,0,0)
 dashLabel.Parent = dashButton
 
 -- GUI SLOW TIME BUTTON
