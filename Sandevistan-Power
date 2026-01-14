@@ -1,11 +1,11 @@
 --[[
-    SANDEVISTAN DAVID MARTINEZ - SUPREME EDITION (V12)
-    - Dash com Colisão (⚡): Para na hora ao bater em outro player.
-    - Auto-Dodge (🧠): 10 metros, reativo com Glitch e Faíscas.
-    - HUD Arrastável (⚙️) e Barras de Status.
+    SANDEVISTAN DAVID MARTINEZ - V21 HARDCORE EDITION
+    - SISTEMA DE EXAUSTÃO: 0 energia = Fadiga + Tontura (2s) + Delay de Regen (10s)
+    - REGEN DINÂMICA: 5s se não zerar / 10s se zerar
+    - ESTÉTICA: Bordas Neon Amarela (Dash) e Ciano (Slow Time)
+    - RASTRO: Ciano -> Roxo (Somente em movimento)
 ]]
 
--- 1. SERVICES
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -16,286 +16,237 @@ local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
--- 2. CONFIGURATION
+-- CONFIGURAÇÃO
 local CONFIG = {
     MAX_ENERGY = 200,
-    DASH_COST = 8,
+    DASH_COST = 15,
     SLOW_START_COST = 25,
-    SLOW_DRAIN_PER_SEC = 6,
-    REGEN_DELAY = 4,
-    REGEN_DELAY_FATIGUE = 10,
-    REGEN_SPEED = 18, 
     
-    DASH_DISTANCE = 55,
-    DASH_DURATION = 0.25,
-    DASH_COOLDOWN = 5,
+    REGEN_SPEED = 25,
+    NORMAL_REGEN_DELAY = 5, -- Delay se não zerar
+    EXHAUSTED_REGEN_DELAY = 10, -- Delay se chegar a 0
     
-    DODGE_COOLDOWN = 5,
-    DODGE_ENERGY = 15,
-    DODGE_RADIUS = 30, -- 10 Metros
+    SANDI_SPEED_MULT = 5.0,
+    DASH_FORCE = 260,
     
-    SLOW_TIMESCALE = 0.25,
-    SLOW_WALKSPEED_MULTI = 1.3,
+    MAIN_COLOR = Color3.fromRGB(0, 255, 220),  -- Ciano
+    PURPLE_COLOR = Color3.fromRGB(180, 0, 255), -- Roxo
+    SECONDARY_COLOR = Color3.fromRGB(255, 255, 0), -- Amarelo
+    HEALTH_COLOR = Color3.fromRGB(255, 50, 70),
     
-    MAIN_COLOR = Color3.fromRGB(0, 255, 220), 
-    SECONDARY_COLOR = Color3.fromRGB(255, 255, 0), 
-    ALERT_COLOR = Color3.fromRGB(255, 50, 50), 
-    HEALTH_COLOR = Color3.fromRGB(255, 30, 30),
-    ACCEL_COLOR = Color3.fromRGB(180, 100, 255),
+    BG_DEFAULT = Color3.fromRGB(10, 10, 10),
     
-    TRAIL_COLORS = {Color3.fromRGB(0, 255, 255), Color3.fromRGB(255, 255, 0)},
-    
+    -- SONS
     SOUND_ACTIVATE = 123844681344865,
     SOUND_DEACTIVATE = 118534165523355,
     SOUND_DASH = 103247005619946,
-    SOUND_ERROR = 5210945958
+    SOUND_ERROR = 3338392183
 }
 
--- 3. STATE MANAGEMENT
+-- ESTADO
 local State = {
-    Energy = 100,
+    Energy = 200,
     SlowActive = false,
     CanDash = true,
-    CanDodge = true,
-    IsFatigued = false,
-    AccelActive = false,
+    CanSandi = true,
     DragMode = false,
+    IsExhausted = false,
+    CurrentRegenDelay = CONFIG.NORMAL_REGEN_DELAY,
     LastEnergyUse = tick(),
     Connections = {}
 }
 
--- UI VARIABLES
-local ScreenGui, DashBtn, SlowBtn, AccelBtn, EnergyBar, EnergyFill, HealthBar, HealthFill, ConfigBtn
+local ScreenGui, EnergyFill, HealthFill, DashBtn, SlowBtn
 
--- 4. UTILITY FUNCTIONS
-local function playSound(id, vol, pitch)
-    if not id or id == 0 then return end
-    local s = Instance.new("Sound")
+-- UTILITÁRIOS
+local function playLocalSound(id, vol)
+    local s = Instance.new("Sound", game:GetService("SoundService"))
     s.SoundId = "rbxassetid://"..id
-    s.Volume = vol or 1
-    s.Pitch = pitch or 1
-    s.Parent = workspace
-    s:Play()
-    Debris:AddItem(s, 5)
+    s.Volume = vol or 0.6
+    s:Play(); Debris:AddItem(s, 2)
 end
 
--- 5. VISUAL EFFECTS (VFX)
-local function createGlitchEffect()
-    local color = Instance.new("ColorCorrectionEffect", Lighting)
-    color.Brightness = 0.2; color.Contrast = 0.5; color.TintColor = Color3.fromRGB(255, 100, 255)
-    local bloom = Instance.new("BloomEffect", Lighting); bloom.Intensity = 2
-    task.delay(0.2, function() color:Destroy(); bloom:Destroy() end)
+local function applyExhaustion()
+    if State.IsExhausted then return end
+    State.IsExhausted = true
+    State.CurrentRegenDelay = CONFIG.EXHAUSTED_REGEN_DELAY
+    
+    -- Efeito de Tontura e Fadiga
+    local blur = Instance.new("BlurEffect", Lighting)
+    blur.Size = 20
+    
+    local char = player.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = 8 -- Fadiga
+    end
+    
+    task.delay(2, function()
+        blur:Destroy()
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = 16
+        end
+        State.IsExhausted = false
+    end)
 end
 
-local function createSparks(pos)
-    local p = Instance.new("Part", workspace)
-    p.Size = Vector3.new(0.5, 0.5, 0.5); p.Position = pos; p.Anchored = true; p.CanCollide = false; p.Material = "Neon"; p.Color = CONFIG.ACCEL_COLOR
-    local att = Instance.new("Attachment", p)
-    local sparks = Instance.new("ParticleEmitter", att)
-    sparks.LightEmission = 1; sparks.Color = ColorSequence.new(CONFIG.ACCEL_COLOR); sparks.Size = NumberSequence.new(0.2, 0); sparks.Speed = NumberRange.new(10, 20); sparks.SpreadAngle = Vector2.new(360, 360)
-    sparks:Emit(20); Debris:AddItem(p, 0.5)
-end
-
-local function createGhostTrail(char, colorOverride)
+local function createChromaticTrail(char)
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.MoveDirection.Magnitude <= 0 then return end
+    
     char.Archivable = true
     local clone = char:Clone()
     clone.Parent = workspace
+    local duration = 0.8
+    
     for _, obj in ipairs(clone:GetDescendants()) do
         if obj:IsA("BasePart") then
             obj.Anchored = true; obj.CanCollide = false; obj.Material = "Neon"
-            obj.Color = colorOverride or CONFIG.TRAIL_COLORS[math.random(1, #CONFIG.TRAIL_COLORS)]
-            obj.Transparency = 0.5
-            TweenService:Create(obj, TweenInfo.new(0.6), {Transparency = 1}):Play()
+            obj.Color = CONFIG.MAIN_COLOR; obj.Transparency = 0.3
+            TweenService:Create(obj, TweenInfo.new(duration), {Color = CONFIG.PURPLE_COLOR, Transparency = 1}):Play()
         elseif not (obj:IsA("MeshPart") or obj:IsA("SpecialMesh") or obj:IsA("Accessory")) then
             obj:Destroy()
         end
     end
-    Debris:AddItem(clone, 0.6)
+    Debris:AddItem(clone, duration)
 end
 
--- 6. CORE LOGIC
 local function useEnergy(amount)
     State.Energy = math.max(0, State.Energy - amount)
     State.LastEnergyUse = tick()
-    if State.Energy <= 0 and not State.IsFatigued then
-        State.IsFatigued = true
-        if State.SlowActive then deactivateSlowTime(true) end
-        task.spawn(function()
-            if player.Character then player.Character.Humanoid.WalkSpeed = 6 end
-            task.wait(3)
-            if player.Character then player.Character.Humanoid.WalkSpeed = 16 end
-            task.wait(CONFIG.REGEN_DELAY_FATIGUE)
-            State.IsFatigued = false
-        end)
+    if State.Energy <= 0 then
+        applyExhaustion()
+        return true -- Retorna true se zerou
     end
+    return false
 end
 
-function deactivateSlowTime(auto)
+-- HABILIDADES
+function deactivateSlowTime()
     if not State.SlowActive then return end
-    State.SlowActive = false
+    State.SlowActive = false; State.CanSandi = false
+    playLocalSound(CONFIG.SOUND_DEACTIVATE)
     if State.Connections.Loop then State.Connections.Loop:Disconnect() end
     if Lighting:FindFirstChild("SandiCC") then Lighting.SandiCC:Destroy() end
-    workspace.Gravity = 196.2; playSound(CONFIG.SOUND_DEACTIVATE)
-    if player.Character then player.Character.Humanoid.WalkSpeed = 16 end
+    workspace.Gravity = 196.2
+    
+    if player.Character and player.Character:FindFirstChild("Humanoid") then 
+        player.Character.Humanoid.WalkSpeed = 16 
+    end
+    
     task.spawn(function()
-        local cd = auto and 10 or 8
-        for i = math.ceil(cd), 1, -1 do if SlowBtn then SlowBtn.Label.Text = tostring(i) end task.wait(1) end
-        if SlowBtn then SlowBtn.Label.Text = "⏱" end
+        SlowBtn.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+        for i = 7, 1, -1 do SlowBtn.Text = tostring(i); task.wait(1) end
+        SlowBtn.Text = "⏱"; SlowBtn.BackgroundColor3 = CONFIG.BG_DEFAULT; State.CanSandi = true
     end)
 end
 
 local function activateSlowTime()
-    if State.SlowActive or State.IsFatigued then return end
-    if State.Energy < CONFIG.SLOW_START_COST then return end
-    State.SlowActive = true; useEnergy(CONFIG.SLOW_START_COST); playSound(CONFIG.SOUND_ACTIVATE)
+    if State.DragMode or not State.CanSandi or State.Energy < CONFIG.SLOW_START_COST or State.IsExhausted then 
+        playLocalSound(CONFIG.SOUND_ERROR); return 
+    end
+    
+    State.SlowActive = true
+    State.CurrentRegenDelay = CONFIG.NORMAL_REGEN_DELAY
+    useEnergy(CONFIG.SLOW_START_COST)
+    
+    playLocalSound(CONFIG.SOUND_ACTIVATE); SlowBtn.BackgroundColor3 = Color3.fromRGB(0, 70, 70)
     local cc = Instance.new("ColorCorrectionEffect", Lighting); cc.Name = "SandiCC"; cc.TintColor = Color3.fromRGB(150, 255, 220)
-    workspace.Gravity = 196.2 * CONFIG.SLOW_TIMESCALE
+    workspace.Gravity = 196.2 * 0.25
+    
     State.Connections.Loop = RunService.RenderStepped:Connect(function(dt)
         local char = player.Character
         if char and char:FindFirstChild("Humanoid") then
-            if char.Humanoid.MoveDirection.Magnitude > 0 then createGhostTrail(char) end
-            char.Humanoid.WalkSpeed = 16 * (1/CONFIG.SLOW_TIMESCALE) * CONFIG.SLOW_WALKSPEED_MULTI
-            useEnergy(CONFIG.SLOW_DRAIN_PER_SEC * dt)
-            if State.Energy <= 0 then deactivateSlowTime(true) end
+            char.Humanoid.WalkSpeed = 16 * CONFIG.SANDI_SPEED_MULT
+            createChromaticTrail(char)
         end
-    end)
-end
-
--- 7. AUTO-DODGE & DASH COM COLISÃO
-local function executeDodge(attackerPos)
-    if not State.CanDodge or State.Energy < CONFIG.DODGE_ENERGY then return end
-    State.CanDodge = false; State.AccelActive = false; useEnergy(CONFIG.DODGE_ENERGY)
-    local char = player.Character; local hrp = char:FindFirstChild("HumanoidRootPart")
-    playSound(CONFIG.SOUND_DASH, 1.3, 1.4); createGlitchEffect(); createSparks(hrp.Position); createGhostTrail(char, CONFIG.ACCEL_COLOR)
-    local moveDir = (hrp.Position - attackerPos).Unit
-    local bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(1e6, 1e6, 1e6); bv.Velocity = (moveDir + Vector3.new(0, 0.4, 0)).Unit * 55
-    Debris:AddItem(bv, 0.25)
-    task.spawn(function()
-        if AccelBtn then AccelBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) end
-        for i = CONFIG.DODGE_COOLDOWN, 1, -1 do if AccelBtn then AccelBtn.Label.Text = tostring(i) end task.wait(1) end
-        if AccelBtn then AccelBtn.Label.Text = "🧠"; AccelBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15) end
-        State.CanDodge = true
+        if useEnergy(9 * dt) then deactivateSlowTime() end
     end)
 end
 
 local function performDash()
-    if not State.CanDash or State.IsFatigued then return end
-    if State.Energy < CONFIG.DASH_COST then return end
-    State.CanDash = false; useEnergy(CONFIG.DASH_COST)
-    
-    local char = player.Character; local hrp = char:FindFirstChild("HumanoidRootPart")
-    playSound(CONFIG.SOUND_DASH, 1, 1.1)
-    
-    local dashActive = true
-    local dashLoop = RunService.RenderStepped:Connect(function() 
-        if dashActive then createGhostTrail(char, CONFIG.MAIN_COLOR) end
-    end)
-    
-    local bv = Instance.new("BodyVelocity", hrp)
-    bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-    bv.Velocity = camera.CFrame.LookVector * (CONFIG.DASH_DISTANCE / CONFIG.DASH_DURATION)
-    
-    -- Lógica de Colisão no Dash
-    local collisionConn
-    collisionConn = RunService.Heartbeat:Connect(function()
-        for _, otherPlayer in ipairs(Players:GetPlayers()) do
-            if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local dist = (hrp.Position - otherPlayer.Character.HumanoidRootPart.Position).Magnitude
-                if dist < 4 then -- Bateu no player
-                    bv:Destroy()
-                    dashActive = false
-                    collisionConn:Disconnect()
-                    break
-                end
-            end
-        end
-    end)
-    
-    task.delay(CONFIG.DASH_DURATION, function() 
-        if bv.Parent then bv:Destroy() end
-        dashActive = false
-        if collisionConn then collisionConn:Disconnect() end
-        dashLoop:Disconnect() 
-    end)
-    
-    task.spawn(function()
-        for i = CONFIG.DASH_COOLDOWN, 1, -1 do if DashBtn then DashBtn.Label.Text = tostring(i) end task.wait(1) end
-        if DashBtn then DashBtn.Label.Text = "⚡" end State.CanDash = true
-    end)
-end
-
--- 8. MONITORING & UI
-RunService.Heartbeat:Connect(function()
-    if State.AccelActive and State.CanDodge and player.Character then
-        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-        for _, enemy in ipairs(Players:GetPlayers()) do
-            if enemy ~= player and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") then
-                local dist = (hrp.Position - enemy.Character.HumanoidRootPart.Position).Magnitude
-                if dist < CONFIG.DODGE_RADIUS then
-                    local tool = enemy.Character:FindFirstChildOfClass("Tool")
-                    if tool or (enemy.Character.Humanoid.Health < enemy.Character.Humanoid.MaxHealth) then
-                        executeDodge(enemy.Character.HumanoidRootPart.Position); break
-                    end
-                end
-            end
-        end
+    if State.DragMode or not State.CanDash or State.Energy < CONFIG.DASH_COST or State.IsExhausted then 
+        playLocalSound(CONFIG.SOUND_ERROR); return 
     end
-end)
-
-local function toggleAccelerator()
-    if not State.CanDodge then return end
-    State.AccelActive = not State.AccelActive
-    if AccelBtn then AccelBtn.BackgroundColor3 = State.AccelActive and CONFIG.ACCEL_COLOR or Color3.fromRGB(15, 15, 15) end
+    
+    State.CanDash = false; useEnergy(CONFIG.DASH_COST); playLocalSound(CONFIG.SOUND_DASH)
+    DashBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 0)
+    
+    local hrp = player.Character.HumanoidRootPart
+    hrp.Velocity = camera.CFrame.LookVector * CONFIG.DASH_FORCE
+    
+    task.spawn(function() 
+        for i = 1, 10 do createChromaticTrail(player.Character); task.wait(0.03) end
+    end)
+    
+    task.delay(0.3, function()
+        task.spawn(function()
+            DashBtn.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+            for i = 2, 1, -1 do DashBtn.Text = tostring(i); task.wait(1) end
+            DashBtn.Text = "⚡"; DashBtn.BackgroundColor3 = CONFIG.BG_DEFAULT; State.CanDash = true
+        end)
+    end)
 end
 
-local function enableDragging(frame)
-    local dragging, dragStart, startPos
-    frame.InputBegan:Connect(function(input)
-        if State.DragMode and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-            dragging = true; dragStart = input.Position; startPos = frame.Position
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
-end
-
+-- UI
 local function setupUI()
     if player.PlayerGui:FindFirstChild("CyberHUD") then player.PlayerGui.CyberHUD:Destroy() end
     ScreenGui = Instance.new("ScreenGui", player.PlayerGui); ScreenGui.Name = "CyberHUD"; ScreenGui.ResetOnSpawn = false
-    local function createBtn(name, icon, color, pos)
-        local frame = Instance.new("Frame", ScreenGui); frame.Name = name; frame.Size = UDim2.fromOffset(65, 65); frame.Position = pos
-        frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Instance.new("UICorner", frame)
-        Instance.new("UIStroke", frame).Color = color
-        local label = Instance.new("TextLabel", frame); label.Name = "Label"; label.Size = UDim2.fromScale(1,1); label.BackgroundTransparency = 1
-        label.Text = icon; label.TextColor3 = color; label.Font = "GothamBlack"; label.TextSize = 28
-        return frame
+    
+    local function makeDraggable(obj)
+        local dragging, dStart, sPos
+        obj.InputBegan:Connect(function(input)
+            if State.DragMode and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+                dragging = true; dStart = input.Position; sPos = obj.Position
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - dStart
+                obj.Position = UDim2.new(sPos.X.Scale, sPos.X.Offset + delta.X, sPos.Y.Scale, sPos.Y.Offset + delta.Y)
+            end
+        end)
+        UserInputService.InputEnded:Connect(function() dragging = false end)
     end
-    DashBtn = createBtn("Dash", "⚡", CONFIG.SECONDARY_COLOR, UDim2.fromScale(0.85, 0.75))
-    SlowBtn = createBtn("Sandevistan", "⏱", CONFIG.MAIN_COLOR, UDim2.fromScale(0.75, 0.75))
-    AccelBtn = createBtn("Accelerator", "🧠", CONFIG.ACCEL_COLOR, UDim2.fromScale(0.65, 0.75))
-    EnergyBar = createBtn("EnergyBar", "", CONFIG.MAIN_COLOR, UDim2.new(0.5, -150, 0, 35)); EnergyBar.Size = UDim2.fromOffset(300, 10)
-    EnergyFill = Instance.new("Frame", EnergyBar); EnergyFill.Size = UDim2.fromScale(1,1); EnergyFill.BackgroundColor3 = CONFIG.MAIN_COLOR; EnergyFill.BorderSizePixel = 0
-    HealthBar = Instance.new("Frame", ScreenGui); HealthBar.Size = UDim2.fromOffset(300, 6); HealthBar.Position = UDim2.new(0.5, -150, 0, 50); HealthBar.BackgroundColor3 = Color3.new(0,0,0)
-    HealthFill = Instance.new("Frame", HealthBar); HealthFill.Size = UDim2.fromScale(1,1); HealthFill.BackgroundColor3 = CONFIG.HEALTH_COLOR; HealthFill.BorderSizePixel = 0
-    ConfigBtn = Instance.new("TextButton", ScreenGui); ConfigBtn.Size = UDim2.fromOffset(40, 40); ConfigBtn.Position = UDim2.fromOffset(20, 20); ConfigBtn.Text = "⚙️"
-    ConfigBtn.MouseButton1Click:Connect(function() State.DragMode = not State.DragMode end)
-    DashBtn.InputBegan:Connect(function(i) if not State.DragMode and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then performDash() end end)
-    SlowBtn.InputBegan:Connect(function(i) if not State.DragMode and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then if State.SlowActive then deactivateSlowTime() else activateSlowTime() end end end)
-    AccelBtn.InputBegan:Connect(function(i) if not State.DragMode and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then toggleAccelerator() end end)
-    enableDragging(DashBtn); enableDragging(SlowBtn); enableDragging(AccelBtn)
+
+    local function createBtn(icon, color, strokeColor, pos, func)
+        local btn = Instance.new("TextButton", ScreenGui); btn.Size = UDim2.fromOffset(60, 60); btn.Position = pos
+        btn.BackgroundColor3 = CONFIG.BG_DEFAULT; btn.Text = icon; btn.TextColor3 = color; btn.TextSize = 28; btn.Font = "GothamBlack"
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
+        local stroke = Instance.new("UIStroke", btn); stroke.Color = strokeColor; stroke.Thickness = 3
+        btn.MouseButton1Click:Connect(func); makeDraggable(btn)
+        return btn
+    end
+
+    DashBtn = createBtn("⚡", CONFIG.SECONDARY_COLOR, CONFIG.SECONDARY_COLOR, UDim2.new(0.7, 0, 0.75, 0), performDash)
+    SlowBtn = createBtn("⏱", CONFIG.MAIN_COLOR, CONFIG.MAIN_COLOR, UDim2.new(0.76, 0, 0.75, 0), function() if State.SlowActive then deactivateSlowTime() else activateSlowTime() end end)
+
+    local function createBar(color, yPos, labelText)
+        local frame = Instance.new("Frame", ScreenGui); frame.Size = UDim2.fromOffset(220, 10); frame.Position = UDim2.new(0.5, -110, 0, yPos); frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 5)
+        local fill = Instance.new("Frame", frame); fill.Size = UDim2.fromScale(1, 1); fill.BackgroundColor3 = color; Instance.new("UICorner", fill).CornerRadius = UDim.new(0, 5)
+        local lbl = Instance.new("TextLabel", frame); lbl.Size = UDim2.fromOffset(50, 10); lbl.Position = UDim2.new(0, -55, 0, -1); lbl.BackgroundTransparency = 1; lbl.Text = labelText; lbl.TextColor3 = color; lbl.Font = "Code"; lbl.TextSize = 12; lbl.TextXAlignment = "Right"
+        return fill
+    end
+
+    EnergyFill = createBar(CONFIG.MAIN_COLOR, 35, "NRG//")
+    HealthFill = createBar(CONFIG.HEALTH_COLOR, 50, "VIT//")
+
+    local ConfigBtn = Instance.new("TextButton", ScreenGui); ConfigBtn.Size = UDim2.fromOffset(30, 30); ConfigBtn.Text = "⚙"; ConfigBtn.Position = UDim2.fromOffset(25, 25); ConfigBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200); ConfigBtn.TextColor3 = Color3.fromRGB(50, 50, 50)
+    Instance.new("UICorner", ConfigBtn).CornerRadius = UDim.new(1, 0)
+    ConfigBtn.MouseButton1Click:Connect(function() State.DragMode = not State.DragMode; ConfigBtn.BackgroundColor3 = State.DragMode and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(200, 200, 200) end)
 end
 
+-- LOOP PRINCIPAL
 RunService.Heartbeat:Connect(function(dt)
-    if tick() - State.LastEnergyUse > CONFIG.REGEN_DELAY and not State.SlowActive then State.Energy = math.min(CONFIG.MAX_ENERGY, State.Energy + (CONFIG.REGEN_SPEED * dt)) end
+    local now = tick()
+    if now - State.LastEnergyUse > State.CurrentRegenDelay and not State.SlowActive then
+        State.Energy = math.min(CONFIG.MAX_ENERGY, State.Energy + (CONFIG.REGEN_SPEED * dt))
+    end
     if EnergyFill then EnergyFill.Size = UDim2.fromScale(State.Energy/CONFIG.MAX_ENERGY, 1) end
-    if HealthFill and player.Character and player.Character:FindFirstChild("Humanoid") then HealthFill.Size = UDim2.fromScale(player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth, 1) end
+    if HealthFill and player.Character and player.Character:FindFirstChild("Humanoid") then
+        HealthFill.Size = UDim2.fromScale(player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth, 1)
+    end
 end)
 
 setupUI()
