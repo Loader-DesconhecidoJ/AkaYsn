@@ -1,0 +1,242 @@
+-- SERVICES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hum = character:WaitForChild("Humanoid")
+
+--------------------------------------------------------------------------------
+-- CONFIGURAÇÕES UNIVERSAIS
+--------------------------------------------------------------------------------
+local FLING_FORCE = 400
+local STAND_OFFSET = Vector3.new(-2.5, 2, 2.5)
+local isTimeStopped = false
+local isStandActive = false
+local currentStand = nil
+local idleTrack = nil
+local frozenParts = {}
+
+local COLORS = {
+	Yellow = Color3.fromRGB(255, 215, 0),
+	Green = Color3.fromRGB(0, 255, 120),
+	Purple = Color3.fromRGB(170, 0, 255),
+	Black = Color3.fromRGB(0, 0, 0)
+}
+
+local ASSETS = {
+	TS_START_SFX = "rbxassetid://7514417921",
+	TS_END_SFX = "rbxassetid://97139043906890",
+	ANIM_DIO = "rbxassetid://108059270529140", -- Animação do Player
+	STAND_IDLE = "rbxassetid://123349905320515" -- Animação do Stand
+}
+
+--------------------------------------------------------------------------------
+-- INTERFACE (UI)
+--------------------------------------------------------------------------------
+local screenGui = Instance.new("ScreenGui", player.PlayerGui)
+screenGui.Name = "DioStandUniversal"
+screenGui.ResetOnSpawn = false
+
+local function createCircularButton(name, pos, text, color)
+	local btn = Instance.new("TextButton", screenGui)
+	btn.Name = name
+	btn.Size = UDim2.fromOffset(85, 85)
+	btn.Position = pos
+	btn.AnchorPoint = Vector2.new(0.5, 0.5)
+	btn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+	btn.Text = text
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.GothamBold -- Sua fonte restaurada
+	btn.TextSize = 14
+	btn.AutoButtonColor = false
+	
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+	local stroke = Instance.new("UIStroke", btn)
+	stroke.Color = color or COLORS.Yellow
+	stroke.Thickness = 3 -- Suas bordas restauradas
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	
+	return btn, stroke
+end
+
+local tsBtn, tsStroke = createCircularButton("TimeStopBtn", UDim2.new(0.4, 0, 0.85, 0), "STOP") 
+local activateBtn, actStroke = createCircularButton("ActivateBtn", UDim2.new(0.5, 0, 0.85, 0), "STAND")
+local m1Btn, m1Stroke = createCircularButton("M1Btn", UDim2.new(0.6, 0, 0.85, 0), "M1s")
+m1Btn.Visible = false
+
+--------------------------------------------------------------------------------
+-- LÓGICA DE ANIMAÇÃO (SEGURA)
+--------------------------------------------------------------------------------
+local function playAnim(targetHum, animId, speed)
+	if not targetHum or not targetHum.Parent then return end
+	local a = Instance.new("Animation")
+	a.AnimationId = animId
+	local track = targetHum:LoadAnimation(a)
+	track:Play()
+	if speed then track:AdjustSpeed(speed) end
+	return track
+end
+
+--------------------------------------------------------------------------------
+-- LÓGICA DO STAND (UNIVERSAL R6/R15)
+--------------------------------------------------------------------------------
+local function getStandModel()
+	local model
+	character.Archivable = true
+	model = character:Clone()
+	character.Archivable = false
+	
+	model.Name = "Stand"
+	for _, p in ipairs(model:GetDescendants()) do
+		if p:IsA("BasePart") then
+			p.CanCollide = false
+			p.Transparency = 1
+			p.CastShadow = false
+		elseif p:IsA("LocalScript") or p:IsA("Script") then 
+			p:Destroy() 
+		end
+	end
+	return model
+end
+
+local function toggleStand()
+	if isStandActive then
+		isStandActive = false
+		m1Btn.Visible = false
+		activateBtn.Text = "STAND"
+		if idleTrack then idleTrack:Stop() end
+		if currentStand then
+			local root = currentStand:FindFirstChild("HumanoidRootPart")
+			if root then TweenService:Create(root, TweenInfo.new(0.5), {CFrame = character.HumanoidRootPart.CFrame}):Play() end
+			for _, p in ipairs(currentStand:GetDescendants()) do
+				if p:IsA("BasePart") then TweenService:Create(p, TweenInfo.new(0.5), {Transparency = 1}):Play() end
+			end
+			Debris:AddItem(currentStand, 0.5)
+		end
+	else
+		isStandActive = true
+		m1Btn.Visible = true
+		activateBtn.Text = "OFF"
+		currentStand = getStandModel()
+		currentStand.Parent = workspace
+		
+		local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+		idleTrack = playAnim(sHum, ASSETS.STAND_IDLE)
+
+		for _, p in ipairs(currentStand:GetDescendants()) do
+			if p:IsA("BasePart") then 
+				p.Color = Color3.new(0,0,0)
+				TweenService:Create(p, TweenInfo.new(0.5), {Transparency = 0.4}):Play() 
+				task.delay(0.5, function() if p then TweenService:Create(p, TweenInfo.new(0.4), {Color = Color3.new(1,1,1)}):Play() end end)
+			end
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
+-- LÓGICA DO TIME STOP (FIXED VFX)
+--------------------------------------------------------------------------------
+local function toggleTime()
+	if isTimeStopped then
+		isTimeStopped = false
+		tsBtn.Text = "STOP"
+		local s = Instance.new("Sound", workspace); s.SoundId = ASSETS.TS_END_SFX; s:Play(); Debris:AddItem(s, 3)
+		
+		local cc = Lighting:FindFirstChild("TS_Effect")
+		if cc then 
+			TweenService:Create(cc, TweenInfo.new(0.6), {Saturation = 0, Contrast = 0, Brightness = 0}):Play()
+			Debris:AddItem(cc, 0.6)
+		end
+		
+		for part, _ in pairs(frozenParts) do if part and part.Parent then part.Anchored = false end end
+		frozenParts = {}
+	else
+		isTimeStopped = true
+		tsBtn.Text = "RESUME"
+		local s = Instance.new("Sound", workspace); s.SoundId = ASSETS.TS_START_SFX; s.Volume = 2; s:Play(); Debris:AddItem(s, 5)
+		
+		-- Animação Player
+		playAnim(hum, ASSETS.ANIM_DIO, 2)
+		
+		-- VFX Corrigido (Usa ColorCorrection e Blooom para garantir visibilidade)
+		local cc = Instance.new("ColorCorrectionEffect", Lighting)
+		cc.Name = "TS_Effect"
+		cc.Saturation = -1.2
+		cc.Contrast = 0.5
+		cc.TintColor = Color3.fromRGB(180, 200, 255)
+		
+		-- Congelar
+		for _, part in ipairs(workspace:GetDescendants()) do
+			if part:IsA("BasePart") and not part:IsDescendantOf(character) and not part.Anchored then
+				frozenParts[part] = true; part.Anchored = true
+			end
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
+-- ATAQUE M1 (FLING)
+--------------------------------------------------------------------------------
+local function performFling()
+	if not isStandActive or not currentStand then return end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	
+	local closest = nil
+	local minDist = 40
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			local d = (p.Character.HumanoidRootPart.Position - root.Position).Magnitude
+			if d < minDist then minDist = d; closest = p.Character.HumanoidRootPart end
+		end
+	end
+	if closest then
+		local att = Instance.new("Attachment", closest)
+		local rot = Instance.new("AngularVelocity", att)
+		rot.MaxTorque = math.huge
+		rot.AngularVelocity = Vector3.new(1200, 1200, 1200)
+		local vel = Instance.new("LinearVelocity", att)
+		vel.MaxForce = math.huge
+		vel.VectorVelocity = (closest.Position - root.Position).Unit * FLING_FORCE + Vector3.new(0, 150, 0)
+		Debris:AddItem(att, 0.5)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- CONEXÕES E LOOPS
+--------------------------------------------------------------------------------
+RunService.RenderStepped:Connect(function()
+	if isStandActive and currentStand then
+		local root = character:FindFirstChild("HumanoidRootPart")
+		local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
+		if root and sRoot then
+			local targetCF = root.CFrame * CFrame.new(STAND_OFFSET)
+			sRoot.CFrame = sRoot.CFrame:Lerp(targetCF, 0.15)
+		end
+	end
+end)
+
+tsBtn.MouseButton1Click:Connect(toggleTime)
+activateBtn.MouseButton1Click:Connect(toggleStand)
+m1Btn.MouseButton1Click:Connect(performFling)
+
+-- Borda Animada
+task.spawn(function()
+	local sequence = {COLORS.Yellow, COLORS.Black, COLORS.Green, COLORS.Black, COLORS.Purple, COLORS.Black}
+	local i = 1
+	while true do
+		TweenService:Create(tsStroke, TweenInfo.new(0.7), {Color = sequence[i]}):Play()
+		i = i % #sequence + 1
+		task.wait(0.7)
+	end
+end)
+
+local function applyClickEffect(b)
+	b.MouseButton1Down:Connect(function() TweenService:Create(b, TweenInfo.new(0.1), {Size = UDim2.fromOffset(75, 75)}):Play() end)
+	b.MouseButton1Up:Connect(function() TweenService:Create(b, TweenInfo.new(0.1), {Size = UDim2.fromOffset(85, 85)}):Play() end)
+end
+applyClickEffect(tsBtn); applyClickEffect(activateBtn); applyClickEffect(m1Btn)
