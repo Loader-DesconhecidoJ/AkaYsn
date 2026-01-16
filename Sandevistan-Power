@@ -35,7 +35,7 @@ local SETTINGS = {
     STATS = {
         MAX_ENERGY = 100,
         SANDI_SPEED = 100,
-        DASH_FORCE = 180,
+        DASH_FORCE = 100,
         IMPACT_THRESHOLD = -60,
     },
     COOLDOWNS = {
