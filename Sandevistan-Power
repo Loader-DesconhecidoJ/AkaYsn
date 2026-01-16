@@ -39,9 +39,9 @@ local SETTINGS = {
         IMPACT_THRESHOLD = -60,
     },
     COOLDOWNS = {
-        SANDI = 30,
-        DASH = 5,
-        DODGE = 10,
+        SANDI = 20,
+        DASH = 3,
+        DODGE = 5,
     },
     COLORS = {
         SANDI_START = Color3.fromRGB(0, 255, 240),
