@@ -1,8 +1,8 @@
 --!strict
 --[[
     ╔════════════════════════════════════════════════════════════════════╗
-    ║           CYBERPUNK SANDEVISTAN - PROJECT EDGE RUNNER V32.3        ║
-    ║           PRO CRACKS + DEBRIS VFX + 0.30 SHAKE + V32 UI            ║
+    ║      CYBERPUNK SANDEVISTAN - PROJECT EDGE RUNNER [V38 FINAL]       ║
+    ║      LOG: Fixed Slow Walk, Position Save, Gold Dash VFX            ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -15,422 +15,563 @@ local Lighting = game:GetService("Lighting")
 
 --// TYPES
 type Cooldowns = {
-    SANDI: number,
-    DASH: number,
-    DODGE: number
+	SANDI: number,
+	DASH: number,
+	DODGE: number
 }
 
 type SystemState = {
-    Energy: number,
-    IsSandiActive: boolean,
-    Cooldowns: Cooldowns,
-    EditMode: boolean,
-    LastVelocityY: number,
-    ActiveLabels: number,
-    LastHealth: number
+	Energy: number,
+	IsSandiActive: boolean,
+	Cooldowns: Cooldowns,
+	EditMode: boolean,
+	LastVelocityY: number,
+	ActiveLabels: number,
+	LastHealth: number,
+	LastGhostTime: number
 }
 
---// CONSTANTS & CONFIGURATION
+--// CONFIGURAÇÃO
 local SETTINGS = {
-    STATS = {
-        MAX_ENERGY = 100,
-        SANDI_SPEED = 100,
-        DASH_FORCE = 120,
-        IMPACT_THRESHOLD = -60,
-    },
-    COOLDOWNS = {
-        SANDI = 20,
-        DASH = 3,
-        DODGE = 5,
-    },
-    COLORS = {
-        SANDI_START = Color3.fromRGB(0, 255, 240),
-        SANDI_END = Color3.fromRGB(160, 0, 255),
-        DASH_GOLD = Color3.fromRGB(255, 215, 0),
-        DODGE_START = Color3.fromRGB(160, 0, 255),
-        DODGE_END = Color3.fromRGB(255, 0, 130),
-        EDIT_MODE = Color3.fromRGB(0, 255, 255),
-        TEXT_DEFAULT = Color3.new(1, 1, 1),
-        UI_BG = Color3.fromRGB(10, 10, 12),
-        UI_ACCENT = Color3.fromRGB(40, 40, 45)
-    },
-    ASSETS = {
-        SOUNDS = {
-            IMPACT = "rbxassetid://4453098167", 
-            DODGE = "rbxassetid://126006726964310",
-            DASH = "rbxassetid://103247005619946",
-            SANDI_ON = "rbxassetid://123844681344865",
-            SANDI_OFF = "rbxassetid://118534165523355",
-            HIT = "rbxassetid://5665936061"
-        },
-        TEXTURES = {
-            SMOKE = "rbxassetid://243023223",
-            CRACK = "rbxassetid://7003440776", -- Textura profissional de rachadura
-            DEBRIS = "rbxassetid://5860841658"
-        }
-    }
+	STATS = {
+		MAX_ENERGY = 100,
+		SANDI_SPEED = 90, 
+		DASH_FORCE = 100,
+		IMPACT_THRESHOLD = -50,
+		GHOST_INTERVAL = 0.04, 
+	},
+	COOLDOWNS = {
+		SANDI = 10,
+		DASH = 3,
+		DODGE = 5,
+	},
+	COLORS = {
+		-- Cores Neon Cyberpunk
+		CYAN_MAIN = Color3.fromRGB(0, 255, 240), -- Sandi Start
+		CYAN_DIM = Color3.fromRGB(85, 0, 255),   -- Sandi End
+		
+		MAGENTA_MAIN = Color3.fromRGB(255, 0, 110), -- Dodge Start
+		MAGENTA_END = Color3.fromRGB(100, 0, 255),  -- Dodge End
+		
+		YELLOW_MAIN = Color3.fromRGB(255, 230, 0), -- Dash Start
+		YELLOW_END = Color3.fromRGB(255, 100, 0),  -- Dash End
+		
+		GOLD_TINT = Color3.fromRGB(255, 200, 50), -- Cor Dourada do Dash
+		
+		-- UI Themes
+		UI_BG = Color3.fromRGB(10, 10, 14),
+		UI_STROKE_NORMAL = Color3.fromRGB(0, 255, 240),
+		UI_STROKE_EDIT = Color3.fromRGB(255, 170, 0),
+		TEXT_WHITE = Color3.fromRGB(240, 240, 255)
+	},
+	ASSETS = {
+		SOUNDS = {
+			IMPACT = "rbxassetid://4453098167", 
+			DODGE = "rbxassetid://126006726964310", 
+			DASH = "rbxassetid://103247005619946",   
+			SANDI_ON = "rbxassetid://123844681344865", 
+			SANDI_LOOP = "rbxassetid://9057048700", 
+			SANDI_OFF = "rbxassetid://118534165523355",
+			HIT = "rbxassetid://5665936061"
+		},
+		TEXTURES = {
+			SMOKE = "rbxassetid://243023223",
+			CRACK = "rbxassetid://7003440776", 
+			DEBRIS = "rbxassetid://5860841658"
+		}
+	}
 }
 
---// STATE MANAGEMENT
+--// STATE & SAVED POSITIONS
 local State: SystemState = {
-    Energy = SETTINGS.STATS.MAX_ENERGY,
-    IsSandiActive = false,
-    Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0},
-    EditMode = false,
-    LastVelocityY = 0,
-    ActiveLabels = 0,
-    LastHealth = 100
+	Energy = SETTINGS.STATS.MAX_ENERGY,
+	IsSandiActive = false,
+	Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0},
+	EditMode = false,
+	LastVelocityY = 0,
+	ActiveLabels = 0,
+	LastHealth = 100,
+	LastGhostTime = 0
+}
+
+-- Tabela para salvar posições da UI (Persistência)
+local SavedLayout = {
+	Energy = UDim2.new(0.5, -140, 0.9, 0),
+	BtnSandi = UDim2.new(1, -90, 0.6, 0),
+	BtnDash = UDim2.new(1, -90, 0.72, 0),
+	Cooldowns = UDim2.new(0, 20, 0.5, -150)
 }
 
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Character, HRP, Humanoid
-local UI_Elements = {}
+local UI_Elements = {} 
+local ActiveEffects = {} 
 
---// UTILITY FUNCTIONS
+--// UTILITY & VFX CORE
+
 local function Create(className: string, properties: {[string]: any})
-    local instance = Instance.new(className)
-    for prop, value in pairs(properties) do
-        instance[prop] = value
-    end
-    return instance
+	local instance = Instance.new(className)
+	for prop, value in pairs(properties) do
+		instance[prop] = value
+	end
+	return instance
 end
 
-local function PlaySFX(id: string, volume: number?)
-    local sound = Create("Sound", {
-        SoundId = id,
-        Volume = volume or 1,
-        Parent = HRP or Camera
-    })
-    sound:Play()
-    Debris:AddItem(sound, 5)
+local function PlaySFX(id: string, volume: number?, pitch: number?, parent: Instance?)
+	local sound = Create("Sound", {
+		SoundId = id,
+		Volume = volume or 1,
+		PlaybackSpeed = pitch or 1,
+		Parent = parent or (HRP or Camera)
+	})
+	sound:Play()
+	Debris:AddItem(sound, 5)
+	return sound
 end
 
-local function CamShake(intensity: number, duration: number)
-    task.spawn(function()
-        local startTime = os.clock()
-        while os.clock() - startTime < duration do
-            if not Humanoid then break end
-            Humanoid.CameraOffset = Vector3.new(
-                math.random(-10, 10)/10, 
-                math.random(-10, 10)/10, 
-                math.random(-10, 10)/10
-            ) * intensity
-            RunService.RenderStepped:Wait()
-        end
-        if Humanoid then Humanoid.CameraOffset = Vector3.zero end
-    end)
+local function CamShake(intensity: number, duration: number, zoomData: number?)
+	task.spawn(function()
+		local startTime = os.clock()
+		local originalFOV = Camera.FieldOfView
+		
+		while os.clock() - startTime < duration do
+			if not Humanoid then break end
+			local alpha = 1 - ((os.clock() - startTime) / duration)
+			
+			local offset = Vector3.new(
+				math.random(-10, 10)/10, 
+				math.random(-10, 10)/10, 
+				math.random(-10, 10)/10
+			) * intensity * alpha
+			Humanoid.CameraOffset = offset
+			
+			if zoomData then
+				Camera.FieldOfView = originalFOV + (math.random(-zoomData, zoomData) * alpha)
+			end
+			
+			RunService.RenderStepped:Wait()
+		end
+		if Humanoid then Humanoid.CameraOffset = Vector3.zero end
+		if zoomData then TweenService:Create(Camera, TweenInfo.new(0.5), {FieldOfView = originalFOV}):Play() end
+	end)
 end
 
---// PREMIUM VISUAL EFFECTS (UI COOLDOWNS)
-
-local function ShowCooldownText(name: string, duration: number, color: Color3)
-    task.spawn(function()
-        local gui = Player.PlayerGui:FindFirstChild("CyberV30")
-        if not gui then return end
-        
-        State.ActiveLabels += 1
-        local container = Create("Frame", {
-            Size = UDim2.new(0, 220, 0, 35),
-            Position = UDim2.new(0.5, -110, 0.7, -(State.ActiveLabels - 1) * 40),
-            BackgroundColor3 = SETTINGS.COLORS.UI_BG,
-            BackgroundTransparency = 0.2,
-            BorderSizePixel = 0,
-            Parent = gui
-        })
-        Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = container})
-        Create("UIStroke", {Color = color, Thickness = 1.2, Transparency = 0.4, Parent = container})
-        
-        local label = Create("TextLabel", {
-            Size = UDim2.new(1, -10, 1, 0),
-            Position = UDim2.new(0, 10, 0, 0),
-            BackgroundTransparency = 1,
-            TextColor3 = color,
-            Font = Enum.Font.GothamBold,
-            TextSize = 14,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Text = name:upper(),
-            Parent = container
-        })
-        
-        local timer = Create("TextLabel", {
-            Size = UDim2.new(1, -10, 1, 0),
-            Position = UDim2.new(0, -10, 0, 0),
-            BackgroundTransparency = 1,
-            TextColor3 = SETTINGS.COLORS.TEXT_DEFAULT,
-            Font = Enum.Font.RobotoMono,
-            TextSize = 14,
-            TextXAlignment = Enum.TextXAlignment.Right,
-            Parent = container
-        })
-        
-        local startTime = os.clock()
-        while os.clock() - startTime < duration do
-            local remaining = math.max(0, duration - (os.clock() - startTime))
-            timer.Text = string.format("%.1fS", remaining)
-            container.Position = container.Position:Lerp(
-                UDim2.new(0.5, -110, 0.7, -(State.ActiveLabels - 1) * 40), 
-                0.15
-            )
-            RunService.RenderStepped:Wait()
-        end
-        
-        TweenService:Create(container, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(label, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-        TweenService:Create(timer, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-        task.wait(0.3)
-        container:Destroy()
-        State.ActiveLabels -= 1
-    end)
+-- Efeito Visual do Sandevistan (Azul)
+local function TogglePostProcessing(enable: boolean)
+	if enable then
+		local cc = Create("ColorCorrectionEffect", {Name = "SandiCC", TintColor = Color3.fromRGB(200, 255, 255), Saturation = -0.3, Contrast = 0.2, Parent = Lighting})
+		local blur = Create("BlurEffect", {Name = "SandiBlur", Size = 0, Parent = Lighting})
+		local bloom = Create("BloomEffect", {Name = "SandiBloom", Intensity = 0, Threshold = 0.8, Size = 24, Parent = Lighting})
+		TweenService:Create(blur, TweenInfo.new(0.5), {Size = 6}):Play()
+		TweenService:Create(bloom, TweenInfo.new(0.5), {Intensity = 1.5}):Play()
+		ActiveEffects["CC"] = cc; ActiveEffects["Blur"] = blur; ActiveEffects["Bloom"] = bloom
+	else
+		if ActiveEffects["CC"] then 
+			TweenService:Create(ActiveEffects["CC"], TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0, Contrast = 0}):Play() 
+		end
+		if ActiveEffects["Blur"] then TweenService:Create(ActiveEffects["Blur"], TweenInfo.new(0.5), {Size = 0}):Play() end
+		if ActiveEffects["Bloom"] then TweenService:Create(ActiveEffects["Bloom"], TweenInfo.new(0.5), {Intensity = 0}):Play() end
+		
+		task.delay(0.5, function() for _, v in pairs(ActiveEffects) do v:Destroy() end ActiveEffects = {} end)
+	end
 end
 
---// COMBAT & VFX FUNCTIONS
+-- Efeito Visual do Dash (Dourado/Amarelo)
+local function DashScreenFX()
+	-- Cria o efeito
+	local cc = Create("ColorCorrectionEffect", {
+		Name = "DashCC", 
+		TintColor = Color3.new(1,1,1), 
+		Saturation = 0, 
+		Contrast = 0, 
+		Parent = Lighting
+	})
+	
+	-- Fade In (Vira Dourado Rápido)
+	TweenService:Create(cc, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		TintColor = SETTINGS.COLORS.GOLD_TINT,
+		Saturation = 0.5,
+		Contrast = 0.1
+	}):Play()
+	
+	-- Fade Out (Volta ao Normal)
+	task.delay(0.25, function()
+		local reverseTween = TweenService:Create(cc, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TintColor = Color3.new(1,1,1),
+			Saturation = 0,
+			Contrast = 0
+		})
+		reverseTween:Play()
+		reverseTween.Completed:Connect(function()
+			cc:Destroy()
+		end)
+	end)
+end
 
-local function CreateGhost(startColor: Color3, endColor: Color3)
-    if not Character then return end
-    Character.Archivable = true
-    local ghostChar = Character:Clone()
-    for _, part in pairs(ghostChar:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.Anchored = true; part.CanCollide = false
-            part.Material = Enum.Material.Neon; part.Color = startColor
-            TweenService:Create(part, TweenInfo.new(0.5), {Color = endColor, Transparency = 1}):Play()
-        elseif not part:IsA("SpecialMesh") and not part:IsA("MeshPart") then part:Destroy() end
-    end
-    ghostChar.Parent = workspace; Debris:AddItem(ghostChar, 0.5)
+local function CreateCyberGhost(startColor: Color3, endColor: Color3)
+	if not Character then return end
+	Character.Archivable = true
+	local ghost = Create("Model", {Name = "GhostFX", Parent = workspace})
+	
+	for _, part in pairs(Character:GetChildren()) do
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			local p = part:Clone()
+			p.Anchored = true; p.CanCollide = false; p.Massless = true; p.Material = Enum.Material.Neon
+			p.Color = startColor
+			p.Transparency = 0.4
+			p.CFrame = part.CFrame; p.Parent = ghost
+			
+			for _, child in pairs(p:GetChildren()) do if not child:IsA("SpecialMesh") then child:Destroy() end end
+			
+			TweenService:Create(p, TweenInfo.new(0.4), {Color = endColor, Transparency = 1}):Play()
+		end
+	end
+	
+	local hl = Create("Highlight", {
+		FillColor = startColor, 
+		OutlineColor = endColor, 
+		FillTransparency = 0.3, 
+		OutlineTransparency = 0, 
+		Parent = ghost
+	})
+	
+	local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(hl, tweenInfo, {FillTransparency = 1, OutlineTransparency = 1, FillColor = endColor}):Play()
+	
+	Debris:AddItem(ghost, 0.45)
 end
 
 local function VFX_Impact_Ambient(pos: Vector3)
-    local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {Character}
-    local result = workspace:Raycast(pos + Vector3.new(0, 5, 0), Vector3.new(0, -15, 0), rayParams)
-    if not result then return end
-    
-    local surfaceColor = result.Instance.Color
-    
-    -- Shake travado em 0.30 conforme pedido
-    PlaySFX(SETTINGS.ASSETS.SOUNDS.IMPACT, 2)
-    CamShake(0.30, 0.30)
-    
-    local anchor = Create("Part", {CFrame = CFrame.new(result.Position, result.Position + result.Normal), Anchored = true, Transparency = 1, CanCollide = false, Parent = workspace})
-    Debris:AddItem(anchor, 10)
-
-    -- RACHADURA PROFISSIONAL (Decal)
-    local crackDecal = Create("Decal", {
-        Texture = SETTINGS.ASSETS.TEXTURES.CRACK,
-        Face = Enum.NormalId.Top,
-        Transparency = 0.2,
-        Parent = Create("Part", {
-            Size = Vector3.new(12, 0.1, 12),
-            CFrame = CFrame.new(result.Position + result.Normal * 0.05, result.Position + result.Normal * 2) * CFrame.Angles(math.rad(-90), 0, math.rad(math.random(0,360))),
-            Anchored = true, CanCollide = false, Transparency = 1, Parent = anchor
-        })
-    })
-
-    -- PARTICULAS DE ESTILHAÇOS (Chunks de pedra)
-    local debrisEmitter = Create("ParticleEmitter", {
-        Texture = SETTINGS.ASSETS.TEXTURES.DEBRIS,
-        Color = ColorSequence.new(surfaceColor),
-        Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 0)}),
-        Lifetime = NumberRange.new(0.8, 1.5),
-        Speed = NumberRange.new(20, 45),
-        SpreadAngle = Vector2.new(45, 45),
-        VelocityInheritance = 0.5,
-        Orientation = Enum.ParticleOrientation.VelocityParallel,
-        Parent = anchor
-    })
-    debrisEmitter:Emit(30)
-
-    -- FUMACINHA DA COR DO CHÃO
-    local smoke = Create("ParticleEmitter", {
-        Texture = SETTINGS.ASSETS.TEXTURES.SMOKE, 
-        Color = ColorSequence.new(surfaceColor), 
-        Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 2), NumberSequenceKeypoint.new(1, 8)}), 
-        Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 1)}), 
-        Lifetime = NumberRange.new(1, 2), 
-        Speed = NumberRange.new(5, 15), 
-        Drag = 2,
-        Parent = anchor
-    })
-    smoke:Emit(40)
-    
-    task.delay(5, function()
-        TweenService:Create(crackDecal, TweenInfo.new(2), {Transparency = 1}):Play()
-    end)
+	local rayParams = RaycastParams.new(); rayParams.FilterDescendantsInstances = {Character}
+	local result = workspace:Raycast(pos + Vector3.new(0, 5, 0), Vector3.new(0, -15, 0), rayParams)
+	if not result then return end
+	
+	local hitColor = result.Instance.Color
+	PlaySFX(SETTINGS.ASSETS.SOUNDS.IMPACT, 2, math.random(80,120)/100)
+	CamShake(0.30, 0.30)
+	
+	local anchor = Create("Part", {CFrame = CFrame.new(result.Position), Anchored = true, Transparency = 1, CanCollide = false, Parent = workspace})
+	Debris:AddItem(anchor, 5)
+	
+	local debrisEmitter = Create("ParticleEmitter", {
+		Texture = SETTINGS.ASSETS.TEXTURES.DEBRIS, 
+		Color = ColorSequence.new(hitColor),
+		Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.7), NumberSequenceKeypoint.new(1, 0)}),
+		Lifetime = NumberRange.new(1, 2),
+		Speed = NumberRange.new(15, 30),
+		SpreadAngle = Vector2.new(45, 45),
+		Acceleration = Vector3.new(0, -40, 0),
+		Drag = 5,
+		Parent = anchor
+	})
+	debrisEmitter:Emit(20)
+	
+	local crackDecal = Create("Decal", {Texture = SETTINGS.ASSETS.TEXTURES.CRACK, Face = Enum.NormalId.Top, Transparency = 0, Parent = Create("Part", {Size = Vector3.new(10, 0.1, 10), CFrame = CFrame.new(result.Position + result.Normal * 0.05, result.Position + result.Normal * 2) * CFrame.Angles(math.rad(-90), 0, math.rad(math.random(0,360))), Anchored = true, CanCollide = false, Transparency = 1, Parent = anchor})})
+	task.delay(3, function() TweenService:Create(crackDecal, TweenInfo.new(2), {Transparency = 1}):Play() end)
 end
 
---// COMBAT EXECUTIONS
+--// UI SYSTEM & SALVAMENTO DE POSIÇÃO
+
+-- Modificado para aceitar 'saveKey' e salvar no SavedLayout
+local function EnableDrag(frame: Frame, stroke: UIStroke, saveKey: string)
+	local dragHitbox = Create("TextButton", {
+		Name = "EditModeHitbox",
+		Size = UDim2.new(1, 6, 1, 6), Position = UDim2.new(0, -3, 0, -3),
+		BackgroundTransparency = 1, Text = "", ZIndex = 100, Visible = false, Parent = frame
+	})
+
+	table.insert(UI_Elements, {Frame = frame, Stroke = stroke, Hitbox = dragHitbox})
+
+	local dragging, dragStart, startPos
+
+	dragHitbox.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true; dragStart = input.Position; startPos = frame.Position
+		end
+	end)
+
+	dragHitbox.InputChanged:Connect(function(input)
+		if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+			dragging = false 
+			-- SALVA A POSIÇÃO NA TABELA
+			if saveKey then
+				SavedLayout[saveKey] = frame.Position
+			end
+		end
+	end)
+end
+
+local function ShowCooldownBar(name: string, duration: number, color: Color3)
+	task.spawn(function()
+		local gui = Player.PlayerGui:FindFirstChild("CyberV35")
+		if not gui then return end
+		local holder = gui:FindFirstChild("CooldownHolder")
+		if not holder then return end
+
+		local barFrame = Create("Frame", {
+			Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = SETTINGS.COLORS.UI_BG,
+			BackgroundTransparency = 0.2, BorderSizePixel = 0, Parent = holder
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = barFrame})
+		local stroke = Create("UIStroke", {Color = color, Thickness = 1.5, Parent = barFrame})
+		
+		local label = Create("TextLabel", {
+			Size = UDim2.new(1, -10, 1, 0), Position = UDim2.new(0, 5, 0, 0),
+			BackgroundTransparency = 1, Text = name:upper(), TextColor3 = color,
+			Font = Enum.Font.GothamBold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+			Transparency = 1, Parent = barFrame
+		})
+		
+		local fill = Create("Frame", {
+			Size = UDim2.new(0, 0, 0, 2), Position = UDim2.new(0, 5, 1, -5),
+			BackgroundColor3 = color, BorderSizePixel = 0, Parent = barFrame
+		})
+
+		TweenService:Create(barFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(1, 0, 0, 30)}):Play()
+		task.wait(0.2)
+		TweenService:Create(label, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
+		fill:TweenSize(UDim2.new(1, -10, 0, 2), Enum.EasingDirection.Out, Enum.EasingStyle.Linear, duration)
+		task.wait(duration)
+		TweenService:Create(barFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1}):Play()
+		task.wait(0.3)
+		barFrame:Destroy()
+	end)
+end
+
+--// COMBAT LOGIC
 
 local function ExecDodge(enemyPart: BasePart?)
-    if os.clock() < State.Cooldowns.DODGE then return end
-    State.Cooldowns.DODGE = os.clock() + SETTINGS.COOLDOWNS.DODGE
-    PlaySFX(SETTINGS.ASSETS.SOUNDS.DODGE, 1.5)
-    ShowCooldownText("Neural Dodge", SETTINGS.COOLDOWNS.DODGE, SETTINGS.COLORS.DODGE_END)
-    local cc = Create("ColorCorrectionEffect", {TintColor = SETTINGS.COLORS.DODGE_START, Saturation = 0.5, Parent = Lighting})
-    CreateGhost(SETTINGS.COLORS.DODGE_START, SETTINGS.COLORS.DODGE_END)
-    if enemyPart then HRP.CFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, 6)).Position, enemyPart.Position)
-    else HRP.CFrame = HRP.CFrame * CFrame.new(0, 0, -12) end
-    CamShake(2, 0.3)
-    local t = TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0})
-    t:Play(); t.Completed:Connect(function() cc:Destroy() end)
+	if os.clock() < State.Cooldowns.DODGE then return end
+	State.Cooldowns.DODGE = os.clock() + SETTINGS.COOLDOWNS.DODGE
+	
+	PlaySFX(SETTINGS.ASSETS.SOUNDS.DODGE, 1.5, 1.2)
+	ShowCooldownBar("NEURAL DODGE", SETTINGS.COOLDOWNS.DODGE, SETTINGS.COLORS.MAGENTA_MAIN)
+	
+	CreateCyberGhost(SETTINGS.COLORS.MAGENTA_MAIN, SETTINGS.COLORS.MAGENTA_END)
+	
+	if enemyPart then HRP.CFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, 5)).Position, enemyPart.Position)
+	else HRP.CFrame = HRP.CFrame * CFrame.new(0, 0, -10) end
+	
+	CamShake(1.5, 0.2)
+	local flash = Create("ColorCorrectionEffect", {Brightness = 0.5, Parent = Lighting}); Debris:AddItem(flash, 0.1)
 end
 
 local function ExecSandi()
-    if os.clock() < State.Cooldowns.SANDI and not State.IsSandiActive then return end
-    State.IsSandiActive = not State.IsSandiActive
-    if State.IsSandiActive then
-        if State.Energy < 20 then State.IsSandiActive = false return end
-        PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_ON, 1); CamShake(3, 0.4)
-        TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 115}):Play()
-        Create("ColorCorrectionEffect", {Name = "SandiEffect", TintColor = Color3.fromRGB(150, 255, 220), Contrast = 0.4, Parent = Lighting})
-    else
-        PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1); State.Cooldowns.SANDI = os.clock() + SETTINGS.COOLDOWNS.SANDI
-        ShowCooldownText("Sandevistan", SETTINGS.COOLDOWNS.SANDI, SETTINGS.COLORS.SANDI_START)
-        if Lighting:FindFirstChild("SandiEffect") then Lighting.SandiEffect:Destroy() end
-        Humanoid.WalkSpeed = 16; TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
-    end
+	if os.clock() < State.Cooldowns.SANDI and not State.IsSandiActive then return end
+	State.IsSandiActive = not State.IsSandiActive
+	
+	if State.IsSandiActive then
+		if State.Energy < 20 then State.IsSandiActive = false return end
+		PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_ON, 1.5)
+		local loopSfx = PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_LOOP, 0.6, 1, HRP); loopSfx.Looped = true; loopSfx.Name = "SandiLoop"
+		
+		CamShake(2, 0.5, 5) 
+		TweenService:Create(Camera, TweenInfo.new(0.5, Enum.EasingStyle.Back), {FieldOfView = 120}):Play()
+		TogglePostProcessing(true)
+	else
+		PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1.5, 0.8)
+		if HRP:FindFirstChild("SandiLoop") then HRP.SandiLoop:Destroy() end
+		State.Cooldowns.SANDI = os.clock() + SETTINGS.COOLDOWNS.SANDI
+		ShowCooldownBar("SYSTEM COOLING", SETTINGS.COOLDOWNS.SANDI, SETTINGS.COLORS.CYAN_MAIN)
+		
+		TogglePostProcessing(false)
+		CamShake(1, 0.3) 
+		
+		-- RESET DE VELOCIDADE (CORREÇÃO DE BUG)
+		Humanoid.WalkSpeed = 16
+		
+		TweenService:Create(Camera, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {FieldOfView = 70}):Play()
+	end
 end
 
 local function ExecDash()
-    if State.Energy < 15 or os.clock() < State.Cooldowns.DASH then return end
-    State.Cooldowns.DASH = os.clock() + SETTINGS.COOLDOWNS.DASH
-    State.Energy -= 15; PlaySFX(SETTINGS.ASSETS.SOUNDS.DASH, 1.2)
-    ShowCooldownText("Dash Impulse", SETTINGS.COOLDOWNS.DASH, SETTINGS.COLORS.DASH_GOLD)
-    local dashEffect = Create("ColorCorrectionEffect", {TintColor = SETTINGS.COLORS.DASH_GOLD, Brightness = 0.2, Parent = Lighting})
-    TweenService:Create(Camera, TweenInfo.new(0.25), {FieldOfView = 125}):Play()
-    local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e6, 1e6, 1e6), Velocity = Camera.CFrame.LookVector * SETTINGS.STATS.DASH_FORCE, Parent = HRP})
-    Debris:AddItem(bv, 0.25)
-    task.spawn(function()
-        local start = os.clock()
-        while os.clock() - start < 0.25 do
-            local ray = workspace:Raycast(HRP.Position, HRP.CFrame.LookVector * 5, RaycastParams.new())
-            if ray and ray.Instance and ray.Instance:FindFirstAncestorOfClass("Model") and ray.Instance:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid") then
-                bv:Destroy(); PlaySFX(SETTINGS.ASSETS.SOUNDS.HIT, 1.5); CamShake(8, 0.2); break
-            end
-            CreateGhost(SETTINGS.COLORS.DASH_GOLD, SETTINGS.COLORS.DASH_GOLD); RunService.Heartbeat:Wait()
-        end
-        TweenService:Create(dashEffect, TweenInfo.new(0.4), {TintColor = Color3.new(1,1,1), Brightness = 0}):Play()
-        TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 70}):Play(); Debris:AddItem(dashEffect, 0.45)
-    end)
+	if State.Energy < 15 or os.clock() < State.Cooldowns.DASH then return end
+	State.Cooldowns.DASH = os.clock() + SETTINGS.COOLDOWNS.DASH
+	State.Energy -= 15
+	PlaySFX(SETTINGS.ASSETS.SOUNDS.DASH, 1.5, math.random(90,110)/100)
+	ShowCooldownBar("KINETIC DASH", 1, SETTINGS.COLORS.YELLOW_MAIN)
+	
+	-- EFEITO DOURADO NA TELA
+	DashScreenFX()
+	
+	TweenService:Create(Camera, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FieldOfView = 100}):Play()
+	task.delay(0.2, function() if not State.IsSandiActive then TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 70}):Play() else TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 120}):Play() end end)
+	
+	local direction = Camera.CFrame.LookVector
+	HRP.CFrame = CFrame.new(HRP.Position, HRP.Position + Vector3.new(direction.X, 0, direction.Z))
+	
+	local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e5, 1e5, 1e5), Velocity = direction * SETTINGS.STATS.DASH_FORCE, P = 1500, Parent = HRP})
+	Debris:AddItem(bv, 0.25)
+	
+	task.spawn(function() 
+		for i=1, 4 do 
+			CreateCyberGhost(SETTINGS.COLORS.YELLOW_MAIN, SETTINGS.COLORS.YELLOW_END) 
+			task.wait(0.05) 
+		end 
+	end)
 end
 
---// PREMIUM UI SYSTEM
-
-local function MakeDraggable(frame: Frame)
-    local dragging, dragStart, startPos
-    local stroke = Create("UIStroke", {Color = SETTINGS.COLORS.EDIT_MODE, Thickness = 2, Enabled = false, Parent = frame})
-    table.insert(UI_Elements, {Frame = frame, Stroke = stroke})
-    
-    frame.InputBegan:Connect(function(input)
-        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and State.EditMode then
-            dragging = true; dragStart = input.Position; startPos = frame.Position
-        end
-    end)
-    frame.InputChanged:Connect(function(input)
-        if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
-end
+--// UI BUILDER (USA POSIÇÕES SALVAS)
 
 local function BuildUI()
-    if Player.PlayerGui:FindFirstChild("CyberV30") then Player.PlayerGui.CyberV30:Destroy() end
-    local gui = Create("ScreenGui", {Name = "CyberV30", Parent = Player.PlayerGui, IgnoreGuiInset = true})
-    
-    local lockBtn = Create("TextButton", {Size = UDim2.new(0, 35, 0, 35), Position = UDim2.new(1, -50, 0, 50), Text = "⚙️", BackgroundColor3 = SETTINGS.COLORS.UI_BG, TextColor3 = SETTINGS.COLORS.TEXT_DEFAULT, Font = Enum.Font.GothamBold, TextSize = 16, Parent = gui})
-    Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = lockBtn})
-    Create("UIStroke", {Color = SETTINGS.COLORS.UI_ACCENT, Thickness = 2, Parent = lockBtn})
-    
-    local energyContainer = Create("Frame", {Size = UDim2.new(0, 300, 0, 15), Position = UDim2.new(0.5, -150, 0.92, 0), BackgroundColor3 = SETTINGS.COLORS.UI_BG, BorderSizePixel = 0, Parent = gui})
-    Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = energyContainer})
-    Create("UIStroke", {Color = SETTINGS.COLORS.UI_ACCENT, Thickness = 1, Parent = energyContainer})
-    
-    local fill = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = SETTINGS.COLORS.SANDI_START, BorderSizePixel = 0, Parent = energyContainer})
-    Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = fill})
-    local grad = Create("UIGradient", {Color = ColorSequence.new(SETTINGS.COLORS.SANDI_START, SETTINGS.COLORS.SANDI_END), Parent = fill})
-    
-    local energyLabel = Create("TextLabel", {Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, -1.2, 0), BackgroundTransparency = 1, Text = "SYSTEM ENERGY: 100%", TextColor3 = SETTINGS.COLORS.SANDI_START, Font = Enum.Font.RobotoMono, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = energyContainer})
-    
-    local btnFrame = Create("Frame", {Size = UDim2.new(0, 150, 0, 70), Position = UDim2.new(0.85, 0, 0.85, 0), BackgroundTransparency = 1, Parent = gui})
-    
-    local function CreateSkillBtn(key, color, pos)
-        local btn = Create("TextButton", {Size = UDim2.new(0, 50, 0, 50), Position = pos, Text = key, BackgroundColor3 = SETTINGS.COLORS.UI_BG, TextColor3 = color, Font = Enum.Font.GothamBlack, TextSize = 18, AutoButtonColor = false, Parent = btnFrame})
-        Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = btn})
-        local stroke = Create("UIStroke", {Color = color, Thickness = 2, Transparency = 0.5, Parent = btn})
-        btn.MouseButton1Down:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = SETTINGS.COLORS.UI_BG}):Play()
-            if not State.EditMode then if key == "Q" then ExecDash() else ExecSandi() end end
-        end)
-        btn.MouseButton1Up:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(0, 50, 0, 50), BackgroundColor3 = SETTINGS.COLORS.UI_BG, TextColor3 = color}):Play()
-        end)
-        return btn
-    end
-    
-    CreateSkillBtn("Q", SETTINGS.COLORS.DASH_GOLD, UDim2.new(0, 0, 0, 0))
-    CreateSkillBtn("E", SETTINGS.COLORS.SANDI_START, UDim2.new(0, 65, 0, 0))
-    
-    MakeDraggable(energyContainer); MakeDraggable(btnFrame)
-    
-    lockBtn.MouseButton1Click:Connect(function()
-        State.EditMode = not State.EditMode
-        lockBtn.BackgroundColor3 = State.EditMode and SETTINGS.COLORS.EDIT_MODE or SETTINGS.COLORS.UI_BG
-        lockBtn.TextColor3 = State.EditMode and SETTINGS.COLORS.UI_BG or SETTINGS.COLORS.TEXT_DEFAULT
-        for _, item in pairs(UI_Elements) do item.Stroke.Enabled = State.EditMode end
-    end)
-    
-    RunService.RenderStepped:Connect(function()
-        local percent = State.Energy / SETTINGS.STATS.MAX_ENERGY
-        fill.Size = fill.Size:Lerp(UDim2.new(percent, 0, 1, 0), 0.1)
-        energyLabel.Text = string.format("SYSTEM ENERGY: %d%%", math.floor(State.Energy))
-        energyLabel.TextColor3 = energyLabel.TextColor3:Lerp(grad.Color.Keypoints[1].Value, 0.1)
-    end)
+	if Player.PlayerGui:FindFirstChild("CyberV35") then Player.PlayerGui.CyberV35:Destroy() end
+	local gui = Create("ScreenGui", {Name = "CyberV35", Parent = Player.PlayerGui, IgnoreGuiInset = true, ResetOnSpawn = false})
+	
+	UI_Elements = {} 
+
+	-- 1. Botão Edit
+	local editBtn = Create("ImageButton", {
+		Size = UDim2.new(0, 30, 0, 30), Position = UDim2.new(0, 20, 0, 50),
+		BackgroundColor3 = SETTINGS.COLORS.UI_BG, BorderSizePixel = 0,
+		Image = "rbxassetid://7059346373", ImageColor3 = SETTINGS.COLORS.TEXT_WHITE,
+		Parent = gui, ZIndex = 200
+	})
+	Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = editBtn})
+	local editStroke = Create("UIStroke", {Color = SETTINGS.COLORS.UI_STROKE_NORMAL, Thickness = 2, Parent = editBtn})
+	
+	editBtn.MouseButton1Click:Connect(function()
+		State.EditMode = not State.EditMode
+		local targetColor = State.EditMode and SETTINGS.COLORS.UI_STROKE_EDIT or SETTINGS.COLORS.UI_STROKE_NORMAL
+		editStroke.Color = targetColor
+		editBtn.ImageColor3 = targetColor
+		
+		for _, el in pairs(UI_Elements) do
+			el.Stroke.Color = targetColor
+			el.Stroke.Thickness = State.EditMode and 3 or 1.5
+			if el.Hitbox then el.Hitbox.Visible = State.EditMode end
+		end
+	end)
+
+	-- 2. Energia (Usa SavedLayout.Energy)
+	local energyContainer = Create("Frame", {
+		Size = UDim2.new(0, 280, 0, 45), Position = SavedLayout.Energy,
+		BackgroundColor3 = SETTINGS.COLORS.UI_BG, BackgroundTransparency = 0.1, Parent = gui
+	})
+	Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = energyContainer})
+	local energyStroke = Create("UIStroke", {Color = SETTINGS.COLORS.UI_STROKE_NORMAL, Thickness = 1.5, Parent = energyContainer})
+	EnableDrag(energyContainer, energyStroke, "Energy")
+
+	local energyLabel = Create("TextLabel", {Text = "ENERGY SOURCE", Position = UDim2.new(0, 10, 0, 5), Size = UDim2.new(1, -20, 0, 15), BackgroundTransparency = 1, TextColor3 = SETTINGS.COLORS.TEXT_WHITE, Font = Enum.Font.GothamBold, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, Parent = energyContainer})
+	local percentLabel = Create("TextLabel", {Text = "100%", Position = UDim2.new(0, 0, 0, 5), Size = UDim2.new(1, -10, 0, 15), BackgroundTransparency = 1, TextColor3 = SETTINGS.COLORS.CYAN_MAIN, Font = Enum.Font.GothamBlack, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Right, Parent = energyContainer})
+	local barBg = Create("Frame", {Size = UDim2.new(1, -20, 0, 8), Position = UDim2.new(0, 10, 0, 25), BackgroundColor3 = Color3.new(0,0,0), BorderSizePixel = 0, Parent = energyContainer})
+	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = barBg})
+	local barFill = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = SETTINGS.COLORS.CYAN_MAIN, BorderSizePixel = 0, Parent = barBg})
+	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = barFill})
+	Create("UIGradient", {Color = ColorSequence.new(SETTINGS.COLORS.CYAN_MAIN, SETTINGS.COLORS.MAGENTA_MAIN), Parent = barFill})
+
+	-- 3. Botões (Usam SavedLayout)
+	local function CreateIndependentBtn(text, color, pos, saveKey, callback)
+		local holder = Create("Frame", {
+			Size = UDim2.new(0, 60, 0, 60), Position = pos,
+			BackgroundTransparency = 1, Parent = gui
+		})
+		
+		local btn = Create("TextButton", {
+			Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = SETTINGS.COLORS.UI_BG, 
+			Text = "", AutoButtonColor = false, Parent = holder, ZIndex = 2
+		})
+		Create("UICorner", {CornerRadius = UDim.new(0, 14), Parent = btn})
+		local s = Create("UIStroke", {Color = color, Thickness = 2, Parent = btn})
+		
+		local label = Create("TextLabel", {
+			Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = text,
+			TextColor3 = color, Font = Enum.Font.GothamBlack, TextSize = 20, Parent = btn, ZIndex = 3
+		})
+		
+		btn.MouseButton1Down:Connect(function()
+			if State.EditMode then return end 
+			TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0.9,0,0.9,0), BackgroundColor3 = color}):Play()
+			label.TextColor3 = SETTINGS.COLORS.UI_BG
+			callback()
+		end)
+		btn.MouseButton1Up:Connect(function()
+			TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(1,0,1,0), BackgroundColor3 = SETTINGS.COLORS.UI_BG}):Play()
+			label.TextColor3 = color
+		end)
+		
+		-- Passa a chave de salvamento
+		EnableDrag(holder, s, saveKey)
+	end
+	
+	CreateIndependentBtn("E", SETTINGS.COLORS.CYAN_MAIN, SavedLayout.BtnSandi, "BtnSandi", ExecSandi)
+	CreateIndependentBtn("Q", SETTINGS.COLORS.YELLOW_MAIN, SavedLayout.BtnDash, "BtnDash", ExecDash)
+
+	-- 4. Cooldowns (Usa SavedLayout.Cooldowns)
+	local cdHolder = Create("Frame", {Name = "CooldownHolder", Size = UDim2.new(0, 180, 0, 300), Position = SavedLayout.Cooldowns, BackgroundTransparency = 1, Parent = gui})
+	Create("UIListLayout", {Padding = UDim.new(0, 5), VerticalAlignment = Enum.VerticalAlignment.Bottom, Parent = cdHolder})
+	local cdStroke = Create("UIStroke", {Color = SETTINGS.COLORS.UI_STROKE_NORMAL, Thickness = 0, Transparency = 1, Parent = cdHolder})
+	EnableDrag(cdHolder, cdStroke, "Cooldowns")
+
+	RunService.RenderStepped:Connect(function()
+		local p = math.clamp(State.Energy / SETTINGS.STATS.MAX_ENERGY, 0, 1)
+		barFill.Size = barFill.Size:Lerp(UDim2.new(p, 0, 1, 0), 0.2)
+		percentLabel.Text = math.floor(p * 100) .. "%"
+		if State.IsSandiActive then
+			energyLabel.Text = "/// SYSTEM OVERDRIVE ///"
+			energyLabel.TextColor3 = Color3.fromHSV(os.clock() % 1, 0.8, 1)
+			energyStroke.Color = SETTINGS.COLORS.MAGENTA_MAIN
+		else
+			energyLabel.Text = "ENERGY SOURCE"
+			energyLabel.TextColor3 = SETTINGS.COLORS.TEXT_WHITE
+			if not State.EditMode then energyStroke.Color = SETTINGS.COLORS.UI_STROKE_NORMAL end
+		end
+	end)
 end
 
---// MAIN HEARTBEAT
+--// SYSTEM LOOPS & INPUTS
 
 RunService.Heartbeat:Connect(function(dt)
-    if not HRP or not Humanoid then return end
-    if Humanoid.Health < State.LastHealth then
-        local dmgDealt = State.LastHealth - Humanoid.Health
-        if dmgDealt > 1 and os.clock() >= State.Cooldowns.DODGE then
-            local ca = nil; local ld = 25
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("Humanoid") and obj.Parent ~= Character then
-                    local r = obj.Parent:FindFirstChild("HumanoidRootPart")
-                    if r and (HRP.Position - r.Position).Magnitude < ld then ld = (HRP.Position - r.Position).Magnitude; ca = r end
-                end
-            end
-            ExecDodge(ca)
-        end
-    end
-    State.LastHealth = Humanoid.Health
-    if State.LastVelocityY < SETTINGS.STATS.IMPACT_THRESHOLD and HRP.Velocity.Y >= -5 then VFX_Impact_Ambient(HRP.Position) end
-    State.LastVelocityY = HRP.Velocity.Y
-    if State.IsSandiActive then
-        State.Energy -= 12 * dt; Humanoid.WalkSpeed = SETTINGS.STATS.SANDI_SPEED
-        CreateGhost(SETTINGS.COLORS.SANDI_START, SETTINGS.COLORS.SANDI_END)
-        if State.Energy <= 0 then ExecSandi() end
-    else
-        State.Energy = math.min(SETTINGS.STATS.MAX_ENERGY, State.Energy + (15 * dt))
-    end
+	if not HRP or not Humanoid then return end
+	
+	if Humanoid.Health < State.LastHealth then
+		local dmg = State.LastHealth - Humanoid.Health
+		if dmg > 0 and os.clock() >= State.Cooldowns.DODGE then ExecDodge(nil) end
+	end
+	State.LastHealth = Humanoid.Health
+	
+	if State.LastVelocityY < SETTINGS.STATS.IMPACT_THRESHOLD and HRP.Velocity.Y > -5 then VFX_Impact_Ambient(HRP.Position) end
+	State.LastVelocityY = HRP.Velocity.Y
+	
+	if State.IsSandiActive then
+		State.Energy -= 15 * dt
+		Humanoid.WalkSpeed = SETTINGS.STATS.SANDI_SPEED
+		if os.clock() - State.LastGhostTime > SETTINGS.STATS.GHOST_INTERVAL then
+			CreateCyberGhost(SETTINGS.COLORS.CYAN_MAIN, SETTINGS.COLORS.CYAN_DIM)
+			State.LastGhostTime = os.clock()
+		end
+		if State.Energy <= 0 then ExecSandi() end
+	else
+		-- AQUI ESTAVA O PROBLEMA DO BONECO LENTO: Removi a limitação constante de velocidade
+		State.Energy = math.min(SETTINGS.STATS.MAX_ENERGY, State.Energy + (8 * dt))
+	end
 end)
 
 UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.E then ExecSandi() end
-    if input.KeyCode == Enum.KeyCode.Q then ExecDash() end
+	if gp then return end
+	if input.KeyCode == Enum.KeyCode.E then ExecSandi() end
+	if input.KeyCode == Enum.KeyCode.Q then ExecDash() end
 end)
 
 local function Init()
-    Character = Player.Character or Player.CharacterAdded:Wait()
-    HRP = Character:WaitForChild("HumanoidRootPart"); Humanoid = Character:WaitForChild("Humanoid")
-    State.LastHealth = Humanoid.Health; BuildUI()
-    Player.CharacterAdded:Connect(function(newChar)
-        Character = newChar; HRP = newChar:WaitForChild("HumanoidRootPart"); Humanoid = newChar:WaitForChild("Humanoid")
-        State.LastHealth = Humanoid.Health; BuildUI()
-    end)
+	Character = Player.Character or Player.CharacterAdded:Wait()
+	HRP = Character:WaitForChild("HumanoidRootPart")
+	Humanoid = Character:WaitForChild("Humanoid")
+	State.LastHealth = Humanoid.Health
+	BuildUI()
+	Player.CharacterAdded:Connect(function(newChar)
+		Character = newChar; HRP = newChar:WaitForChild("HumanoidRootPart"); Humanoid = newChar:WaitForChild("Humanoid")
+		State.LastHealth = Humanoid.Health
+		if State.IsSandiActive then ExecSandi() end
+		BuildUI()
+	end)
 end
+
 Init()
