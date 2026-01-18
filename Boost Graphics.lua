@@ -1,66 +1,35 @@
 local Lighting = game:GetService("Lighting")
 
--- LIMPEZA TOTAL DE AMBIENTE
-Lighting:ClearAllChildren()
-
--- CONFIGURAÇÃO DE RENDERIZAÇÃO FÍSICA
+-- 1. Configurações de Tempo e Atmosfera
 Lighting.ClockTime = 17.8
-Lighting.Brightness = 3.5 -- Brilho intenso para HDR
-Lighting.ExposureCompensation = 0.8
-Lighting.ShadowSoftness = 0 -- Sombras ultra nítidas (Realismo 4K)
-Lighting.EnvironmentDiffuseScale = 1
-Lighting.EnvironmentSpecularScale = 1
-Lighting.GeographicLatitude = 45 -- Muda o ângulo das sombras para ficar mais estético
+Lighting.Brightness = 2 -- Mantém luz direcional, mas controlada
+Lighting.Ambient = Color3.fromRGB(0, 0, 0) -- Zero luz de fundo (escuridão total nas sombras)
+Lighting.OutdoorAmbient = Color3.fromRGB(10, 10, 10) -- Mínima luz externa
+Lighting.ExposureCompensation = 0.5 -- Ajuste de exposição para 4K
+Lighting.ShadowSoftness = 0 -- Sombras nítidas e realistas
 
--- 1. ATMOSPHERE (Scattering de luz avançado)
-local atm = Instance.new("Atmosphere", Lighting)
-atm.Density = 0.3
-atm.Offset = 0.5
-atm.Color = Color3.fromRGB(255, 170, 100) -- Tom dourado
-atm.Decay = Color3.fromRGB(50, 40, 80)    -- Sombras azuladas profundas
-atm.Glare = 5  -- Reflexo solar intenso
-atm.Haze = 2   -- Neblina de calor no horizonte
+-- 2. Efeito Bloom (O Brilho Branco)
+local bloom = Lighting:FindFirstChildOfClass("BloomEffect") or Instance.new("BloomEffect", Lighting)
+bloom.Intensity = 1.2
+bloom.Size = 24
+bloom.Threshold = 0.8 -- Apenas cores muito claras (branco) brilham
 
--- 2. COLOR CORRECTION (O "LUT" de Cinema)
-local cc = Instance.new("ColorCorrectionEffect", Lighting)
-cc.Brightness = 0.05
-cc.Contrast = 0.55 -- Contraste agressivo para profundidade
-cc.Saturation = 0.35
-cc.TintColor = Color3.fromRGB(255, 245, 230)
+-- 3. ColorCorrection (Otimização 4K)
+local color = Lighting:FindFirstChildOfClass("ColorCorrectionEffect") or Instance.new("ColorCorrectionEffect", Lighting)
+color.Contrast = 0.15
+color.Saturation = 0.1
+color.TintColor = Color3.fromRGB(255, 255, 255)
 
--- 3. BLOOM (Simulação de lente de câmera)
-local bloom = Instance.new("BloomEffect", Lighting)
-bloom.Intensity = 0.8
-bloom.Size = 40
-bloom.Threshold = 0.9 -- Apenas luzes muito fortes brilham
+-- 4. SunRays (Efeito de feixes de luz)
+local sunRays = Lighting:FindFirstChildOfClass("SunRaysEffect") or Instance.new("SunRaysEffect", Lighting)
+sunRays.Intensity = 0.1
+sunRays.Spread = 1
 
--- 4. DEPTH OF FIELD (Anti-Aliasing natural e Foco)
-local dof = Instance.new("DepthOfFieldEffect", Lighting)
-dof.FarIntensity = 1
-dof.NearIntensity = 0.1
-dof.FocusDistance = 45
-dof.InFocusRadius = 25
+-- 5. Atmosphere (Neblina densa e realista)
+local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere", Lighting)
+atmosphere.Density = 0.3
+atmosphere.Offset = 0.1
+atmosphere.Color = Color3.fromRGB(150, 150, 150)
+atmosphere.Decay = Color3.fromRGB(0, 0, 0)
 
--- 5. SUNRAYS (Raios Volumétricos)
-local rays = Instance.new("SunRaysEffect", Lighting)
-rays.Intensity = 0.2
-rays.Spread = 1
-
--- 6. AMBIENT SOUND (Som 3D de Vento e Natureza)
-local sound = Instance.new("Sound", game:GetService("SoundService"))
-sound.SoundId = "rbxassetid://6008893443" -- Vento de montanha realista
-sound.Volume = 0.6
-sound.Looped = true
-sound:Play()
-
--- AJUSTE DE TERRENO (Se houver grama ou água)
-local terrain = workspace:FindFirstChildOfClass("Terrain")
-if terrain then
-    terrain.WaterReflectance = 1
-    terrain.WaterWaveSize = 0.15
-    terrain.WaterWaveSpeed = 10
-    terrain.WaterTransparency = 0.8
-    terrain.WaterColor = Color3.fromRGB(50, 90, 110)
-end
-
-print("--- ULTRA 4K SHADERS LOADED (17.8) ---")
+print("Boost Graphics 4K Ativado!")
