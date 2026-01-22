@@ -17,10 +17,10 @@ local Hue = 0
 local FOVMax = 110
 local FOVMin = 50
 local FOV = FOVMax
-local CamSmooth = 0.35  -- suavização do CAMLOCK
+local CamSmooth = 0.95  -- suavização do CAMLOCK
 local MistuSmooth = 1 -- suavização do Mistu
 local AimSmooth = 1
-local AssistStrength = 0.96
+local AssistStrength = 0.95
 
 --// RGB
 local function rgb()
