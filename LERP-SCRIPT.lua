@@ -86,7 +86,7 @@ local PS = game:GetService("Players")
 local RS = game:GetService("RunService")
 
 function RoClothes(Player)
-	print("RoCC")
+	print("custom roclothes build by arrymix")
 
 	--[[
 	--------------------------------------------------------------------------------------------------------------
@@ -472,7 +472,7 @@ function RoClothes(Player)
 	local TS = game:GetService("TweenService")
 	local MPS = game:GetService("MarketplaceService")
 
-	local CVersion = "0.7.8:lerp()"
+	local CVersion = "0.7.8:lerp()edit:arrymix"
 
 	local loadupBundle = nil -- replace this with a bundle name to automatically load it up on execute
 	local loadupExecute = false
@@ -519,7 +519,7 @@ function RoClothes(Player)
 	local NPCs = {}
 
 	local PositionPhysicsMultiply = 1
-	local RotationPhysicsMultiply = 5.1
+	local RotationPhysicsMultiply = 4
 
 	-- tail stuff --
 	local includedAccessoryNames = {} -- if ur tail isnt recognized as one, put its name here
@@ -566,7 +566,7 @@ function RoClothes(Player)
 
 				stiffness = 96, -- More stiffness is less flexible. Default: 96
 				damping = 9, -- Resistance due to drag (slow down). Default: 9
-				linearAmplitude = Vector3.new(20, 11, 20), -- Default: Vector3.new(48, 19, 48)
+				linearAmplitude = Vector3.new(13, 11, 13), -- Default: Vector3.new(48, 19, 48)
 				angularAmplitude = Vector3.new(0, 25, 0), -- Default: Vector3.new(0, 18, 0)
 				timeScale = 1, -- Creates a floaty feel if slowed down (e.g. 0.3). This also affects the animation. Default: 1
 
@@ -578,14 +578,14 @@ function RoClothes(Player)
 			ClothesRecolor = {},
 			CurrentBundle = "nil",
 			AutoExecute = true,
-			DelayTime = 0.7,
+			DelayTime = 1,
 			Tone = "Base",
 			BundleBodyColor = true,
 			Face = true,
-			MeshSizeLock = true,
-			AccessorySizeLock = true,
+			MeshSizeLock = false,
+			AccessorySizeLock = false,
 			MeshBasePartInvisible = false,
-			BodyPartPhysics = true,
+			BodyPartPhysics = false,
 			PhysicsObeyGravity = true,
 			CatalogUsername = "",
 			CatalogOutfitId = "",
@@ -606,12 +606,12 @@ function RoClothes(Player)
 			CockScale = 1,
 			BreastsScale = 1,
 			ButtsScale = 1,
-			LegsScale = 1.1,
+			LegsScale = 1,
 			BreastsType = 1,
-			TorsoType = 7,
-			ArmType = 3,
-			LegsType = 2,
-			ButtType = 3,
+			TorsoType = 1,
+			ArmType = 1,
+			LegsType = 1,
+			ButtType = 1,
 			ToggleBBC = false,
 			Cooldown = false,
 			updateCooldown = false,
@@ -2742,7 +2742,7 @@ function RoClothes(Player)
 				["Material"] = Enum.Material.SmoothPlastic,
 				["Color"] = {
 					["Tone"] = "Base",
-					["Color"] = Color3.fromRGB(163, 162, 165)
+					["Color"] = Color3.fromRGB(165, 165, 165)
 				},
 				["Parent"] = {
 					[1] = "Torso",
@@ -2793,7 +2793,7 @@ function RoClothes(Player)
 				["Material"] = Enum.Material.SmoothPlastic,
 				["Color"] = {
 					["Tone"] = "Base",
-					["Color"] = Color3.fromRGB(163, 162, 165)
+					["Color"] = Color3.fromRGB(165, 165, 165)
 				},
 				["Parent"] = {
 					[1] = "Torso",
@@ -3082,7 +3082,7 @@ function RoClothes(Player)
 				["Instance"] = "Mesh",
 				["CFrame"] = CFrame.new(-7.62939453e-06, 1.13563347, -0.154616356, -1, 3.61355274e-06, 6.08947687e-07, 3.6135516e-06, 1, -1.92066636e-06, -6.08954679e-07, -1.92066432e-06, -1),
 				["Color"] = {
-					["Color"] = Color3.fromRGB(163, 162, 165),
+					["Color"] = Color3.fromRGB(165, 165, 165),
 					["Tone"] = "Base"
 				},
 				["Recolor"] = "Secondary",
@@ -8898,431 +8898,1056 @@ function RoClothes(Player)
 				6472725579
 			}
 		},
-		["Black 1"] = {
+		["Lamp"] = {
 			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
+				["HeadColor3"] = Color3.fromRGB(215, 197, 154),
+				["LeftArmColor3"] = Color3.fromRGB(215, 197, 154),
+				["RightArmColor3"] = Color3.fromRGB(215, 197, 154),
+				["LeftLegColor3"] = Color3.fromRGB(215, 197, 154),
+				["RightLegColor3"] = Color3.fromRGB(215, 197, 154),
+				["TorsoColor3"] = Color3.fromRGB(215, 197, 154),
 			},
 			["Accessory"] = {
-				7392396295,
-				7863333749,
-				7675263201
-			}
-		},
-		["Brown 1"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				7284085462,
-				6441537838,
-			}
-		},
-		["Black 2"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				10752612567, 
-				6812033514, 
-				12283951209, 
-				12815729656, 
-				12931195148
-			}
-		},
-		["Black 3"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				6036143892, 
-				6413085241, 
-				6754455467, 
-				7896143574,
-				7133439522
-			}
-		},
-		["Black 4"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				7097787052,
-				7335390462,
-				8923597159,
-				6310032618
-			}
-		},
-		["Black 5"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				11416699089,
-				8273712381,
-				11959885521,
-				8923597159
-			}
-		},
-		["White 1"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				7240955578, 
-				9244453644,
-				9240826224,
-				8275349855,
-				9241889306
-			}
-		},
-		["White 2"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				8082861034,
-				8089294103,
-				8089443065
-			}
-		},
-		["White With Hat 1"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				7175904988,
-				7214725742,
-				9008202379
-			}
-		},
-		["White With Hat 2"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				8207715434, 
-				7175904988,
-				6216526940
-			}
-		},
-		["White 3"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				7240955578,
-				9244453644,
-				8275349855, 
-				9241889306,
-				9240826224
-			}
-		},
-		["Black 6"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				8089495899, 
-				398672920,
-				12982832975
-			}
-		},
-		["Black 7"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				8082486982,
-				6441072389,
-				9241886323
-			}
-		},
-		["Black 8"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				6752624930,
-				7240994068,
-				7259123616, 
-				8207687270
-			}
-		},
-		["Black 9"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				12410899973,
-				7486725420, 
-				12485469802,
-				11095474871, 
-				10001005299
-			}
-		},
-		["Black Fade Green"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				10661041028,
-				11387061216, 
-				7280442851
-			}
-		},
-		["White 4"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				7222659174,
-				12726002629,
-				10088463133,
-				7628287080
-			}
-		},
-		["White 5"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				6475395916,
-				7063887536,
-				8652761405
-			}
-		},
-		["White Mix Pink"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				7486035624,
-				8275245292,
-				8614911363
-			}
-		},
-		["Black Mix Red"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				9731173784,
-				11050607388,
-				11405828721
-			}
-		},
-		["Black 10"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				11180024054,
-				9240831931, 
-				10001005299,
-				9241886323
-			}
-		},
-		["Black 11"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				7141674388,
-				7168295329, 
-				8040379705, 
-				8821393761, 
-				9571729576
-			}
-		},
-		["Red"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				6842683595, 
-				6840001710, 
-				8031588258
-			}
-		},
-		["White 6"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				7259147441,
-				7733302642
-			}
-		},
-		["Sportsy"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightArmColor3"] = Color3.fromRGB(255, 204, 153),
-				["LeftLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["RightLegColor3"] = Color3.fromRGB(255, 204, 153),
-				["TorsoColor3"] = Color3.fromRGB(255, 204, 153),
-			},
-			["Accessory"] = {
-				7097787052,
-				7335390462,
-				8923597159,
-				6310032618
-			},
-			["Clothing"] = {
-				"Croptop",
-				"Pussy Closed",
-				"Panty 2",
-				"Shoe 3",
-				"Sock 2",
-				"Skirt 2",
-				"Glove"
-			}
-		},
-		["Mimi"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(233, 184, 145),
-				["LeftArmColor3"] = Color3.fromRGB(233, 184, 145),
-				["RightArmColor3"] = Color3.fromRGB(233, 184, 145),
-				["LeftLegColor3"] = Color3.fromRGB(233, 184, 145),
-				["RightLegColor3"] = Color3.fromRGB(233, 184, 145),
-				["TorsoColor3"] = Color3.fromRGB(233, 184, 145),
-			},
-			["Accessory"] = {
-				82879052599298,
-				120729210458213,
-				17590602534,
-				73567120581664
+				12994235173,
+				4524497759,
+				15449936148,
+				114554632554289,
+				119720696640496,
+				16198201410,
+				119562681468957,
+				80606723661767,
+				4524460158,
+				76385054171166
 			},
 			["Clothes"] = {
-				["Shirt"] = 121936175724069,
-				["Pants"] = 107910834770771,
+				["Shirt"] = 1347527314, 
+				["Pants"] = 8298871496,
 			},
+			["TClothes"] = {
+				["Shirt"] = 1347527314,
+				["Pants"] = 8298871496
+			},	
+			["Clothing"] = {
+				"Butt Freckles",
+				"Roblox Shirt",
+				"Off Shoulder Hoodie",
+				"Roblox Pants",
+				'Breast Freckles',
+				"Pussy Open",
+			},
+			["Preset"] = {
+				Tone = "Use NippleColor",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1,
+				RotationPhysicsMultiply = 5,
+				BreastsScale = 1.09,
+				ButtsScale = 1.12,
+				LegsScale = 1.1,
+				BreastsType = 2,
+				TorsoType = 8,
+				ArmType = 1,
+				LegsType = 2,
+				ButtType = 2,
+				HardcoreHP = false,
+				TopHP = 0,
+				BottomHP = 0,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+			["NippleColor"] = Color3.fromRGB(149, 126, 104),
+		},	
+		["Ivory TBB"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
+			},
+			["Accessory"] = {
+				15083910799,
+				76559120450687,
+				105141783679840,
+				13001168964,
+				14728894164,
+				14728896698,
+				16707579677,
+				12848396996,
+				135889208962150,
+				18228496172,	
+			},
+			["Clothes"] = {
+				["Shirt"] = 12906548651, 
+				["Pants"] = 11827229931,
+			},
+			["TClothes"] = {
+				["Shirt"] = 880341607,
+				["Pants"] = 0
+			},	
 			["Clothing"] = {
 				"Roblox Breasts Clothing",
 				"Roblox Shirt",
-				"Roblox Butt Shirt",
+				"Roblox Butt Shirt Method2",
 				"Roblox Pants",
+				"Pussy Closed",
 			},
+			["Preset"] = {
+				Tone = "Dark",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1,
+				RotationPhysicsMultiply = 5,
+				BreastsScale = 1.057,
+				ButtsScale = 0.9,
+				LegsScale = 1,
+				BreastsType = 1,
+				TorsoType = 7,
+				ArmType = 1,
+				LegsType = 1,
+				ButtType = 3,
+				HardcoreHP = true,
+				TopHP = 50,
+				BottomHP = 50,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+		},	
+		["Iota TBB"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(249, 214, 46),
+				["LeftArmColor3"] = Color3.fromRGB(249, 214, 46),
+				["RightArmColor3"] = Color3.fromRGB(249, 214, 46),
+				["LeftLegColor3"] = Color3.fromRGB(249, 214, 46),
+				["RightLegColor3"] = Color3.fromRGB(249, 214, 46),
+				["TorsoColor3"] = Color3.fromRGB(249, 214, 46),
+			},
+			["Accessory"] = {
+				15083910799,
+				18771748150,
+				104185335505657,
+				13262492884,
+				212961774,
+				16260807599,
+				84845288490278,
+				100668841966239,
+				8153281046,
+				122232137026453,
+				112347429984327,
+				96583783903610,
+			},
+			["Clothes"] = {
+				["Shirt"] = 767552806, 
+				["Pants"] = 314623575,
+			},
+			["TClothes"] = {
+				["Shirt"] = 767552806,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				"Pussy Closed",
+			},
+			["Preset"] = {
+				Tone = "Dark",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1,
+				RotationPhysicsMultiply = 5,
+				BreastsScale = 1.057,
+				ButtsScale = 0.9,
+				LegsScale = 1,
+				BreastsType = 1,
+				TorsoType = 7,
+				ArmType = 1,
+				LegsType = 1,
+				ButtType = 3,
+				HardcoreHP = true,
+				TopHP = 50,
+				BottomHP = 50,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+		},	
+		["Martyr TBB"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
+			},
+			["Accessory"] = {
+				13196590211, 
+				84680959127600, 
+				99006189159658, 
+				915265974, 
+				9185359710,
+				114813132263944, 
+				13458529673,
+				140004514942071,
+				123380806313056,
+				13556222058,
+			},
+			["Clothes"] = {
+				["Shirt"] = 100116841780119, 
+				["Pants"] = 219861893,
+			},
+			["TClothes"] = {
+				["Shirt"] = 96149389069882,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				'Nipple Piercing 1',
+				"Pussy Closed",
+			},
+			["Preset"] = {
+				Tone = "Use NippleColor",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1,
+				RotationPhysicsMultiply = 5,
+				BreastsScale = 1.057,
+				ButtsScale = 1,
+				LegsScale = 1,
+				BreastsType = 1,
+				TorsoType = 1,
+				ArmType = 1,
+				LegsType = 1,
+				ButtType = 3,
+				HardcoreHP = true,
+				TopHP = 50,
+				BottomHP = 50,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+			["NippleColor"] = Color3.fromRGB(48, 25, 52),
+		},	
+		["Cheerer"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(254, 152, 219),
+				["LeftArmColor3"] = Color3.fromRGB(254, 200, 200),
+				["RightArmColor3"] = Color3.fromRGB(254, 200, 200),
+				["LeftLegColor3"] = Color3.fromRGB(254, 200, 200),
+				["RightLegColor3"] = Color3.fromRGB(254, 200, 200),
+				["TorsoColor3"] = Color3.fromRGB(254, 200, 200),
+			},
+			["Accessory"] = {
+				15368908193,
+				108460810078507,
+				131309695264210,
+				13570493554,
+				18319933084,
+				89860179134457,
+				94575969446253,
+				18970087631,
+				15433591037,
+			},
+			["Clothes"] = {
+				["Shirt"] = 8549932044,
+				["Pants"] = 1211469425,
+			},
+			["TClothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				'Skirt 1',
+				"Pussy Closed",
+			},
+			["Preset"] = {
+				Tone = "Dark",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1,
+				RotationPhysicsMultiply = 5,
+				BreastsScale = 1,
+				ButtsScale = 1,
+				LegsScale = 1,
+				BreastsType = 1,
+				TorsoType = 7,
+				ArmType = 1,
+				LegsType = 1,
+				ButtType = 1,
+				HardcoreHP = true,
+				TopHP = 50,
+				BottomHP = 50,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+			["Recolor"] = {
+				["Skirt 1"] = {
+					["Primary"] = Color3.fromRGB(232, 196, 208)
+			}
+		},
+		},	
+		
+		["Celestial"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
+			},
+			["Accessory"] = {
+				13954758718,
+				75258283266172,
+				17179937407,
+				82755268414214,
+				86729401701731,
+				95374101464296,
+				16198146974,
+				110049610443318,
+				72141984489000,
+				87540128215850,
+				125306279465221,
+				15931244830,
+				80070375103977,
+				14687177103,
+				94961118606121,
+				137437041529584,
+			},
+			["Clothes"] = {
+				["Shirt"] = 88243944796103,
+				["Pants"] = 80201872714717,
+			},
+			["TClothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				'Pussy Closed',
+			},
+			["Preset"] = {
+				Tone = "Use NippleColor",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1.4,
+				RotationPhysicsMultiply = 4,
+				BreastsScale = 1.15,
+				ButtsScale = 1.1,
+				LegsScale = 1.06,
+				BreastsType = 1,
+				TorsoType = 2,
+				ArmType = 1,
+				LegsType = 3,
+				ButtType = 3,
+				HardcoreHP = true,
+				TopHP = 50,
+				BottomHP = 50,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+			["NippleColor"] = Color3.fromRGB(173, 216, 230),
+		},
+		["Grimoire"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(132, 132, 132),
+				["LeftArmColor3"] = Color3.fromRGB(132, 132, 132),
+				["RightArmColor3"] = Color3.fromRGB(132, 132, 132),
+				["LeftLegColor3"] = Color3.fromRGB(132, 132, 132),
+				["RightLegColor3"] = Color3.fromRGB(132, 132, 132),
+				["TorsoColor3"] = Color3.fromRGB(132, 132, 132),
+			},
+			["Accessory"] = {
+				103068493193313,
+				18276572237,
+				140483245207161,
+				122723184354703,
+				136728394009169,
+				131216123676669,
+				16569744835,
+				130346723197335,
+				119819263981388,
+				129800053802762,
+				126051636826222,
+				94063482693334,
+				108308709967658,
+				12983893292,
+			},
+			["Clothes"] = {
+				["Shirt"] = 125285927098988, 
+				["Pants"] = 14910524024,
+			},
+			["TClothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				"Pussy Closed",
+			},
+			["Preset"] = {
+				Tone = "Dark",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1,
+				RotationPhysicsMultiply = 5,
+				BreastsScale = 1,
+				ButtsScale = 1,
+				LegsScale = 1,
+				BreastsType = 1,
+				TorsoType = 7,
+				ArmType = 1,
+				LegsType = 1,
+				ButtType = 1,
+				HardcoreHP = true,
+				TopHP = 50,
+				BottomHP = 50,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+		},
+		["Artful"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
+			},
+			["Accessory"] = {
+				12471944802,
+				79627815338226,
+				99455594121581,
+				107017043813707,
+				105949245731969,
+				134817825367110,
+				16569744835,
+				95025858661250,
+				137373731796664,
+			},
+			["Clothes"] = {
+				["Shirt"] = 73170957816729, 
+				["Pants"] = 126203651493856,
+			},
+			["TClothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				"Pussy Closed",
+				"Glove 2",
+			},
+			["Preset"] = {
+				Tone = "Use NippleColor",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1,
+				RotationPhysicsMultiply = 5,
+				BreastsScale = 1.05,
+				ButtsScale = 1.03,
+				LegsScale = 1.09,
+				BreastsType = 3,
+				TorsoType = 2,
+				ArmType = 1,
+				LegsType = 2,
+				ButtType = 3,
+				HardcoreHP = true,
+				TopHP = 50,
+				BottomHP = 50,
+				DamageSFX = "0.1",
+				Volume = 100.2,
+			},
+			["NippleColor"] = Color3.fromRGB(80, 80, 80),
+		},
+		["Skittle TBB"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
+			},
+			["Accessory"] = {
+				89446144622093,
+				12700082203,
+				18195300623,
+				89060437197936,
+				132656554742425,
+				9242287193,
+				9242392606,
+				9242239061,
+				92753381669634,
+				16785647211,
+				81008972215317,
+				137648087209240,
+				99994117609298,
+			},
+			["Clothes"] = {
+				["Shirt"] = 10569889867, 
+				["Pants"] = 214279136,
+			},
+			["TClothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				"Oiled",
+				"Pussy Closed",
+			},
+			["Preset"] = {
+				Tone = "Use NippleColor",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1,
+				RotationPhysicsMultiply = 5,
+				BreastsScale = 1.01,
+				ButtsScale = 1,
+				LegsScale = 1,
+				BreastsType = 1,
+				TorsoType = 1,
+				ArmType = 1,
+				LegsType = 1,
+				ButtType = 1,
+				HardcoreHP = false,
+				TopHP = 50,
+				BottomHP = 50,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+			["NippleColor"] = Color3.fromRGB(96, 31, 158),
+		},	
+		["Ultimate TBB"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
+			},
+			["Accessory"] = {
+				13001168964,
+				131405269822097,
+				119170406563899,
+				106631297401803,
+				130991335250207,
+				127072494945361,
+				18212501317,
+				126566248458879,
+				17274841581,
+				16322228773,
+				73920414030715,
+				73221765945636,
+			},
+			["Clothes"] = {
+				["Shirt"] = 12160157312,
+				["Pants"] = 12160153969,
+			},
+			["TClothes"] = {
+				["Shirt"] = 11881610397,
+				["Pants"] = 11881615801
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				'Pussy Closed',
+				'Nipple Piercing 1',
+			},
+			["Preset"] = {
+				Tone = "Dark",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1.4,
+				RotationPhysicsMultiply = 4,
+				BreastsScale = 1.15,
+				ButtsScale = 1.1,
+				LegsScale = 1.05,
+				BreastsType = 1,
+				TorsoType = 2,
+				ArmType = 1,
+				LegsType = 2,
+				ButtType = 1,
+				HardcoreHP = false,
+				TopHP = 50,
+				BottomHP = 30,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+		},
+		["Van1ty"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(254, 200, 200),
+				["LeftArmColor3"] = Color3.fromRGB(254, 200, 200),
+				["RightArmColor3"] = Color3.fromRGB(254, 200, 200),
+				["LeftLegColor3"] = Color3.fromRGB(254, 200, 200),
+				["RightLegColor3"] = Color3.fromRGB(254, 200, 200),
+				["TorsoColor3"] = Color3.fromRGB(254, 200, 200),
+			},
+			["Accessory"] = {
+				17238278,
+				1060284444,
+				102399177587444,
+				14815761,
+				78519397423927,
+				121979758341605,
+				13623290442,
+				15318390289,
+				71002716369892,
+				126443283412566,
+				106852127766627,
+				97150562885217,
+			},
+			["Clothes"] = {
+				["Shirt"] = 9844833,
+				["Pants"] = 9844905,
+			},
+			["TClothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				'Pussy Closed',
+			},
+			["Preset"] = {
+				Tone = "Base",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1.4,
+				RotationPhysicsMultiply = 4,
+				BreastsScale = 1.02,
+				ButtsScale = 1.075,
+				LegsScale = 1.03,
+				BreastsType = 2,
+				TorsoType = 3,
+				ArmType = 2,
+				LegsType = 2,
+				ButtType = 1,
+				HardcoreHP = true,
+				TopHP = 50,
+				BottomHP = 50,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+		},
+	["Van1ty (Displacement)"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(254, 200, 200),
+				["LeftArmColor3"] = Color3.fromRGB(254, 200, 200),
+				["RightArmColor3"] = Color3.fromRGB(254, 200, 200),
+				["LeftLegColor3"] = Color3.fromRGB(254, 200, 200),
+				["RightLegColor3"] = Color3.fromRGB(254, 200, 200),
+				["TorsoColor3"] = Color3.fromRGB(254, 200, 200),
+			},
+			["Accessory"] = {
+				17238278,
+				1060284444,
+				102399177587444,
+				14815761,
+				78519397423927,
+				121979758341605,
+				13623290442,
+				15318390289,
+				71002716369892,
+				126443283412566,
+				106852127766627,
+				97150562885217,
+			},
+			["Clothes"] = {
+				["Shirt"] = 11144170,
+				["Pants"] = 11144181,
+			},
+			["TClothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				'Pussy Closed',
+			},
+			["Preset"] = {
+				Tone = "Base",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1.4,
+				RotationPhysicsMultiply = 4,
+				BreastsScale = 1.02,
+				ButtsScale = 1.075,
+				LegsScale = 1.03,
+				BreastsType = 2,
+				TorsoType = 3,
+				ArmType = 2,
+				LegsType = 2,
+				ButtType = 1,
+				HardcoreHP = true,
+				TopHP = 50,
+				BottomHP = 50,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+	},	
+		["Observer"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(0, 0, 0),
+				["LeftArmColor3"] = Color3.fromRGB(0, 0, 0),
+				["RightArmColor3"] = Color3.fromRGB(0, 0, 0),
+				["LeftLegColor3"] = Color3.fromRGB(0, 0, 0),
+				["RightLegColor3"] = Color3.fromRGB(0, 0, 0),
+				["TorsoColor3"] = Color3.fromRGB(0, 0, 0),
+			},
+			["Accessory"] = {
+				109651035720665,
+				17477112521,
+				85046664445946,
+				97620043255504,
+				107885818711301,
+				86204630884870,
+				140432744825314,
+				18367566973,
+				82718674933894,
+				15941806226,
+			},
+			["Clothes"] = {
+				["Shirt"] = 98777889217041,
+				["Pants"] = 76452570628881,
+			},
+			["TClothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				'Pussy Closed',
+				"Oiled",
+			},
+			["Preset"] = {
+				Tone = "Use NippleColor",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1.4,
+				RotationPhysicsMultiply = 4,
+				BreastsScale = 1.02,
+				ButtsScale = 1.02,
+				LegsScale = 1.075,
+				BreastsType = 1,
+				TorsoType = 4,
+				ArmType = 1,
+				LegsType = 2,
+				ButtType = 3,
+				HardcoreHP = true,
+				TopHP = 25,
+				BottomHP = 25,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+			["NippleColor"] = Color3.fromRGB(255, 255, 255),
+		},
+		["Observer (Casual)"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(0, 0, 0),
+				["LeftArmColor3"] = Color3.fromRGB(0, 0, 0),
+				["RightArmColor3"] = Color3.fromRGB(0, 0, 0),
+				["LeftLegColor3"] = Color3.fromRGB(0, 0, 0),
+				["RightLegColor3"] = Color3.fromRGB(0, 0, 0),
+				["TorsoColor3"] = Color3.fromRGB(0, 0, 0),
+			},
+			["Accessory"] = {
+				109651035720665,
+				17477112521,
+				85046664445946,
+				97620043255504,
+				107885818711301,
+				86204630884870,
+				140432744825314,
+				18367566973,
+				82718674933894,
+				15941806226,
+			},
+			["Clothes"] = {
+				["Shirt"] = 139052537839959,
+				["Pants"] = 8401120450,
+			},
+			["TClothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				'Pussy Closed',
+				"Oiled",
+			},
+			["Preset"] = {
+				Tone = "Use NippleColor",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1.4,
+				RotationPhysicsMultiply = 4,
+				BreastsScale = 1.02,
+				ButtsScale = 1.02,
+				LegsScale = 1.075,
+				BreastsType = 1,
+				TorsoType = 4,
+				ArmType = 1,
+				LegsType = 2,
+				ButtType = 3,
+				HardcoreHP = true,
+				TopHP = 25,
+				BottomHP = 25,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+			["NippleColor"] = Color3.fromRGB(255, 255, 255),
+		},
+		["Yuki"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(165, 165, 165),
+				["LeftArmColor3"] = Color3.fromRGB(165, 165, 165),
+				["RightArmColor3"] = Color3.fromRGB(165, 165, 165),
+				["LeftLegColor3"] = Color3.fromRGB(165, 165, 165),
+				["RightLegColor3"] = Color3.fromRGB(165, 165, 165),
+				["TorsoColor3"] = Color3.fromRGB(165, 165, 165),
+			},
+			["Accessory"] = {
+				16232301062,
+				74082970155780,
+				89732499570704,
+				91550120938389,
+				122723184354703,
+				102892586972052,
+				100006365138856,
+				14330455963,
+			},
+			["Clothes"] = {
+				["Shirt"] = 125140266300679,
+				["Pants"] = 106286206917131,
+			},
+			["TClothes"] = {
+				["Shirt"] = 110205513449118,
+				["Pants"] = 106286206917131
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				'Pussy Closed',
+				"Butt Freckles",
+				"Breast Freckles",
+			},
+			["Preset"] = {
+				Tone = "Use NippleColor",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1.4,
+				RotationPhysicsMultiply = 4,
+				BreastsScale = 1.1,
+				ButtsScale = 1.12,
+				LegsScale = 1,
+				BreastsType = 1,
+				TorsoType = 4,
+				ArmType = 1,
+				LegsType = 2,
+				ButtType = 1,
+				HardcoreHP = true,
+				TopHP = 25,
+				BottomHP = 25,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+			},
+			["NippleColor"] = Color3.fromRGB(125, 125, 125),
+		},
+		["Cesu"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightArmColor3"] = Color3.fromRGB(255, 255, 255),
+				["LeftLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["RightLegColor3"] = Color3.fromRGB(255, 255, 255),
+				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
+			},
+			["Accessory"] = {
+				12700082203,
+				12983706644,
+				103285123438087,
+				110851123298085,
+				8674109003,
+				76097322060564,
+				105141783679840,
+				12773926352,
+				114768605131228,
+				15880045942,
+				72215140956811,
+				117175591258587,
+				122715692093824,
+				15096912174,
+			},
+			["Clothes"] = {
+				["Shirt"] = 92995366664493,
+				["Pants"] = 104452997932260,
+			},
+			["TClothes"] = {
+				["Shirt"] = 92995366664493,
+				["Pants"] = 11881615801,
+			},	
+			["Clothing"] = {
+				"Roblox Breasts Clothing",
+				"Roblox Shirt",
+				"Roblox Butt Shirt Method2",
+				"Roblox Pants",
+				'Pussy Closed',
+				"Sock 2",
+			},
+			["Preset"] = {
+				Tone = "Use NippleColor",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1.4,
+				RotationPhysicsMultiply = 4,
+				BreastsScale = 1.1,
+				ButtsScale = 1.1,
+				LegsScale = 1,
+				BreastsType = 1,
+				TorsoType = 7,
+				ArmType = 1,
+				LegsType = 1,
+				ButtType = 1,
+				HardcoreHP = true,
+				TopHP = 25,
+				BottomHP = 25,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+				},
+			["Recolor"] = {
+				["Sock 2"] = {
+					["Primary"] = Color3.fromRGB(0, 0, 0),
+					["Secondary"] = Color3.fromRGB(0, 100, 255)
+			},
+		},
+			["NippleColor"] = Color3.fromRGB(0, 175, 255),
+		},
+		["Loveshot"] = {
+			["Body Color"] = {
+				["HeadColor3"] = Color3.fromRGB(123, 92, 70),
+				["LeftArmColor3"] = Color3.fromRGB(123, 92, 70),
+				["RightArmColor3"] = Color3.fromRGB(123, 92, 70),
+				["LeftLegColor3"] = Color3.fromRGB(123, 92, 70),
+				["RightLegColor3"] = Color3.fromRGB(123, 92, 70),
+				["TorsoColor3"] = Color3.fromRGB(123, 92, 70),
+			},
+			["Accessory"] = {
+				12471950240,
+				80001241901853,
+				14255792410,
+				18879408039,
+				98099740958357,
+				12178699754,
+				14641020553,
+				16028556882,
+				17179864926,
+				104790184085918,
+				16959544062,
+				102573764551896,
+				131301369273605,
+			},
+			["Clothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0,
+			},
+			["TClothes"] = {
+				["Shirt"] = 0,
+				["Pants"] = 0,
+			},	
+			["Clothing"] = {
+				"Oiled",
+				"Roblox Shirt",
+				"Colorable Heels [Legs6]",
+				"Roblox Pants",
+				'Pussy Closed',
+				"Glove",
+				"Cock",
+			},
+			["Preset"] = {
+				Tone = "Dark",
+				Face = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				PositionPhysicsMultiply = 1.4,
+				RotationPhysicsMultiply = 4,
+				BreastsScale = 1.1,
+				ButtsScale = 1.1,
+				LegsScale = 1.2,
+				BreastsType = 1,
+				TorsoType = 7,
+				ArmType = 1,
+				LegsType = 6,
+				ButtType = 1,
+				HardcoreHP = true,
+				TopHP = 25,
+				BottomHP = 25,
+				DamageSFX = 0.1,
+				Volume = 100.2,
+				CockScale = 1.1,
+			},
+			["Recolor"] = {
+				["Colorable Heels [Legs6]"] = {
+					["Primary"] = Color3.fromRGB(155, 0, 175),
+			},
+		},
+				["NippleColor"] = Color3.fromRGB(92, 64, 51),
 		},
 		-- Clothing Bundles --
 		["Roblox Clothing"] = {
@@ -10586,7 +11211,7 @@ function RoClothes(Player)
 			["Shape"] = Enum.PartType.Block,
 			["Color"] = {
 				["Tone"] = "Base",
-				["Color"] = Color3.fromRGB(163, 162, 165)
+				["Color"] = Color3.fromRGB(165, 165, 165)
 			},
 			["Parent"] = {
 				[1] = "Torso",
@@ -12344,8 +12969,8 @@ function RoClothes(Player)
 
 		Button.Name = ButtonName
 		Button.Parent = ButtonParent
-		Button.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
-		Button.BorderColor3 = Color3.fromRGB(0, 0, 0)
+		Button.BackgroundColor3 = Color3.fromRGB(48, 25, 52)
+		Button.BorderColor3 = Color3.fromRGB(255, 209, 220)
 		Button.Position = UDim2.new(0.784810185, 0, 0.866666734, 0)
 		Button.Size = UDim2.new(0, 200, 0, 50)
 
@@ -12402,7 +13027,7 @@ function RoClothes(Player)
 
 		Button.Name = ButtonName
 		Button.Parent = ButtonParent
-		Button.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+		Button.BackgroundColor3 = Color3.fromRGB(48, 25, 52)
 		Button.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		Button.Position = UDim2.new(0.784810185, 0, 0.866666734, 0)
 		Button.Size = UDim2.new(0, 200, 0, 50)
@@ -14311,9 +14936,9 @@ function RoClothes(Player)
 		for i, v in pairs(GUIObject.ClothesButtonFrame:GetChildren()) do
 			if v:IsA("Frame") then
 				if table.find(PlayerData[SelectPlayer].CurrentClothes, v.Name) then
-					v.BackgroundColor3 = Color3.fromRGB(255, 242, 67)
+					v.BackgroundColor3 = Color3.fromRGB(254, 223, 255)
 				else
-					v.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+					v.BackgroundColor3 = Color3.fromRGB(48, 25, 52)
 				end 
 
 				if GUIObject.ClothesSearch.Text ~= "" then
@@ -14326,12 +14951,12 @@ function RoClothes(Player)
 		for i, v in pairs(GUIObject.BundlesButtonFrame:GetChildren()) do
 			if v:IsA("Frame") then
 				if v.Name == PlayerData[SelectPlayer].CurrentBundle then
-					v.BackgroundColor3 = Color3.fromRGB(255, 242, 67)
+					v.BackgroundColor3 = Color3.fromRGB(254, 223, 255)
 					if v.Name == "nil" then
 						v:FindFirstChildOfClass("TextButton").Text = "CLEAR?"
 					end
-				elseif v.BackgroundColor3 == Color3.fromRGB(255, 242, 67) then
-					v.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+				elseif v.BackgroundColor3 == Color3.fromRGB(254, 223, 255) then
+					v.BackgroundColor3 = Color3.fromRGB(48, 25, 52)
 					if v.Name == "nil" then
 						v:FindFirstChildOfClass("TextButton").Text = "nil"
 					end
@@ -16882,9 +17507,9 @@ function RoClothes(Player)
 		for i, v in pairs(Bundle) do
 			local BButton = Function.ButtonCreate(i, GUIObject.BundlesButtonFrame)
 			if v.ClothingBundle and v.ClothingBundle == true then
-				BButton.BackgroundColor3 = Color3.fromRGB(90, 38, 0)
+				BButton.BackgroundColor3 = Color3.fromRGB(49, 0, 109)
 			elseif v.IsPreset == true then
-				BButton.BackgroundColor3 = Color3.fromRGB(25, 84, 0)
+				BButton.BackgroundColor3 = Color3.fromRGB(170, 51, 106)
 			end
 
 			if i ~= "nil" and i ~= "Bald" then
@@ -17341,7 +17966,7 @@ function RoClothes(Player)
 	GUIObject.PageFrame.Position = UDim2.new(0,0,0)
 	GUIObject.PageFrame.Size = UDim2.new(1,0,1,0)
 
-	GUIObject.UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.UIGradient.Rotation = -90
 	GUIObject.UIGradient.Parent = GUIObject.PageFrame
 
@@ -17358,12 +17983,12 @@ function RoClothes(Player)
 	GUIObject.ClothesSearch.Name = "ClothesSearch"
 	GUIObject.ClothesSearch.Parent = GUIObject.Clothes_3
 	GUIObject.ClothesSearch.AnchorPoint = Vector2.new(0.5, 0)
-	GUIObject.ClothesSearch.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+	GUIObject.ClothesSearch.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ClothesSearch.BorderColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ClothesSearch.Position = UDim2.new(0.5, 0, 1.02, 0)
 	GUIObject.ClothesSearch.Size = UDim2.new(.9, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_34.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(48, 48, 48)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 255, 255))}
+	GUIObject.UIGradient_34.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 192, 211)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(168,136,255))}
 	GUIObject.UIGradient_34.Rotation = -90
 	GUIObject.UIGradient_34.Parent = GUIObject.ClothesSearch
 
@@ -17416,7 +18041,7 @@ function RoClothes(Player)
 
 	GUIObject.UIAspectRatioConstraint_2.Parent = GUIObject.DestroyFrame
 
-	GUIObject.UIGradient_3.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 0, 0))}
+	GUIObject.UIGradient_3.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(77, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(150, 0, 0))}
 	GUIObject.UIGradient_3.Rotation = -90
 	GUIObject.UIGradient_3.Parent = GUIObject.DestroyFrame
 
@@ -17425,15 +18050,15 @@ function RoClothes(Player)
 
 	GUIObject.DestroyButton.Name = "DestroyButton"
 	GUIObject.DestroyButton.Parent = GUIObject.DestroyFrame
-	GUIObject.DestroyButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	GUIObject.DestroyButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 	GUIObject.DestroyButton.BackgroundTransparency = 1.000
 	GUIObject.DestroyButton.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.DestroyButton.Font = Enum.Font.Code
-	GUIObject.DestroyButton.Text = "DESTROY"
-	GUIObject.DestroyButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+	GUIObject.DestroyButton.Text = "KILL!!"
+	GUIObject.DestroyButton.TextColor3 = Color3.fromRGB(155, 0, 0)
 	GUIObject.DestroyButton.TextScaled = true
 	GUIObject.DestroyButton.TextSize = 14.000
-	GUIObject.DestroyButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
+	GUIObject.DestroyButton.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.DestroyButton.TextStrokeTransparency = 0.000
 	GUIObject.DestroyButton.TextWrapped = true
 
@@ -17445,7 +18070,7 @@ function RoClothes(Player)
 	GUIObject.PlayerFrame.Position = UDim2.new(0.5, 0, 0.025, 0)
 	GUIObject.PlayerFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_4.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(54, 0, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 0, 100))}
+	GUIObject.UIGradient_4.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(219,146,198)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(78, 17, 90))}
 	GUIObject.UIGradient_4.Rotation = -90
 	GUIObject.UIGradient_4.Parent = GUIObject.PlayerFrame
 
@@ -17475,7 +18100,7 @@ function RoClothes(Player)
 	GUIObject.BreastsTypeFrame.Position = UDim2.new(0.5, 0, 0.195, 0)
 	GUIObject.BreastsTypeFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_5.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_5.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(240,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(145, 17, 90))}
 	GUIObject.UIGradient_5.Rotation = -90
 	GUIObject.UIGradient_5.Parent = GUIObject.BreastsTypeFrame
 
@@ -17498,12 +18123,12 @@ function RoClothes(Player)
 	GUIObject.BundleSearch.Name = "BundleSearch"
 	GUIObject.BundleSearch.Parent = GUIObject.Bundles
 	GUIObject.BundleSearch.AnchorPoint = Vector2.new(0.5, 0)
-	GUIObject.BundleSearch.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+	GUIObject.BundleSearch.BackgroundColor3 = Color3.fromRGB(48, 25, 52)
 	GUIObject.BundleSearch.BorderColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BundleSearch.Position = UDim2.new(0.5, 0, 1.02, 0)
 	GUIObject.BundleSearch.Size = UDim2.new(.9, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A17.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(48, 48, 48)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 255, 255))}
+	GUIObject.UIGradient_A17.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 192, 211)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(145, 17, 90))}
 	GUIObject.UIGradient_A17.Rotation = -90
 	GUIObject.UIGradient_A17.Parent = GUIObject.BundleSearch
 
@@ -17530,7 +18155,7 @@ function RoClothes(Player)
 	GUIObject.BundleFrame.Position = UDim2.new(0.5, 0, 0.11, 0)
 	GUIObject.BundleFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_6.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 0, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(55, 0, 100))}
+	GUIObject.UIGradient_6.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(240,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(145, 17, 90))}
 	GUIObject.UIGradient_6.Rotation = -90
 	GUIObject.UIGradient_6.Parent = GUIObject.BundleFrame
 
@@ -17558,7 +18183,7 @@ function RoClothes(Player)
 	GUIObject.DelayFrame.Position = UDim2.new(0.5, 0, 0.535, 0)
 	GUIObject.DelayFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_7.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.UIGradient_7.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(80, 203, 240)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(119, 221, 119))}
 	GUIObject.UIGradient_7.Rotation = -90
 	GUIObject.UIGradient_7.Parent = GUIObject.DelayFrame
 
@@ -17589,7 +18214,7 @@ function RoClothes(Player)
 	GUIObject.UICorner_8.CornerRadius = UDim.new(0.25, 0)
 	GUIObject.UICorner_8.Parent = GUIObject.AutoExecuteFrame
 
-	GUIObject.UIGradient_8.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.UIGradient_8.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(40, 101, 120)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(78, 221, 78))}
 	GUIObject.UIGradient_8.Rotation = -90
 	GUIObject.UIGradient_8.Parent = GUIObject.AutoExecuteFrame
 
@@ -17617,7 +18242,7 @@ function RoClothes(Player)
 	GUIObject.BundleBodyColorFrame.Position = UDim2.new(0.5, 0, 0.365, 0)
 	GUIObject.BundleBodyColorFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_15.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_15.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(80, 203, 240)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(119, 221, 119))}
 	GUIObject.UIGradient_15.Rotation = -90
 	GUIObject.UIGradient_15.Parent = GUIObject.BundleBodyColorFrame
 
@@ -17651,7 +18276,7 @@ function RoClothes(Player)
 	GUIObject.UICorner_9.CornerRadius = UDim.new(0.25, 0)
 	GUIObject.UICorner_9.Parent = GUIObject.ResetFrame
 
-	GUIObject.UIGradient_9.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(54, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 0, 0))}
+	GUIObject.UIGradient_9.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(254, 0, 90)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 0, 0))}
 	GUIObject.UIGradient_9.Rotation = -90
 	GUIObject.UIGradient_9.Parent = GUIObject.ResetFrame
 
@@ -17681,7 +18306,7 @@ function RoClothes(Player)
 	GUIObject.UICorner_10.CornerRadius = UDim.new(0.25, 0)
 	GUIObject.UICorner_10.Parent = GUIObject.ExecuteFrame
 
-	GUIObject.UIGradient_10.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(54, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 0, 0))}
+	GUIObject.UIGradient_10.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(254, 0, 90)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 0, 0))}
 	GUIObject.UIGradient_10.Rotation = -90
 	GUIObject.UIGradient_10.Parent = GUIObject.ExecuteFrame
 
@@ -17708,7 +18333,7 @@ function RoClothes(Player)
 	GUIObject.ToneFrame.Position = UDim2.new(0.5, 0, 0.28, 0)
 	GUIObject.ToneFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_11.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_11.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(80, 203, 240)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(119, 221, 119))}
 	GUIObject.UIGradient_11.Rotation = -90
 	GUIObject.UIGradient_11.Parent = GUIObject.ToneFrame
 
@@ -17717,7 +18342,7 @@ function RoClothes(Player)
 
 	GUIObject.ToneButton.Name = "ToneButton"
 	GUIObject.ToneButton.Parent = GUIObject.ToneFrame
-	GUIObject.ToneButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+	GUIObject.ToneButton.BackgroundColor3 = Color3.fromRGB(255, 209, 220)
 	GUIObject.ToneButton.BackgroundTransparency = 1.000
 	GUIObject.ToneButton.BorderSizePixel = 0
 	GUIObject.ToneButton.LayoutOrder = 1
@@ -17727,7 +18352,7 @@ function RoClothes(Player)
 	GUIObject.ToneButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ToneButton.TextScaled = true
 	GUIObject.ToneButton.TextSize = 14.000
-	GUIObject.ToneButton.TextStrokeColor3 = Color3.fromRGB(57, 57, 57)
+	GUIObject.ToneButton.TextStrokeColor3 = Color3.fromRGB(1, 91, 61)
 	GUIObject.ToneButton.TextWrapped = true
 
 	GUIObject.Bundles.Name = "Bundles"
@@ -17771,8 +18396,8 @@ function RoClothes(Player)
 
 	GUIObject.Menu_2.Name = "Menu"
 	GUIObject.Menu_2.Parent = GUIObject.ButtonFrame
-	GUIObject.Menu_2.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	GUIObject.Menu_2.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	GUIObject.Menu_2.BackgroundColor3 = Color3.fromRGB(255, 209, 220)
+	GUIObject.Menu_2.BorderColor3 = Color3.fromRGB(255, 209, 220)
 	GUIObject.Menu_2.Position = UDim2.new(0.784810185, 0, 0.866666734, 0)
 	GUIObject.Menu_2.Size = UDim2.new(1, 0, 1, 0)
 
@@ -17783,7 +18408,7 @@ function RoClothes(Player)
 
 	GUIObject.MenuButton.Name = "MenuButton"
 	GUIObject.MenuButton.Parent = GUIObject.Menu_2
-	GUIObject.MenuButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	GUIObject.MenuButton.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
 	GUIObject.MenuButton.BackgroundTransparency = 1.000
 	GUIObject.MenuButton.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.MenuButton.Font = Enum.Font.Code
@@ -17794,14 +18419,14 @@ function RoClothes(Player)
 	GUIObject.MenuButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.MenuButton.TextWrapped = true
 
-	GUIObject.UIGradient_12.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_12.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.UIGradient_12.Rotation = -90
 	GUIObject.UIGradient_12.Parent = GUIObject.Menu_2
 
 	GUIObject.Menu2_2.Name = "Menu2"
 	GUIObject.Menu2_2.Parent = GUIObject.ButtonFrame
-	GUIObject.Menu2_2.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	GUIObject.Menu2_2.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	GUIObject.Menu2_2.BackgroundColor3 = Color3.fromRGB(255, 209, 220)
+	GUIObject.Menu2_2.BorderColor3 = Color3.fromRGB(255, 209, 220)
 	GUIObject.Menu2_2.Position = UDim2.new(0.784810185, 0, 0.866666734, 0)
 	GUIObject.Menu2_2.Size = UDim2.new(1, 0, 1, 0)
 
@@ -17823,7 +18448,7 @@ function RoClothes(Player)
 	GUIObject.Menu2Button.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.Menu2Button.TextWrapped = true
 
-	GUIObject.UIGradient_19.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_19.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.UIGradient_19.Rotation = -90
 	GUIObject.UIGradient_19.Parent = GUIObject.Menu2_2
 
@@ -17852,7 +18477,7 @@ function RoClothes(Player)
 	GUIObject.Menu3Button.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.Menu3Button.TextWrapped = true
 
-	GUIObject.M3UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.M3UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.M3UIGradient.Rotation = -90
 	GUIObject.M3UIGradient.Parent = GUIObject.Menu3_3
 
@@ -17881,7 +18506,7 @@ function RoClothes(Player)
 	GUIObject.ClothesButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ClothesButton.TextWrapped = true
 
-	GUIObject.UIGradient_13.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_13.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.UIGradient_13.Rotation = -90
 	GUIObject.UIGradient_13.Parent = GUIObject.Clothes_2
 
@@ -17910,7 +18535,7 @@ function RoClothes(Player)
 	GUIObject.BundlesButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BundlesButton.TextWrapped = true
 
-	GUIObject.UIGradient_14.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_14.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.UIGradient_14.Rotation = -90
 	GUIObject.UIGradient_14.Parent = GUIObject.Bundles_2
 
@@ -17957,7 +18582,7 @@ function RoClothes(Player)
 	GUIObject.KeybindFrame.Position = UDim2.new(0.0542876273, 0, 0.931, 0)
 	GUIObject.KeybindFrame.Size = UDim2.new(0.684944391, 0, 0.0538139641, 0)
 
-	GUIObject.UIGradient_16.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(26, 27, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 47, 0))}
+	GUIObject.UIGradient_16.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(253, 253, 150)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 47, 0))}
 	GUIObject.UIGradient_16.Rotation = -90
 	GUIObject.UIGradient_16.Parent = GUIObject.KeybindFrame
 
@@ -17970,7 +18595,7 @@ function RoClothes(Player)
 	GUIObject.KeybindButton.BackgroundTransparency = 1.000
 	GUIObject.KeybindButton.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.KeybindButton.Font = Enum.Font.Code
-	GUIObject.KeybindButton.Text = "Insert"
+	GUIObject.KeybindButton.Text = "Keybind"
 	GUIObject.KeybindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.KeybindButton.TextScaled = true
 	GUIObject.KeybindButton.TextSize = 14.000
@@ -17985,7 +18610,7 @@ function RoClothes(Player)
 	GUIObject.FaceFrame.Position = UDim2.new(0.5, 0, 0.449999988, 0)
 	GUIObject.FaceFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_17.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_17.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(80, 203, 240)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(119, 221, 119))}
 	GUIObject.UIGradient_17.Rotation = -90
 	GUIObject.UIGradient_17.Parent = GUIObject.FaceFrame
 
@@ -18261,7 +18886,7 @@ function RoClothes(Player)
 	GUIObject.MethodFrame.Position = UDim2.new(0.0542876273, 0, 0.865, 0)
 	GUIObject.MethodFrame.Size = UDim2.new(0.684944391, 0, 0.0538139641, 0)
 
-	GUIObject.UIGradient_24.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(26, 27, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 47, 0))}
+	GUIObject.UIGradient_24.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(253, 253, 150)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 47, 0))}
 	GUIObject.UIGradient_24.Rotation = -90
 	GUIObject.UIGradient_24.Parent = GUIObject.MethodFrame
 
@@ -18306,7 +18931,7 @@ function RoClothes(Player)
 	GUIObject.CatalogButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.CatalogButton.TextWrapped = true
 
-	GUIObject.UIGradient_33.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_33.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.UIGradient_33.Rotation = -90
 	GUIObject.UIGradient_33.Parent = GUIObject.Catalog_2
 
@@ -18335,7 +18960,7 @@ function RoClothes(Player)
 	GUIObject.EditButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.EditButton.TextWrapped = true
 
-	GUIObject.UIGradient_32.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_32.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.UIGradient_32.Rotation = -90
 	GUIObject.UIGradient_32.Parent = GUIObject.Edit_2
 
@@ -19083,7 +19708,7 @@ function RoClothes(Player)
 	GUIObject.HPButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.HPButton.TextWrapped = true
 
-	GUIObject.UIGradient_A3.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_A3.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.UIGradient_A3.Rotation = -90
 	GUIObject.UIGradient_A3.Parent = GUIObject.HP
 
@@ -19355,7 +19980,7 @@ function RoClothes(Player)
 	GUIObject.RecolorButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.RecolorButton.TextWrapped = true
 
-	GUIObject.UIGradient_A14.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_A14.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.UIGradient_A14.Rotation = -90
 	GUIObject.UIGradient_A14.Parent = GUIObject.Recolor
 
@@ -19643,7 +20268,7 @@ function RoClothes(Player)
 				GUIObject.Screen:Destroy()
 				GUIObject.MobileCloseButtonScreen:Destroy()
 				BreakerObject:Destroy()
-				print("RoCDC")
+				print("goodbye!")
 				break
 			end
 		end
