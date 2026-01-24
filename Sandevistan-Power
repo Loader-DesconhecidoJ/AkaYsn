@@ -1,10 +1,30 @@
 --!strict
 --[[
     ╔════════════════════════════════════════════════════════════════════╗
-    ║      CYBERPUNK SANDEVISTAN - PROJECT EDGE RUNNER [V40 DAVID]       ║
-    ║      LOG: Added Spine GIF FX, Super Jump, Kinetic Impact           ║
+    ║      CYBERPUNK SANDEVISTAN - PROJECT EDGE RUNNER [V44 FIXED COLORS]║
+    ║      LOG: Cores dos Ghosts corrigidas para gradiente fixo          ║
+    ║      UPGRADE: Ghosts agora sempre nascem na cor INICIAL do gradiente║
+    ║      e morrem na cor FINAL do gradiente (sem ciclo de arco-íris)   ║
+    ║      FIX: Sandi sempre começa Ciano e termina Verde Claro          ║
+    ║      FIX: Dash, Dodge e Noclip seguem a mesma lógica fixa          ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
+
+--// CONFIGURAÇÃO FÁCIL
+local CONFIG = {
+    GHOST_TRANSPARENCY = {  -- Transparência inicial dos ghosts (0 = visível, 1 = invisível)
+        SANDI = 0.2,
+        DASH = 0.2,
+        DODGE = 0.2,
+        NOCLIP = 0.6
+    },
+    GHOST_FADE_TIME = {  -- Duração do fade (em segundos)
+        SANDI = 1.5
+        DASH = 1.5,
+        DODGE = 1.5,
+        NOCLIP = 1.5
+    }
+}
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -17,37 +37,53 @@ local Lighting = game:GetService("Lighting")
 type Cooldowns = {
 	SANDI: number,
 	DASH: number,
-	DODGE: number
+	DODGE: number,
+	NOCLIP: number
 }
 
 type SystemState = {
 	Energy: number,
 	IsSandiActive: boolean,
+	IsNoclipActive: boolean,
+	NoclipEndTime: number,
+	OriginalPartStates: {[BasePart]: {CanCollide: boolean, Material: Enum.Material, Transparency: number}},
 	Cooldowns: Cooldowns,
 	EditMode: boolean,
 	LastVelocityY: number,
 	ActiveLabels: number,
 	LastHealth: number,
-	LastGhostTime: number
+	LastGhostTime: number,
+	GhostColorIndex: number
 }
 
---// CONFIGURAÇÃO
+type GhostData = {
+	ghost: Model,
+	startColor: Color3,
+	endColor: Color3
+}
+
+--// CONFIGURAÇÃO DE CORES E STATUS
 local SETTINGS = {
 	STATS = {
 		MAX_ENERGY = 100,
-		SANDI_SPEED = 150, -- Aumentado para nivel David Martinez
+		SANDI_SPEED = 150,
 		DASH_FORCE = 110,
 		IMPACT_THRESHOLD = -50,
-		GHOST_INTERVAL = 0.03, 
-		JUMP_BOOST = 90, -- Altura do pulo quando ativado
+		GHOST_INTERVAL = 0.05, 
+		JUMP_BOOST = 90,
+		GHOST_TRAIL_LENGTH = 10,
+		NOCLIP_DURATION = 2,
+		NOCLIP_ENERGY_COST = 20,
+		MOVEMENT_THRESHOLD = 1,
+		DODGE_DETECTION_RANGE = 50 
 	},
 	COOLDOWNS = {
 		SANDI = 10,
 		DASH = 3,
 		DODGE = 4.5,
+		NOCLIP = 5
 	},
 	COLORS = {
-		-- Cores Baseadas no GIF (Espectro de Calor/Neon)
 		CYAN_MAIN = Color3.fromRGB(0, 255, 240), 
 		CYAN_DIM = Color3.fromRGB(0, 150, 255),
 		
@@ -57,14 +93,37 @@ local SETTINGS = {
 		YELLOW_MAIN = Color3.fromRGB(255, 230, 0),
 		YELLOW_END = Color3.fromRGB(255, 100, 0),
 		
-		-- Cores do Efeito Spine (Arco-iris Neon do GIF)
+		NOCLIP_MAIN = Color3.fromRGB(200, 200, 255),
+		NOCLIP_END = Color3.fromRGB(255, 255, 255),
+		
 		SPINE_GRADIENT = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),     -- Vermelho
-			ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255,165,0)), -- Laranja
-			ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255,255,0)), -- Amarelo
-			ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0,255,0)),   -- Verde
-			ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0,255,255)), -- Ciano
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(130,0,255))    -- Roxo
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 240)), 
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 255))    
+		}),
+		
+		-- [[ CONFIGURAÇÃO DOS GRADIENTES DOS GHOSTS ]] --
+		-- 0 = Cor que o ghost nasce
+		-- 1 = Cor que o ghost vira quando está sumindo
+		
+		SANDI_GHOST_GRADIENT = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),  -- COMEÇA: Ciano
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 0))     -- TERMINA: Verde Claro
+		}),
+		
+		DASH_GHOST_GRADIENT = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 0)),  -- COMEÇA: Amarelo
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 165, 0))   -- TERMINA: Laranja
+		}),
+		
+		DODGE_GHOST_GRADIENT = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(186, 85, 211)), -- COMEÇA: Roxo Rosado
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 182, 193)) -- TERMINA: Rosa Claro
+		}),
+		
+		NOCLIP_GHOST_GRADIENT = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 139)),       -- COMEÇA: Azul Escuro
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(135, 206, 235)), -- MEIO: Azul Claro
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 255))      -- TERMINA: Ciano
 		}),
 		
 		UI_BG = Color3.fromRGB(10, 10, 14),
@@ -80,34 +139,38 @@ local SETTINGS = {
 			SANDI_ON = "rbxassetid://123844681344865", 
 			SANDI_LOOP = "rbxassetid://9057048700", 
 			SANDI_OFF = "rbxassetid://118534165523355",
-			HIT = "rbxassetid://5665936061"
+			HIT = "rbxassetid://5665936061",
+			NOCLIP = "rbxassetid://72335942298289"
 		},
 		TEXTURES = {
 			SMOKE = "rbxassetid://243023223",
 			CRACK = "rbxassetid://7003440776", 
-			DEBRIS = "rbxassetid://5860841658",
-			-- COLOQUE O ID DA SUA IMAGEM/GIF AQUI EM BAIXO:
-			SPINE_ID = "rbxassetid://0" -- << SUBSITUA PELO ID DO SEU GIF UPLOADADO
+			DEBRIS = "rbxassetid://5860841658"
 		}
 	}
 }
 
---// STATE & SAVED POSITIONS
+--// STATE
 local State: SystemState = {
 	Energy = SETTINGS.STATS.MAX_ENERGY,
 	IsSandiActive = false,
-	Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0},
+	IsNoclipActive = false,
+	NoclipEndTime = 0,
+	OriginalPartStates = {},
+	Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, NOCLIP = 0},
 	EditMode = false,
 	LastVelocityY = 0,
 	ActiveLabels = 0,
 	LastHealth = 100,
-	LastGhostTime = 0
+	LastGhostTime = 0,
+	GhostColorIndex = 0
 }
 
 local SavedLayout = {
 	Energy = UDim2.new(0.5, -140, 0.9, 0),
 	BtnSandi = UDim2.new(1, -90, 0.6, 0),
 	BtnDash = UDim2.new(1, -90, 0.72, 0),
+	BtnNoclip = UDim2.new(1, -90, 0.84, 0),
 	Cooldowns = UDim2.new(0, 20, 0.5, -150)
 }
 
@@ -166,70 +229,17 @@ local function CamShake(intensity: number, duration: number, zoomData: number?)
 	end)
 end
 
--- Novo VFX do Spine (O GIF nas costas)
-local function ToggleSpineFX(enable: boolean)
-	if not Character then return end
-	local torso = Character:FindFirstChild("UpperTorso") or Character:FindFirstChild("Torso")
-	if not torso then return end
-	
-	if enable then
-		local spineGui = Create("BillboardGui", {
-			Name = "DavidSpineFX",
-			Size = UDim2.new(2, 0, 3, 0), -- Tamanho ajustado para cobrir as costas
-			StudsOffset = Vector3.new(0, 0.2, -0.6), -- Levemente atrás do corpo
-			AlwaysOnTop = true,
-			Parent = torso
-		})
-		
-		local img = Create("ImageLabel", {
-			Size = UDim2.new(1, 0, 1, 0),
-			BackgroundTransparency = 1,
-			Image = SETTINGS.ASSETS.TEXTURES.SPINE_ID,
-			ImageColor3 = Color3.new(1,1,1),
-			Parent = spineGui
-		})
-		
-		-- Efeito de Pulso RGB (Spectrum) para simular o GIF
-		local gradient = Create("UIGradient", {
-			Color = SETTINGS.COLORS.SPINE_GRADIENT,
-			Rotation = 90,
-			Parent = img
-		})
-		
-		-- Animação do Gradiente (Simulando calor/energia correndo)
-		task.spawn(function()
-			local t = 0
-			while spineGui and spineGui.Parent do
-				t = t + 0.1
-				gradient.Offset = Vector2.new(0, math.sin(t) * 0.5)
-				-- Piscar levemente a transparência
-				img.ImageTransparency = 0.1 + (math.sin(t * 5) * 0.1)
-				RunService.Heartbeat:Wait()
-			end
-		end)
-		
-		ActiveEffects["Spine"] = spineGui
-	else
-		if ActiveEffects["Spine"] then
-			ActiveEffects["Spine"]:Destroy()
-			ActiveEffects["Spine"] = nil
-		end
-	end
-end
-
 local function TogglePostProcessing(enable: boolean)
 	if enable then
 		local cc = Create("ColorCorrectionEffect", {Name = "SandiCC", TintColor = Color3.fromRGB(180, 255, 220), Saturation = 0.2, Contrast = 0.4, Parent = Lighting})
 		local blur = Create("BlurEffect", {Name = "SandiBlur", Size = 0, Parent = Lighting})
 		local bloom = Create("BloomEffect", {Name = "SandiBloom", Intensity = 0, Threshold = 0.5, Size = 30, Parent = Lighting})
 		
-		-- Efeito cromático (simula a visão do David falhando/acelerando)
 		task.spawn(function()
 			TweenService:Create(blur, TweenInfo.new(0.5), {Size = 8}):Play()
 			TweenService:Create(bloom, TweenInfo.new(0.5), {Intensity = 2}):Play()
 			
 			while ActiveEffects["CC"] do
-				-- Oscilação cromática
 				TweenService:Create(cc, TweenInfo.new(0.1), {TintColor = Color3.fromHSV(0.45 + (math.random(-5,5)/100), 0.5, 1)}):Play()
 				task.wait(0.1)
 			end
@@ -253,7 +263,7 @@ local function DashScreenFX()
 		Name = "DashCC", TintColor = Color3.new(1,1,1), Saturation = 0, Contrast = 0, Parent = Lighting
 	})
 	TweenService:Create(cc, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		TintColor = SETTINGS.COLORS.GOLD_TINT, Saturation = 0.5, Contrast = 0.2
+		TintColor = SETTINGS.COLORS.YELLOW_MAIN, Saturation = 0.5, Contrast = 0.2
 	}):Play()
 	task.delay(0.25, function()
 		local rev = TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.new(1,1,1), Saturation = 0, Contrast = 0})
@@ -261,24 +271,73 @@ local function DashScreenFX()
 	end)
 end
 
-local function CreateCyberGhost(startColor: Color3, endColor: Color3)
+local function GetColorFromSequence(seq: ColorSequence, t: number): Color3
+	t = math.clamp(t, 0, 1)
+	local keypoints = seq.Keypoints
+	for i = 1, #keypoints - 1 do
+		local kp1 = keypoints[i]
+		local kp2 = keypoints[i + 1]
+		if t >= kp1.Time and t < kp2.Time then
+			local alpha = (t - kp1.Time) / (kp2.Time - kp1.Time)
+			return kp1.Value:Lerp(kp2.Value, alpha)
+		end
+	end
+	return keypoints[#keypoints].Value
+end
+
+local function CreateCyberGhost(ability: string, gradient: ColorSequence, persistent: boolean?, targetCFrame: CFrame?): GhostData?
 	if not Character then return end
 	Character.Archivable = true
 	local ghost = Create("Model", {Name = "GhostFX", Parent = workspace})
 	
+	-- [[ ATUALIZAÇÃO V44 ]] --
+	-- Removida a lógica rotativa. Agora usa sempre o começo (0) e fim (1) fixos do gradiente.
+	-- Isso força o Sandi a ser SEMPRE Ciano no início e Verde no final.
+	local startColor = GetColorFromSequence(gradient, 0)
+	local endColor = GetColorFromSequence(gradient, 1)
+	
+	local initial_trans = CONFIG.GHOST_TRANSPARENCY[ability] or 0.6
+	local fade_time = CONFIG.GHOST_FADE_TIME[ability] or 1.5
+	
+	local rootCF = Character:FindFirstChild("HumanoidRootPart").CFrame
+	
 	for _, part in pairs(Character:GetChildren()) do
-		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" and part.Transparency < 1 then
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 			local p = part:Clone()
 			p.Anchored = true; p.CanCollide = false; p.Massless = true; p.Material = Enum.Material.ForceField
+			
+			-- Define cor inicial (ex: Ciano)
 			p.Color = startColor
-			p.Transparency = -1
-			p.CFrame = part.CFrame; p.Parent = ghost
+			p.Transparency = initial_trans 
+			
+			if targetCFrame then
+				p.CFrame = targetCFrame * (rootCF:Inverse() * part.CFrame)
+			else
+				p.CFrame = part.CFrame
+			end
+			p.Parent = ghost
 			
 			for _, child in pairs(p:GetChildren()) do if not child:IsA("SpecialMesh") then child:Destroy() end end
-			TweenService:Create(p, TweenInfo.new(0.8), {Color = endColor, Transparency = 1}):Play()
+			
+			if not persistent then
+				-- Tween para cor final (ex: Verde) e transparência total
+				TweenService:Create(p, TweenInfo.new(fade_time, Enum.EasingStyle.Linear), {
+					Color = endColor,
+					Transparency = 1
+				}):Play()
+			end
 		end
 	end
-	Debris:AddItem(ghost, 0.45)
+	
+	-- Mantemos o index apenas se quisermos usar logicamente para outras coisas, mas nao afeta a cor mais
+	State.GhostColorIndex = (State.GhostColorIndex + 1) % (SETTINGS.STATS.GHOST_TRAIL_LENGTH + 1)
+	
+	if not persistent then
+		Debris:AddItem(ghost, fade_time)
+		return nil
+	else
+		return {ghost = ghost, startColor = startColor, endColor = endColor}
+	end
 end
 
 local function VFX_Impact_Ambient(pos: Vector3)
@@ -376,12 +435,55 @@ local function ExecDodge(enemyPart: BasePart?)
 	
 	PlaySFX(SETTINGS.ASSETS.SOUNDS.DODGE, 1.5, 1.2)
 	ShowCooldownBar("NEURAL DODGE", SETTINGS.COOLDOWNS.DODGE, SETTINGS.COLORS.MAGENTA_MAIN)
-	CreateCyberGhost(SETTINGS.COLORS.MAGENTA_MAIN, SETTINGS.COLORS.MAGENTA_END)
 	
-	if enemyPart then HRP.CFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, 5)).Position, enemyPart.Position)
-	else HRP.CFrame = HRP.CFrame * CFrame.new(0, 0, -10) end
+	local oldCFrame = HRP.CFrame
 	
-	CamShake(1.5, 0.2); local flash = Create("ColorCorrectionEffect", {Brightness = 0.5, Parent = Lighting}); Debris:AddItem(flash, 0.1)
+	if enemyPart then
+		local behindPos = enemyPart.CFrame * CFrame.new(0, 0, 3)  
+		HRP.CFrame = CFrame.lookAt(behindPos.Position, enemyPart.Position)
+	else
+		HRP.CFrame = HRP.CFrame * CFrame.new(0, 0, -10)
+	end
+	
+	local newCFrame = HRP.CFrame
+	
+	CreateCyberGhost("DODGE", SETTINGS.COLORS.DODGE_GHOST_GRADIENT, false, oldCFrame)
+	
+	for i = 1, 4 do
+		local alpha = i / 5
+		local lerpedCFrame = oldCFrame:Lerp(newCFrame, alpha)
+		CreateCyberGhost("DODGE", SETTINGS.COLORS.DODGE_GHOST_GRADIENT, false, lerpedCFrame)
+	end
+	
+	CreateCyberGhost("DODGE", SETTINGS.COLORS.DODGE_GHOST_GRADIENT)
+	
+	local flash = Create("ColorCorrectionEffect", {Brightness = 1, TintColor = Color3.new(1,1,1), Parent = Lighting})
+	TweenService:Create(flash, TweenInfo.new(0.1), {Brightness = 0}):Play()
+	Debris:AddItem(flash, 0.1)
+	
+	local dodgeCC = Create("ColorCorrectionEffect", {Name = "DodgeCC", TintColor = Color3.fromRGB(186, 85, 211), Saturation = 0.3, Contrast = 0.2, Parent = Lighting})
+	TweenService:Create(dodgeCC, TweenInfo.new(0.3), {TintColor = Color3.fromRGB(255, 182, 193)}):Play()
+	task.delay(0.5, function()
+		local rev = TweenService:Create(dodgeCC, TweenInfo.new(0.4), {TintColor = Color3.new(1,1,1), Saturation = 0, Contrast = 0})
+		rev:Play(); rev.Completed:Connect(function() dodgeCC:Destroy() end)
+	end)
+	
+	CamShake(1.5, 0.2)
+end
+
+local function DeactivateSandevistan()
+	PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1.5, 0.8)
+	if HRP:FindFirstChild("SandiLoop") then HRP.SandiLoop:Destroy() end
+	State.Cooldowns.SANDI = os.clock() + SETTINGS.COOLDOWNS.SANDI
+	ShowCooldownBar("SYSTEM COOLING", SETTINGS.COOLDOWNS.SANDI, SETTINGS.COLORS.CYAN_MAIN)
+	
+	TogglePostProcessing(false)
+	CamShake(1, 0.3) 
+	
+	Humanoid.WalkSpeed = 16
+	Humanoid.JumpPower = 50
+	
+	TweenService:Create(Camera, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {FieldOfView = 70}):Play()
 end
 
 local function ExecSandi()
@@ -396,26 +498,11 @@ local function ExecSandi()
 		CamShake(2, 0.5, 5) 
 		TweenService:Create(Camera, TweenInfo.new(0.5, Enum.EasingStyle.Back), {FieldOfView = 125}):Play()
 		TogglePostProcessing(true)
-		ToggleSpineFX(true) -- Ativa o GIF nas costas
 		
-		-- Habilidade: Super Pulo do David
 		Humanoid.UseJumpPower = true
 		Humanoid.JumpPower = SETTINGS.STATS.JUMP_BOOST
 	else
-		PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1.5, 0.8)
-		if HRP:FindFirstChild("SandiLoop") then HRP.SandiLoop:Destroy() end
-		State.Cooldowns.SANDI = os.clock() + SETTINGS.COOLDOWNS.SANDI
-		ShowCooldownBar("SYSTEM COOLING", SETTINGS.COOLDOWNS.SANDI, SETTINGS.COLORS.CYAN_MAIN)
-		
-		TogglePostProcessing(false)
-		ToggleSpineFX(false) -- Desativa o GIF
-		CamShake(1, 0.3) 
-		
-		-- Reset Stats
-		Humanoid.WalkSpeed = 16
-		Humanoid.JumpPower = 50
-		
-		TweenService:Create(Camera, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {FieldOfView = 70}):Play()
+		DeactivateSandevistan()
 	end
 end
 
@@ -424,7 +511,7 @@ local function ExecDash()
 	State.Cooldowns.DASH = os.clock() + SETTINGS.COOLDOWNS.DASH
 	State.Energy -= 15
 	PlaySFX(SETTINGS.ASSETS.SOUNDS.DASH, 1.5, math.random(90,110)/100)
-	ShowCooldownBar("KINETIC DASH", 1, SETTINGS.COLORS.YELLOW_MAIN)
+	ShowCooldownBar("KINETIC DASH", SETTINGS.COOLDOWNS.DASH, SETTINGS.COLORS.YELLOW_MAIN)
 	
 	DashScreenFX()
 	TweenService:Create(Camera, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FieldOfView = 110}):Play()
@@ -438,7 +525,70 @@ local function ExecDash()
 	local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e5, 1e5, 1e5), Velocity = direction * SETTINGS.STATS.DASH_FORCE, P = 1500, Parent = HRP})
 	Debris:AddItem(bv, 0.25)
 	
-	task.spawn(function() for i=1, 4 do CreateCyberGhost(SETTINGS.COLORS.YELLOW_MAIN, SETTINGS.COLORS.YELLOW_END) task.wait(0.05) end end)
+	task.spawn(function() 
+		for i=1, 4 do 
+			CreateCyberGhost("DASH", SETTINGS.COLORS.DASH_GHOST_GRADIENT)
+			task.wait(0.05) 
+		end 
+	end)
+end
+
+local function ExecNoclip()
+	if State.IsNoclipActive or os.clock() < State.Cooldowns.NOCLIP or State.Energy < SETTINGS.STATS.NOCLIP_ENERGY_COST then return end
+	
+	State.Energy -= SETTINGS.STATS.NOCLIP_ENERGY_COST
+	State.IsNoclipActive = true
+	State.NoclipEndTime = os.clock() + SETTINGS.STATS.NOCLIP_DURATION
+	PlaySFX(SETTINGS.ASSETS.SOUNDS.NOCLIP, 1.5, 1.2)
+	CamShake(1, 0.3)
+	
+	State.OriginalPartStates = {}
+	for _, part in pairs(Character:GetChildren()) do
+		if part:IsA("BasePart") then
+			State.OriginalPartStates[part] = {
+				CanCollide = part.CanCollide,
+				Material = part.Material,
+				Transparency = part.Transparency
+			}
+			part.CanCollide = false
+			part.Material = Enum.Material.ForceField
+			part.Transparency = 1
+		end
+	end
+	
+	ActiveEffects["NoclipGhosts"] = {}
+end
+
+local function DeactivateNoclip()
+	State.IsNoclipActive = false
+	State.Cooldowns.NOCLIP = os.clock() + SETTINGS.COOLDOWNS.NOCLIP
+	ShowCooldownBar("NOCLIP COOLDOWN", SETTINGS.COOLDOWNS.NOCLIP, SETTINGS.COLORS.NOCLIP_MAIN)
+	
+	for part, props in pairs(State.OriginalPartStates) do
+		if part and part.Parent then
+			part.CanCollide = props.CanCollide
+			part.Material = props.Material
+			part.Transparency = props.Transparency
+		end
+	end
+	State.OriginalPartStates = {}
+	
+	if ActiveEffects["NoclipGhosts"] then
+		local fade_time = CONFIG.GHOST_FADE_TIME.NOCLIP or 1.5
+		for _, data: GhostData in pairs(ActiveEffects["NoclipGhosts"]) do
+			local ghost = data.ghost
+			for _, p in pairs(ghost:GetChildren()) do
+				if p:IsA("BasePart") then
+					TweenService:Create(p, TweenInfo.new(fade_time, Enum.EasingStyle.Linear), {
+						Color = data.endColor,
+						Transparency = 1
+					}):Play()
+				end
+			end
+			Debris:AddItem(ghost, fade_time)
+		end
+		ActiveEffects["NoclipGhosts"] = nil
+	end
 end
 
 --// UI BUILDER
@@ -482,22 +632,25 @@ local function BuildUI()
 	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = barBg})
 	local barFill = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = SETTINGS.COLORS.CYAN_MAIN, BorderSizePixel = 0, Parent = barBg})
 	Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = barFill})
-	Create("UIGradient", {Color = SETTINGS.COLORS.SPINE_GRADIENT, Parent = barFill}) -- Gradiente atualizado para combinar com o GIF
+	Create("UIGradient", {Color = SETTINGS.COLORS.SPINE_GRADIENT, Parent = barFill})
 
-	local function CreateIndependentBtn(text, color, pos, saveKey, callback)
+	local function CreateIndependentBtn(text: string, color: Color3, pos: UDim2, saveKey: string, callback: () -> ())
 		local holder = Create("Frame", {Size = UDim2.new(0, 60, 0, 60), Position = pos, BackgroundTransparency = 1, Parent = gui})
-		local btn = Create("TextButton", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = SETTINGS.COLORS.UI_BG, Text = "", AutoButtonColor = false, Parent = holder, ZIndex = 2})
-		Create("UICorner", {CornerRadius = UDim.new(0, 14), Parent = btn})
+		local btn = Create("TextButton", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Color3.new(0,0,0), Text = "", AutoButtonColor = false, Parent = holder, ZIndex = 2})
+		Create("UICorner", {CornerRadius = UDim.new(0, 30), Parent = btn})
 		local s = Create("UIStroke", {Color = color, Thickness = 2, Parent = btn})
-		local label = Create("TextLabel", {Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = text, TextColor3 = color, Font = Enum.Font.GothamBlack, TextSize = 20, Parent = btn, ZIndex = 3})
+		local textLabel = Create("TextLabel", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = text, TextColor3 = color, Font = Enum.Font.GothamBlack, TextSize = 32, Parent = btn, ZIndex = 3})
 		
-		btn.MouseButton1Down:Connect(function() if State.EditMode then return end TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0.9,0,0.9,0), BackgroundColor3 = color}):Play() label.TextColor3 = SETTINGS.COLORS.UI_BG callback() end)
-		btn.MouseButton1Up:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(1,0,1,0), BackgroundColor3 = SETTINGS.COLORS.UI_BG}):Play() label.TextColor3 = color end)
+		Create("UIGradient", {Color = ColorSequence.new(Color3.new(0.1,0.1,0.1), Color3.new(0,0,0)), Rotation = 90, Parent = btn})
+		
+		btn.MouseButton1Down:Connect(function() if State.EditMode then return end TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0.9,0,0.9,0), BackgroundColor3 = color}):Play() textLabel.TextColor3 = Color3.new(0,0,0) callback() end)
+		btn.MouseButton1Up:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(1,0,1,0), BackgroundColor3 = Color3.new(0,0,0)}):Play() textLabel.TextColor3 = color end)
 		EnableDrag(holder, s, saveKey)
 	end
 	
-	CreateIndependentBtn("E", SETTINGS.COLORS.CYAN_MAIN, SavedLayout.BtnSandi, "BtnSandi", ExecSandi)
-	CreateIndependentBtn("Q", SETTINGS.COLORS.YELLOW_MAIN, SavedLayout.BtnDash, "BtnDash", ExecDash)
+	CreateIndependentBtn("S", SETTINGS.COLORS.CYAN_MAIN, SavedLayout.BtnSandi, "BtnSandi", ExecSandi)
+	CreateIndependentBtn("D", SETTINGS.COLORS.YELLOW_MAIN, SavedLayout.BtnDash, "BtnDash", ExecDash)
+	CreateIndependentBtn("N", SETTINGS.COLORS.NOCLIP_MAIN, SavedLayout.BtnNoclip, "BtnNoclip", ExecNoclip)
 
 	local cdHolder = Create("Frame", {Name = "CooldownHolder", Size = UDim2.new(0, 180, 0, 300), Position = SavedLayout.Cooldowns, BackgroundTransparency = 1, Parent = gui})
 	Create("UIListLayout", {Padding = UDim.new(0, 5), VerticalAlignment = Enum.VerticalAlignment.Bottom, Parent = cdHolder})
@@ -510,7 +663,7 @@ local function BuildUI()
 		percentLabel.Text = math.floor(p * 100) .. "%"
 		if State.IsSandiActive then
 			energyLabel.Text = "/// DAVID_OS: ACTIVE ///"
-			energyLabel.TextColor3 = Color3.fromHSV(os.clock() % 1, 1, 1) -- Rainbow text
+			energyLabel.TextColor3 = Color3.fromHSV(os.clock() % 1, 1, 1)
 			energyStroke.Color = SETTINGS.COLORS.MAGENTA_MAIN
 		else
 			energyLabel.Text = "MILITECH OS V.40"
@@ -527,7 +680,23 @@ RunService.Heartbeat:Connect(function(dt)
 	
 	if Humanoid.Health < State.LastHealth then
 		local dmg = State.LastHealth - Humanoid.Health
-		if dmg > 0 and os.clock() >= State.Cooldowns.DODGE then ExecDodge(nil) end
+		if dmg > 0 and os.clock() >= State.Cooldowns.DODGE then
+			local closestEnemyPart: BasePart? = nil
+			local minDist = SETTINGS.STATS.DODGE_DETECTION_RANGE
+			
+			for _, model in pairs(workspace:GetChildren()) do
+				if model:IsA("Model") and model ~= Character and model:FindFirstChild("Humanoid") and model:FindFirstChild("HumanoidRootPart") then
+					local enemyHRP = model.HumanoidRootPart
+					local dist = (HRP.Position - enemyHRP.Position).Magnitude
+					if dist < minDist then
+						minDist = dist
+						closestEnemyPart = enemyHRP
+					end
+				end
+			end
+			
+			ExecDodge(closestEnemyPart)
+		end
 	end
 	State.LastHealth = Humanoid.Health
 	
@@ -535,18 +704,14 @@ RunService.Heartbeat:Connect(function(dt)
 	State.LastVelocityY = HRP.Velocity.Y
 	
 	if State.IsSandiActive then
-		State.Energy -= 12 * dt -- Consumo ajustado
+		State.Energy -= 12 * dt
 		Humanoid.WalkSpeed = SETTINGS.STATS.SANDI_SPEED
 		
-		-- Fantasmas mais frequentes (Efeito David)
-		if os.clock() - State.LastGhostTime > SETTINGS.STATS.GHOST_INTERVAL then
-			-- Alterna cores entre Verde Neon e Ciano (Estilo Anime)
-			local gc = (os.clock() % 0.2 < 0.1) and Color3.fromRGB(0,255,100) or SETTINGS.COLORS.CYAN_MAIN
-			CreateCyberGhost(gc, SETTINGS.COLORS.CYAN_DIM)
+		if HRP.Velocity.Magnitude > SETTINGS.STATS.MOVEMENT_THRESHOLD and os.clock() - State.LastGhostTime > SETTINGS.STATS.GHOST_INTERVAL then
+			CreateCyberGhost("SANDI", SETTINGS.COLORS.SANDI_GHOST_GRADIENT)
 			State.LastGhostTime = os.clock()
 		end
 		
-		-- Habilidade Passiva: Impacto Cinético (Jogar coisas longe)
 		local parts = workspace:GetPartBoundsInBox(HRP.CFrame, Vector3.new(4,6,4))
 		for _, v in pairs(parts) do
 			if v:IsA("BasePart") and not v:IsDescendantOf(Character) and not v.Anchored then
@@ -554,9 +719,26 @@ RunService.Heartbeat:Connect(function(dt)
 			end
 		end
 		
-		if State.Energy <= 0 then ExecSandi() end
+		if State.Energy <= 0 then 
+			State.IsSandiActive = false
+			DeactivateSandevistan()
+		end
 	else
 		State.Energy = math.min(SETTINGS.STATS.MAX_ENERGY, State.Energy + (8 * dt))
+	end
+	
+	if State.IsNoclipActive then
+		if HRP.Velocity.Magnitude > SETTINGS.STATS.MOVEMENT_THRESHOLD and os.clock() - State.LastGhostTime > SETTINGS.STATS.GHOST_INTERVAL then
+			local data = CreateCyberGhost("NOCLIP", SETTINGS.COLORS.NOCLIP_GHOST_GRADIENT, true)
+			if data then
+				table.insert(ActiveEffects["NoclipGhosts"], data)
+			end
+			State.LastGhostTime = os.clock()
+		end
+		
+		if os.clock() > State.NoclipEndTime then
+			DeactivateNoclip()
+		end
 	end
 end)
 
@@ -564,6 +746,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
 	if input.KeyCode == Enum.KeyCode.E then ExecSandi() end
 	if input.KeyCode == Enum.KeyCode.Q then ExecDash() end
+	if input.KeyCode == Enum.KeyCode.R then ExecNoclip() end
 end)
 
 local function Init()
@@ -575,7 +758,11 @@ local function Init()
 	Player.CharacterAdded:Connect(function(newChar)
 		Character = newChar; HRP = newChar:WaitForChild("HumanoidRootPart"); Humanoid = newChar:WaitForChild("Humanoid")
 		State.LastHealth = Humanoid.Health
-		if State.IsSandiActive then ExecSandi() end
+		if State.IsSandiActive then 
+			State.IsSandiActive = false
+			DeactivateSandevistan()
+		end
+		if State.IsNoclipActive then DeactivateNoclip() end
 		BuildUI()
 	end)
 end
