@@ -1,32 +1,15 @@
 --!strict
 --[[
     ╔════════════════════════════════════════════════════════════════════╗
-    ║      CYBERPUNK SANDEVISTAN - PROJECT EDGE RUNNER [V43 DAVID]       ║
-    ║      UPGRADE: Ghost Trails com degradês fixos por ghost (Sandi:    ║
-    ║      CIANO->VERDE, Dash: AMARELO->LARANJA, Dodge: ROXO ROSADO->   ║
-    ║      ROSA CLARO, Noclip: AZUL ESCURO->CIANO)                      ║
-    ║      FIX: Refeito o Dodge para teleportar apenas atrás do          ║
-    ║           atacante (NPC ou Player), com flash branco, tint roxo/  ║
-    ║           rosa e reset de cor ao final + Removido slow-motion     ║
-    ║           visual (MotionBlur) de todas habilidades                 ║
+    ║      CYBERPUNK SANDEVISTAN - PROJECT EDGE RUNNER [V41 DAVID]       ║
+    ║      LOG: Added Super Jump, Kinetic Impact                         ║
+    ║      UPGRADE: Added Noclip Ability, Text Buttons instead of Icons  ║
+    ║      UPGRADE: Ghost Trail only when moving, Fixed Noclip visibility║
+    ║      REMOVAL: Removed Spine GIF FX                                 ║
+    ║      UPGRADE: Slower fading ghost trail for Sandi, Persistent Noclip║
+    ║      REMOVAL: Removed Astral Projection Ability                    ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
-
---// CONFIGURAÇÃO FÁCIL
-local CONFIG = {
-    GHOST_TRANSPARENCY = {  -- Transferência (transparência inicial) dos ghosts para cada habilidade (0 = opaco, 1 = invisível)
-        SANDI = 0.2,
-        DASH = 0.2,
-        DODGE = 0.2,
-        NOCLIP = 0.6
-    },
-    GHOST_FADE_TIME = {  -- Duração do fade (em segundos) dos ghosts para cada habilidade
-        SANDI = 3,
-        DASH = 1.5,
-        DODGE = 1.5,
-        NOCLIP = 1.5
-    }
-}
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -67,20 +50,20 @@ type GhostData = {
 --// CONFIGURAÇÃO
 local SETTINGS = {
 	STATS = {
-		MAX_ENERGY = 100,
+		MAX_ENERGY = 120,
 		SANDI_SPEED = 120,
 		DASH_FORCE = 100,
 		IMPACT_THRESHOLD = -50,
-		GHOST_INTERVAL = 0.03, -- Aumentado de 0.03 para 0.05 (Menos fantasmas = rastro mais limpo)
-		JUMP_BOOST = 90,
+		GHOST_INTERVAL = 0.03,
+		JUMP_BOOST = 80,
+		GHOST_FADE_TIME = 1.5,
 		GHOST_TRAIL_LENGTH = 10,
 		NOCLIP_DURATION = 2,
 		NOCLIP_ENERGY_COST = 20,
-		MOVEMENT_THRESHOLD = 1,
-		DODGE_DETECTION_RANGE = 50  -- Alcance para detectar o atacante
+		MOVEMENT_THRESHOLD = 1  -- Velocity magnitude threshold for ghost creation
 	},
 	COOLDOWNS = {
-		SANDI = 10,
+		SANDI = 8,
 		DASH = 3,
 		DODGE = 4.5,
 		NOCLIP = 5
@@ -99,28 +82,32 @@ local SETTINGS = {
 		NOCLIP_END = Color3.fromRGB(255, 255, 255),
 		
 		SPINE_GRADIENT = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 240)), 
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 255))    
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),     
+			ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255,165,0)), 
+			ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255,255,0)), 
+			ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0,255,0)),   
+			ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0,255,255)), 
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(130,0,255))    
 		}),
 		
 		SANDI_GHOST_GRADIENT = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),  -- Ciano
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 0))      -- Verde
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),      
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(144, 238, 144))     
 		}),
 		
 		DASH_GHOST_GRADIENT = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 0)),  -- Amarelo
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 165, 0))    -- Laranja
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 0)),      
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 165, 0))       
 		}),
 		
 		DODGE_GHOST_GRADIENT = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(186, 85, 211)), -- Roxo rosado (mediumorchid)
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 182, 193))  -- Rosa claro (lightpink)
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(128, 0, 128)),      
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 192, 203))     
 		}),
 		
 		NOCLIP_GHOST_GRADIENT = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 139)),    -- Azul escuro (darkblue)
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 255))    -- Ciano
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 255)),        
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))     
 		}),
 		
 		UI_BG = Color3.fromRGB(10, 10, 14),
@@ -244,14 +231,7 @@ local function TogglePostProcessing(enable: boolean)
 		
 		ActiveEffects["CC"] = cc; ActiveEffects["Blur"] = blur; ActiveEffects["Bloom"] = bloom
 	else
-		if ActiveEffects["CC"] then 
-			local cc = ActiveEffects["CC"]
-			TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0, Contrast = 0}):Play()
-			task.delay(0.5, function() 
-				if cc then cc:Destroy() end 
-			end)
-			ActiveEffects["CC"] = nil 
-		end
+		if ActiveEffects["CC"] then ActiveEffects["CC"]:Destroy(); ActiveEffects["CC"] = nil end
 		if ActiveEffects["Blur"] then TweenService:Create(ActiveEffects["Blur"], TweenInfo.new(0.5), {Size = 0}):Play() end
 		if ActiveEffects["Bloom"] then TweenService:Create(ActiveEffects["Bloom"], TweenInfo.new(0.5), {Intensity = 0}):Play() end
 		
@@ -289,39 +269,27 @@ local function GetColorFromSequence(seq: ColorSequence, t: number): Color3
 	return keypoints[#keypoints].Value
 end
 
-local function CreateCyberGhost(ability: string, gradient: ColorSequence, persistent: boolean?, targetCFrame: CFrame?): GhostData?
+local function CreateCyberGhost(gradient: ColorSequence, persistent: boolean?): GhostData?
 	if not Character then return end
 	Character.Archivable = true
 	local ghost = Create("Model", {Name = "GhostFX", Parent = workspace})
 	
-	-- Cores fixas: start = primeira keypoint, end = última keypoint
-	local startColor = gradient.Keypoints[1].Value
-	local endColor = gradient.Keypoints[#gradient.Keypoints].Value
-	
-	local initial_trans = CONFIG.GHOST_TRANSPARENCY[ability] or 0.6
-	local fade_time = CONFIG.GHOST_FADE_TIME[ability] or 1.5
-	
-	local rootCF = Character:FindFirstChild("HumanoidRootPart").CFrame
+	local progress = State.GhostColorIndex / SETTINGS.STATS.GHOST_TRAIL_LENGTH
+	local startColor = GetColorFromSequence(gradient, progress)
+	local endColor = GetColorFromSequence(gradient, progress + 0.2)
 	
 	for _, part in pairs(Character:GetChildren()) do
 		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 			local p = part:Clone()
 			p.Anchored = true; p.CanCollide = false; p.Massless = true; p.Material = Enum.Material.ForceField
 			p.Color = startColor
-			
-			p.Transparency = initial_trans 
-			
-			if targetCFrame then
-				p.CFrame = targetCFrame * (rootCF:Inverse() * part.CFrame)
-			else
-				p.CFrame = part.CFrame
-			end
-			p.Parent = ghost
+			p.Transparency = 0.2
+			p.CFrame = part.CFrame; p.Parent = ghost
 			
 			for _, child in pairs(p:GetChildren()) do if not child:IsA("SpecialMesh") then child:Destroy() end end
 			
 			if not persistent then
-				TweenService:Create(p, TweenInfo.new(fade_time, Enum.EasingStyle.Linear), {
+				TweenService:Create(p, TweenInfo.new(SETTINGS.STATS.GHOST_FADE_TIME, Enum.EasingStyle.Linear), {
 					Color = endColor,
 					Transparency = 1
 				}):Play()
@@ -329,8 +297,10 @@ local function CreateCyberGhost(ability: string, gradient: ColorSequence, persis
 		end
 	end
 	
+	State.GhostColorIndex = (State.GhostColorIndex + 1) % (SETTINGS.STATS.GHOST_TRAIL_LENGTH + 1)
+	
 	if not persistent then
-		Debris:AddItem(ghost, fade_time)
+		Debris:AddItem(ghost, SETTINGS.STATS.GHOST_FADE_TIME)
 		return nil
 	else
 		return {ghost = ghost, startColor = startColor, endColor = endColor}
@@ -427,45 +397,17 @@ end
 --// COMBAT & ABILITIES
 
 local function ExecDodge(enemyPart: BasePart?)
-	if not enemyPart or os.clock() < State.Cooldowns.DODGE then return end
+	if os.clock() < State.Cooldowns.DODGE then return end
 	State.Cooldowns.DODGE = os.clock() + SETTINGS.COOLDOWNS.DODGE
 	
 	PlaySFX(SETTINGS.ASSETS.SOUNDS.DODGE, 1.5, 1.2)
 	ShowCooldownBar("NEURAL DODGE", SETTINGS.COOLDOWNS.DODGE, SETTINGS.COLORS.MAGENTA_MAIN)
+	CreateCyberGhost(SETTINGS.COLORS.DODGE_GHOST_GRADIENT)
 	
-	local oldCFrame = HRP.CFrame
+	if enemyPart then HRP.CFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, 5)).Position, enemyPart.Position)
+	else HRP.CFrame = HRP.CFrame * CFrame.new(0, 0, -10) end
 	
-	local behindPos = enemyPart.CFrame * CFrame.new(0, 0, 3)  -- Atrás do atacante
-	HRP.CFrame = CFrame.lookAt(behindPos.Position, enemyPart.Position)
-	
-	local newCFrame = HRP.CFrame
-	
-	-- Criar ghost no início
-	CreateCyberGhost("DODGE", SETTINGS.COLORS.DODGE_GHOST_GRADIENT, false, oldCFrame)
-	
-	-- Criar ghosts intermediários para o rastro
-	for i = 1, 4 do
-		local alpha = i / 5
-		local lerpedCFrame = oldCFrame:Lerp(newCFrame, alpha)
-		CreateCyberGhost("DODGE", SETTINGS.COLORS.DODGE_GHOST_GRADIENT, false, lerpedCFrame)
-	end
-	
-	-- Criar ghost no final (posição atual)
-	CreateCyberGhost("DODGE", SETTINGS.COLORS.DODGE_GHOST_GRADIENT)
-	
-	-- Flash branco rápido + tom roxo/rosa
-	local flash = Create("ColorCorrectionEffect", {Brightness = 1, TintColor = Color3.new(1,1,1), Parent = Lighting})
-	TweenService:Create(flash, TweenInfo.new(0.1), {Brightness = 0}):Play()
-	Debris:AddItem(flash, 0.1)
-	
-	local dodgeCC = Create("ColorCorrectionEffect", {Name = "DodgeCC", TintColor = Color3.fromRGB(186, 85, 211), Saturation = 0.3, Contrast = 0.2, Parent = Lighting})  -- Roxo rosado
-	TweenService:Create(dodgeCC, TweenInfo.new(0.3), {TintColor = Color3.fromRGB(255, 182, 193)}):Play()  -- Transição para rosa claro
-	task.delay(0.5, function()
-		local rev = TweenService:Create(dodgeCC, TweenInfo.new(0.4), {TintColor = Color3.new(1,1,1), Saturation = 0, Contrast = 0})
-		rev:Play(); rev.Completed:Connect(function() dodgeCC:Destroy() end)
-	end)
-	
-	CamShake(1.5, 0.2)
+	CamShake(1.5, 0.2); local flash = Create("ColorCorrectionEffect", {Brightness = 0.5, Parent = Lighting}); Debris:AddItem(flash, 0.1)
 end
 
 local function DeactivateSandevistan()
@@ -524,7 +466,7 @@ local function ExecDash()
 	
 	task.spawn(function() 
 		for i=1, 4 do 
-			CreateCyberGhost("DASH", SETTINGS.COLORS.DASH_GHOST_GRADIENT)
+			CreateCyberGhost(SETTINGS.COLORS.DASH_GHOST_GRADIENT)
 			task.wait(0.05) 
 		end 
 	end)
@@ -574,18 +516,17 @@ local function DeactivateNoclip()
 	
 	-- Fade all persistent ghosts
 	if ActiveEffects["NoclipGhosts"] then
-		local fade_time = CONFIG.GHOST_FADE_TIME.NOCLIP or 1.5
 		for _, data: GhostData in pairs(ActiveEffects["NoclipGhosts"]) do
 			local ghost = data.ghost
 			for _, p in pairs(ghost:GetChildren()) do
 				if p:IsA("BasePart") then
-					TweenService:Create(p, TweenInfo.new(fade_time, Enum.EasingStyle.Linear), {
+					TweenService:Create(p, TweenInfo.new(SETTINGS.STATS.GHOST_FADE_TIME, Enum.EasingStyle.Linear), {
 						Color = data.endColor,
 						Transparency = 1
 					}):Play()
 				end
 			end
-			Debris:AddItem(ghost, fade_time)
+			Debris:AddItem(ghost, SETTINGS.STATS.GHOST_FADE_TIME)
 		end
 		ActiveEffects["NoclipGhosts"] = nil
 	end
@@ -636,16 +577,13 @@ local function BuildUI()
 
 	local function CreateIndependentBtn(text: string, color: Color3, pos: UDim2, saveKey: string, callback: () -> ())
 		local holder = Create("Frame", {Size = UDim2.new(0, 60, 0, 60), Position = pos, BackgroundTransparency = 1, Parent = gui})
-		local btn = Create("TextButton", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Color3.new(0,0,0), Text = "", AutoButtonColor = false, Parent = holder, ZIndex = 2})
-		Create("UICorner", {CornerRadius = UDim.new(0, 30), Parent = btn})  -- Esférico (círculo)
+		local btn = Create("TextButton", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = SETTINGS.COLORS.UI_BG, Text = "", AutoButtonColor = false, Parent = holder, ZIndex = 2})
+		Create("UICorner", {CornerRadius = UDim.new(0, 14), Parent = btn})
 		local s = Create("UIStroke", {Color = color, Thickness = 2, Parent = btn})
 		local textLabel = Create("TextLabel", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = text, TextColor3 = color, Font = Enum.Font.GothamBlack, TextSize = 32, Parent = btn, ZIndex = 3})
 		
-		-- Para efeito côncavo simples (gradiente escuro no centro)
-		Create("UIGradient", {Color = ColorSequence.new(Color3.new(0.1,0.1,0.1), Color3.new(0,0,0)), Rotation = 90, Parent = btn})
-		
-		btn.MouseButton1Down:Connect(function() if State.EditMode then return end TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0.9,0,0.9,0), BackgroundColor3 = color}):Play() textLabel.TextColor3 = Color3.new(0,0,0) callback() end)
-		btn.MouseButton1Up:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(1,0,1,0), BackgroundColor3 = Color3.new(0,0,0)}):Play() textLabel.TextColor3 = color end)
+		btn.MouseButton1Down:Connect(function() if State.EditMode then return end TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0.9,0,0.9,0), BackgroundColor3 = color}):Play() textLabel.TextColor3 = SETTINGS.COLORS.UI_BG callback() end)
+		btn.MouseButton1Up:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(1,0,1,0), BackgroundColor3 = SETTINGS.COLORS.UI_BG}):Play() textLabel.TextColor3 = color end)
 		EnableDrag(holder, s, saveKey)
 	end
 	
@@ -681,24 +619,7 @@ RunService.Heartbeat:Connect(function(dt)
 	
 	if Humanoid.Health < State.LastHealth then
 		local dmg = State.LastHealth - Humanoid.Health
-		if dmg > 0 and os.clock() >= State.Cooldowns.DODGE then
-			-- Detectar o atacante mais próximo (NPC ou Player)
-			local closestEnemyPart: BasePart? = nil
-			local minDist = SETTINGS.STATS.DODGE_DETECTION_RANGE
-			
-			for _, model in pairs(workspace:GetChildren()) do
-				if model:IsA("Model") and model ~= Character and model:FindFirstChild("Humanoid") and model:FindFirstChild("HumanoidRootPart") then
-					local enemyHRP = model.HumanoidRootPart
-					local dist = (HRP.Position - enemyHRP.Position).Magnitude
-					if dist < minDist then
-						minDist = dist
-						closestEnemyPart = enemyHRP
-					end
-				end
-			end
-			
-			ExecDodge(closestEnemyPart)
-		end
+		if dmg > 0 and os.clock() >= State.Cooldowns.DODGE then ExecDodge(nil) end
 	end
 	State.LastHealth = Humanoid.Health
 	
@@ -710,7 +631,7 @@ RunService.Heartbeat:Connect(function(dt)
 		Humanoid.WalkSpeed = SETTINGS.STATS.SANDI_SPEED
 		
 		if HRP.Velocity.Magnitude > SETTINGS.STATS.MOVEMENT_THRESHOLD and os.clock() - State.LastGhostTime > SETTINGS.STATS.GHOST_INTERVAL then
-			CreateCyberGhost("SANDI", SETTINGS.COLORS.SANDI_GHOST_GRADIENT)
+			CreateCyberGhost(SETTINGS.COLORS.SANDI_GHOST_GRADIENT)
 			State.LastGhostTime = os.clock()
 		end
 		
@@ -731,7 +652,7 @@ RunService.Heartbeat:Connect(function(dt)
 	
 	if State.IsNoclipActive then
 		if HRP.Velocity.Magnitude > SETTINGS.STATS.MOVEMENT_THRESHOLD and os.clock() - State.LastGhostTime > SETTINGS.STATS.GHOST_INTERVAL then
-			local data = CreateCyberGhost("NOCLIP", SETTINGS.COLORS.NOCLIP_GHOST_GRADIENT, true)
+			local data = CreateCyberGhost(SETTINGS.COLORS.NOCLIP_GHOST_GRADIENT, true)
 			if data then
 				table.insert(ActiveEffects["NoclipGhosts"], data)
 			end
