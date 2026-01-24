@@ -19,7 +19,7 @@ local CONFIG = {
         NOCLIP = 0.6
     },
     GHOST_FADE_TIME = {  -- Duração do fade (em segundos)
-        SANDI = 3
+        SANDI = 3,
         DASH = 1.5,
         DODGE = 1.5,
         NOCLIP = 1.5
@@ -65,8 +65,8 @@ type GhostData = {
 --// CONFIGURAÇÃO DE CORES E STATUS
 local SETTINGS = {
 	STATS = {
-		MAX_ENERGY = 100,
-		SANDI_SPEED = 100,
+		MAX_ENERGY = 120,
+		SANDI_SPEED = 110,
 		DASH_FORCE = 100,
 		IMPACT_THRESHOLD = -50,
 		GHOST_INTERVAL = 0.02, 
