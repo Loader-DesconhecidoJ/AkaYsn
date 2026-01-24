@@ -19,7 +19,7 @@ local CONFIG = {
         NOCLIP = 0.6
     },
     GHOST_FADE_TIME = {  -- Duração do fade (em segundos)
-        SANDI = 1.5
+        SANDI = 3
         DASH = 1.5,
         DODGE = 1.5,
         NOCLIP = 1.5
@@ -69,7 +69,7 @@ local SETTINGS = {
 		SANDI_SPEED = 100,
 		DASH_FORCE = 100,
 		IMPACT_THRESHOLD = -50,
-		GHOST_INTERVAL = 0.05, 
+		GHOST_INTERVAL = 0.02, 
 		JUMP_BOOST = 90,
 		GHOST_TRAIL_LENGTH = 10,
 		NOCLIP_DURATION = 2,
