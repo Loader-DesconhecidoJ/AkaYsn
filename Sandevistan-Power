@@ -73,6 +73,28 @@ local SETTINGS = {
             SPARKS = "rbxassetid://6071575297",
             HEX = "rbxassetid://6522338870"
         }
+    },
+    GHOST_TRAIL = {
+        SANDI = {
+            DELAY = 0, -- Time to wait before starting to disappear (in seconds)
+            DURATION = 3, -- Time for the ghost to fade out (in seconds)
+            END_TRANSPARENCY = 1 -- Final transparency (0 = opaque, 1 = fully transparent)
+        },
+        DASH = {
+            DELAY = 0,
+            DURATION = 0.5,
+            END_TRANSPARENCY = 1
+        },
+        DODGE = {
+            DELAY = 0,
+            DURATION = 0.5,
+            END_TRANSPARENCY = 1
+        },
+        NOCLIP = {
+            DELAY = 0,
+            DURATION = 2.5,
+            END_TRANSPARENCY = 1
+        }
     }
 }
 
@@ -204,7 +226,7 @@ end
 
 --// COMBAT & VFX FUNCTIONS
 
-local function CreateGhost(startColor: Color3, endColor: Color3)
+local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, duration: number, endTransparency: number)
     if not Character then return end
     Character.Archivable = true
     local ghostChar = Character:Clone()
@@ -212,10 +234,15 @@ local function CreateGhost(startColor: Color3, endColor: Color3)
         if part:IsA("BasePart") then
             part.Anchored = true; part.CanCollide = false
             part.Material = Enum.Material.ForceField; part.Color = startColor
-            TweenService:Create(part, TweenInfo.new(0.5), {Color = endColor, Transparency = 1}):Play()
+            part.Transparency = 0 -- Initial transparency
+            local tween = TweenService:Create(part, TweenInfo.new(duration), {Color = endColor, Transparency = endTransparency})
+            task.spawn(function()
+                task.wait(delay)
+                tween:Play()
+            end)
         elseif not part:IsA("SpecialMesh") and not part:IsA("MeshPart") then part:Destroy() end
     end
-    ghostChar.Parent = workspace; Debris:AddItem(ghostChar, 0.5)
+    ghostChar.Parent = workspace; Debris:AddItem(ghostChar, delay + duration)
 end
 
 local function VFX_Impact_Ambient(pos: Vector3)
@@ -265,7 +292,7 @@ local function ExecDodge(enemyPart: BasePart?)
     PlaySFX(SETTINGS.ASSETS.SOUNDS.DODGE, 1.5)
     ShowCooldownText("Neural Dodge", SETTINGS.COOLDOWNS.DODGE, SETTINGS.COLORS.DODGE_END)
     local cc = Create("ColorCorrectionEffect", {TintColor = SETTINGS.COLORS.DODGE_START, Saturation = 0.5, Parent = Lighting})
-    CreateGhost(SETTINGS.COLORS.DODGE_START, SETTINGS.COLORS.DODGE_END)
+    CreateGhost(SETTINGS.COLORS.DODGE_START, SETTINGS.COLORS.DODGE_END, SETTINGS.GHOST_TRAIL.DODGE.DELAY, SETTINGS.GHOST_TRAIL.DODGE.DURATION, SETTINGS.GHOST_TRAIL.DODGE.END_TRANSPARENCY)
     if enemyPart then HRP.CFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, 6)).Position, enemyPart.Position)
     else HRP.CFrame = HRP.CFrame * CFrame.new(0, 0, -12) end
     CamShake(0.5, 0.2)
@@ -347,7 +374,7 @@ local function ExecDash()
             if ray and ray.Instance and ray.Instance:FindFirstAncestorOfClass("Model") and ray.Instance:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid") then
                 bv:Destroy(); PlaySFX(SETTINGS.ASSETS.SOUNDS.HIT, 1.5); CamShake(2, 0.2); break
             end
-            CreateGhost(SETTINGS.COLORS.DASH_GOLD, SETTINGS.COLORS.DASH_GOLD); RunService.Heartbeat:Wait()
+            CreateGhost(SETTINGS.COLORS.DASH_GOLD, SETTINGS.COLORS.DASH_GOLD, SETTINGS.GHOST_TRAIL.DASH.DELAY, SETTINGS.GHOST_TRAIL.DASH.DURATION, SETTINGS.GHOST_TRAIL.DASH.END_TRANSPARENCY); RunService.Heartbeat:Wait()
         end
         TweenService:Create(dashEffect, TweenInfo.new(0.4), {TintColor = Color3.new(1,1,1), Brightness = 0}):Play()
         TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 70}):Play(); Debris:AddItem(dashEffect, 0.45)
@@ -457,10 +484,10 @@ RunService.Heartbeat:Connect(function(dt)
     State.LastVelocityY = HRP.Velocity.Y
     if State.IsSandiActive then
         State.Energy -= 12 * dt; Humanoid.WalkSpeed = SETTINGS.STATS.SANDI_SPEED
-        CreateGhost(SETTINGS.COLORS.SANDI_START, SETTINGS.COLORS.SANDI_END)
+        CreateGhost(SETTINGS.COLORS.SANDI_START, SETTINGS.COLORS.SANDI_END, SETTINGS.GHOST_TRAIL.SANDI.DELAY, SETTINGS.GHOST_TRAIL.SANDI.DURATION, SETTINGS.GHOST_TRAIL.SANDI.END_TRANSPARENCY)
         if State.Energy <= 0 then ExecSandi() end
     elseif State.IsNoclipActive then
-        CreateGhost(Color3.new(0, 0, 0), Color3.new(1, 1, 1))
+        CreateGhost(Color3.new(0, 0, 0), Color3.new(1, 1, 1), SETTINGS.GHOST_TRAIL.NOCLIP.DELAY, SETTINGS.GHOST_TRAIL.NOCLIP.DURATION, SETTINGS.GHOST_TRAIL.NOCLIP.END_TRANSPARENCY)
     else
         State.Energy = math.min(SETTINGS.STATS.MAX_ENERGY, State.Energy + (15 * dt))
     end
