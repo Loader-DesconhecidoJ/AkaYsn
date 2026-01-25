@@ -3,7 +3,6 @@
     ╔════════════════════════════════════════════════════════════════════╗
     ║           CYBERPUNK SANDEVISTAN - PROJECT EDGE RUNNER V32.2        ║
     ║           IMPACT CRACKS + 0.30 SHAKE + V32 PREMIUM UI              ║
-    ║           MODIFIED: Ghost Trail updated, Added Noclip Ability      ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -26,21 +25,11 @@ type SystemState = {
     Energy: number,
     IsSandiActive: boolean,
     IsNoclipActive: boolean,
-    NoclipEndTime: number,
-    OriginalPartStates: {[BasePart]: {CanCollide: boolean, Material: Enum.Material, Transparency: number}},
     Cooldowns: Cooldowns,
     EditMode: boolean,
     LastVelocityY: number,
     ActiveLabels: number,
-    LastHealth: number,
-    LastGhostTime: number,
-    GhostColorIndex: number
-}
-
-type GhostData = {
-    ghost: Model,
-    startColor: Color3,
-    endColor: Color3
+    LastHealth: number
 }
 
 --// CONSTANTS & CONFIGURATION
@@ -50,17 +39,12 @@ local SETTINGS = {
         SANDI_SPEED = 100,
         DASH_FORCE = 100,
         IMPACT_THRESHOLD = -60,
-        GHOST_INTERVAL = 0.03,
-        GHOST_TRAIL_LENGTH = 10,
-        MOVEMENT_THRESHOLD = 1,
-        NOCLIP_DURATION = 2,
-        NOCLIP_ENERGY_COST = 20,
-        NOCLIP_COOLDOWN = 4.5  -- Tempo de cooldown do Noclip após a desativação automática (em segundos)
     },
     COOLDOWNS = {
         SANDI = 20,
         DASH = 3,
         DODGE = 5,
+        NOCLIP = 3.5,
     },
     COLORS = {
         SANDI_START = Color3.fromRGB(0, 255, 240),
@@ -72,15 +56,7 @@ local SETTINGS = {
         TEXT_DEFAULT = Color3.new(1, 1, 1),
         UI_BG = Color3.fromRGB(10, 10, 12),
         UI_ACCENT = Color3.fromRGB(40, 40, 45),
-        CYAN = Color3.fromRGB(0, 255, 255),
-        LIGHT_BLUE = Color3.fromRGB(135, 206, 235),
-        VERY_LIGHT_BLUE = Color3.fromRGB(173, 216, 230),
-        BLUE = Color3.fromRGB(0, 0, 255),
-        PURPLE = Color3.fromRGB(160, 0, 255),
-        YELLOW = Color3.fromRGB(255, 255, 0),
-        YELLOW_ORANGE = Color3.fromRGB(255, 200, 0),
-        ORANGE = Color3.fromRGB(255, 165, 0),
-        NOCLIP_MAIN = Color3.fromRGB(200, 200, 255)
+        NOCLIP = Color3.new(1, 1, 1)
     },
     ASSETS = {
         SOUNDS = {
@@ -90,73 +66,33 @@ local SETTINGS = {
             SANDI_ON = "rbxassetid://123844681344865",
             SANDI_OFF = "rbxassetid://118534165523355",
             HIT = "rbxassetid://5665936061",
-            NOCLIP = "rbxassetid://72335942298289"
+            NOCLIP_ON = "rbxassetid://70643008100559"
         },
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
             SPARKS = "rbxassetid://6071575297",
             HEX = "rbxassetid://6522338870"
         }
-    },
-    GHOST_SETTINGS = {
-        SANDI_FADE_TIME = 1.5,  -- Tempo para o ghost trail do Sandevistan desaparecer (em segundos)
-        DASH_FADE_TIME = 1.5,    -- Tempo para o ghost trail do Dash desaparecer (em segundos)
-        DODGE_FADE_TIME = 1.5,   -- Tempo para o ghost trail do Dodge desaparecer (em segundos)
-        NOCLIP_FADE_TIME = 1.5,  -- Tempo para o ghost trail do Noclip desaparecer (em segundos)
-        SANDI_GHOST_TRANSPARENCY = 0.2,  -- Transparência inicial do ghost trail do Sandevistan (0 = opaco, 1 = transparente)
-        DASH_GHOST_TRANSPARENCY = 0.2,   -- Transparência inicial do ghost trail do Dash (0 = opaco, 1 = transparente)
-        DODGE_GHOST_TRANSPARENCY = 0.2,  -- Transparência inicial do ghost trail do Dodge (0 = opaco, 1 = transparente)
-        NOCLIP_GHOST_TRANSPARENCY = 0.2  -- Transparência inicial do ghost trail do Noclip (0 = opaco, 1 = transparente)
     }
 }
-
-SETTINGS.COLORS.SANDI_GHOST_GRADIENT = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, SETTINGS.COLORS.CYAN),
-    ColorSequenceKeypoint.new(0.33, SETTINGS.COLORS.LIGHT_BLUE),
-    ColorSequenceKeypoint.new(0.66, SETTINGS.COLORS.BLUE),
-    ColorSequenceKeypoint.new(1, SETTINGS.COLORS.PURPLE)
-})
-
-SETTINGS.COLORS.DASH_GHOST_GRADIENT = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, SETTINGS.COLORS.YELLOW),
-    ColorSequenceKeypoint.new(0.5, SETTINGS.COLORS.YELLOW_ORANGE),
-    ColorSequenceKeypoint.new(1, SETTINGS.COLORS.ORANGE)
-})
-
-SETTINGS.COLORS.DODGE_GHOST_GRADIENT = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, SETTINGS.COLORS.DODGE_START),  -- Roxo
-    ColorSequenceKeypoint.new(1, SETTINGS.COLORS.DODGE_END)    -- Rosa
-})
-
-SETTINGS.COLORS.NOCLIP_GHOST_GRADIENT = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, SETTINGS.COLORS.BLUE),
-    ColorSequenceKeypoint.new(0.5, SETTINGS.COLORS.LIGHT_BLUE),
-    ColorSequenceKeypoint.new(1, SETTINGS.COLORS.VERY_LIGHT_BLUE)
-})
 
 --// STATE MANAGEMENT
 local State: SystemState = {
     Energy = SETTINGS.STATS.MAX_ENERGY,
     IsSandiActive = false,
     IsNoclipActive = false,
-    NoclipEndTime = 0,
-    OriginalPartStates = {},
     Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, NOCLIP = 0},
     EditMode = false,
     LastVelocityY = 0,
     ActiveLabels = 0,
-    LastHealth = 100,
-    LastGhostTime = 0,
-    GhostColorIndex = 0
+    LastHealth = 100
 }
-
-local ActiveCooldowns = {}
-local ActiveEffects = {}
 
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Character, HRP, Humanoid
 local UI_Elements = {}
+local ActiveCooldownFrames = {}
 
 --// UTILITY FUNCTIONS
 local function Create(className: string, properties: {[string]: any})
@@ -193,20 +129,6 @@ local function CamShake(intensity: number, duration: number)
     end)
 end
 
-local function GetColorFromSequence(seq: ColorSequence, t: number): Color3
-    t = math.clamp(t, 0, 1)
-    local keypoints = seq.Keypoints
-    for i = 1, #keypoints - 1 do
-        local kp1 = keypoints[i]
-        local kp2 = keypoints[i + 1]
-        if t >= kp1.Time and t < kp2.Time then
-            local alpha = (t - kp1.Time) / (kp2.Time - kp1.Time)
-            return kp1.Value:Lerp(kp2.Value, alpha)
-        end
-    end
-    return keypoints[#keypoints].Value
-end
-
 --// PREMIUM VISUAL EFFECTS (UI COOLDOWNS)
 
 local function ShowCooldownText(name: string, duration: number, color: Color3)
@@ -214,16 +136,14 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
         local gui = Player.PlayerGui:FindFirstChild("CyberV30")
         if not gui then return end
         
-        State.ActiveLabels += 1
         local container = Create("Frame", {
             Size = UDim2.new(0, 220, 0, 35),
-            Position = UDim2.new(0.5, -110, 0.7, -(State.ActiveLabels - 1) * 40),
+            Position = UDim2.new(0.5, -110, 0.7, 0),
             BackgroundColor3 = SETTINGS.COLORS.UI_BG,
             BackgroundTransparency = 0.2,
             BorderSizePixel = 0,
             Parent = gui
         })
-        table.insert(ActiveCooldowns, container)
         Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = container})
         Create("UIStroke", {Color = color, Thickness = 1.2, Transparency = 0.4, Parent = container})
         
@@ -250,10 +170,24 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
             Parent = container
         })
         
+        table.insert(ActiveCooldownFrames, container)
+        
+        local function GetMyIndex()
+            for i, v in ipairs(ActiveCooldownFrames) do
+                if v == container then return i end
+            end
+            return nil
+        end
+        
         local startTime = os.clock()
         while os.clock() - startTime < duration do
             local remaining = math.max(0, duration - (os.clock() - startTime))
             timer.Text = string.format("%.1fS", remaining)
+            local myIndex = GetMyIndex()
+            if myIndex then
+                local targetPos = UDim2.new(0.5, -110, 0.7, -(myIndex - 1) * 40)
+                container.Position = container.Position:Lerp(targetPos, 0.15)
+            end
             RunService.RenderStepped:Wait()
         end
         
@@ -261,51 +195,27 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
         TweenService:Create(label, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
         TweenService:Create(timer, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
         task.wait(0.3)
-        local index = table.find(ActiveCooldowns, container)
-        if index then table.remove(ActiveCooldowns, index) end
+        
+        local index = GetMyIndex()
+        if index then table.remove(ActiveCooldownFrames, index) end
         container:Destroy()
-        State.ActiveLabels -= 1
     end)
 end
 
 --// COMBAT & VFX FUNCTIONS
 
-local function CreateCyberGhost(gradient: ColorSequence, persistent: boolean?, fadeTime: number, initialTransparency: number): GhostData?
+local function CreateGhost(startColor: Color3, endColor: Color3)
     if not Character then return end
     Character.Archivable = true
-    local ghost = Create("Model", {Name = "GhostFX", Parent = workspace})
-    
-    local progress = State.GhostColorIndex / SETTINGS.STATS.GHOST_TRAIL_LENGTH
-    local startColor = GetColorFromSequence(gradient, progress)
-    local endColor = GetColorFromSequence(gradient, progress + 0.2)
-    
-    for _, part in pairs(Character:GetChildren()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            local p = part:Clone()
-            p.Anchored = true; p.CanCollide = false; p.Massless = true; p.Material = Enum.Material.ForceField
-            p.Color = startColor
-            p.Transparency = initialTransparency
-            p.CFrame = part.CFrame; p.Parent = ghost
-            
-            for _, child in pairs(p:GetChildren()) do if not child:IsA("SpecialMesh") then child:Destroy() end end
-            
-            if not persistent then
-                TweenService:Create(p, TweenInfo.new(fadeTime, Enum.EasingStyle.Linear), {
-                    Color = endColor,
-                    Transparency = 1
-                }):Play()
-            end
-        end
+    local ghostChar = Character:Clone()
+    for _, part in pairs(ghostChar:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Anchored = true; part.CanCollide = false
+            part.Material = Enum.Material.ForceField; part.Color = startColor
+            TweenService:Create(part, TweenInfo.new(0.5), {Color = endColor, Transparency = 1}):Play()
+        elseif not part:IsA("SpecialMesh") and not part:IsA("MeshPart") then part:Destroy() end
     end
-    
-    State.GhostColorIndex = (State.GhostColorIndex + 1) % (SETTINGS.STATS.GHOST_TRAIL_LENGTH + 1)
-    
-    if not persistent then
-        Debris:AddItem(ghost, fadeTime)
-        return nil
-    else
-        return {ghost = ghost, startColor = startColor, endColor = endColor}
-    end
+    ghostChar.Parent = workspace; Debris:AddItem(ghostChar, 0.5)
 end
 
 local function VFX_Impact_Ambient(pos: Vector3)
@@ -355,10 +265,10 @@ local function ExecDodge(enemyPart: BasePart?)
     PlaySFX(SETTINGS.ASSETS.SOUNDS.DODGE, 1.5)
     ShowCooldownText("Neural Dodge", SETTINGS.COOLDOWNS.DODGE, SETTINGS.COLORS.DODGE_END)
     local cc = Create("ColorCorrectionEffect", {TintColor = SETTINGS.COLORS.DODGE_START, Saturation = 0.5, Parent = Lighting})
-    CreateCyberGhost(SETTINGS.COLORS.DODGE_GHOST_GRADIENT, false, SETTINGS.GHOST_SETTINGS.DODGE_FADE_TIME, SETTINGS.GHOST_SETTINGS.DODGE_GHOST_TRANSPARENCY)
+    CreateGhost(SETTINGS.COLORS.DODGE_START, SETTINGS.COLORS.DODGE_END)
     if enemyPart then HRP.CFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, 6)).Position, enemyPart.Position)
     else HRP.CFrame = HRP.CFrame * CFrame.new(0, 0, -12) end
-    CamShake(2, 0.3)
+    CamShake(0.5, 0.2)
     local t = TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0})
     t:Play(); t.Completed:Connect(function() cc:Destroy() end)
 end
@@ -368,7 +278,7 @@ local function ExecSandi()
     State.IsSandiActive = not State.IsSandiActive
     if State.IsSandiActive then
         if State.Energy < 20 then State.IsSandiActive = false return end
-        PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_ON, 1); CamShake(3, 0.4)
+        PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_ON, 1); CamShake(1, 0.3)
         TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 115}):Play()
         Create("ColorCorrectionEffect", {Name = "SandiEffect", TintColor = Color3.fromRGB(150, 255, 220), Contrast = 0.4, Parent = Lighting})
     else
@@ -376,6 +286,45 @@ local function ExecSandi()
         ShowCooldownText("Sandevistan", SETTINGS.COOLDOWNS.SANDI, SETTINGS.COLORS.SANDI_START)
         if Lighting:FindFirstChild("SandiEffect") then Lighting.SandiEffect:Destroy() end
         Humanoid.WalkSpeed = 16; TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
+    end
+end
+
+local function ExecNoclip()
+    if State.IsNoclipActive then
+        -- Deactivate
+        State.Cooldowns.NOCLIP = os.clock() + SETTINGS.COOLDOWNS.NOCLIP
+        ShowCooldownText("No Clip", SETTINGS.COOLDOWNS.NOCLIP, SETTINGS.COLORS.NOCLIP)
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+        TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 70}):Play()
+        State.IsNoclipActive = false
+    else
+        -- Activate
+        if os.clock() < State.Cooldowns.NOCLIP then return end
+        PlaySFX(SETTINGS.ASSETS.SOUNDS.NOCLIP_ON, 1)
+        -- White flash
+        local cc = Create("ColorCorrectionEffect", {Brightness = 1, Parent = Lighting})
+        TweenService:Create(cc, TweenInfo.new(0.5), {Brightness = 0}):Play()
+        task.delay(0.5, function() cc:Destroy() end)
+        -- Zoom shake
+        CamShake(0.5, 0.2)
+        TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 50}):Play()
+        task.delay(0.3, function() TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 70}):Play() end)
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+        State.IsNoclipActive = true
+        task.spawn(function()
+            task.wait(3)
+            if State.IsNoclipActive then
+                ExecNoclip()
+            end
+        end)
     end
 end
 
@@ -391,116 +340,39 @@ local function ExecDash()
     task.spawn(function()
         local start = os.clock()
         while os.clock() - start < 0.25 do
-            local ray = workspace:Raycast(HRP.Position, HRP.CFrame.LookVector * 5, RaycastParams.new())
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+            rayParams.FilterDescendantsInstances = {Character}
+            local ray = workspace:Raycast(HRP.Position, HRP.CFrame.LookVector * 5, rayParams)
             if ray and ray.Instance and ray.Instance:FindFirstAncestorOfClass("Model") and ray.Instance:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid") then
-                bv:Destroy(); PlaySFX(SETTINGS.ASSETS.SOUNDS.HIT, 1.5); CamShake(8, 0.2); break
+                bv:Destroy(); PlaySFX(SETTINGS.ASSETS.SOUNDS.HIT, 1.5); CamShake(2, 0.2); break
             end
-            RunService.Heartbeat:Wait()
+            CreateGhost(SETTINGS.COLORS.DASH_GOLD, SETTINGS.COLORS.DASH_GOLD); RunService.Heartbeat:Wait()
         end
         TweenService:Create(dashEffect, TweenInfo.new(0.4), {TintColor = Color3.new(1,1,1), Brightness = 0}):Play()
         TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 70}):Play(); Debris:AddItem(dashEffect, 0.45)
     end)
-    task.spawn(function() 
-        for i=1, 4 do 
-            CreateCyberGhost(SETTINGS.COLORS.DASH_GHOST_GRADIENT, false, SETTINGS.GHOST_SETTINGS.DASH_FADE_TIME, SETTINGS.GHOST_SETTINGS.DASH_GHOST_TRANSPARENCY)
-            task.wait(0.05) 
-        end 
-    end)
-end
-
-local function ExecNoclip()
-    if State.IsNoclipActive or os.clock() < State.Cooldowns.NOCLIP or State.Energy < SETTINGS.STATS.NOCLIP_ENERGY_COST then return end
-    
-    State.Energy -= SETTINGS.STATS.NOCLIP_ENERGY_COST
-    State.IsNoclipActive = true
-    State.NoclipEndTime = os.clock() + SETTINGS.STATS.NOCLIP_DURATION
-    PlaySFX(SETTINGS.ASSETS.SOUNDS.NOCLIP, 1.5)
-    CamShake(1, 0.3)
-    
-    -- Save and set part states
-    State.OriginalPartStates = {}
-    for _, part in pairs(Character:GetChildren()) do
-        if part:IsA("BasePart") then
-            State.OriginalPartStates[part] = {
-                CanCollide = part.CanCollide,
-                Material = part.Material,
-                Transparency = part.Transparency
-            }
-            part.CanCollide = false
-            part.Material = Enum.Material.ForceField
-            part.Transparency = 0.5  -- Semi-transparent during noclip
-        end
-    end
-    
-    ActiveEffects["NoclipGhosts"] = {}
-    ShowCooldownText("Noclip Active", SETTINGS.STATS.NOCLIP_DURATION, SETTINGS.COLORS.NOCLIP_MAIN)
-end
-
-local function DeactivateNoclip()
-    State.IsNoclipActive = false
-    State.Cooldowns.NOCLIP = os.clock() + SETTINGS.STATS.NOCLIP_COOLDOWN
-    ShowCooldownText("Noclip Cooldown", SETTINGS.STATS.NOCLIP_COOLDOWN, SETTINGS.COLORS.NOCLIP_MAIN)
-    
-    -- Restore part states
-    for part, props in pairs(State.OriginalPartStates) do
-        if part and part.Parent then
-            part.CanCollide = props.CanCollide
-            part.Material = props.Material
-            part.Transparency = props.Transparency
-        end
-    end
-    State.OriginalPartStates = {}
-    
-    -- Fade all persistent ghosts
-    if ActiveEffects["NoclipGhosts"] then
-        for _, data: GhostData in pairs(ActiveEffects["NoclipGhosts"]) do
-            local ghost = data.ghost
-            for _, p in pairs(ghost:GetChildren()) do
-                if p:IsA("BasePart") then
-                    TweenService:Create(p, TweenInfo.new(SETTINGS.GHOST_SETTINGS.NOCLIP_FADE_TIME, Enum.EasingStyle.Linear), {
-                        Color = data.endColor,
-                        Transparency = 1
-                    }):Play()
-                end
-            end
-            Debris:AddItem(ghost, SETTINGS.GHOST_SETTINGS.NOCLIP_FADE_TIME)
-        end
-        ActiveEffects["NoclipGhosts"] = nil
-    end
 end
 
 --// PREMIUM UI SYSTEM RE-DESIGN
 
-local function EnableDrag(frame)
+local function MakeDraggable(frame: Frame)
     local dragging, dragStart, startPos
-    local hitbox = Create("TextButton", {
-        Name = "EditHitbox",
-        Size = UDim2.new(1, 6, 1, 6),
-        Position = UDim2.new(0, -3, 0, -3),
-        BackgroundTransparency = 1,
-        Text = "",
-        ZIndex = 100,
-        Visible = false,
-        Parent = frame
-    })
-    hitbox.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
+    local stroke = Create("UIStroke", {Color = SETTINGS.COLORS.EDIT_MODE, Thickness = 2, Enabled = false, Parent = frame})
+    table.insert(UI_Elements, {Frame = frame, Stroke = stroke})
+    
+    frame.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and State.EditMode then
+            dragging = true; dragStart = input.Position; startPos = frame.Position
         end
     end)
-    hitbox.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+    frame.InputChanged:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
             local delta = input.Position - dragStart
             frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-    end)
-    local editStroke = Create("UIStroke", {Color = SETTINGS.COLORS.EDIT_MODE, Thickness = 2, Enabled = false, Parent = frame})
-    table.insert(UI_Elements, {Frame = frame, Stroke = editStroke, Hitbox = hitbox})
+    UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
 end
 
 local function BuildUI()
@@ -526,30 +398,33 @@ local function BuildUI()
         Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = btn})
         local stroke = Create("UIStroke", {Color = color, Thickness = 2, Transparency = 0.5, Parent = btn})
         btn.MouseButton1Down:Connect(function()
-            if State.EditMode then return end
             TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = SETTINGS.COLORS.UI_BG}):Play()
-            if key == "Q" then ExecDash() elseif key == "E" then ExecSandi() elseif key == "R" then ExecNoclip() end
+            if not State.EditMode then 
+                if key == "Q" then ExecDash() 
+                elseif key == "E" then ExecSandi() 
+                elseif key == "F" then ExecNoclip() 
+                end 
+            end
         end)
         btn.MouseButton1Up:Connect(function()
             TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(0, 50, 0, 50), BackgroundColor3 = SETTINGS.COLORS.UI_BG, TextColor3 = color}):Play()
         end)
-        EnableDrag(btn)
+        MakeDraggable(btn)
+        return btn
     end
     
-    CreateSkillBtn("Q", SETTINGS.COLORS.DASH_GOLD, UDim2.new(0.85, 0, 0.85, 0))
-    CreateSkillBtn("E", SETTINGS.COLORS.SANDI_START, UDim2.new(0.85, 65, 0.85, 0))
-    CreateSkillBtn("R", SETTINGS.COLORS.NOCLIP_MAIN, UDim2.new(0.85, 130, 0.85, 0))
+    CreateSkillBtn("Q", SETTINGS.COLORS.DASH_GOLD, UDim2.new(0.8, 0, 0.85, 0))
+    CreateSkillBtn("E", SETTINGS.COLORS.SANDI_START, UDim2.new(0.85, 0, 0.85, 0))
+    CreateSkillBtn("F", SETTINGS.COLORS.NOCLIP, UDim2.new(0.9, 0, 0.85, 0))
     
-    EnableDrag(energyContainer)
+    MakeDraggable(energyContainer)
+    MakeDraggable(lockBtn)
     
     lockBtn.MouseButton1Click:Connect(function()
         State.EditMode = not State.EditMode
         lockBtn.BackgroundColor3 = State.EditMode and SETTINGS.COLORS.EDIT_MODE or SETTINGS.COLORS.UI_BG
         lockBtn.TextColor3 = State.EditMode and SETTINGS.COLORS.UI_BG or SETTINGS.COLORS.TEXT_DEFAULT
-        for _, item in pairs(UI_Elements) do
-            item.Stroke.Enabled = State.EditMode
-            if item.Hitbox then item.Hitbox.Visible = State.EditMode end
-        end
+        for _, item in pairs(UI_Elements) do item.Stroke.Enabled = State.EditMode end
     end)
     
     RunService.RenderStepped:Connect(function()
@@ -582,26 +457,12 @@ RunService.Heartbeat:Connect(function(dt)
     State.LastVelocityY = HRP.Velocity.Y
     if State.IsSandiActive then
         State.Energy -= 12 * dt; Humanoid.WalkSpeed = SETTINGS.STATS.SANDI_SPEED
-        if HRP.Velocity.Magnitude > SETTINGS.STATS.MOVEMENT_THRESHOLD and os.clock() - State.LastGhostTime > SETTINGS.STATS.GHOST_INTERVAL then
-            CreateCyberGhost(SETTINGS.COLORS.SANDI_GHOST_GRADIENT, false, SETTINGS.GHOST_SETTINGS.SANDI_FADE_TIME, SETTINGS.GHOST_SETTINGS.SANDI_GHOST_TRANSPARENCY)
-            State.LastGhostTime = os.clock()
-        end
+        CreateGhost(SETTINGS.COLORS.SANDI_START, SETTINGS.COLORS.SANDI_END)
         if State.Energy <= 0 then ExecSandi() end
+    elseif State.IsNoclipActive then
+        CreateGhost(Color3.new(0, 0, 0), Color3.new(1, 1, 1))
     else
         State.Energy = math.min(SETTINGS.STATS.MAX_ENERGY, State.Energy + (15 * dt))
-    end
-    if State.IsNoclipActive then
-        if HRP.Velocity.Magnitude > SETTINGS.STATS.MOVEMENT_THRESHOLD and os.clock() - State.LastGhostTime > SETTINGS.STATS.GHOST_INTERVAL then
-            local data = CreateCyberGhost(SETTINGS.COLORS.NOCLIP_GHOST_GRADIENT, true, SETTINGS.GHOST_SETTINGS.NOCLIP_FADE_TIME, SETTINGS.GHOST_SETTINGS.NOCLIP_GHOST_TRANSPARENCY)
-            if data then
-                table.insert(ActiveEffects["NoclipGhosts"], data)
-            end
-            State.LastGhostTime = os.clock()
-        end
-        
-        if os.clock() > State.NoclipEndTime then
-            DeactivateNoclip()
-        end
     end
 end)
 
@@ -609,7 +470,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.E then ExecSandi() end
     if input.KeyCode == Enum.KeyCode.Q then ExecDash() end
-    if input.KeyCode == Enum.KeyCode.R then ExecNoclip() end
+    if input.KeyCode == Enum.KeyCode.F then ExecNoclip() end
 end)
 
 local function Init()
@@ -619,14 +480,6 @@ local function Init()
     Player.CharacterAdded:Connect(function(newChar)
         Character = newChar; HRP = newChar:WaitForChild("HumanoidRootPart"); Humanoid = newChar:WaitForChild("Humanoid")
         State.LastHealth = Humanoid.Health; BuildUI()
-        if State.IsNoclipActive then DeactivateNoclip() end
     end)
 end
 Init()
-
-RunService.RenderStepped:Connect(function()
-    for i, cont in ipairs(ActiveCooldowns) do
-        local target = UDim2.new(0.5, -110, 0.7, -(i - 1) * 40)
-        cont.Position = cont.Position:Lerp(target, 0.15)
-    end
-end)
