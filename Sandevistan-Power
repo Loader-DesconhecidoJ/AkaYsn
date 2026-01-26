@@ -41,7 +41,7 @@ local SETTINGS = {
         IMPACT_THRESHOLD = -60,
     },
     COOLDOWNS = {
-        SANDI = 20,
+        SANDI = 8,
         DASH = 3,
         DODGE = 5,
         NOCLIP = 3.5,
