@@ -85,7 +85,7 @@ local SETTINGS = {
     GHOST_TRAIL = {
         SANDI = {
             DELAY = 0.3,
-            DURATION = 2,
+            DURATION = 1.5,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
             OFFSET_Y = 0,
@@ -100,7 +100,7 @@ local SETTINGS = {
             OFFSET_Z = 0
         },
         DODGE = {
-            DELAY = 0.1,
+            DELAY = 0,
             DURATION = 0.5,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
