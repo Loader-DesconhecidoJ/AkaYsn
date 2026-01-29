@@ -1,8 +1,11 @@
 --!strict
 --[[
     ╔════════════════════════════════════════════════════════════════════╗
-    ║           CYBERPUNK SANDEVISTAN - PROJECT EDGE RUNNER V32.2        ║
-    ║           IMPACT CRACKS + 0.30 SHAKE + V32 PREMIUM UI              ║
+    ║           CYBERPUNK SANDEVISTAN - PROJECT EDGE RUNNER V32.3        ║
+    ║           UPDATES:                                                 ║
+    ║           - 10% CHANCE FOR SYSTEM FAILURE (CYBERPSYCHOSIS)         ║
+    ║           - NEW CREEPY LAUGH SOUND FX                              ║
+    ║           - FIXED WHITE GHOST TRAIL (NOW NEON & COLORED)           ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -39,7 +42,7 @@ local SETTINGS = {
         SANDI_SPEED = 100,
         DASH_FORCE = 100,
         IMPACT_THRESHOLD = -60,
-        MOVING_THRESHOLD = 1,  -- Velocity magnitude to consider moving
+        MOVING_THRESHOLD = 1,
     },
     COOLDOWNS = {
         SANDI = 8,
@@ -48,8 +51,8 @@ local SETTINGS = {
         NOCLIP = 3.5,
     },
     COLORS = {
-        SANDI_START = Color3.fromRGB(0, 255, 240),
-        SANDI_END = Color3.fromRGB(160, 0, 255),
+        SANDI_START = Color3.fromRGB(0, 255, 240), -- Cyan Neon
+        SANDI_END = Color3.fromRGB(160, 0, 255),   -- Purple Neon
         DASH_GOLD = Color3.fromRGB(255, 215, 0),
         DASH_YELLOW = Color3.fromRGB(255, 255, 0),
         DASH_ORANGE = Color3.fromRGB(255, 165, 0),
@@ -70,7 +73,8 @@ local SETTINGS = {
             SANDI_OFF = "rbxassetid://118534165523355",
             HIT = "rbxassetid://5665936061",
             NOCLIP_ON = "rbxassetid://70643008100559",
-            SANDI_LOOP = "rbxassetid://81793359483683"
+            SANDI_LOOP = "rbxassetid://81793359483683",
+            PSYCHO_LAUGH = "rbxassetid://87597277352254" -- New Sound Added
         },
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
@@ -80,12 +84,12 @@ local SETTINGS = {
     },
     GHOST_TRAIL = {
         SANDI = {
-            DELAY = 0.3, -- Time to wait before starting to disappear (in seconds)
-            DURATION = 2, -- Time for the ghost to fade out (in seconds)
-            END_TRANSPARENCY = 1, -- Final transparency (0 = opaque, 1 = fully transparent)
-            OFFSET_X = 0, -- X coordinate offset for ghost position (distance from origin along X axis)
-            OFFSET_Y = 0, -- Y coordinate offset for ghost position (distance from origin along Y axis)
-            OFFSET_Z = 0 -- Z coordinate offset for ghost position (distance from origin along Z axis)
+            DELAY = 0.3,
+            DURATION = 2,
+            END_TRANSPARENCY = 1,
+            OFFSET_X = 0,
+            OFFSET_Y = 0,
+            OFFSET_Z = 0
         },
         DASH = {
             DELAY = 0,
@@ -142,14 +146,15 @@ local function Create(className: string, properties: {[string]: any})
     return instance
 end
 
-local function PlaySFX(id: string, volume: number?)
+local function PlaySFX(id: string, volume: number?, pitch: number?)
     local sound = Create("Sound", {
         SoundId = id,
         Volume = volume or 1,
+        PlaybackSpeed = pitch or 1,
         Parent = HRP or Camera
     })
     sound:Play()
-    Debris:AddItem(sound, 5)
+    Debris:AddItem(sound, 10)
 end
 
 local function CamShake(intensity: number, duration: number)
@@ -248,56 +253,70 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
     Character.Archivable = true
     local ghostChar = Character:Clone()
     local ghostHRP = ghostChar:FindFirstChild("HumanoidRootPart")
+    
+    -- SYSTEM FAILURE: GLITCH OFFSET (Jitter effect)
+    if trailType == "glitch" then
+        offsetX = math.random(-2, 2)
+        offsetZ = math.random(-2, 2)
+    end
+
     if ghostHRP and HRP then
         ghostHRP.CFrame = HRP.CFrame + Vector3.new(offsetX, offsetY, offsetZ)
     end
+    
     local head = ghostChar:FindFirstChild("Head")
     if head then
         local face = head:FindFirstChild("face")
         if face and face:IsA("Decal") then
-            face.Transparency = 1  -- Hide the face decal to prevent white/black issues
+            face.Transparency = 1
         end
     end
+
     for _, part in pairs(ghostChar:GetDescendants()) do
         if part:IsA("BasePart") then
             part.Anchored = true
             part.CanCollide = false
-            part.Material = Enum.Material.ForceField
+            
+            -- FIX: FORCE NEON FOR SANDI TO AVOID WHITE GHOSTS
+            if trailType == "sandi" or trailType == "glitch" or trailType == "dash" then
+                part.Material = Enum.Material.Neon
+            else
+                part.Material = Enum.Material.ForceField
+            end
+            
             part.Color = startColor
             part.Transparency = 0
             if part:IsA("MeshPart") then
-                part.TextureID = ""  -- Remove textures to prevent artifacts
+                part.TextureID = ""  -- Remove textures to fix white look
             end
+            
             task.spawn(function()
                 task.wait(delay)
-                -- Custom color shift based on trail type
                 local colors
-                if trailType == "dash" then
-                    colors = {
-                        SETTINGS.COLORS.DASH_GOLD,    -- Gold
-                        SETTINGS.COLORS.DASH_YELLOW,  -- Yellow
-                        SETTINGS.COLORS.DASH_ORANGE   -- Orange
-                    }
+                
+                -- COLOR LOGIC FIX
+                if trailType == "sandi" then
+                     -- Forces Cyan -> Purple Gradient
+                    colors = {SETTINGS.COLORS.SANDI_START, SETTINGS.COLORS.SANDI_END}
+                elseif trailType == "dash" then
+                    colors = {SETTINGS.COLORS.DASH_GOLD, SETTINGS.COLORS.DASH_YELLOW, SETTINGS.COLORS.DASH_ORANGE}
+                elseif trailType == "glitch" then
+                    colors = {Color3.new(1,0,0), Color3.new(0,0,0), Color3.new(1,1,1), Color3.new(1,0,0)}
                 else
-                    colors = {
-                        Color3.fromRGB(255, 0, 0),    -- Red
-                        Color3.fromRGB(255, 165, 0),  -- Orange
-                        Color3.fromRGB(255, 255, 0),  -- Yellow
-                        Color3.fromRGB(0, 255, 0),    -- Green
-                        Color3.fromRGB(0, 0, 255),    -- Blue
-                        Color3.fromRGB(75, 0, 130),   -- Indigo
-                        Color3.fromRGB(148, 0, 211)   -- Violet
-                    }
+                    colors = {startColor, endColor}
                 end
+                
                 part.Color = colors[1]
-                local segmentTime = duration / (#colors - 1)
+                local animSpeed = (trailType == "glitch") and (duration / 4) or (duration / (#colors - 1))
+                if #colors == 2 then animSpeed = duration end -- Fix for simple gradient
+                
                 for i = 1, #colors - 1 do
-                    local ti = TweenInfo.new(segmentTime)
+                    local ti = TweenInfo.new(animSpeed, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
                     local tween = TweenService:Create(part, ti, {Color = colors[i + 1]})
                     tween:Play()
                     tween.Completed:Wait()
                 end
-                -- Transparency fade for all
+                
                 local fadeTween = TweenService:Create(part, TweenInfo.new(duration), {Transparency = endTransparency})
                 fadeTween:Play()
             end)
@@ -313,14 +332,12 @@ local function VFX_Impact_Ambient(pos: Vector3)
     local result = workspace:Raycast(pos + Vector3.new(0, 2, 0), Vector3.new(0, -10, 0), rayParams)
     if not result then return end
     
-    -- Ajuste pedido: Shake 0.30 e cancela após 0.30s
     PlaySFX(SETTINGS.ASSETS.SOUNDS.IMPACT, 2)
     CamShake(0.30, 0.30)
     
     local anchor = Create("Part", {CFrame = CFrame.new(result.Position), Anchored = true, Transparency = 1, CanCollide = false, Parent = workspace})
     Debris:AddItem(anchor, 5)
 
-    -- RACHADURA "FEIA" (Blocos pretos rústicos no chão)
     for i = 1, 8 do
         local angle = (math.pi * 2 / 8) * i
         local crack = Create("Part", {
@@ -349,15 +366,68 @@ local function VFX_Impact_Ambient(pos: Vector3)
 end
 
 local function ExecCyberpsychosis()
-    PlaySFX(SETTINGS.ASSETS.SOUNDS.HIT, 2)
-    CamShake(3, 1)
-    local cc = Create("ColorCorrectionEffect", {TintColor = Color3.fromRGB(255, 0, 0), Saturation = -1, Brightness = -0.2, Parent = Lighting})
-    local t = TweenService:Create(cc, TweenInfo.new(1.5), {TintColor = Color3.new(1,1,1), Saturation = 0, Brightness = 0})
-    t:Play()
-    t.Completed:Connect(function() cc:Destroy() end)
+    --// SYSTEM FAILURE EVENT (10% RARE EVENT)
+    -- NEW SOUND ID IMPLEMENTED
+    PlaySFX(SETTINGS.ASSETS.SOUNDS.PSYCHO_LAUGH, 2.5)
+    
     if Humanoid then
-        Humanoid.Health -= 20  -- Damage from overload
+        Humanoid.WalkSpeed = 0
+        Humanoid.JumpPower = 0
     end
+    
+    if Lighting:FindFirstChild("SandiEffect") then Lighting.SandiEffect:Destroy() end
+    
+    -- Visual Distortion
+    local blur = Create("BlurEffect", {Size = 0, Parent = Lighting})
+    local cc = Create("ColorCorrectionEffect", {
+        TintColor = Color3.fromRGB(255, 50, 50), 
+        Saturation = -1, 
+        Contrast = 2,
+        Brightness = -0.1, 
+        Parent = Lighting
+    })
+    
+    -- Glitch Loop
+    task.spawn(function()
+        local duration = 3.5 -- Increased slightly for the laugh
+        local startTime = os.clock()
+        
+        while os.clock() - startTime < duration do
+            -- Aggressive Shake
+            if Humanoid then
+                Humanoid.CameraOffset = Vector3.new(math.random(-2,2), math.random(-2,2), math.random(-2,2))
+            end
+            
+            -- FOV Pulsing
+            Camera.FieldOfView = math.random(50, 110)
+            
+            -- Screen Strobe
+            cc.Brightness = math.random(-5, 5) / 10
+            cc.TintColor = Color3.fromHSV(math.random(), 1, 1)
+            blur.Size = math.random(0, 20)
+
+            -- Spawn Glitch Clones
+            CreateGhost(Color3.new(1,0,0), Color3.new(0,0,0), 0, 0.2, 1, 0, 0, 0, "glitch")
+            
+            task.wait(math.random(1, 4) / 20)
+        end
+        
+        -- Cleanup
+        if Humanoid then
+            Humanoid.Health -= 35 -- Increased Punishment
+            Humanoid.WalkSpeed = 16
+            Humanoid.JumpPower = 50
+            Humanoid.CameraOffset = Vector3.new(0,0,0)
+        end
+        
+        TweenService:Create(Camera, TweenInfo.new(0.5), {FieldOfView = 70}):Play()
+        TweenService:Create(cc, TweenInfo.new(1), {TintColor = Color3.new(1,1,1), Saturation = 0, Contrast = 0, Brightness = 0}):Play()
+        TweenService:Create(blur, TweenInfo.new(1), {Size = 0}):Play()
+        
+        task.wait(1)
+        cc:Destroy()
+        blur:Destroy()
+    end)
 end
 
 local function ExecDodge(enemyPart: BasePart?)
@@ -583,8 +653,12 @@ RunService.Heartbeat:Connect(function(dt)
             end
         end
         if State.Energy <= 0 then
-            ExecCyberpsychosis()
-            ExecSandi()
+            -- 10% PROBABILITY CHECK
+            local luck = math.random(1, 100)
+            if luck <= 30 then
+                ExecCyberpsychosis()
+            end
+            ExecSandi() -- Deactivate normally
         end
     elseif State.IsNoclipActive then
         CreateGhost(Color3.new(0, 0, 0), Color3.new(1, 1, 1), SETTINGS.GHOST_TRAIL.NOCLIP.DELAY, SETTINGS.GHOST_TRAIL.NOCLIP.DURATION, SETTINGS.GHOST_TRAIL.NOCLIP.END_TRANSPARENCY, SETTINGS.GHOST_TRAIL.NOCLIP.OFFSET_X, SETTINGS.GHOST_TRAIL.NOCLIP.OFFSET_Y, SETTINGS.GHOST_TRAIL.NOCLIP.OFFSET_Z, "noclip")
