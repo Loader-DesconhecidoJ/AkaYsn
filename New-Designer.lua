@@ -17,6 +17,8 @@ local Mode          = "CAMLOCK"   -- "CAMLOCK", "AIMLOCK", "ASSIST", "Mistu"
 local BodyPart      = "Head"      -- "Head" ou "Torso"
 local LockedTarget  = nil
 local Hue           = 0
+local LineboxEnabled    = false
+local lineboxDrawings   = {}
 
 --// Configurações
 local FOVMax        = 110
@@ -183,6 +185,27 @@ local function findClosestTarget()
     return closest
 end
 
+--// Função para adicionar Linebox a um player
+local function addLinebox(player)
+    if player == LocalPlayer or lineboxDrawings[player] then return end
+
+    local boxLines = {}
+    for i = 1, 4 do
+        local line = Drawing.new("Line")
+        line.Thickness = 2
+        line.Color = Color3.fromRGB(255, 255, 255)
+        line.Visible = false
+        table.insert(boxLines, line)
+    end
+
+    local tracer = Drawing.new("Line")
+    tracer.Thickness = 2
+    tracer.Color = Color3.fromRGB(255, 255, 255)
+    tracer.Visible = false
+
+    lineboxDrawings[player] = {boxLines = boxLines, tracer = tracer}
+end
+
 --// Criação da GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
@@ -239,6 +262,18 @@ dragButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 dragButton.BorderSizePixel = 0
 Instance.new("UICorner", dragButton).CornerRadius = UDim.new(0, 8)
 
+-- Botão Linebox (à esquerda do drag)
+local lineboxBtn = Instance.new("TextButton", screenGui)
+lineboxBtn.Size = UDim2.new(0, 32, 0, 20)
+lineboxBtn.Text = "LB"
+lineboxBtn.Font = Enum.Font.GothamBold
+lineboxBtn.TextSize = 14
+lineboxBtn.TextColor3 = Color3.new(1,1,1)
+lineboxBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+lineboxBtn.BorderSizePixel = 0
+Instance.new("UICorner", lineboxBtn).CornerRadius = UDim.new(0, 8)
+lineboxBtn.Visible = false
+
 -- Menu de partes do corpo
 local partMenu = Instance.new("Frame", screenGui)
 partMenu.Size = UDim2.new(0, 110, 0, 44)
@@ -264,10 +299,31 @@ end
 local headOption = createPartOption("HEAD", 4)
 local torsoOption = createPartOption("TORSO", 24)
 
+--// Inicializa Linebox para players existentes
+for _, player in ipairs(Players:GetPlayers()) do
+    addLinebox(player)
+end
+
+--// Conecta para novos players
+Players.PlayerAdded:Connect(addLinebox)
+
+Players.PlayerRemoving:Connect(function(player)
+    if lineboxDrawings[player] then
+        for _, line in ipairs(lineboxDrawings[player].boxLines) do
+            line:Remove()
+        end
+        lineboxDrawings[player].tracer:Remove()
+        lineboxDrawings[player] = nil
+    end
+end)
+
 --// Lógica dos botões
 toggleBtn.MouseButton1Click:Connect(function()
     Enabled = not Enabled
     LockedTarget = nil
+    if not Enabled then
+        LineboxEnabled = false
+    end
     toggleBtn.Text = Enabled and "TOGGLE ON" or "TOGGLE OFF"
 end)
 
@@ -304,6 +360,10 @@ torsoOption.MouseButton1Click:Connect(function()
     partMenu.Visible = false
 end)
 
+lineboxBtn.MouseButton1Click:Connect(function()
+    LineboxEnabled = not LineboxEnabled
+end)
+
 --// Sistema de Drag
 local dragging, dragStart, startPos = false, nil, nil
 
@@ -337,10 +397,15 @@ end)
 RunService.RenderStepped:Connect(function()
     toggleBtn.BackgroundColor3 = getRainbowColor()
 
-    -- Posiciona o botão de drag e menu de partes
+    -- Posiciona o botão de drag, linebox e menu de partes
     dragButton.Position = UDim2.fromOffset(
         mainFrame.AbsolutePosition.X + mainFrame.AbsoluteSize.X / 2 - 16,
         mainFrame.AbsolutePosition.Y + mainFrame.AbsoluteSize.Y + 6
+    )
+    
+    lineboxBtn.Position = UDim2.fromOffset(
+        dragButton.AbsolutePosition.X - 38,
+        dragButton.AbsolutePosition.Y
     )
     
     if partMenu.Visible then
@@ -359,9 +424,12 @@ RunService.RenderStepped:Connect(function()
         aimLockArrow.Visible = false
     end
 
-    -- FOV Circle apenas no modo ASSIST
+    -- FOV Circle apenas no modo ASSIST e se linebox não estiver ativo
     fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    fovCircle.Visible = Enabled and Mode == "ASSIST"
+    fovCircle.Visible = Enabled and Mode == "ASSIST" and not LineboxEnabled
+
+    -- Visibilidade do botão Linebox
+    lineboxBtn.Visible = (Mode == "ASSIST")
 
     if not Enabled then
         fovCircle.Visible = false
@@ -426,6 +494,76 @@ RunService.RenderStepped:Connect(function()
             local lookAt = Vector3.new(targetPart.Position.X, hrp.Position.Y, targetPart.Position.Z)
             hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(hrp.Position, lookAt), MistuSmooth)
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, lookAt), MistuSmooth)
+        end
+    end
+
+    -- Atualização do Linebox
+    if LineboxEnabled and Mode == "ASSIST" then
+        local localHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        for player, drawings in pairs(lineboxDrawings) do
+            local char = player.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local head = char:FindFirstChild("Head")
+                if humanoid and humanoid.Health > 0 and root and head and localHrp then
+                    local distance = (root.Position - localHrp.Position).Magnitude
+                    local ratio = math.clamp(distance / 100, 0, 1)
+                    local dynamicColor
+                    if ratio < 0.33 then
+                        dynamicColor = Color3.fromRGB(255, 0, 0)
+                    elseif ratio < 0.66 then
+                        dynamicColor = Color3.fromRGB(255, 255, 0)
+                    else
+                        dynamicColor = Color3.fromRGB(0, 255, 0)
+                    end
+
+                    local headPos, headOn = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                    local legPos, legOn = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                    if headOn and legOn then
+                        local sizeY = (headPos.Y - legPos.Y) * 1.2
+                        local sizeX = sizeY / 2
+                        local posX = (headPos.X + legPos.X) / 2
+                        local posY = (headPos.Y + legPos.Y) / 2
+
+                        local topLeft = Vector2.new(math.floor(posX - sizeX / 2), math.floor(posY - sizeY / 2))
+                        local topRight = Vector2.new(math.floor(posX + sizeX / 2), math.floor(posY - sizeY / 2))
+                        local bottomLeft = Vector2.new(math.floor(posX - sizeX / 2), math.floor(posY + sizeY / 2))
+                        local bottomRight = Vector2.new(math.floor(posX + sizeX / 2), math.floor(posY + sizeY / 2))
+
+                        drawings.boxLines[1].From = topLeft drawings.boxLines[1].To = topRight
+                        drawings.boxLines[2].From = topRight drawings.boxLines[2].To = bottomRight
+                        drawings.boxLines[3].From = bottomRight drawings.boxLines[3].To = bottomLeft
+                        drawings.boxLines[4].From = bottomLeft drawings.boxLines[4].To = topLeft
+
+                        for _, line in ipairs(drawings.boxLines) do 
+                            line.Color = dynamicColor
+                            line.Visible = true 
+                        end
+
+                        local tracerFrom = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                        local tracerTo = Vector2.new(legPos.X, legPos.Y)
+                        drawings.tracer.From = tracerFrom
+                        drawings.tracer.To = tracerTo
+                        drawings.tracer.Color = dynamicColor
+                        drawings.tracer.Visible = true
+                    else
+                        for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                        drawings.tracer.Visible = false
+                    end
+                else
+                    for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                    drawings.tracer.Visible = false
+                end
+            else
+                for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                drawings.tracer.Visible = false
+            end
+        end
+    else
+        for _, drawings in pairs(lineboxDrawings) do
+            for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+            drawings.tracer.Visible = false
         end
     end
 end)
