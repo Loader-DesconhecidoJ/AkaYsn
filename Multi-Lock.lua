@@ -431,74 +431,8 @@ RunService.RenderStepped:Connect(function()
     -- Visibilidade do botão Linebox
     lineboxBtn.Visible = (Mode == "ASSIST")
 
-    if not Enabled then
-        fovCircle.Visible = false
-        return
-    end
-
-    -- Atualiza alvo
-    if Mode ~= "ASSIST" then
-        if not LockedTarget or not LockedTarget.Parent or not LockedTarget.Parent.Parent then
-            LockedTarget = findClosestTarget()
-        end
-    end
-
-    local targetPart = LockedTarget and getTargetPart(LockedTarget.Parent or LockedTarget) or nil
-
-    -- Modos de funcionamento
-    if Mode == "CAMLOCK" and targetPart then
-        local root = LockedTarget.Parent:FindFirstChild("HumanoidRootPart") or targetPart
-        local targetCFrame = CFrame.new(Camera.CFrame.Position, root.Position)
-        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
-        updateCamLockIndicator(root)
-
-    elseif Mode == "AIMLOCK" and targetPart then
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local lookAt = Vector3.new(targetPart.Position.X, hrp.Position.Y, targetPart.Position.Z)
-            hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(hrp.Position, lookAt), AimSmooth)
-        end
-        updateAimLockIndicator(targetPart)
-
-    elseif Mode == "ASSIST" then
-        local closest = findClosestTarget()
-        if closest and canSeeTarget(closest) then
-            local cam = Camera.CFrame
-            local direction = (closest.Position - cam.Position).Unit
-            Camera.CFrame = CFrame.new(cam.Position, cam.Position + cam.LookVector:Lerp(direction, AssistStrength))
-
-            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local distance = (closest.Position - hrp.Position).Magnitude
-                local ratio = math.clamp(distance / 100, 0, 1)
-                FOV = FOVMax - (FOVMax - FOVMin) * ratio
-                fovCircle.Radius = FOV
-
-                if ratio < 0.33 then
-                    fovCircle.Color = Color3.fromRGB(255, 0, 0)
-                elseif ratio < 0.66 then
-                    fovCircle.Color = Color3.fromRGB(255, 255, 0)
-                else
-                    fovCircle.Color = Color3.fromRGB(0, 255, 0)
-                end
-            end
-        else
-            FOV = FOVMax
-            fovCircle.Radius = FOV
-            fovCircle.Color = Color3.fromRGB(255, 255, 255)
-        end
-
-    elseif Mode == "Mistu" and targetPart then
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local lookAt = Vector3.new(targetPart.Position.X, hrp.Position.Y, targetPart.Position.Z)
-            hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(hrp.Position, lookAt), MistuSmooth)
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, lookAt), MistuSmooth)
-        end
-    end
-
     -- Atualização do Linebox
-    if LineboxEnabled and Mode == "ASSIST" then
+    if Enabled and LineboxEnabled and Mode == "ASSIST" then
         local localHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         for player, drawings in pairs(lineboxDrawings) do
             local char = player.Character
@@ -564,6 +498,72 @@ RunService.RenderStepped:Connect(function()
         for _, drawings in pairs(lineboxDrawings) do
             for _, line in ipairs(drawings.boxLines) do line.Visible = false end
             drawings.tracer.Visible = false
+        end
+    end
+
+    if not Enabled then
+        fovCircle.Visible = false
+        return
+    end
+
+    -- Atualiza alvo
+    if Mode ~= "ASSIST" then
+        if not LockedTarget or not LockedTarget.Parent or not LockedTarget.Parent.Parent then
+            LockedTarget = findClosestTarget()
+        end
+    end
+
+    local targetPart = LockedTarget and getTargetPart(LockedTarget.Parent or LockedTarget) or nil
+
+    -- Modos de funcionamento
+    if Mode == "CAMLOCK" and targetPart then
+        local root = LockedTarget.Parent:FindFirstChild("HumanoidRootPart") or targetPart
+        local targetCFrame = CFrame.new(Camera.CFrame.Position, root.Position)
+        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
+        updateCamLockIndicator(root)
+
+    elseif Mode == "AIMLOCK" and targetPart then
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local lookAt = Vector3.new(targetPart.Position.X, hrp.Position.Y, targetPart.Position.Z)
+            hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(hrp.Position, lookAt), AimSmooth)
+        end
+        updateAimLockIndicator(targetPart)
+
+    elseif Mode == "ASSIST" then
+        local closest = findClosestTarget()
+        if closest and canSeeTarget(closest) then
+            local cam = Camera.CFrame
+            local direction = (closest.Position - cam.Position).Unit
+            Camera.CFrame = CFrame.new(cam.Position, cam.Position + cam.LookVector:Lerp(direction, AssistStrength))
+
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local distance = (closest.Position - hrp.Position).Magnitude
+                local ratio = math.clamp(distance / 100, 0, 1)
+                FOV = FOVMax - (FOVMax - FOVMin) * ratio
+                fovCircle.Radius = FOV
+
+                if ratio < 0.33 then
+                    fovCircle.Color = Color3.fromRGB(255, 0, 0)
+                elseif ratio < 0.66 then
+                    fovCircle.Color = Color3.fromRGB(255, 255, 0)
+                else
+                    fovCircle.Color = Color3.fromRGB(0, 255, 0)
+                end
+            end
+        else
+            FOV = FOVMax
+            fovCircle.Radius = FOV
+            fovCircle.Color = Color3.fromRGB(255, 255, 255)
+        end
+
+    elseif Mode == "Mistu" and targetPart then
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local lookAt = Vector3.new(targetPart.Position.X, hrp.Position.Y, targetPart.Position.Z)
+            hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(hrp.Position, lookAt), MistuSmooth)
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, lookAt), MistuSmooth)
         end
     end
 end)
