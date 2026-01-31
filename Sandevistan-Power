@@ -1,11 +1,14 @@
 --!strict
 --[[
     ╔════════════════════════════════════════════════════════════════════╗
-    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V2.1     ║
-    ║           FIXES:                                                   ║
-    ║           - REMOVED WHITE FLASH AT START (SMOOTH TWEEN TO GREEN)  ║
-    ║           - DENSER GHOST TRAIL (INTERVAL 0.05s, DELAY 0.05)       ║
-    ║           - ADJUST TRAILS IN SETTINGS.GHOST_TRAIL & HEARTBEAT     ║
+    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V2.5     ║
+    ║           UPDATES:                                                 ║
+    ║           - REMOVED KIROSHI ABILITY                               ║
+    ║           - REMOVED GHOST TRAIL FROM NOCLIP                       ║
+    ║           - ADDED REVERSE ZOOM SHAKE ON NOCLIP DEACTIVATE         ║
+    ║           - FIXED CHARACTER FREEZING ON SANDEVISTAN ACTIVATION    ║
+    ║           - LOCK DASH BUTTON WHEN SANDEVISTAN ACTIVE (PADLOCK)    ║
+    ║           - REMOVED SLOW MOTION FROM SANDEVISTAN (NO FREEZE)      ║
     ║           - INSPIRED BY EDGERUNNERS & JUMP SHOWDOWN ROBLOX         ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
@@ -49,7 +52,7 @@ local SETTINGS = {
         SANDI = 10,
         DASH = 3,
         DODGE = 5,
-        NOCLIP = 3.5,
+        NOCLIP = 3.5
     },
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200), -- Greener tint without white mix
@@ -506,24 +509,83 @@ local function ResetSandi()
     end
     TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
     CleanupSandiSounds()
-    for instance, state in originalStates do
-        if instance.Parent then
-            if instance:IsA("BasePart") then
-                instance.Anchored = state.Anchored
-            elseif instance:IsA("Humanoid") then
-                instance.WalkSpeed = state.WalkSpeed
-                for _, data in state.Animators or {} do
-                    local track = data[1]
-                    if track then
-                        track.PlaybackSpeed = data[2]
-                    end
-                end
-            elseif instance:IsA("Sound") then
-                instance.PlaybackSpeed = state.PlaybackSpeed
-            end
+    originalStates = {}
+    -- Atualiza o botão de Dash ao resetar
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if gui then
+        local dashBtn = gui:FindFirstChild("DashBtn")
+        if dashBtn then
+            local lockLabel = dashBtn:FindFirstChild("LockLabel")
+            if lockLabel then lockLabel:Destroy() end
+            dashBtn.TextColor3 = SETTINGS.COLORS.DASH_CYAN
         end
     end
-    originalStates = {}
+end
+
+local function PlayActivationSequence()
+    local textures = {
+        "rbxassetid://84920149837951",
+        "rbxassetid://138600197729943",
+        "rbxassetid://91101401638106",
+        "rbxassetid://136578715529335",
+        "rbxassetid://132751511897004",
+        "rbxassetid://135370243485541"
+    }
+    local fullSeq = {}
+    for _, tex in textures do
+        table.insert(fullSeq, tex)
+    end
+    for i = #textures - 1, 1, -1 do
+        table.insert(fullSeq, textures[i])
+    end
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if not gui then return end
+    local overlay = Create("ImageLabel", {
+        Name = "SandiTextureOverlay",
+        Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        ImageTransparency = 0.3, -- Semi-transparent overlay
+        ZIndex = 100, -- On top of other UI
+        Parent = gui
+    })
+    task.spawn(function()
+        for _, tex in fullSeq do
+            overlay.Image = tex
+            task.wait(0.08) -- Adjusted for smooth but not too slow/fast transition
+        end
+        TweenService:Create(overlay, TweenInfo.new(0.2), {ImageTransparency = 1}):Play()
+        task.wait(0.2)
+        overlay:Destroy()
+    end)
+end
+
+local function UpdateDashButton()
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if not gui then return end
+    local dashBtn = gui:FindFirstChild("DashBtn")
+    if not dashBtn then return end
+    
+    if State.IsSandiActive then
+        if not dashBtn:FindFirstChild("LockLabel") then
+            Create("TextLabel", {
+                Name = "LockLabel",
+                Text = "🔒",
+                Font = Enum.Font.GothamBold,
+                TextSize = 30,
+                TextColor3 = Color3.new(1,1,1),
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1,0,1,0),
+                Position = UDim2.new(0,0,0,0),
+                Parent = dashBtn
+            })
+        end
+        dashBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5) -- Diminuído
+    else
+        local lockLabel = dashBtn:FindFirstChild("LockLabel")
+        if lockLabel then lockLabel:Destroy() end
+        dashBtn.TextColor3 = SETTINGS.COLORS.DASH_CYAN
+    end
 end
 
 local function ExecSandi()
@@ -546,49 +608,9 @@ local function ExecSandi()
             Saturation = -0.1
         }):Play()
         
-        originalStates = {}
-        for _, descendant in workspace:GetDescendants() do
-            if descendant:IsA("BasePart") then
-                local skip = false
-                local ancestor = descendant:FindFirstAncestorWhichIsA("Model")
-                if ancestor then
-                    local hum = ancestor:FindFirstChildWhichIsA("Humanoid")
-                    if hum and Players:GetPlayerFromCharacter(ancestor) then
-                        skip = true
-                    end
-                end
-                if not skip then
-                    originalStates[descendant] = {Anchored = descendant.Anchored}
-                    descendant.Anchored = true
-                end
-            elseif descendant:IsA("Humanoid") then
-                local player = Players:GetPlayerFromCharacter(descendant.Parent)
-                if not player then
-                    originalStates[descendant] = {WalkSpeed = descendant.WalkSpeed, Animators = {}}
-                    descendant.WalkSpeed = 0
-                    local animator = descendant:FindFirstChildWhichIsA("Animator")
-                    if animator then
-                        for _, track in animator:GetPlayingAnimationTracks() do
-                            table.insert(originalStates[descendant].Animators, {track, track.PlaybackSpeed})
-                            track.PlaybackSpeed = 0
-                        end
-                    end
-                end
-            elseif descendant:IsA("Sound") then
-                local skip = false
-                local anc = descendant:FindFirstAncestorWhichIsA("Model")
-                if anc then
-                    local h = anc:FindFirstChildWhichIsA("Humanoid")
-                    if h and Players:GetPlayerFromCharacter(anc) then
-                        skip = true
-                    end
-                end
-                if not skip then
-                    originalStates[descendant] = {PlaybackSpeed = descendant.PlaybackSpeed}
-                    descendant.PlaybackSpeed = 0
-                end
-            end
-        end
+        -- Play texture sequence
+        PlayActivationSequence()
+        
         lastSandiGhost = 0 -- Reset ghost timer
     else
         PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1)
@@ -606,25 +628,8 @@ local function ExecSandi()
         Humanoid.WalkSpeed = 16
         TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
         CleanupSandiSounds()
-        for instance, state in originalStates do
-            if instance.Parent then
-                if instance:IsA("BasePart") then
-                    instance.Anchored = state.Anchored
-                elseif instance:IsA("Humanoid") then
-                    instance.WalkSpeed = state.WalkSpeed
-                    for _, data in state.Animators or {} do
-                        local track = data[1]
-                        if track then
-                            track.PlaybackSpeed = data[2]
-                        end
-                    end
-                elseif instance:IsA("Sound") then
-                    instance.PlaybackSpeed = state.PlaybackSpeed
-                end
-            end
-        end
-        originalStates = {}
     end
+    UpdateDashButton() -- Atualiza o estado do botão Dash
 end
 
 local function ExecNoclip()
@@ -636,7 +641,12 @@ local function ExecNoclip()
                 part.CanCollide = true
             end
         end
-        TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 70}):Play()
+        -- Reverse zoom shake on deactivate
+        TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 90}):Play()
+        CamShake(0.5, 0.3)
+        task.delay(0.3, function()
+            TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 70}):Play()
+        end)
         State.IsNoclipActive = false
     else
         if os.clock() < State.Cooldowns.NOCLIP then return end
@@ -663,6 +673,7 @@ local function ExecNoclip()
 end
 
 local function ExecDash()
+    if State.IsSandiActive then return end -- Bloqueia Dash se Sandevistan ativo
     if State.Energy < 15 or os.clock() < State.Cooldowns.DASH then return end
     State.Cooldowns.DASH = os.clock() + SETTINGS.COOLDOWNS.DASH
     State.Energy -= 15
@@ -699,7 +710,7 @@ local function ExecDash()
     end)
 end
 
---// UI SYSTEM (UNCHANGED)
+--// UI SYSTEM
 local function MakeDraggable(frame: Frame)
     local dragging, dragStart, startPos
     local stroke = Create("UIStroke", {Color = SETTINGS.COLORS.EDIT_MODE, Thickness = 2, Enabled = false, Parent = frame})
@@ -741,17 +752,14 @@ local function BuildUI()
     
     local energyLabel = Create("TextLabel", {Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, -1.2, 0), BackgroundTransparency = 1, Text = "SYSTEM ENERGY: 100%", TextColor3 = SETTINGS.COLORS.SANDI_TRAIL[1], Font = Enum.Font.RobotoMono, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = energyContainer})
     
-    local function CreateSkillBtn(key, color, pos, name)
+    local function CreateSkillBtn(key, color, pos, name, func)
         local btn = Create("TextButton", {Name = name, Size = UDim2.new(0, 50, 0, 50), Position = savedPositions[name] or pos, Text = key, BackgroundColor3 = SETTINGS.COLORS.UI_BG, TextColor3 = color, Font = Enum.Font.GothamBlack, TextSize = 18, AutoButtonColor = false, Parent = gui})
         Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = btn})
         Create("UIStroke", {Color = color, Thickness = 2, Transparency = 0.5, Parent = btn})
         btn.MouseButton1Down:Connect(function()
             TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = SETTINGS.COLORS.UI_BG}):Play()
             if not State.EditMode then 
-                if key == "Q" then ExecDash() 
-                elseif key == "E" then ExecSandi() 
-                elseif key == "F" then ExecNoclip() 
-                end 
+                func()
             end
         end)
         btn.MouseButton1Up:Connect(function()
@@ -761,9 +769,9 @@ local function BuildUI()
         return btn
     end
     
-    CreateSkillBtn("Q", SETTINGS.COLORS.DASH_CYAN, UDim2.new(0.8, 0, 0.85, 0), "DashBtn") -- Mudado para ciano
-    CreateSkillBtn("E", SETTINGS.COLORS.SANDI_TRAIL[1], UDim2.new(0.85, 0, 0.85, 0), "SandiBtn")
-    CreateSkillBtn("F", SETTINGS.COLORS.NOCLIP, UDim2.new(0.9, 0, 0.85, 0), "NoclipBtn")
+    CreateSkillBtn("Q", SETTINGS.COLORS.DASH_CYAN, UDim2.new(0.8, 0, 0.85, 0), "DashBtn", ExecDash) -- Mudado para ciano
+    CreateSkillBtn("E", SETTINGS.COLORS.SANDI_TRAIL[1], UDim2.new(0.85, 0, 0.85, 0), "SandiBtn", ExecSandi)
+    CreateSkillBtn("F", SETTINGS.COLORS.NOCLIP, UDim2.new(0.9, 0, 0.85, 0), "NoclipBtn", ExecNoclip)
     
     MakeDraggable(energyContainer)
     MakeDraggable(lockBtn)
@@ -781,6 +789,9 @@ local function BuildUI()
             savedPositions["NoclipBtn"] = gui:FindFirstChild("NoclipBtn").Position
         end
     end)
+    
+    -- Atualiza botão Dash se Sandi já ativo
+    UpdateDashButton()
     
     local rsConn
     rsConn = RunService.RenderStepped:Connect(function()
@@ -870,8 +881,6 @@ RunService.Heartbeat:Connect(function(dt)
             end
             ExecSandi()
         end
-    elseif State.IsNoclipActive then
-        CreateGhost(Color3.new(0, 0, 0), Color3.new(1, 1, 1), SETTINGS.GHOST_TRAIL.NOCLIP.DELAY, SETTINGS.GHOST_TRAIL.NOCLIP.DURATION, SETTINGS.GHOST_TRAIL.NOCLIP.END_TRANSPARENCY, SETTINGS.GHOST_TRAIL.NOCLIP.OFFSET_X, SETTINGS.GHOST_TRAIL.NOCLIP.OFFSET_Y, SETTINGS.GHOST_TRAIL.NOCLIP.OFFSET_Z, "noclip")
     else
         State.Energy = math.min(SETTINGS.STATS.MAX_ENERGY, State.Energy + (15 * dt))
     end
@@ -885,6 +894,9 @@ UserInputService.InputBegan:Connect(function(input, gp)
 end)
 
 local function Init()
+    -- Reset Sandevistan no init pra evitar congelamento
+    ResetSandi()
+    
     -- Adicionando shaders para melhorar os visuais dos poderes
     local bloom = Create("BloomEffect", {Intensity = 0.5, Size = 20, Threshold = 1, Parent = Lighting})
     local sunRays = Create("SunRaysEffect", {Intensity = 0.2, Spread = 0.5, Parent = Lighting})
