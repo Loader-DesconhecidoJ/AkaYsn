@@ -60,9 +60,9 @@ local SETTINGS = {
             Color3.fromRGB(255, 0, 0),    -- Red
             Color3.fromRGB(255, 255, 0)   -- Yellow
         },
-        DASH_GOLD = Color3.fromRGB(255, 215, 0),
-        DASH_YELLOW = Color3.fromRGB(255, 255, 0),
-        DASH_ORANGE = Color3.fromRGB(255, 165, 0),
+        DASH_CYAN = Color3.fromRGB(0, 255, 255), -- Novo ciano para Dash
+        DASH_CYAN_LIGHT = Color3.fromRGB(100, 255, 255),
+        DASH_CYAN_DARK = Color3.fromRGB(0, 200, 200),
         DODGE_START = Color3.fromRGB(160, 0, 255),
         DODGE_END = Color3.fromRGB(255, 0, 130),
         EDIT_MODE = Color3.fromRGB(0, 255, 255),
@@ -308,8 +308,7 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
             
             task.spawn(function()
                 task.wait(delay)
-                local colors = if trailType == "sandi" then SETTINGS.COLORS.SANDI_TRAIL
-                    elseif trailType == "dash" then {SETTINGS.COLORS.DASH_GOLD, SETTINGS.COLORS.DASH_YELLOW, SETTINGS.COLORS.DASH_ORANGE}
+                local colors = if trailType == "sandi" or trailType == "dash" then SETTINGS.COLORS.SANDI_TRAIL -- Mesmo trail do Sandi para Dash
                     elseif trailType == "glitch" then {Color3.new(1,0,0), Color3.new(0,0,0), Color3.new(1,1,1), Color3.new(1,0,0)}
                     else {startColor, endColor}
                 
@@ -487,6 +486,46 @@ local function ExecDodge(enemyPart: BasePart?)
     t.Completed:Connect(function() cc:Destroy() end)
 end
 
+local function ResetSandi()
+    if not State.IsSandiActive then return end
+    State.IsSandiActive = false
+    PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1)
+    State.Cooldowns.SANDI = os.clock() + SETTINGS.COOLDOWNS.SANDI
+    ShowCooldownText("Sandevistan", SETTINGS.COOLDOWNS.SANDI, SETTINGS.COLORS.SANDI_TRAIL[1])
+    local sandiEffect = Lighting:FindFirstChild("SandiEffect")
+    if sandiEffect then
+        TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            TintColor = Color3.new(1,1,1),
+            Contrast = 0,
+            Saturation = 0
+        }):Play()
+        task.delay(0.5, function() sandiEffect:Destroy() end)
+    end
+    if Humanoid then
+        Humanoid.WalkSpeed = 16
+    end
+    TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
+    CleanupSandiSounds()
+    for instance, state in originalStates do
+        if instance.Parent then
+            if instance:IsA("BasePart") then
+                instance.Anchored = state.Anchored
+            elseif instance:IsA("Humanoid") then
+                instance.WalkSpeed = state.WalkSpeed
+                for _, data in state.Animators or {} do
+                    local track = data[1]
+                    if track then
+                        track.PlaybackSpeed = data[2]
+                    end
+                end
+            elseif instance:IsA("Sound") then
+                instance.PlaybackSpeed = state.PlaybackSpeed
+            end
+        end
+    end
+    originalStates = {}
+end
+
 local function ExecSandi()
     if os.clock() < State.Cooldowns.SANDI and not State.IsSandiActive then return end
     State.IsSandiActive = not State.IsSandiActive
@@ -628,8 +667,13 @@ local function ExecDash()
     State.Cooldowns.DASH = os.clock() + SETTINGS.COOLDOWNS.DASH
     State.Energy -= 15
     PlaySFX(SETTINGS.ASSETS.SOUNDS.DASH, 1.2)
-    ShowCooldownText("Dash Impulse", SETTINGS.COOLDOWNS.DASH, SETTINGS.COLORS.DASH_GOLD)
-    local dashEffect = Create("ColorCorrectionEffect", {TintColor = SETTINGS.COLORS.DASH_GOLD, Brightness = 0.2, Parent = Lighting})
+    ShowCooldownText("Dash Impulse", SETTINGS.COOLDOWNS.DASH, SETTINGS.COLORS.DASH_CYAN) -- Mudado para ciano
+    local dashEffect = Create("ColorCorrectionEffect", {Name = "DashEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
+    TweenService:Create(dashEffect, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        TintColor = SETTINGS.COLORS.DASH_CYAN,
+        Contrast = 0.1,
+        Saturation = -0.1
+    }):Play()
     TweenService:Create(Camera, TweenInfo.new(0.25), {FieldOfView = 125}):Play()
     local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e6, 1e6, 1e6), Velocity = Camera.CFrame.LookVector * SETTINGS.STATS.DASH_FORCE, Parent = HRP})
     Debris:AddItem(bv, 0.25)
@@ -646,10 +690,10 @@ local function ExecDash()
                 CamShake(2, 0.2)
                 break
             end
-            CreateGhost(SETTINGS.COLORS.DASH_GOLD, SETTINGS.COLORS.DASH_GOLD, SETTINGS.GHOST_TRAIL.DASH.DELAY, SETTINGS.GHOST_TRAIL.DASH.DURATION, SETTINGS.GHOST_TRAIL.DASH.END_TRANSPARENCY, SETTINGS.GHOST_TRAIL.DASH.OFFSET_X, SETTINGS.GHOST_TRAIL.DASH.OFFSET_Y, SETTINGS.GHOST_TRAIL.DASH.OFFSET_Z, "dash")
+            CreateGhost(SETTINGS.COLORS.SANDI_TRAIL[1], SETTINGS.COLORS.SANDI_TRAIL[#SETTINGS.COLORS.SANDI_TRAIL], SETTINGS.GHOST_TRAIL.DASH.DELAY, SETTINGS.GHOST_TRAIL.DASH.DURATION, SETTINGS.GHOST_TRAIL.DASH.END_TRANSPARENCY, SETTINGS.GHOST_TRAIL.DASH.OFFSET_X, SETTINGS.GHOST_TRAIL.DASH.OFFSET_Y, SETTINGS.GHOST_TRAIL.DASH.OFFSET_Z, "dash")
             RunService.Heartbeat:Wait()
         end
-        TweenService:Create(dashEffect, TweenInfo.new(0.4), {TintColor = Color3.new(1,1,1), Brightness = 0}):Play()
+        TweenService:Create(dashEffect, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0}):Play()
         TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 70}):Play()
         Debris:AddItem(dashEffect, 0.45)
     end)
@@ -717,7 +761,7 @@ local function BuildUI()
         return btn
     end
     
-    CreateSkillBtn("Q", SETTINGS.COLORS.DASH_GOLD, UDim2.new(0.8, 0, 0.85, 0), "DashBtn")
+    CreateSkillBtn("Q", SETTINGS.COLORS.DASH_CYAN, UDim2.new(0.8, 0, 0.85, 0), "DashBtn") -- Mudado para ciano
     CreateSkillBtn("E", SETTINGS.COLORS.SANDI_TRAIL[1], UDim2.new(0.85, 0, 0.85, 0), "SandiBtn")
     CreateSkillBtn("F", SETTINGS.COLORS.NOCLIP, UDim2.new(0.9, 0, 0.85, 0), "NoclipBtn")
     
@@ -841,12 +885,19 @@ UserInputService.InputBegan:Connect(function(input, gp)
 end)
 
 local function Init()
+    -- Adicionando shaders para melhorar os visuais dos poderes
+    local bloom = Create("BloomEffect", {Intensity = 0.5, Size = 20, Threshold = 1, Parent = Lighting})
+    local sunRays = Create("SunRaysEffect", {Intensity = 0.2, Spread = 0.5, Parent = Lighting})
+    local blur = Create("BlurEffect", {Size = 2, Parent = Lighting}) -- Leve blur para efeito cyberpunk
+    local globalCC = Create("ColorCorrectionEffect", {Contrast = 0.1, Saturation = 0.2, Parent = Lighting}) -- Ajuste global para mais vibrância
+
     Character = Player.Character or Player.CharacterAdded:Wait()
     HRP = Character:WaitForChild("HumanoidRootPart")
     Humanoid = Character:WaitForChild("Humanoid")
     State.LastHealth = Humanoid.Health
     BuildUI()
     Player.CharacterAdded:Connect(function(newChar)
+        ResetSandi()  -- Reset Sandevistan on respawn to prevent freezing
         Character = newChar
         HRP = newChar:WaitForChild("HumanoidRootPart")
         Humanoid = newChar:WaitForChild("Humanoid")
