@@ -388,13 +388,6 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
     local ghostChar = Character:Clone()
     local ghostHRP = ghostChar:FindFirstChild("HumanoidRootPart")
     
-    -- FIX: REMOVE ACCESSORIES TO PREVENT GREEN BLOCKS
-    for _, child in pairs(ghostChar:GetChildren()) do
-        if child:IsA("Accessory") then
-            child:Destroy()
-        end
-    end
-    
     if trailType == "glitch" then
         offsetX = math.random(-2, 2)
         offsetZ = math.random(-2, 2)
@@ -408,7 +401,7 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
     if head then
         local face = head:FindFirstChild("face")
         if face and face:IsA("Decal") then
-            face.Transparency = 1
+            -- face.Transparency = 1 -- Removed for perfect clone
         end
     end
 
@@ -417,17 +410,13 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
             part.Anchored = true
             part.CanCollide = false
             
-            if trailType == "sandi" or trailType == "glitch" or trailType == "dash" then
-                part.Material = Enum.Material.Neon
-            else
-                part.Material = Enum.Material.ForceField
-            end
+            part.Material = Enum.Material.Neon -- Always Neon for glow texture
             
             part.Color = startColor
             part.Transparency = 0.3 -- Start slightly transparent to reduce intensity
-            if part:IsA("MeshPart") then
-                part.TextureID = ""
-            end
+            -- if part:IsA("MeshPart") then -- Removed for perfect clone
+            --     part.TextureID = ""
+            -- end
             
             task.spawn(function()
                 task.wait(delay)
@@ -796,7 +785,7 @@ local function ExecNoclip()
         if os.clock() < State.Cooldowns.NOCLIP then return end
         PlaySFX(SETTINGS.ASSETS.SOUNDS.NOCLIP_ON, 1)
         local cc = Create("ColorCorrectionEffect", { Brightness = 1, Parent = Lighting})
-        TweenService:Create(cc, TweenInfo.new(0.5), {Brightness = 0}):Play()
+        TweenService:Create(cc, TweenInfo.new(0.5), { Brightness = 0}):Play()
         task.delay(0.5, function() cc:Destroy() end)
         CamShake(0.5, 0.2)
         TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 50}):Play()
@@ -1063,3 +1052,73 @@ local function Init()
     end)
 end
 Init()
+
+local Lighting = game:GetService("Lighting")
+
+-- 1. Configurações de Tempo e Atmosfera
+Lighting.ClockTime = 17.8local Lighting = game:GetService("Lighting")
+
+-- 1. Configurações de Tempo e Atmosfera
+Lighting.ClockTime = 17.2
+Lighting.Brightness = 2 -- Mantém luz direcional, mas controlada
+Lighting.Ambient = Color3.fromRGB(0, 0, 0) -- Zero luz de fundo (escuridão total nas sombras)
+Lighting.OutdoorAmbient = Color3.fromRGB(10, 10, 10) -- Mínima luz externa
+Lighting.ExposureCompensation = 0.5 -- Ajuste de exposição para 4K
+Lighting.ShadowSoftness = 0 -- Sombras nítidas e realistas
+
+-- 2. Efeito Bloom (O Brilho Branco)
+local bloom = Lighting:FindFirstChildOfClass("BloomEffect") or Instance.new("BloomEffect", Lighting)
+bloom.Intensity = 1.2
+bloom.Size = 24
+bloom.Threshold = 0.8 -- Apenas cores muito claras (branco) brilham
+
+-- 3. ColorCorrection (Otimização 4K)
+local color = Lighting:FindFirstChildOfClass("ColorCorrectionEffect") or Instance.new("ColorCorrectionEffect", Lighting)
+color.Contrast = 0.15
+color.Saturation = 0.1
+color.TintColor = Color3.fromRGB(255, 255, 255)
+
+-- 4. SunRays (Efeito de feixes de luz)
+local sunRays = Lighting:FindFirstChildOfClass("SunRaysEffect") or Instance.new("SunRaysEffect", Lighting)
+sunRays.Intensity = 0.1
+sunRays.Spread = 1
+
+-- 5. Atmosphere (Neblina densa e realista)
+local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere", Lighting)
+atmosphere.Density = 0.3
+atmosphere.Offset = 0.1
+atmosphere.Color = Color3.fromRGB(150, 150, 150)
+atmosphere.Decay = Color3.fromRGB(0, 0, 0)
+
+print("Boost Graphics 4K Ativado!")
+Lighting.Brightness = 2 -- Mantém luz direcional, mas controlada
+Lighting.Ambient = Color3.fromRGB(0, 0, 0) -- Zero luz de fundo (escuridão total nas sombras)
+Lighting.OutdoorAmbient = Color3.fromRGB(10, 10, 10) -- Mínima luz externa
+Lighting.ExposureCompensation = 0.5 -- Ajuste de exposição para 4K
+Lighting.ShadowSoftness = 0 -- Sombras nítidas e realistas
+
+-- 2. Efeito Bloom (O Brilho Branco)
+local bloom = Lighting:FindFirstChildOfClass("BloomEffect") or Instance.new("BloomEffect", Lighting)
+bloom.Intensity = 1.2
+bloom.Size = 24
+bloom.Threshold = 0.8 -- Apenas cores muito claras (branco) brilham
+
+-- 3. ColorCorrection (Otimização 4K)
+local color = Lighting:FindFirstChildOfClass("ColorCorrectionEffect") or Instance.new("ColorCorrectionEffect", Lighting)
+color.Contrast = 0.15
+color.Saturation = 0.1
+color.TintColor = Color3.fromRGB(255, 255, 255)
+
+-- 4. SunRays (Efeito de feixes de luz)
+local sunRays = Lighting:FindFirstChildOfClass("SunRaysEffect") or Instance.new("SunRaysEffect", Lighting)
+sunRays.Intensity = 0.1
+sunRays.Spread = 1
+
+-- 5. Atmosphere (Neblina densa e realista)
+local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere", Lighting)
+atmosphere.Density = 0.3
+atmosphere.Offset = 0.1
+atmosphere.Color = Color3.fromRGB(150, 150, 150)
+atmosphere.Decay = Color3.fromRGB(0, 0, 0)
+
+print("Boost Graphics 4K Ativado!")
