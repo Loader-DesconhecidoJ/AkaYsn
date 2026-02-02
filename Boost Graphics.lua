@@ -1,7 +1,7 @@
 local Lighting = game:GetService("Lighting")
 
 -- 1. Configurações de Tempo e Atmosfera
-Lighting.ClockTime = 17.8
+Lighting.ClockTime = 17.2
 Lighting.Brightness = 2 -- Mantém luz direcional, mas controlada
 Lighting.Ambient = Color3.fromRGB(0, 0, 0) -- Zero luz de fundo (escuridão total nas sombras)
 Lighting.OutdoorAmbient = Color3.fromRGB(10, 10, 10) -- Mínima luz externa
