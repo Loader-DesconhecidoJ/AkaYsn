@@ -10,6 +10,8 @@
     ║           - LOCK DASH BUTTON WHEN SANDEVISTAN ACTIVE (PADLOCK)    ║
     ║           - REMOVED SLOW MOTION FROM SANDEVISTAN (NO FREEZE)      ║
     ║           - INSPIRED BY EDGERUNNERS & JUMP SHOWDOWN ROBLOX         ║
+    ║           - REPLACED RANDOM CYBERPSYCHOSIS WITH PROGRESS BAR      ║
+    ║           - CYBERPSYCHOSIS INCREASES WHILE SANDEVISTAN ACTIVE     ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -30,19 +32,25 @@ type Cooldowns = {
 
 type SystemState = {
     Energy: number,
+    Cyberpsychosis: number,
     IsSandiActive: boolean,
     IsNoclipActive: boolean,
     Cooldowns: Cooldowns,
     EditMode: boolean,
     LastVelocityY: number,
     ActiveLabels: number,
-    LastHealth: number
+    LastHealth: number,
+    LastDeactivationTime: number
 }
 
 --// CONSTANTS & CONFIGURATION
 local SETTINGS = {
     STATS = {
         MAX_ENERGY = 100,
+        MAX_CYBERPSYCHOSIS = 100,
+        CYBERPSYCHOSIS_INCREMENT = 10, -- Per second while active
+        CYBERPSYCHOSIS_DECREMENT = 5, -- Per second while inactive
+        CYBERPSYCHOSIS_DELAY = 2, -- Delay in seconds before decreasing
         SANDI_SPEED = 100,
         DASH_FORCE = 100,
         IMPACT_THRESHOLD = -60,
@@ -72,7 +80,9 @@ local SETTINGS = {
         TEXT_DEFAULT = Color3.new(1, 1, 1),
         UI_BG = Color3.fromRGB(10, 10, 12),
         UI_ACCENT = Color3.fromRGB(40, 40, 45),
-        NOCLIP = Color3.new(1, 1, 1)
+        NOCLIP = Color3.new(1, 1, 1),
+        PSYCHO_TINT = Color3.fromRGB(255, 50, 50),
+        PSYCHO_TRAIL = Color3.fromRGB(255, 0, 0)
     },
     ASSETS = {
         SOUNDS = {
@@ -132,13 +142,15 @@ local SETTINGS = {
 --// STATE MANAGEMENT
 local State: SystemState = {
     Energy = SETTINGS.STATS.MAX_ENERGY,
+    Cyberpsychosis = 0,
     IsSandiActive = false,
     IsNoclipActive = false,
     Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, NOCLIP = 0},
     EditMode = false,
     LastVelocityY = 0,
     ActiveLabels = 0,
-    LastHealth = 100
+    LastHealth = 100,
+    LastDeactivationTime = 0
 }
 
 local Player = Players.LocalPlayer
@@ -150,10 +162,14 @@ local sandiLoopSound: Sound? = nil
 local idleSound: Sound? = nil
 local idleTime = 0
 local lastSandiGhost = 0
+local lastPsychoEffect = 0
+local lastMessageUpdate = 0
+local psychoGui: ScreenGui? = nil
 local savedPositions = {}
 local originalStates = {}
 local frozenHRPs = {}
 local frozenParts = {}
+local psychoEffect: ColorCorrectionEffect? = nil
 
 --// UTILITY FUNCTIONS
 local function Create(className: string, properties: {[string]: any})
@@ -204,6 +220,93 @@ local function UnfreezeAll()
         end
     end
     frozenParts = {}
+end
+
+local function UpdatePsychoEffects(dt: number)
+    if not psychoEffect then
+        psychoEffect = Create("ColorCorrectionEffect", {
+            Name = "PsychoEffect",
+            TintColor = Color3.new(1,1,1),
+            Saturation = 0,
+            Contrast = 0,
+            Brightness = 0,
+            Parent = Lighting
+        })
+    end
+    
+    local level = State.Cyberpsychosis / SETTINGS.STATS.MAX_CYBERPSYCHOSIS
+    psychoEffect.TintColor = Color3.new(1, 1-level*0.8, 1-level*0.8)
+    psychoEffect.Saturation = -level * 0.5
+    psychoEffect.Contrast = level * 0.2
+    psychoEffect.Brightness = -level * 0.1
+    
+    if level > 0.6 then
+        local normalized = (level - 0.6) / 0.4
+        if os.clock() - lastPsychoEffect > 1 / (normalized * 5 + 1) then
+            CamShake(normalized * 0.5, 0.1)
+            if math.random() < normalized then
+                CreateGhost(SETTINGS.COLORS.PSYCHO_TRAIL, Color3.new(0,0,0), 0, 0.15, 1, math.random(-1,1), 0, math.random(-1,1), "glitch")
+            end
+            lastPsychoEffect = os.clock()
+        end
+    end
+    
+    -- Update warning messages
+    if os.clock() - lastMessageUpdate > 1 then
+        if level <= 0.6 then
+            if psychoGui then
+                psychoGui:Destroy()
+                psychoGui = nil
+            end
+        else
+            if not psychoGui then
+                psychoGui = Create("ScreenGui", {Name = "PsychoGui", Parent = Player.PlayerGui, IgnoreGuiInset = true})
+            end
+            
+            -- Remove existing warn labels
+            for _, child in pairs(psychoGui:GetChildren()) do
+                if child:IsA("TextLabel") and child.Name ~= "yellText" then
+                    child:Destroy()
+                end
+            end
+            
+            local num_labels = math.floor(((level - 0.6)/0.4) * 15 + 0.5)
+            local warnings = {
+                "WARNING: CYBERPSYCHOSIS DETECTED",
+                "SYSTEM OVERLOAD",
+                "NEURAL FAILURE IMMINENT",
+                "MAXTECH INTERVENTION REQUIRED",
+                "PSYCHOSQUAD ALERT"
+            }
+            
+            for i = 1, num_labels do
+                local warnLabel = Create("TextLabel", {
+                    Size = UDim2.new(0.4, 0, 0.1, 0),
+                    Position = UDim2.new(math.random(), 0, math.random(), 0),
+                    BackgroundTransparency = 0.3,
+                    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+                    Text = warnings[math.random(1, #warnings)],
+                    TextColor3 = Color3.fromRGB(255, 0, 0),
+                    Font = Enum.Font.RobotoMono,
+                    TextSize = 24,
+                    TextTransparency = 0,
+                    Parent = psychoGui
+                })
+                Create("UIStroke", {Color = Color3.fromRGB(255, 0, 0), Thickness = 2, Parent = warnLabel})
+                Create("UIGradient", {Color = ColorSequence.new(Color3.new(1,0,0), Color3.new(0.5,0,0)), Parent = warnLabel})
+                
+                task.spawn(function()
+                    while warnLabel and warnLabel.Parent do
+                        warnLabel.TextTransparency = math.random(0, 5)/10
+                        warnLabel.Position = UDim2.new(math.random(0, 60)/100, 0, math.random(0, 80)/100, 0)
+                        warnLabel.Rotation = math.random(-5, 5)
+                        task.wait(0.05)
+                    end
+                end)
+            end
+        end
+        lastMessageUpdate = os.clock()
+    end
 end
 
 --// COOLDOWN UI
@@ -692,7 +795,7 @@ local function ExecNoclip()
     else
         if os.clock() < State.Cooldowns.NOCLIP then return end
         PlaySFX(SETTINGS.ASSETS.SOUNDS.NOCLIP_ON, 1)
-        local cc = Create("ColorCorrectionEffect", {Brightness = 1, Parent = Lighting})
+        local cc = Create("ColorCorrectionEffect", { Brightness = 1, Parent = Lighting})
         TweenService:Create(cc, TweenInfo.new(0.5), {Brightness = 0}):Play()
         task.delay(0.5, function() cc:Destroy() end)
         CamShake(0.5, 0.2)
