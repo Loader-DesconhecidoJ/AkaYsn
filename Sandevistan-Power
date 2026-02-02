@@ -27,7 +27,8 @@ type Cooldowns = {
     SANDI: number,
     DASH: number,
     DODGE: number,
-    NOCLIP: number
+    NOCLIP: number,
+    KIROSHI: number
 }
 
 type SystemState = {
@@ -35,6 +36,7 @@ type SystemState = {
     Cyberpsychosis: number,
     IsSandiActive: boolean,
     IsNoclipActive: boolean,
+    IsKiroshiActive: boolean,
     Cooldowns: Cooldowns,
     EditMode: boolean,
     LastVelocityY: number,
@@ -60,7 +62,8 @@ local SETTINGS = {
         SANDI = 10,
         DASH = 3,
         DODGE = 5,
-        NOCLIP = 3.5
+        NOCLIP = 3.5,
+        KIROSHI = 15
     },
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200), -- Greener tint without white mix
@@ -82,7 +85,9 @@ local SETTINGS = {
         UI_ACCENT = Color3.fromRGB(40, 40, 45),
         NOCLIP = Color3.new(1, 1, 1),
         PSYCHO_TINT = Color3.fromRGB(255, 50, 50),
-        PSYCHO_TRAIL = Color3.fromRGB(255, 0, 0)
+        PSYCHO_TRAIL = Color3.fromRGB(255, 0, 0),
+        KIROSHI_TINT = Color3.fromRGB(255, 100, 100),
+        KIROSHI = Color3.fromRGB(255, 0, 0)
     },
     ASSETS = {
         SOUNDS = {
@@ -145,7 +150,8 @@ local State: SystemState = {
     Cyberpsychosis = 0,
     IsSandiActive = false,
     IsNoclipActive = false,
-    Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, NOCLIP = 0},
+    IsKiroshiActive = false,
+    Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, NOCLIP = 0, KIROSHI = 0},
     EditMode = false,
     LastVelocityY = 0,
     ActiveLabels = 0,
@@ -170,6 +176,7 @@ local originalStates = {}
 local frozenHRPs = {}
 local frozenParts = {}
 local psychoEffect: ColorCorrectionEffect? = nil
+local activeHighlights = {}
 
 --// UTILITY FUNCTIONS
 local function Create(className: string, properties: {[string]: any})
@@ -388,6 +395,13 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
     local ghostChar = Character:Clone()
     local ghostHRP = ghostChar:FindFirstChild("HumanoidRootPart")
     
+    -- FIX: REMOVE ACCESSORIES TO PREVENT GREEN BLOCKS
+    for _, child in pairs(ghostChar:GetChildren()) do
+        if child:IsA("Accessory") then
+            child:Destroy()
+        end
+    end
+    
     if trailType == "glitch" then
         offsetX = math.random(-2, 2)
         offsetZ = math.random(-2, 2)
@@ -401,7 +415,7 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
     if head then
         local face = head:FindFirstChild("face")
         if face and face:IsA("Decal") then
-            -- face.Transparency = 1 -- Removed for perfect clone
+            face.Transparency = 1
         end
     end
 
@@ -410,13 +424,17 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
             part.Anchored = true
             part.CanCollide = false
             
-            part.Material = Enum.Material.Neon -- Always Neon for glow texture
+            if trailType == "sandi" or trailType == "glitch" or trailType == "dash" then
+                part.Material = Enum.Material.Neon
+            else
+                part.Material = Enum.Material.ForceField
+            end
             
             part.Color = startColor
             part.Transparency = 0.3 -- Start slightly transparent to reduce intensity
-            -- if part:IsA("MeshPart") then -- Removed for perfect clone
-            --     part.TextureID = ""
-            -- end
+            if part:IsA("MeshPart") then
+                part.TextureID = ""
+            end
             
             task.spawn(function()
                 task.wait(delay)
@@ -843,6 +861,58 @@ local function ExecDash()
     end)
 end
 
+local function ExecKiroshi()
+    if os.clock() < State.Cooldowns.KIROSHI then return end
+    State.IsKiroshiActive = true
+
+    -- Red overlay effect
+    local kiroshiEffect = Create("ColorCorrectionEffect", {Name = "KiroshiEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
+    TweenService:Create(kiroshiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        TintColor = SETTINGS.COLORS.KIROSHI_TINT,
+        Contrast = 0.1,
+        Saturation = -0.1
+    }):Play()
+
+    -- Highlight enemies
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= Player then
+            local char = p.Character
+            if char then
+                local highlight = Create("Highlight", {
+                    OutlineColor = SETTINGS.COLORS.KIROSHI,
+                    FillTransparency = 1,
+                    OutlineTransparency = 0,
+                    Parent = char
+                })
+                table.insert(activeHighlights, highlight)
+            end
+        end
+    end
+
+    task.spawn(function()
+        task.wait(10)
+        State.IsKiroshiActive = false
+        State.Cooldowns.KIROSHI = os.clock() + SETTINGS.COOLDOWNS.KIROSHI
+        ShowCooldownText("Kiroshi Optics", SETTINGS.COOLDOWNS.KIROSHI, SETTINGS.COLORS.KIROSHI)
+
+        -- Remove effect
+        if kiroshiEffect then
+            TweenService:Create(kiroshiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                TintColor = Color3.new(1,1,1),
+                Contrast = 0,
+                Saturation = 0
+            }):Play()
+            task.delay(0.5, function() kiroshiEffect:Destroy() end)
+        end
+
+        -- Remove highlights
+        for _, h in pairs(activeHighlights) do
+            h:Destroy()
+        end
+        activeHighlights = {}
+    end)
+end
+
 --// UI SYSTEM
 local function MakeDraggable(frame: Frame)
     local dragging, dragStart, startPos
@@ -905,6 +975,7 @@ local function BuildUI()
     CreateSkillBtn("Q", SETTINGS.COLORS.DASH_CYAN, UDim2.new(0.8, 0, 0.85, 0), "DashBtn", ExecDash) -- Mudado para ciano
     CreateSkillBtn("E", SETTINGS.COLORS.SANDI_TRAIL[1], UDim2.new(0.85, 0, 0.85, 0), "SandiBtn", ExecSandi)
     CreateSkillBtn("F", SETTINGS.COLORS.NOCLIP, UDim2.new(0.9, 0, 0.85, 0), "NoclipBtn", ExecNoclip)
+    CreateSkillBtn("R", SETTINGS.COLORS.KIROSHI, UDim2.new(0.95, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
     
     MakeDraggable(energyContainer)
     MakeDraggable(lockBtn)
@@ -920,6 +991,7 @@ local function BuildUI()
             savedPositions["DashBtn"] = gui:FindFirstChild("DashBtn").Position
             savedPositions["SandiBtn"] = gui:FindFirstChild("SandiBtn").Position
             savedPositions["NoclipBtn"] = gui:FindFirstChild("NoclipBtn").Position
+            savedPositions["KiroshiBtn"] = gui:FindFirstChild("KiroshiBtn").Position
         end
     end)
     
@@ -1024,6 +1096,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.E then ExecSandi() end
     if input.KeyCode == Enum.KeyCode.Q then ExecDash() end
     if input.KeyCode == Enum.KeyCode.F then ExecNoclip() end
+    if input.KeyCode == Enum.KeyCode.R then ExecKiroshi() end
 end)
 
 local function Init()
