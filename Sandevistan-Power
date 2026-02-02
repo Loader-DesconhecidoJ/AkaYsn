@@ -152,6 +152,8 @@ local idleTime = 0
 local lastSandiGhost = 0
 local savedPositions = {}
 local originalStates = {}
+local frozenHRPs = {}
+local frozenParts = {}
 
 --// UTILITY FUNCTIONS
 local function Create(className: string, properties: {[string]: any})
@@ -187,6 +189,21 @@ local function CamShake(intensity: number, duration: number)
         end
         if Humanoid then Humanoid.CameraOffset = Vector3.zero end
     end)
+end
+
+local function UnfreezeAll()
+    for part, orig in pairs(frozenHRPs) do
+        if part.Parent then
+            part.Anchored = orig
+        end
+    end
+    frozenHRPs = {}
+    for part, orig in pairs(frozenParts) do
+        if part.Parent then
+            part.Anchored = orig
+        end
+    end
+    frozenParts = {}
 end
 
 --// COOLDOWN UI
@@ -509,6 +526,7 @@ local function ResetSandi()
     end
     TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
     CleanupSandiSounds()
+    UnfreezeAll()
     originalStates = {}
     -- Atualiza o botão de Dash ao resetar
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
@@ -612,6 +630,28 @@ local function ExecSandi()
         PlayActivationSequence()
         
         lastSandiGhost = 0 -- Reset ghost timer
+
+        -- Freeze NPCs and unanchored parts/objects
+        frozenHRPs = {}
+        frozenParts = {}
+        for _, desc in ipairs(workspace:GetDescendants()) do
+            if desc:IsA("Humanoid") and desc.Parent ~= Character then
+                local hrp = desc.Parent:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    frozenHRPs[hrp] = hrp.Anchored
+                    hrp.Anchored = true
+                end
+            end
+        end
+        for _, desc in ipairs(workspace:GetDescendants()) do
+            if desc:IsA("BasePart") and not desc.Anchored then
+                local model = desc:FindFirstAncestorWhichIsA("Model")
+                if not (model and model:FindFirstChildOfClass("Humanoid")) then
+                    frozenParts[desc] = desc.Anchored
+                    desc.Anchored = true
+                end
+            end
+        end
     else
         PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1)
         State.Cooldowns.SANDI = os.clock() + SETTINGS.COOLDOWNS.SANDI
@@ -627,6 +667,7 @@ local function ExecSandi()
         end
         Humanoid.WalkSpeed = 16
         TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
+        UnfreezeAll()
         CleanupSandiSounds()
     end
     UpdateDashButton() -- Atualiza o estado do botão Dash
