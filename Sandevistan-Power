@@ -3,15 +3,7 @@
     ╔════════════════════════════════════════════════════════════════════╗
     ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V2.5     ║
     ║           UPDATES:                                                 ║
-    ║           - REMOVED KIROSHI ABILITY                               ║
-    ║           - REMOVED GHOST TRAIL FROM NOCLIP                       ║
-    ║           - ADDED REVERSE ZOOM SHAKE ON NOCLIP DEACTIVATE         ║
-    ║           - FIXED CHARACTER FREEZING ON SANDEVISTAN ACTIVATION    ║
-    ║           - LOCK DASH BUTTON WHEN SANDEVISTAN ACTIVE (PADLOCK)    ║
-    ║           - REMOVED SLOW MOTION FROM SANDEVISTAN (NO FREEZE)      ║
-    ║           - INSPIRED BY EDGERUNNERS & JUMP SHOWDOWN ROBLOX         ║
-    ║           - REPLACED RANDOM CYBERPSYCHOSIS WITH PROGRESS BAR      ║
-    ║           - CYBERPSYCHOSIS INCREASES WHILE SANDEVISTAN ACTIVE     ║
+    ║     ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -63,7 +55,7 @@ local SETTINGS = {
         DASH = 3,
         DODGE = 5,
         NOCLIP = 3.5,
-        KIROSHI = 15
+        KIROSHI = 8
     },
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200), -- Greener tint without white mix
@@ -173,8 +165,6 @@ local lastMessageUpdate = 0
 local psychoGui: ScreenGui? = nil
 local savedPositions = {}
 local originalStates = {}
-local frozenHRPs = {}
-local frozenParts = {}
 local psychoEffect: ColorCorrectionEffect? = nil
 local activeHighlights = {}
 
@@ -212,21 +202,6 @@ local function CamShake(intensity: number, duration: number)
         end
         if Humanoid then Humanoid.CameraOffset = Vector3.zero end
     end)
-end
-
-local function UnfreezeAll()
-    for part, orig in pairs(frozenHRPs) do
-        if part.Parent then
-            part.Anchored = orig
-        end
-    end
-    frozenHRPs = {}
-    for part, orig in pairs(frozenParts) do
-        if part.Parent then
-            part.Anchored = orig
-        end
-    end
-    frozenParts = {}
 end
 
 local function UpdatePsychoEffects(dt: number)
@@ -636,7 +611,6 @@ local function ResetSandi()
     end
     TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
     CleanupSandiSounds()
-    UnfreezeAll()
     originalStates = {}
     -- Atualiza o botão de Dash ao resetar
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
@@ -740,28 +714,6 @@ local function ExecSandi()
         PlayActivationSequence()
         
         lastSandiGhost = 0 -- Reset ghost timer
-
-        -- Freeze NPCs and unanchored parts/objects
-        frozenHRPs = {}
-        frozenParts = {}
-        for _, desc in ipairs(workspace:GetDescendants()) do
-            if desc:IsA("Humanoid") and desc.Parent ~= Character then
-                local hrp = desc.Parent:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    frozenHRPs[hrp] = hrp.Anchored
-                    hrp.Anchored = true
-                end
-            end
-        end
-        for _, desc in ipairs(workspace:GetDescendants()) do
-            if desc:IsA("BasePart") and not desc.Anchored then
-                local model = desc:FindFirstAncestorWhichIsA("Model")
-                if not (model and model:FindFirstChildOfClass("Humanoid")) then
-                    frozenParts[desc] = desc.Anchored
-                    desc.Anchored = true
-                end
-            end
-        end
     else
         PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1)
         State.Cooldowns.SANDI = os.clock() + SETTINGS.COOLDOWNS.SANDI
@@ -777,7 +729,6 @@ local function ExecSandi()
         end
         Humanoid.WalkSpeed = 16
         TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
-        UnfreezeAll()
         CleanupSandiSounds()
     end
     UpdateDashButton() -- Atualiza o estado do botão Dash
@@ -862,7 +813,7 @@ local function ExecDash()
 end
 
 local function ExecKiroshi()
-    if os.clock() < State.Cooldowns.KIROSHI then return end
+    if os.clock() < State.Cooldowns.KIROSHI or State.IsKiroshiActive then return end
     State.IsKiroshiActive = true
 
     -- Red overlay effect
@@ -890,7 +841,7 @@ local function ExecKiroshi()
     end
 
     task.spawn(function()
-        task.wait(10)
+        task.wait(5)
         State.IsKiroshiActive = false
         State.Cooldowns.KIROSHI = os.clock() + SETTINGS.COOLDOWNS.KIROSHI
         ShowCooldownText("Kiroshi Optics", SETTINGS.COOLDOWNS.KIROSHI, SETTINGS.COLORS.KIROSHI)
@@ -942,7 +893,7 @@ local function BuildUI()
     local gui = Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
     
     local lockBtn = Create("TextButton", {Name = "LockBtn", Size = UDim2.new(0, 35, 0, 35), Position = savedPositions["LockBtn"] or UDim2.new(1, -50, 0, 50), Text = "⚙️", BackgroundColor3 = SETTINGS.COLORS.UI_BG, TextColor3 = SETTINGS.COLORS.TEXT_DEFAULT, Font = Enum.Font.GothamBold, TextSize = 16, Parent = gui})
-    Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = lockBtn})
+    Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = lockBtn})
     Create("UIStroke", {Color = SETTINGS.COLORS.UI_ACCENT, Thickness = 2, Parent = lockBtn})
     
     local energyContainer = Create("Frame", {Name = "EnergyContainer", Size = UDim2.new(0, 300, 0, 15), Position = savedPositions["EnergyContainer"] or UDim2.new(0.5, -150, 0.92, 0), BackgroundColor3 = SETTINGS.COLORS.UI_BG, BorderSizePixel = 0, Parent = gui})
@@ -957,7 +908,7 @@ local function BuildUI()
     
     local function CreateSkillBtn(key, color, pos, name, func)
         local btn = Create("TextButton", {Name = name, Size = UDim2.new(0, 50, 0, 50), Position = savedPositions[name] or pos, Text = key, BackgroundColor3 = SETTINGS.COLORS.UI_BG, TextColor3 = color, Font = Enum.Font.GothamBlack, TextSize = 18, AutoButtonColor = false, Parent = gui})
-        Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = btn})
+        Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = btn})
         Create("UIStroke", {Color = color, Thickness = 2, Transparency = 0.5, Parent = btn})
         btn.MouseButton1Down:Connect(function()
             TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = SETTINGS.COLORS.UI_BG}):Play()
