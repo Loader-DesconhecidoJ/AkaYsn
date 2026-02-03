@@ -24,7 +24,6 @@ type Cooldowns = {
 
 type SystemState = {
     Energy: number,
-    Cyberpsychosis: number,
     IsSandiActive: boolean,
     IsKiroshiActive: boolean,
     Cooldowns: Cooldowns,
@@ -35,72 +34,23 @@ type SystemState = {
     LastDeactivationTime: number
 }
 
---// CONSTANTS & CONFIGURATION
-local SETTINGS = {
-    STATS = {
-        MAX_ENERGY = 100,
-        MAX_CYBERPSYCHOSIS = 100,
-        CYBERPSYCHOSIS_INCREMENT = 10, -- Per second while active
-        CYBERPSYCHOSIS_DECREMENT = 5, -- Per second while inactive
-        CYBERPSYCHOSIS_DELAY = 2, -- Delay in seconds before decreasing
-        SANDI_SPEED = 100,
-        DASH_FORCE = 100,
-        IMPACT_THRESHOLD = -60,
-        MOVING_THRESHOLD = 1,
-    },
+--// CONSTANTS
+local Constants = {
+    MAX_ENERGY = 100,
+    SANDI_SPEED = 100,
+    DASH_FORCE = 100,
+    IMPACT_THRESHOLD = -60,
+    MOVING_THRESHOLD = 1,
     COOLDOWNS = {
         SANDI = 10,
-        DASH = 3,
+        DASH = 3.5,
         DODGE = 5,
-        KIROSHI = 8,
-        NETRUN = 5
-    },
-    COLORS = {
-        SANDI_TINT = Color3.fromRGB(200, 255, 200), -- Greener tint without white mix
-        SANDI_TRAIL = {
-            Color3.fromRGB(0, 255, 0),    -- Green
-            Color3.fromRGB(0, 0, 255),    -- Blue
-            Color3.fromRGB(128, 0, 128),  -- Purple
-            Color3.fromRGB(255, 0, 0),    -- Red
-            Color3.fromRGB(255, 255, 0)   -- Yellow
-        },
-        DASH_CYAN = Color3.fromRGB(0, 255, 255), -- Novo ciano para Dash
-        DASH_CYAN_LIGHT = Color3.fromRGB(100, 255, 255),
-        DASH_CYAN_DARK = Color3.fromRGB(0, 200, 200),
-        DODGE_START = Color3.fromRGB(160, 0, 255),
-        DODGE_END = Color3.fromRGB(255, 0, 130),
-        EDIT_MODE = Color3.fromRGB(0, 255, 255),
-        TEXT_DEFAULT = Color3.new(1, 1, 1),
-        UI_BG = Color3.fromRGB(10, 10, 12),
-        UI_ACCENT = Color3.fromRGB(40, 40, 45),
-        PSYCHO_TINT = Color3.fromRGB(255, 50, 50),
-        PSYCHO_TRAIL = Color3.fromRGB(255, 0, 0),
-        KIROSHI_TINT = Color3.fromRGB(255, 100, 100),
-        KIROSHI = Color3.fromRGB(255, 0, 0)
-    },
-    ASSETS = {
-        SOUNDS = {
-            IMPACT = "rbxassetid://4453098167",
-            DODGE = "rbxassetid://70643008100559",
-            DASH = "rbxassetid://103247005619946",
-            SANDI_ON = "rbxassetid://123844681344865",
-            SANDI_OFF = "rbxassetid://118534165523355",
-            HIT = "rbxassetid://5665936061",
-            SANDI_LOOP = "rbxassetid://81793359483683",
-            PSYCHO_LAUGH = "rbxassetid://87597277352254",
-            IDLE_MUSIC = "rbxassetid://84295656118500", -- New idle music
-            HACK_SUCCESS = "rbxassetid://131961136"  -- Som hack
-        },
-        TEXTURES = {
-            SMOKE = "rbxassetid://243023223",
-            SPARKS = "rbxassetid://6071575297",
-            HEX = "rbxassetid://6522338870"
-        }
+        KIROSHI = 8
     },
     GHOST_TRAIL = {
         SANDI = {
             DELAY = 0.05, -- Ajuste aqui: tempo antes de animar o ghost (menor = inicia mais rápido)
-            DURATION = 1.0, -- Ajuste aqui: duração do fade/color change (maior = trail mais longa)
+            DURATION = 1.5, -- Ajuste aqui: duração do fade/color change (maior = trail mais longa)
             END_TRANSPARENCY = 0.9,
             OFFSET_X = 0,
             OFFSET_Y = 0,
@@ -125,10 +75,51 @@ local SETTINGS = {
     }
 }
 
+--// CONFIGURATIONS
+local Configurations = {
+    COLORS = {
+        SANDI_TINT = Color3.fromRGB(200, 255, 200), -- Greener tint without white mix
+        SANDI_TRAIL = {
+            Color3.fromRGB(0, 255, 0),    -- Green
+            Color3.fromRGB(0, 0, 255),    -- Blue
+            Color3.fromRGB(128, 0, 128),  -- Purple
+            Color3.fromRGB(255, 0, 0),    -- Red
+            Color3.fromRGB(255, 255, 0)   -- Yellow
+        },
+        DASH_CYAN = Color3.fromRGB(0, 255, 255), -- Novo ciano para Dash
+        DASH_CYAN_LIGHT = Color3.fromRGB(100, 255, 255),
+        DASH_CYAN_DARK = Color3.fromRGB(0, 200, 200),
+        DODGE_START = Color3.fromRGB(160, 0, 255),
+        DODGE_END = Color3.fromRGB(255, 0, 130),
+        EDIT_MODE = Color3.fromRGB(0, 255, 255),
+        TEXT_DEFAULT = Color3.new(1, 1, 1),
+        UI_BG = Color3.fromRGB(10, 10, 12),
+        UI_ACCENT = Color3.fromRGB(40, 40, 45),
+        KIROSHI_TINT = Color3.fromRGB(255, 100, 100),
+        KIROSHI = Color3.fromRGB(255, 0, 0)
+    },
+    ASSETS = {
+        SOUNDS = {
+            IMPACT = "rbxassetid://4453098167",
+            DODGE = "rbxassetid://70643008100559",
+            DASH = "rbxassetid://103247005619946",
+            SANDI_ON = "rbxassetid://123844681344865",
+            SANDI_OFF = "rbxassetid://118534165523355",
+            HIT = "rbxassetid://5665936061",
+            SANDI_LOOP = "rbxassetid://81793359483683",
+            IDLE_MUSIC = "rbxassetid://84295656118500", -- New idle music
+        },
+        TEXTURES = {
+            SMOKE = "rbxassetid://243023223",
+            SPARKS = "rbxassetid://6071575297",
+            HEX = "rbxassetid://6522338870"
+        }
+    }
+}
+
 --// STATE MANAGEMENT
 local State: SystemState = {
-    Energy = SETTINGS.STATS.MAX_ENERGY,
-    Cyberpsychosis = 0,
+    Energy = Constants.MAX_ENERGY,
     IsSandiActive = false,
     IsKiroshiActive = false,
     Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, KIROSHI = 0},
@@ -148,16 +139,9 @@ local sandiLoopSound: Sound? = nil
 local idleSound: Sound? = nil
 local idleTime = 0
 local lastSandiGhost = 0
-local lastPsychoEffect = 0
-local lastMessageUpdate = 0
-local psychoGui: ScreenGui? = nil
 local savedPositions = {}
 local originalStates = {}
-local psychoEffect: ColorCorrectionEffect? = nil
 local activeHighlights = {}
-local hacking = false
-local hackTarget = nil
-local lastPsychosisDecrement = 0
 local frozenHRPs = {}
 local frozenParts = {}
 local frozenVelocitiesHRP = {}
@@ -257,93 +241,6 @@ local function UnfreezeAll()
     frozenVelocitiesParts = {}
 end
 
-local function UpdatePsychoEffects(dt: number)
-    if not psychoEffect then
-        psychoEffect = Create("ColorCorrectionEffect", {
-            Name = "PsychoEffect",
-            TintColor = Color3.new(1,1,1),
-            Saturation = 0,
-            Contrast = 0,
-            Brightness = 0,
-            Parent = Lighting
-        })
-    end
-    
-    local level = State.Cyberpsychosis / SETTINGS.STATS.MAX_CYBERPSYCHOSIS
-    psychoEffect.TintColor = Color3.new(1, 1-level*0.8, 1-level*0.8)
-    psychoEffect.Saturation = -level * 0.5
-    psychoEffect.Contrast = level * 0.2
-    psychoEffect.Brightness = -level * 0.1
-    
-    if level > 0.6 then
-        local normalized = (level - 0.6) / 0.4
-        if os.clock() - lastPsychoEffect > 1 / (normalized * 5 + 1) then
-            CamShake(normalized * 0.5, 0.1)
-            if math.random() < normalized then
-                CreateGhost(SETTINGS.COLORS.PSYCHO_TRAIL, Color3.new(0,0,0), 0, 0.15, 1, math.random(-1,1), 0, math.random(-1,1), "glitch")
-            end
-            lastPsychoEffect = os.clock()
-        end
-    end
-    
-    -- Update warning messages
-    if os.clock() - lastMessageUpdate > 1 then
-        if level <= 0.6 then
-            if psychoGui then
-                psychoGui:Destroy()
-                psychoGui = nil
-            end
-        else
-            if not psychoGui then
-                psychoGui = Create("ScreenGui", {Name = "PsychoGui", Parent = Player.PlayerGui, IgnoreGuiInset = true})
-            end
-            
-            -- Remove existing warn labels
-            for _, child in pairs(psychoGui:GetChildren()) do
-                if child:IsA("TextLabel") and child.Name ~= "yellText" then
-                    child:Destroy()
-                end
-            end
-            
-            local num_labels = math.floor(((level - 0.6)/0.4) * 15 + 0.5)
-            local warnings = {
-                "WARNING: CYBERPSYCHOSIS DETECTED",
-                "SYSTEM OVERLOAD",
-                "NEURAL FAILURE IMMINENT",
-                "MAXTECH INTERVENTION REQUIRED",
-                "PSYCHOSQUAD ALERT"
-            }
-            
-            for i = 1, num_labels do
-                local warnLabel = Create("TextLabel", {
-                    Size = UDim2.new(0.4, 0, 0.1, 0),
-                    Position = UDim2.new(math.random(), 0, math.random(), 0),
-                    BackgroundTransparency = 0.3,
-                    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-                    Text = warnings[math.random(1, #warnings)],
-                    TextColor3 = Color3.fromRGB(255, 0, 0),
-                    Font = Enum.Font.RobotoMono,
-                    TextSize = 24,
-                    TextTransparency = 0,
-                    Parent = psychoGui
-                })
-                Create("UIStroke", {Color = Color3.fromRGB(255, 0, 0), Thickness = 2, Parent = warnLabel})
-                Create("UIGradient", {Color = ColorSequence.new(Color3.new(1,0,0), Color3.new(0.5,0,0)), Parent = warnLabel})
-                
-                task.spawn(function()
-                    while warnLabel and warnLabel.Parent do
-                        warnLabel.TextTransparency = math.random(0, 5)/10
-                        warnLabel.Position = UDim2.new(math.random(0, 60)/100, 0, math.random(0, 80)/100, 0)
-                        warnLabel.Rotation = math.random(-5, 5)
-                        task.wait(0.05)
-                    end
-                end)
-            end
-        end
-        lastMessageUpdate = os.clock()
-    end
-end
-
 --// COOLDOWN UI
 local function ShowCooldownText(name: string, duration: number, color: Color3)
     task.spawn(function()
@@ -353,7 +250,7 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
         local container = Create("Frame", {
             Size = UDim2.new(0, 220, 0, 35),
             Position = UDim2.new(0.5, -110, 0.7, 0),
-            BackgroundColor3 = SETTINGS.COLORS.UI_BG,
+            BackgroundColor3 = Configurations.COLORS.UI_BG,
             BackgroundTransparency = 0.2,
             BorderSizePixel = 0,
             Parent = gui
@@ -377,7 +274,7 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
             Size = UDim2.new(1, -10, 1, 0),
             Position = UDim2.new(0, -10, 0, 0),
             BackgroundTransparency = 1,
-            TextColor3 = SETTINGS.COLORS.TEXT_DEFAULT,
+            TextColor3 = Configurations.COLORS.TEXT_DEFAULT,
             Font = Enum.Font.RobotoMono,
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Right,
@@ -466,7 +363,7 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
             
             task.spawn(function()
                 task.wait(delay)
-                local colors = if trailType == "sandi" or trailType == "dash" then SETTINGS.COLORS.SANDI_TRAIL -- Mesmo trail do Sandi para Dash
+                local colors = if trailType == "sandi" or trailType == "dash" then Configurations.COLORS.SANDI_TRAIL -- Mesmo trail do Sandi para Dash
                     elseif trailType == "glitch" then {Color3.new(1,0,0), Color3.new(0,0,0), Color3.new(1,1,1), Color3.new(1,0,0)}
                     else {startColor, endColor}
                 
@@ -493,7 +390,7 @@ end
 
 --// CYBERPSYCHOSIS (IDENTICAL)
 local function ExecCyberpsychosis()
-    PlaySFX(SETTINGS.ASSETS.SOUNDS.PSYCHO_LAUGH, 2.5)
+    PlaySFX("rbxassetid://87597277352254", 2.5)
     
     if Humanoid then
         Humanoid.WalkSpeed = 0
@@ -628,11 +525,11 @@ end
 
 local function ExecDodge(enemyPart: BasePart?)
     if os.clock() < State.Cooldowns.DODGE then return end
-    State.Cooldowns.DODGE = os.clock() + SETTINGS.COOLDOWNS.DODGE
-    PlaySFX(SETTINGS.ASSETS.SOUNDS.DODGE, 1.5)
-    ShowCooldownText("Neural Dodge", SETTINGS.COOLDOWNS.DODGE, SETTINGS.COLORS.DODGE_END)
-    local cc = Create("ColorCorrectionEffect", {TintColor = SETTINGS.COLORS.DODGE_START, Saturation = 0.5, Parent = Lighting})
-    CreateGhost(SETTINGS.COLORS.DODGE_START, SETTINGS.COLORS.DODGE_END, SETTINGS.GHOST_TRAIL.DODGE.DELAY, SETTINGS.GHOST_TRAIL.DODGE.DURATION, SETTINGS.GHOST_TRAIL.DODGE.END_TRANSPARENCY, SETTINGS.GHOST_TRAIL.DODGE.OFFSET_X, SETTINGS.GHOST_TRAIL.DODGE.OFFSET_Y, SETTINGS.GHOST_TRAIL.DODGE.OFFSET_Z, "dodge")
+    State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
+    PlaySFX(Configurations.ASSETS.SOUNDS.DODGE, 1.5)
+    ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Configurations.COLORS.DODGE_END)
+    local cc = Create("ColorCorrectionEffect", {TintColor = Configurations.COLORS.DODGE_START, Saturation = 0.5, Parent = Lighting})
+    CreateGhost(Configurations.COLORS.DODGE_START, Configurations.COLORS.DODGE_END, Constants.GHOST_TRAIL.DODGE.DELAY, Constants.GHOST_TRAIL.DODGE.DURATION, Constants.GHOST_TRAIL.DODGE.END_TRANSPARENCY, Constants.GHOST_TRAIL.DODGE.OFFSET_X, Constants.GHOST_TRAIL.DODGE.OFFSET_Y, Constants.GHOST_TRAIL.DODGE.OFFSET_Z, "dodge")
     if enemyPart then 
         HRP.CFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, 6)).Position, enemyPart.Position)
     else 
@@ -647,9 +544,9 @@ end
 local function ResetSandi()
     if not State.IsSandiActive then return end
     State.IsSandiActive = false
-    PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1)
-    State.Cooldowns.SANDI = os.clock() + SETTINGS.COOLDOWNS.SANDI
-    ShowCooldownText("Sandevistan", SETTINGS.COOLDOWNS.SANDI, SETTINGS.COLORS.SANDI_TRAIL[1])
+    PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_OFF, 1)
+    State.Cooldowns.SANDI = os.clock() + Constants.COOLDOWNS.SANDI
+    ShowCooldownText("Sandevistan", Constants.COOLDOWNS.SANDI, Configurations.COLORS.SANDI_TRAIL[1])
     local sandiEffect = Lighting:FindFirstChild("SandiEffect")
     if sandiEffect then
         TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -673,7 +570,7 @@ local function ResetSandi()
         if dashBtn then
             local lockLabel = dashBtn:FindFirstChild("LockLabel")
             if lockLabel then lockLabel:Destroy() end
-            dashBtn.TextColor3 = SETTINGS.COLORS.DASH_CYAN
+            dashBtn.TextColor3 = Configurations.COLORS.DASH_CYAN
         end
     end
 end
@@ -740,7 +637,7 @@ local function UpdateDashButton()
     else
         local lockLabel = dashBtn:FindFirstChild("LockLabel")
         if lockLabel then lockLabel:Destroy() end
-        dashBtn.TextColor3 = SETTINGS.COLORS.DASH_CYAN
+        dashBtn.TextColor3 = Configurations.COLORS.DASH_CYAN
     end
 end
 
@@ -752,14 +649,14 @@ local function ExecSandi()
             State.IsSandiActive = false 
             return 
         end
-        PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_ON, 1)
+        PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_ON, 1)
         CamShake(1, 0.3)
         TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 115}):Play()
         
         -- Smooth tween to green tint (no white flash)
         local sandiEffect = Create("ColorCorrectionEffect", {Name = "SandiEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
         TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            TintColor = SETTINGS.COLORS.SANDI_TINT,
+            TintColor = Configurations.COLORS.SANDI_TINT,
             Contrast = 0.1,
             Saturation = -0.1
         }):Play()
@@ -772,9 +669,9 @@ local function ExecSandi()
         -- Desync Universal (Freeze All)
         FreezeAll()
     else
-        PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1)
-        State.Cooldowns.SANDI = os.clock() + SETTINGS.COOLDOWNS.SANDI
-        ShowCooldownText("Sandevistan", SETTINGS.COOLDOWNS.SANDI, SETTINGS.COLORS.SANDI_TRAIL[1])
+        PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_OFF, 1)
+        State.Cooldowns.SANDI = os.clock() + Constants.COOLDOWNS.SANDI
+        ShowCooldownText("Sandevistan", Constants.COOLDOWNS.SANDI, Configurations.COLORS.SANDI_TRAIL[1])
         local sandiEffect = Lighting:FindFirstChild("SandiEffect")
         if sandiEffect then
             TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -797,18 +694,18 @@ end
 local function ExecDash()
     if State.IsSandiActive then return end -- Bloqueia Dash se Sandevistan ativo
     if State.Energy < 15 or os.clock() < State.Cooldowns.DASH then return end
-    State.Cooldowns.DASH = os.clock() + SETTINGS.COOLDOWNS.DASH
+    State.Cooldowns.DASH = os.clock() + Constants.COOLDOWNS.DASH
     State.Energy -= 15
-    PlaySFX(SETTINGS.ASSETS.SOUNDS.DASH, 1.2)
-    ShowCooldownText("Dash Impulse", SETTINGS.COOLDOWNS.DASH, SETTINGS.COLORS.DASH_CYAN) -- Mudado para ciano
+    PlaySFX(Configurations.ASSETS.SOUNDS.DASH, 1.2)
+    ShowCooldownText("Dash Impulse", Constants.COOLDOWNS.DASH, Configurations.COLORS.DASH_CYAN) -- Mudado para ciano
     local dashEffect = Create("ColorCorrectionEffect", {Name = "DashEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
     TweenService:Create(dashEffect, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        TintColor = SETTINGS.COLORS.DASH_CYAN,
+        TintColor = Configurations.COLORS.DASH_CYAN,
         Contrast = 0.1,
         Saturation = -0.1
     }):Play()
     TweenService:Create(Camera, TweenInfo.new(0.25), {FieldOfView = 125}):Play()
-    local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e6, 1e6, 1e6), Velocity = Camera.CFrame.LookVector * SETTINGS.STATS.DASH_FORCE, Parent = HRP})
+    local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e6, 1e6, 1e6), Velocity = Camera.CFrame.LookVector * Constants.DASH_FORCE, Parent = HRP})
     Debris:AddItem(bv, 0.25)
     task.spawn(function()
         local start = os.clock()
@@ -819,11 +716,11 @@ local function ExecDash()
             local ray = workspace:Raycast(HRP.Position, HRP.CFrame.LookVector * 5, rayParams)
             if ray and ray.Instance and ray.Instance:FindFirstAncestorOfClass("Model") and ray.Instance:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid") then
                 bv:Destroy()
-                PlaySFX(SETTINGS.ASSETS.SOUNDS.HIT, 1.5)
+                PlaySFX(Configurations.ASSETS.SOUNDS.HIT, 1.5)
                 CamShake(2, 0.2)
                 break
             end
-            CreateGhost(SETTINGS.COLORS.SANDI_TRAIL[1], SETTINGS.COLORS.SANDI_TRAIL[#SETTINGS.COLORS.SANDI_TRAIL], SETTINGS.GHOST_TRAIL.DASH.DELAY, SETTINGS.GHOST_TRAIL.DASH.DURATION, SETTINGS.GHOST_TRAIL.DASH.END_TRANSPARENCY, SETTINGS.GHOST_TRAIL.DASH.OFFSET_X, SETTINGS.GHOST_TRAIL.DASH.OFFSET_Y, SETTINGS.GHOST_TRAIL.DASH.OFFSET_Z, "dash")
+            CreateGhost(Configurations.COLORS.SANDI_TRAIL[1], Configurations.COLORS.SANDI_TRAIL[#Configurations.COLORS.SANDI_TRAIL], Constants.GHOST_TRAIL.DASH.DELAY, Constants.GHOST_TRAIL.DASH.DURATION, Constants.GHOST_TRAIL.DASH.END_TRANSPARENCY, Constants.GHOST_TRAIL.DASH.OFFSET_X, Constants.GHOST_TRAIL.DASH.OFFSET_Y, Constants.GHOST_TRAIL.DASH.OFFSET_Z, "dash")
             RunService.Heartbeat:Wait()
         end
         TweenService:Create(dashEffect, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0}):Play()
@@ -839,7 +736,7 @@ local function ExecKiroshi()
     -- Red overlay effect
     local kiroshiEffect = Create("ColorCorrectionEffect", {Name = "KiroshiEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
     TweenService:Create(kiroshiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        TintColor = SETTINGS.COLORS.KIROSHI_TINT,
+        TintColor = Configurations.COLORS.KIROSHI_TINT,
         Contrast = 0.1,
         Saturation = -0.1
     }):Play()
@@ -850,7 +747,7 @@ local function ExecKiroshi()
             local char = p.Character
             if char then
                 local highlight = Create("Highlight", {
-                    OutlineColor = SETTINGS.COLORS.KIROSHI,
+                    OutlineColor = Configurations.COLORS.KIROSHI,
                     FillTransparency = 1,
                     OutlineTransparency = 0,
                     Parent = char
@@ -878,7 +775,7 @@ local function ExecKiroshi()
                     Position = UDim2.new(0,0,0.5,0),
                     BackgroundTransparency = 1,
                     Text = "DIST: 10m",
-                    TextColor3 = SETTINGS.COLORS.KIROSHI,
+                    TextColor3 = Configurations.COLORS.KIROSHI,
                     Font = Enum.Font.RobotoMono,
                     TextSize = 16,
                     Parent = billboard
@@ -909,8 +806,8 @@ local function ExecKiroshi()
     task.spawn(function()
         task.wait(5)
         State.IsKiroshiActive = false
-        State.Cooldowns.KIROSHI = os.clock() + SETTINGS.COOLDOWNS.KIROSHI
-        ShowCooldownText("Kiroshi Optics", SETTINGS.COOLDOWNS.KIROSHI, SETTINGS.COLORS.KIROSHI)
+        State.Cooldowns.KIROSHI = os.clock() + Constants.COOLDOWNS.KIROSHI
+        ShowCooldownText("Kiroshi Optics", Constants.COOLDOWNS.KIROSHI, Configurations.COLORS.KIROSHI)
 
         -- Remove effect
         if kiroshiEffect then
@@ -930,64 +827,11 @@ local function ExecKiroshi()
     end)
 end
 
-local function ExecNetrun()
-    if not State.IsKiroshiActive or hacking then return end
-    local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {Character}
-    rayParams.FilterType = Enum.RaycastFilterType.Exclude
-    local ray = workspace:Raycast(Camera.CFrame.Position, Camera.CFrame.LookVector * 50, rayParams)
-    if ray and (ray.Instance.Name:lower():find("door") or ray.Instance.Name:lower():find("vehicle")) then
-        hackTarget = ray.Instance
-        hacking = true
-        -- Minigame GUI
-        local hackGui = Create("ScreenGui", {Parent = Player.PlayerGui})
-        local prompt = Create("TextLabel", {
-            Size = UDim2.new(0.3,0,0.1,0), Position = UDim2.new(0.35,0,0.45,0),
-            Text = "HACK: Q -> E -> R (3s)",
-            TextColor3 = Color3.new(0,1,0), Font = Enum.Font.RobotoMono, TextSize = 24,
-            BackgroundTransparency = 0.5, BackgroundColor3 = Color3.new(0,0,0),
-            Parent = hackGui
-        })
-        local seq = {Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.R}
-        local step = 1
-        local conn = UserInputService.InputBegan:Connect(function(input)
-            if input.KeyCode == seq[step] then
-                step += 1
-                if step > 3 then
-                    -- Sucesso!
-                    hackTarget.Anchored = false
-                    TweenService:Create(hackTarget, TweenInfo.new(1), {CFrame = hackTarget.CFrame * CFrame.Angles(0, math.rad(90), 0)}):Play()
-                    PlaySFX(SETTINGS.ASSETS.SOUNDS.HACK_SUCCESS, 1)
-                    hackGui:Destroy()
-                    hacking = false
-                    conn:Disconnect()
-                end
-            else
-                -- Falha
-                hackGui:Destroy()
-                local explosion = Instance.new("Explosion", hackTarget)
-                explosion.BlastRadius = 5
-                explosion.BlastPressure = 0
-                Humanoid.Health -= 10
-                hacking = false
-                conn:Disconnect()
-            end
-        end)
-        task.delay(3, function() 
-            if hacking then 
-                hackGui:Destroy() 
-                hacking = false 
-                conn:Disconnect() 
-            end 
-        end)  -- Timeout
-    end
-end
-
 --// UI SYSTEM
 local function MakeDraggable(frame: Frame)
     local dragging = false
     local dragStart, startPos
-    local stroke = Create("UIStroke", {Color = SETTINGS.COLORS.EDIT_MODE, Thickness = 2, Enabled = false, Parent = frame})
+    local stroke = Create("UIStroke", {Color = Configurations.COLORS.EDIT_MODE, Thickness = 2, Enabled = false, Parent = frame})
     table.insert(UI_Elements, {Frame = frame, Stroke = stroke})
     
     frame.InputBegan:Connect(function(input)
@@ -1023,48 +867,48 @@ local function BuildUI()
     if Player.PlayerGui:FindFirstChild("CyberRebuilt") then Player.PlayerGui.CyberRebuilt:Destroy() end
     local gui = Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
     
-    local lockBtn = Create("TextButton", {Name = "LockBtn", Size = UDim2.new(0, 35, 0, 35), Position = savedPositions["LockBtn"] or UDim2.new(1, -50, 0, 50), Text = "⚙️", BackgroundColor3 = SETTINGS.COLORS.UI_BG, TextColor3 = SETTINGS.COLORS.TEXT_DEFAULT, Font = Enum.Font.GothamBold, TextSize = 16, Parent = gui})
+    local lockBtn = Create("TextButton", {Name = "LockBtn", Size = UDim2.new(0, 35, 0, 35), Position = savedPositions["LockBtn"] or UDim2.new(1, -50, 0, 50), Text = "⚙️", BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = Configurations.COLORS.TEXT_DEFAULT, Font = Enum.Font.GothamBold, TextSize = 16, Parent = gui})
     Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = lockBtn})
-    Create("UIStroke", {Color = SETTINGS.COLORS.UI_ACCENT, Thickness = 2, Parent = lockBtn})
+    Create("UIStroke", {Color = Configurations.COLORS.UI_ACCENT, Thickness = 2, Parent = lockBtn})
     
-    local energyContainer = Create("Frame", {Name = "EnergyContainer", Size = UDim2.new(0, 300, 0, 15), Position = savedPositions["EnergyContainer"] or UDim2.new(0.5, -150, 0.92, 0), BackgroundColor3 = SETTINGS.COLORS.UI_BG, BorderSizePixel = 0, Parent = gui})
+    local energyContainer = Create("Frame", {Name = "EnergyContainer", Size = UDim2.new(0, 300, 0, 15), Position = savedPositions["EnergyContainer"] or UDim2.new(0.5, -150, 0.92, 0), BackgroundColor3 = Configurations.COLORS.UI_BG, BorderSizePixel = 0, Parent = gui})
     Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = energyContainer})
-    Create("UIStroke", {Color = SETTINGS.COLORS.UI_ACCENT, Thickness = 1, Parent = energyContainer})
+    Create("UIStroke", {Color = Configurations.COLORS.UI_ACCENT, Thickness = 1, Parent = energyContainer})
     
-    local fill = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = SETTINGS.COLORS.SANDI_TRAIL[1], BorderSizePixel = 0, Parent = energyContainer})
+    local fill = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Configurations.COLORS.SANDI_TRAIL[1], BorderSizePixel = 0, Parent = energyContainer})
     Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = fill})
-    Create("UIGradient", {Color = ColorSequence.new(SETTINGS.COLORS.SANDI_TRAIL[1], SETTINGS.COLORS.SANDI_TRAIL[#SETTINGS.COLORS.SANDI_TRAIL]), Parent = fill})
+    Create("UIGradient", {Color = ColorSequence.new(Configurations.COLORS.SANDI_TRAIL[1], Configurations.COLORS.SANDI_TRAIL[#Configurations.COLORS.SANDI_TRAIL]), Parent = fill})
     
-    local energyLabel = Create("TextLabel", {Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, -1.2, 0), BackgroundTransparency = 1, Text = "SYSTEM ENERGY: 100%", TextColor3 = SETTINGS.COLORS.SANDI_TRAIL[1], Font = Enum.Font.RobotoMono, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = energyContainer})
+    local energyLabel = Create("TextLabel", {Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, -1.2, 0), BackgroundTransparency = 1, Text = "SYSTEM ENERGY: 100%", TextColor3 = Configurations.COLORS.SANDI_TRAIL[1], Font = Enum.Font.RobotoMono, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = energyContainer})
     
     local function CreateSkillBtn(key, color, pos, name, func)
-        local btn = Create("TextButton", {Name = name, Size = UDim2.new(0, 50, 0, 50), Position = savedPositions[name] or pos, Text = key, BackgroundColor3 = SETTINGS.COLORS.UI_BG, TextColor3 = color, Font = Enum.Font.GothamBlack, TextSize = 18, AutoButtonColor = false, Parent = gui})
+        local btn = Create("TextButton", {Name = name, Size = UDim2.new(0, 50, 0, 50), Position = savedPositions[name] or pos, Text = key, BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = color, Font = Enum.Font.GothamBlack, TextSize = 18, AutoButtonColor = false, Parent = gui})
         Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = btn})
         Create("UIStroke", {Color = color, Thickness = 2, Transparency = 0.5, Parent = btn})
         btn.MouseButton1Down:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = SETTINGS.COLORS.UI_BG}):Play()
+            TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = Configurations.COLORS.UI_BG}):Play()
             if not State.EditMode then 
                 func()
             end
         end)
         btn.MouseButton1Up:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(0, 50, 0, 50), BackgroundColor3 = SETTINGS.COLORS.UI_BG, TextColor3 = color}):Play()
+            TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(0, 50, 0, 50), BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = color}):Play()
         end)
         MakeDraggable(btn)
         return btn
     end
     
-    CreateSkillBtn("Q", SETTINGS.COLORS.DASH_CYAN, UDim2.new(0.8, 0, 0.85, 0), "DashBtn", ExecDash) -- Mudado para ciano
-    CreateSkillBtn("E", SETTINGS.COLORS.SANDI_TRAIL[1], UDim2.new(0.85, 0, 0.85, 0), "SandiBtn", ExecSandi)
-    CreateSkillBtn("R", SETTINGS.COLORS.KIROSHI, UDim2.new(0.9, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
+    CreateSkillBtn("Q", Configurations.COLORS.DASH_CYAN, UDim2.new(0.8, 0, 0.85, 0), "DashBtn", ExecDash) -- Mudado para ciano
+    CreateSkillBtn("E", Configurations.COLORS.SANDI_TRAIL[1], UDim2.new(0.85, 0, 0.85, 0), "SandiBtn", ExecSandi)
+    CreateSkillBtn("R", Configurations.COLORS.KIROSHI, UDim2.new(0.9, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
     
     MakeDraggable(energyContainer)
     MakeDraggable(lockBtn)
     
     lockBtn.MouseButton1Click:Connect(function()
         State.EditMode = not State.EditMode
-        lockBtn.BackgroundColor3 = State.EditMode and SETTINGS.COLORS.EDIT_MODE or SETTINGS.COLORS.UI_BG
-        lockBtn.TextColor3 = State.EditMode and SETTINGS.COLORS.UI_BG or SETTINGS.COLORS.TEXT_DEFAULT
+        lockBtn.BackgroundColor3 = State.EditMode and Configurations.COLORS.EDIT_MODE or Configurations.COLORS.UI_BG
+        lockBtn.TextColor3 = State.EditMode and Configurations.COLORS.UI_BG or Configurations.COLORS.TEXT_DEFAULT
         for _, item in UI_Elements do item.Stroke.Enabled = State.EditMode end
         if not State.EditMode then
             savedPositions["LockBtn"] = lockBtn.Position
@@ -1080,10 +924,10 @@ local function BuildUI()
     
     local rsConn
     rsConn = RunService.RenderStepped:Connect(function()
-        local percent = State.Energy / SETTINGS.STATS.MAX_ENERGY
+        local percent = State.Energy / Constants.MAX_ENERGY
         fill.Size = fill.Size:Lerp(UDim2.new(percent, 0, 1, 0), 0.1)
         energyLabel.Text = string.format("SYSTEM ENERGY: %d%%", math.floor(State.Energy))
-        energyLabel.TextColor3 = energyLabel.TextColor3:Lerp(SETTINGS.COLORS.SANDI_TRAIL[1], 0.1)
+        energyLabel.TextColor3 = energyLabel.TextColor3:Lerp(Configurations.COLORS.SANDI_TRAIL[1], 0.1)
     end)
     gui.AncestryChanged:Connect(function()
         if not gui.Parent then
@@ -1114,12 +958,10 @@ RunService.Heartbeat:Connect(function(dt)
     end
     State.LastHealth = Humanoid.Health
     State.LastVelocityY = HRP.Velocity.Y
-    local isMoving = HRP.Velocity.Magnitude > SETTINGS.STATS.MOVING_THRESHOLD
+    local isMoving = HRP.Velocity.Magnitude > Constants.MOVING_THRESHOLD
     if State.IsSandiActive then
         State.Energy -= 12 * dt
-        State.Cyberpsychosis = math.min(SETTINGS.STATS.MAX_CYBERPSYCHOSIS, State.Cyberpsychosis + dt * SETTINGS.STATS.CYBERPSYCHOSIS_INCREMENT)
-        lastPsychosisDecrement = os.clock()
-        Humanoid.WalkSpeed = SETTINGS.STATS.SANDI_SPEED
+        Humanoid.WalkSpeed = Constants.SANDI_SPEED
         
         -- MOVING: GHOST TRAIL (DENSER: every 0.05s)
         if isMoving then
@@ -1128,14 +970,14 @@ RunService.Heartbeat:Connect(function(dt)
                 idleSound:Stop()
             end
             if os.clock() - lastSandiGhost > 0.05 then  -- Ajuste aqui: intervalo entre ghosts (menor = mais denso/menos separado)
-                CreateGhost(SETTINGS.COLORS.SANDI_TRAIL[1], SETTINGS.COLORS.SANDI_TRAIL[#SETTINGS.COLORS.SANDI_TRAIL], SETTINGS.GHOST_TRAIL.SANDI.DELAY, SETTINGS.GHOST_TRAIL.SANDI.DURATION, SETTINGS.GHOST_TRAIL.SANDI.END_TRANSPARENCY, SETTINGS.GHOST_TRAIL.SANDI.OFFSET_X, SETTINGS.GHOST_TRAIL.SANDI.OFFSET_Y, SETTINGS.GHOST_TRAIL.SANDI.OFFSET_Z, "sandi")
+                CreateGhost(Configurations.COLORS.SANDI_TRAIL[1], Configurations.COLORS.SANDI_TRAIL[#Configurations.COLORS.SANDI_TRAIL], Constants.GHOST_TRAIL.SANDI.DELAY, Constants.GHOST_TRAIL.SANDI.DURATION, Constants.GHOST_TRAIL.SANDI.END_TRANSPARENCY, Constants.GHOST_TRAIL.SANDI.OFFSET_X, Constants.GHOST_TRAIL.SANDI.OFFSET_Y, Constants.GHOST_TRAIL.SANDI.OFFSET_Z, "sandi")
                 lastSandiGhost = os.clock()
             end
             if sandiLoopSound and not sandiLoopSound.Playing then
                 sandiLoopSound:Play()
             elseif not sandiLoopSound then
                 sandiLoopSound = Create("Sound", {
-                    SoundId = SETTINGS.ASSETS.SOUNDS.SANDI_LOOP,
+                    SoundId = Configurations.ASSETS.SOUNDS.SANDI_LOOP,
                     Volume = 1,
                     Looped = true,
                     Parent = HRP
@@ -1148,7 +990,7 @@ RunService.Heartbeat:Connect(function(dt)
             if idleTime >= 60 then
                 if not idleSound or not idleSound.Playing then
                     idleSound = Create("Sound", {
-                        SoundId = SETTINGS.ASSETS.SOUNDS.IDLE_MUSIC,
+                        SoundId = Configurations.ASSETS.SOUNDS.IDLE_MUSIC,
                         Volume = 5,
                         Looped = true,
                         Parent = HRP
@@ -1169,10 +1011,7 @@ RunService.Heartbeat:Connect(function(dt)
             ExecSandi()
         end
     else
-        State.Energy = math.min(SETTINGS.STATS.MAX_ENERGY, State.Energy + (15 * dt))
-        if os.clock() - lastPsychosisDecrement > SETTINGS.STATS.CYBERPSYCHOSIS_DELAY then
-            State.Cyberpsychosis = math.max(0, State.Cyberpsychosis - dt * SETTINGS.STATS.CYBERPSYCHOSIS_DECREMENT)
-        end
+        State.Energy = math.min(Constants.MAX_ENERGY, State.Energy + (15 * dt))
     end
 end)
 
@@ -1181,7 +1020,6 @@ UserInputService.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.E then ExecSandi() end
     if input.KeyCode == Enum.KeyCode.Q then ExecDash() end
     if input.KeyCode == Enum.KeyCode.R then ExecKiroshi() end
-    if input.KeyCode == Enum.KeyCode.LeftShift then ExecNetrun() end
 end)
 
 local function Init()
