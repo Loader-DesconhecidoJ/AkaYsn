@@ -1,7 +1,7 @@
 --!strict
 --[[
     ╔════════════════════════════════════════════════════════════════════╗
-    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V2.5     ║
+    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V3.5     ║
     ║           UPDATES:                                                 ║
     ║     ║
     ╚════════════════════════════════════════════════════════════════════╝
@@ -77,6 +77,7 @@ local Constants = {
 
 --// CONFIGURATIONS
 local Configurations = {
+    GHOST_TRAIL_MATERIAL = Enum.Material.Glass, -- Opção para escolher a textura (material) dos ghost trails. Pode mudar para Enum.Material.Neon, Enum.Material.Ice, etc.
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200), -- Greener tint without white mix
         SANDI_TRAIL = {
@@ -320,13 +321,8 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
     local ghostChar = Character:Clone()
     local ghostHRP = ghostChar:FindFirstChild("HumanoidRootPart")
     
-    -- FIX: REMOVE ACCESSORIES TO PREVENT GREEN BLOCKS
-    for _, child in pairs(ghostChar:GetChildren()) do
-        if child:IsA("Accessory") then
-            child:Destroy()
-        end
-    end
-    
+    -- Removido o fix de destruir accessories para copiar hats, hair, accessories e clothes
+
     if trailType == "glitch" then
         offsetX = math.random(-2, 2)
         offsetZ = math.random(-2, 2)
@@ -349,11 +345,7 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
             part.Anchored = true
             part.CanCollide = false
             
-            if trailType == "sandi" or trailType == "glitch" or trailType == "dash" then
-                part.Material = Enum.Material.Neon
-            else
-                part.Material = Enum.Material.ForceField
-            end
+            part.Material = Configurations.GHOST_TRAIL_MATERIAL
             
             part.Color = startColor
             part.Transparency = 0.3 -- Start slightly transparent to reduce intensity
@@ -380,7 +372,7 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
                 local fadeTween = TweenService:Create(part, TweenInfo.new(duration * 0.7), {Transparency = endTransparency})
                 fadeTween:Play()
             end)
-        elseif not part:IsA("SpecialMesh") and not part:IsA("MeshPart") and not part:IsA("Decal") then 
+        elseif not part:IsA("SpecialMesh") and not part:IsA("MeshPart") and not part:IsA("Decal") and not part:IsA("Accessory") and not part:IsA("Shirt") and not part:IsA("Pants") then 
             part:Destroy() 
         end
     end
