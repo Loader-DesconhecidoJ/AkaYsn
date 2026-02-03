@@ -77,7 +77,7 @@ local Constants = {
 
 --// CONFIGURATIONS
 local Configurations = {
-    GHOST_TRAIL_MATERIAL = Enum.Material.Glass, -- Opção para escolher a textura (material) dos ghost trails. Pode mudar para Enum.Material.Neon, Enum.Material.Ice, etc.
+    GHOST_TRAIL_MATERIAL = Enum.Material.Snow, -- Opção para escolher a textura (material) dos ghost trails. Pode mudar para Enum.Material.Neon, Enum.Material.Ice, etc.
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200), -- Greener tint without white mix
         SANDI_TRAIL = {
