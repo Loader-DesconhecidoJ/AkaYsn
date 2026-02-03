@@ -1,3 +1,5 @@
+Ideias de Upgrades Pro Script 
+
 --!strict
 --[[
     ╔════════════════════════════════════════════════════════════════════╗
@@ -19,7 +21,6 @@ type Cooldowns = {
     SANDI: number,
     DASH: number,
     DODGE: number,
-    NOCLIP: number,
     KIROSHI: number
 }
 
@@ -27,7 +28,6 @@ type SystemState = {
     Energy: number,
     Cyberpsychosis: number,
     IsSandiActive: boolean,
-    IsNoclipActive: boolean,
     IsKiroshiActive: boolean,
     Cooldowns: Cooldowns,
     EditMode: boolean,
@@ -54,8 +54,8 @@ local SETTINGS = {
         SANDI = 10,
         DASH = 3,
         DODGE = 5,
-        NOCLIP = 3.5,
-        KIROSHI = 8
+        KIROSHI = 8,
+        NETRUN = 5
     },
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200), -- Greener tint without white mix
@@ -75,7 +75,6 @@ local SETTINGS = {
         TEXT_DEFAULT = Color3.new(1, 1, 1),
         UI_BG = Color3.fromRGB(10, 10, 12),
         UI_ACCENT = Color3.fromRGB(40, 40, 45),
-        NOCLIP = Color3.new(1, 1, 1),
         PSYCHO_TINT = Color3.fromRGB(255, 50, 50),
         PSYCHO_TRAIL = Color3.fromRGB(255, 0, 0),
         KIROSHI_TINT = Color3.fromRGB(255, 100, 100),
@@ -89,10 +88,10 @@ local SETTINGS = {
             SANDI_ON = "rbxassetid://123844681344865",
             SANDI_OFF = "rbxassetid://118534165523355",
             HIT = "rbxassetid://5665936061",
-            NOCLIP_ON = "rbxassetid://70643008100559",
             SANDI_LOOP = "rbxassetid://81793359483683",
             PSYCHO_LAUGH = "rbxassetid://87597277352254",
-            IDLE_MUSIC = "rbxassetid://84295656118500" -- New idle music
+            IDLE_MUSIC = "rbxassetid://84295656118500", -- New idle music
+            HACK_SUCCESS = "rbxassetid://131961136"  -- Som hack
         },
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
@@ -124,14 +123,6 @@ local SETTINGS = {
             OFFSET_X = 0,
             OFFSET_Y = 0,
             OFFSET_Z = 0
-        },
-        NOCLIP = {
-            DELAY = 1,
-            DURATION = 2.5,
-            END_TRANSPARENCY = 1,
-            OFFSET_X = 0,
-            OFFSET_Y = 0,
-            OFFSET_Z = 0
         }
     }
 }
@@ -141,9 +132,8 @@ local State: SystemState = {
     Energy = SETTINGS.STATS.MAX_ENERGY,
     Cyberpsychosis = 0,
     IsSandiActive = false,
-    IsNoclipActive = false,
     IsKiroshiActive = false,
-    Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, NOCLIP = 0, KIROSHI = 0},
+    Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, KIROSHI = 0},
     EditMode = false,
     LastVelocityY = 0,
     ActiveLabels = 0,
@@ -167,6 +157,14 @@ local savedPositions = {}
 local originalStates = {}
 local psychoEffect: ColorCorrectionEffect? = nil
 local activeHighlights = {}
+local hacking = false
+local hackTarget = nil
+local lastPsychosisDecrement = 0
+local frozenHRPs = {}
+local frozenParts = {}
+local frozenVelocitiesHRP = {}
+local frozenVelocitiesParts = {}
+local frozenWalkSpeeds = {}
 
 --// UTILITY FUNCTIONS
 local function Create(className: string, properties: {[string]: any})
@@ -202,6 +200,63 @@ local function CamShake(intensity: number, duration: number)
         end
         if Humanoid then Humanoid.CameraOffset = Vector3.zero end
     end)
+end
+
+local function FreezeAll()
+    frozenHRPs = {}
+    frozenParts = {}
+    frozenVelocitiesHRP = {}
+    frozenVelocitiesParts = {}
+    frozenWalkSpeeds = {}
+    for _, desc in ipairs(workspace:GetDescendants()) do
+        if desc:IsA("Humanoid") and desc.Parent ~= Character then
+            local hrp = desc.Parent:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                frozenHRPs[hrp] = hrp.Anchored
+                frozenVelocitiesHRP[hrp] = hrp.Velocity
+                frozenWalkSpeeds[desc] = desc.WalkSpeed
+                hrp.Anchored = true
+                hrp.Velocity = Vector3.zero
+                desc.WalkSpeed = 0
+            end
+        end
+    end
+    for _, desc in ipairs(workspace:GetDescendants()) do
+        if desc:IsA("BasePart") and not desc.Anchored then
+            local model = desc:FindFirstAncestorWhichIsA("Model")
+            if not (model and model:FindFirstChildOfClass("Humanoid")) then
+                frozenParts[desc] = desc.Anchored
+                frozenVelocitiesParts[desc] = desc.Velocity
+                desc.Anchored = true
+                desc.Velocity = Vector3.zero
+            end
+        end
+    end
+end
+
+local function UnfreezeAll()
+    for part, orig in pairs(frozenHRPs) do
+        if part.Parent then
+            part.Anchored = orig
+            part.Velocity = frozenVelocitiesHRP[part] or Vector3.zero
+        end
+    end
+    for hum in pairs(frozenWalkSpeeds) do
+        if hum.Parent then
+            hum.WalkSpeed = frozenWalkSpeeds[hum]
+        end
+    end
+    frozenHRPs = {}
+    frozenVelocitiesHRP = {}
+    frozenWalkSpeeds = {}
+    for part, orig in pairs(frozenParts) do
+        if part.Parent then
+            part.Anchored = orig
+            part.Velocity = frozenVelocitiesParts[part] or Vector3.zero
+        end
+    end
+    frozenParts = {}
+    frozenVelocitiesParts = {}
 end
 
 local function UpdatePsychoEffects(dt: number)
@@ -611,6 +666,7 @@ local function ResetSandi()
     end
     TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
     CleanupSandiSounds()
+    UnfreezeAll()
     originalStates = {}
     -- Atualiza o botão de Dash ao resetar
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
@@ -714,6 +770,9 @@ local function ExecSandi()
         PlayActivationSequence()
         
         lastSandiGhost = 0 -- Reset ghost timer
+        
+        -- Desync Universal (Freeze All)
+        FreezeAll()
     else
         PlaySFX(SETTINGS.ASSETS.SOUNDS.SANDI_OFF, 1)
         State.Cooldowns.SANDI = os.clock() + SETTINGS.COOLDOWNS.SANDI
@@ -730,48 +789,11 @@ local function ExecSandi()
         Humanoid.WalkSpeed = 16
         TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
         CleanupSandiSounds()
+        
+        -- Desativa Desync Universal (Unfreeze All)
+        UnfreezeAll()
     end
     UpdateDashButton() -- Atualiza o estado do botão Dash
-end
-
-local function ExecNoclip()
-    if State.IsNoclipActive then
-        State.Cooldowns.NOCLIP = os.clock() + SETTINGS.COOLDOWNS.NOCLIP
-        ShowCooldownText("No Clip", SETTINGS.COOLDOWNS.NOCLIP, SETTINGS.COLORS.NOCLIP)
-        for _, part in Character:GetDescendants() do
-            if part:IsA("BasePart") then
-                part.CanCollide = true
-            end
-        end
-        -- Reverse zoom shake on deactivate
-        TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 90}):Play()
-        CamShake(0.5, 0.3)
-        task.delay(0.3, function()
-            TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 70}):Play()
-        end)
-        State.IsNoclipActive = false
-    else
-        if os.clock() < State.Cooldowns.NOCLIP then return end
-        PlaySFX(SETTINGS.ASSETS.SOUNDS.NOCLIP_ON, 1)
-        local cc = Create("ColorCorrectionEffect", { Brightness = 1, Parent = Lighting})
-        TweenService:Create(cc, TweenInfo.new(0.5), { Brightness = 0}):Play()
-        task.delay(0.5, function() cc:Destroy() end)
-        CamShake(0.5, 0.2)
-        TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 50}):Play()
-        task.delay(0.3, function() TweenService:Create(Camera, TweenInfo.new(0.3), {FieldOfView = 70}):Play() end)
-        for _, part in Character:GetDescendants() do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-        State.IsNoclipActive = true
-        task.spawn(function()
-            task.wait(3)
-            if State.IsNoclipActive then
-                ExecNoclip()
-            end
-        end)
-    end
 end
 
 local function ExecDash()
@@ -824,7 +846,7 @@ local function ExecKiroshi()
         Saturation = -0.1
     }):Play()
 
-    -- Highlight enemies
+    -- Highlight enemies and analysis
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= Player then
             local char = p.Character
@@ -836,6 +858,52 @@ local function ExecKiroshi()
                     Parent = char
                 })
                 table.insert(activeHighlights, highlight)
+                
+                -- Análise HUD
+                local billboard = Create("BillboardGui", {
+                    Size = UDim2.new(0, 200, 0, 80),
+                    StudsOffset = Vector3.new(0, 3, 0),
+                    AlwaysOnTop = true,
+                    Parent = char
+                })
+                local hpLabel = Create("TextLabel", {
+                    Size = UDim2.new(1, 0, 0.5, 0),
+                    BackgroundTransparency = 1,
+                    Text = "HP: 100/100",
+                    TextColor3 = Color3.new(1,1,1),
+                    Font = Enum.Font.RobotoMono,
+                    TextSize = 18,
+                    Parent = billboard
+                })
+                local distLabel = Create("TextLabel", {
+                    Size = UDim2.new(1, 0, 0.5, 0),
+                    Position = UDim2.new(0,0,0.5,0),
+                    BackgroundTransparency = 1,
+                    Text = "DIST: 10m",
+                    TextColor3 = SETTINGS.COLORS.KIROSHI,
+                    Font = Enum.Font.RobotoMono,
+                    TextSize = 16,
+                    Parent = billboard
+                })
+                table.insert(activeHighlights, billboard)  -- Pra limpar junto
+                
+                -- Loop pra atualizar
+                task.spawn(function()
+                    while State.IsKiroshiActive do
+                        local hum = char:FindFirstChildOfClass("Humanoid")
+                        if hum and HRP then
+                            local dist = math.floor((HRP.Position - char.HumanoidRootPart.Position).Magnitude)
+                            hpLabel.Text = string.format("HP: %d/%d", hum.Health, hum.MaxHealth)
+                            distLabel.Text = string.format("DIST: %dm", dist)
+                            if hum.Health / hum.MaxHealth < 0.5 then
+                                hpLabel.TextColor3 = Color3.new(1, 0.2, 0.2)  -- Vermelho fraco
+                                hpLabel.Text = hpLabel.Text .. " [FRACO]"
+                            end
+                        end
+                        task.wait(0.1)
+                    end
+                    billboard:Destroy()
+                end)
             end
         end
     end
@@ -864,9 +932,63 @@ local function ExecKiroshi()
     end)
 end
 
+local function ExecNetrun()
+    if not State.IsKiroshiActive or hacking then return end
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {Character}
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+    local ray = workspace:Raycast(Camera.CFrame.Position, Camera.CFrame.LookVector * 50, rayParams)
+    if ray and (ray.Instance.Name:lower():find("door") or ray.Instance.Name:lower():find("vehicle")) then
+        hackTarget = ray.Instance
+        hacking = true
+        -- Minigame GUI
+        local hackGui = Create("ScreenGui", {Parent = Player.PlayerGui})
+        local prompt = Create("TextLabel", {
+            Size = UDim2.new(0.3,0,0.1,0), Position = UDim2.new(0.35,0,0.45,0),
+            Text = "HACK: Q -> E -> R (3s)",
+            TextColor3 = Color3.new(0,1,0), Font = Enum.Font.RobotoMono, TextSize = 24,
+            BackgroundTransparency = 0.5, BackgroundColor3 = Color3.new(0,0,0),
+            Parent = hackGui
+        })
+        local seq = {Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.R}
+        local step = 1
+        local conn = UserInputService.InputBegan:Connect(function(input)
+            if input.KeyCode == seq[step] then
+                step += 1
+                if step > 3 then
+                    -- Sucesso!
+                    hackTarget.Anchored = false
+                    TweenService:Create(hackTarget, TweenInfo.new(1), {CFrame = hackTarget.CFrame * CFrame.Angles(0, math.rad(90), 0)}):Play()
+                    PlaySFX(SETTINGS.ASSETS.SOUNDS.HACK_SUCCESS, 1)
+                    hackGui:Destroy()
+                    hacking = false
+                    conn:Disconnect()
+                end
+            else
+                -- Falha
+                hackGui:Destroy()
+                local explosion = Instance.new("Explosion", hackTarget)
+                explosion.BlastRadius = 5
+                explosion.BlastPressure = 0
+                Humanoid.Health -= 10
+                hacking = false
+                conn:Disconnect()
+            end
+        end)
+        task.delay(3, function() 
+            if hacking then 
+                hackGui:Destroy() 
+                hacking = false 
+                conn:Disconnect() 
+            end 
+        end)  -- Timeout
+    end
+end
+
 --// UI SYSTEM
 local function MakeDraggable(frame: Frame)
-    local dragging, dragStart, startPos
+    local dragging = false
+    local dragStart, startPos
     local stroke = Create("UIStroke", {Color = SETTINGS.COLORS.EDIT_MODE, Thickness = 2, Enabled = false, Parent = frame})
     table.insert(UI_Elements, {Frame = frame, Stroke = stroke})
     
@@ -875,16 +997,27 @@ local function MakeDraggable(frame: Frame)
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
         end
     end)
     frame.InputChanged:Connect(function(input)
-        if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging and State.EditMode then
+                local delta = input.Position - dragStart
+                frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            elseif dragging then
+                dragging = false
+            end
         end
     end)
     UserInputService.InputEnded:Connect(function(input) 
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end 
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+            dragging = false 
+        end 
     end)
 end
 
@@ -925,8 +1058,7 @@ local function BuildUI()
     
     CreateSkillBtn("Q", SETTINGS.COLORS.DASH_CYAN, UDim2.new(0.8, 0, 0.85, 0), "DashBtn", ExecDash) -- Mudado para ciano
     CreateSkillBtn("E", SETTINGS.COLORS.SANDI_TRAIL[1], UDim2.new(0.85, 0, 0.85, 0), "SandiBtn", ExecSandi)
-    CreateSkillBtn("F", SETTINGS.COLORS.NOCLIP, UDim2.new(0.9, 0, 0.85, 0), "NoclipBtn", ExecNoclip)
-    CreateSkillBtn("R", SETTINGS.COLORS.KIROSHI, UDim2.new(0.95, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
+    CreateSkillBtn("R", SETTINGS.COLORS.KIROSHI, UDim2.new(0.9, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
     
     MakeDraggable(energyContainer)
     MakeDraggable(lockBtn)
@@ -941,7 +1073,6 @@ local function BuildUI()
             savedPositions["EnergyContainer"] = energyContainer.Position
             savedPositions["DashBtn"] = gui:FindFirstChild("DashBtn").Position
             savedPositions["SandiBtn"] = gui:FindFirstChild("SandiBtn").Position
-            savedPositions["NoclipBtn"] = gui:FindFirstChild("NoclipBtn").Position
             savedPositions["KiroshiBtn"] = gui:FindFirstChild("KiroshiBtn").Position
         end
     end)
@@ -988,6 +1119,8 @@ RunService.Heartbeat:Connect(function(dt)
     local isMoving = HRP.Velocity.Magnitude > SETTINGS.STATS.MOVING_THRESHOLD
     if State.IsSandiActive then
         State.Energy -= 12 * dt
+        State.Cyberpsychosis = math.min(SETTINGS.STATS.MAX_CYBERPSYCHOSIS, State.Cyberpsychosis + dt * SETTINGS.STATS.CYBERPSYCHOSIS_INCREMENT)
+        lastPsychosisDecrement = os.clock()
         Humanoid.WalkSpeed = SETTINGS.STATS.SANDI_SPEED
         
         -- MOVING: GHOST TRAIL (DENSER: every 0.05s)
@@ -1039,6 +1172,9 @@ RunService.Heartbeat:Connect(function(dt)
         end
     else
         State.Energy = math.min(SETTINGS.STATS.MAX_ENERGY, State.Energy + (15 * dt))
+        if os.clock() - lastPsychosisDecrement > SETTINGS.STATS.CYBERPSYCHOSIS_DELAY then
+            State.Cyberpsychosis = math.max(0, State.Cyberpsychosis - dt * SETTINGS.STATS.CYBERPSYCHOSIS_DECREMENT)
+        end
     end
 end)
 
@@ -1046,8 +1182,8 @@ UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.E then ExecSandi() end
     if input.KeyCode == Enum.KeyCode.Q then ExecDash() end
-    if input.KeyCode == Enum.KeyCode.F then ExecNoclip() end
     if input.KeyCode == Enum.KeyCode.R then ExecKiroshi() end
+    if input.KeyCode == Enum.KeyCode.LeftShift then ExecNetrun() end
 end)
 
 local function Init()
