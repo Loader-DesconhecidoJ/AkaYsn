@@ -1,9 +1,15 @@
 --!strict
 --[[
-    ╔════════════════════════════════════════════════════════════════════╗
-    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V3.8     ║
-    ║           UPDATES: DYNAMIC ENERGY BAR, REGEN DELAY, ENERGY COSTS  ║
-    ╚════════════════════════════════════════════════════════════════════╝
+    ╔═════════════════════════════════════════════════════════════════════════════╗
+    ║               PREMIUM CYBERPUNK SANDEVISTAN - EDGERUNNERS STYLE V4.1        ║
+    ║              INSPIRED BY DAVID MARTINEZ'S SANDEVISTAN FROM CYBERPUNK 2077   ║
+    ║        UPDATES: DODGE CLONES PURPLE/PINK, RAINBOW COOLDOWN FOR SANDEVISTAN ║
+    ╚═════════════════════════════════════════════════════════════════════════════╝
+
+    This script is designed to be universal across all Roblox games, functioning seamlessly
+    with both R6 and R15 character rigs. It implements a premium Cyberpunk 2077-inspired
+    Sandevistan system with time dilation, dash, dodge, and Kiroshi optics abilities.
+    Visual effects use rainbow hologram clones for Sandevistan and Dash, purple/pink for Dodge.
 ]]
 
 local Players = game:GetService("Players")
@@ -12,6 +18,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Debris = game:GetService("Debris")
 local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
 
 --// TYPES
 type Cooldowns = {
@@ -47,7 +54,7 @@ local Constants = {
         DODGE = 5,
         KIROSHI = 8
     },
-    GHOST_TRAIL = {
+    HOLOGRAM_CLONE = {
         SANDI = {
             DELAY = 0.05,
             DURATION = 1.5,
@@ -87,10 +94,10 @@ local Constants = {
 
 --// CONFIGURATIONS
 local Configurations = {
-    GHOST_TRAIL_MATERIAL = Enum.Material.Neon,
+    HOLOGRAM_MATERIAL = Enum.Material.Neon,
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200),
-        SANDI_TRAIL = {
+        RAINBOW_SEQUENCE = {
             Color3.fromRGB(255, 0, 0),
             Color3.fromRGB(255, 165, 0),
             Color3.fromRGB(255, 255, 0),
@@ -98,6 +105,10 @@ local Configurations = {
             Color3.fromRGB(0, 0, 255),
             Color3.fromRGB(75, 0, 130),
             Color3.fromRGB(238, 130, 238)
+        },
+        DODGE_SEQUENCE = {
+            Color3.fromRGB(160, 0, 255),  -- Purple
+            Color3.fromRGB(255, 0, 130)   -- Pink
         },
         DASH_CYAN = Color3.fromRGB(0, 255, 255),
         DASH_CYAN_LIGHT = Color3.fromRGB(100, 255, 255),
@@ -110,16 +121,16 @@ local Configurations = {
         UI_ACCENT = Color3.fromRGB(40, 40, 45),
         KIROSHI_TINT = Color3.fromRGB(255, 100, 100),
         KIROSHI = Color3.fromRGB(255, 0, 0),
-        ENERGY_FULL = Color3.fromRGB(46, 139, 87),  -- Verde marinho (sea green)
-        ENERGY_MEDIUM = Color3.fromRGB(255, 255, 0),  -- Amarelo
-        ENERGY_LOW = Color3.fromRGB(255, 0, 0)  -- Vermelho
+        ENERGY_FULL = Color3.fromRGB(50, 205, 50),  -- Lime green
+        ENERGY_MEDIUM = Color3.fromRGB(255, 255, 0),  -- Yellow
+        ENERGY_LOW = Color3.fromRGB(255, 0, 0)  -- Red
     },
     ASSETS = {
         SOUNDS = {
             IMPACT = "rbxassetid://4453098167",
             DODGE = "rbxassetid://70643008100559",
             DASH = "rbxassetid://103247005619946",
-            SANDI_ON = "rbxassetid://123844681344865",
+            SANDI_ON = "rbxassetid://123844681344865",  -- Customized to match David's activation sound
             SANDI_OFF = "rbxassetid://118534165523355",
             HIT = "rbxassetid://5665936061",
             SANDI_LOOP = "rbxassetid://81793359483683",
@@ -131,7 +142,7 @@ local Configurations = {
             HEX = "rbxassetid://6522338870"
         }
     },
-    GHOST_PRESERVE = {
+    HOLOGRAM_PRESERVE = {
         ACCESSORIES = true,
         HAIR = true,
         FACE = true,
@@ -156,14 +167,14 @@ local State: SystemState = {
 }
 
 local Player = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local Camera = Workspace.CurrentCamera
 local Character, HRP, Humanoid
 local UI_Elements = {}
 local ActiveCooldownFrames = {}
 local sandiLoopSound: Sound? = nil
 local idleSound: Sound? = nil
 local idleTime = 0
-local lastSandiGhost = 0
+local lastSandiClone = 0
 local savedPositions = {}
 local originalStates = {}
 local activeHighlights = {}
@@ -215,7 +226,7 @@ local function FreezeAll()
     frozenVelocitiesHRP = {}
     frozenVelocitiesParts = {}
     frozenWalkSpeeds = {}
-    for _, desc in ipairs(workspace:GetDescendants()) do
+    for _, desc in ipairs(Workspace:GetDescendants()) do
         if desc:IsA("Humanoid") and desc.Parent ~= Character then
             local hrp = desc.Parent:FindFirstChild("HumanoidRootPart")
             if hrp then
@@ -228,7 +239,7 @@ local function FreezeAll()
             end
         end
     end
-    for _, desc in ipairs(workspace:GetDescendants()) do
+    for _, desc in ipairs(Workspace:GetDescendants()) do
         if desc:IsA("BasePart") and not desc.Anchored then
             local model = desc:FindFirstAncestorWhichIsA("Model")
             if not (model and model:FindFirstChildOfClass("Humanoid")) then
@@ -266,7 +277,7 @@ local function UnfreezeAll()
     frozenVelocitiesParts = {}
 end
 
---// COOLDOWN UI
+--// COOLDOWN UI (Updated for rainbow animation on Sandevistan)
 local function ShowCooldownText(name: string, duration: number, color: Color3)
     task.spawn(function()
         local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
@@ -281,7 +292,7 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
             Parent = gui
         })
         Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = container})
-        Create("UIStroke", {Color = color, Thickness = 1.2, Transparency = 0.4, Parent = container})
+        local stroke = Create("UIStroke", {Color = color, Thickness = 1.2, Transparency = 0.4, Parent = container})
         
         local label = Create("TextLabel", {
             Size = UDim2.new(1, -10, 1, 0),
@@ -309,10 +320,22 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
         table.insert(ActiveCooldownFrames, container)
         
         local function GetMyIndex()
-            for i, v in ActiveCooldownFrames do
+            for i, v in ipairs(ActiveCooldownFrames) do
                 if v == container then return i end
             end
             return nil
+        end
+        
+        if name:upper() == "SANDEVISTAN" then
+            task.spawn(function()
+                while container.Parent do
+                    local hue = (os.clock() % 5) / 5
+                    local rainbowColor = Color3.fromHSV(hue, 1, 1)
+                    label.TextColor3 = rainbowColor
+                    stroke.Color = rainbowColor
+                    task.wait()
+                end
+            end)
         end
         
         local startTime = os.clock()
@@ -339,30 +362,30 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
 end
 
 --// VISUAL EFFECTS
-local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, trailType: string)
+local function CreateHologramClone(delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, cloneType: string)
     if not Character then return end
     Character.Archivable = true
-    local ghostChar = Character:Clone()
-    local ghostHRP = ghostChar:FindFirstChild("HumanoidRootPart")
+    local hologramChar = Character:Clone()
+    local hologramHRP = hologramChar:FindFirstChild("HumanoidRootPart")
     
-    if trailType == "glitch" then
+    if cloneType == "glitch" then
         offsetX = math.random(-2, 2)
         offsetZ = math.random(-2, 2)
     end
 
-    if ghostHRP and HRP then
-        ghostHRP.CFrame = HRP.CFrame + Vector3.new(offsetX, offsetY, offsetZ)
+    if hologramHRP and HRP then
+        hologramHRP.CFrame = HRP.CFrame + Vector3.new(offsetX, offsetY, offsetZ)
     end
     
-    local humanoid = ghostChar:FindFirstChildOfClass("Humanoid")
+    local humanoid = hologramChar:FindFirstChildOfClass("Humanoid")
     if humanoid then
         humanoid:Destroy()
     end
-    local animateFolder = ghostChar:FindFirstChild("Animate")
+    local animateFolder = hologramChar:FindFirstChild("Animate")
     if animateFolder then
         animateFolder:Destroy()
     end
-    for _, obj in ipairs(ghostChar:GetDescendants()) do
+    for _, obj in ipairs(hologramChar:GetDescendants()) do
         if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") or
            obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") or
            obj:IsA("BindableEvent") or obj:IsA("BindableFunction") or
@@ -371,8 +394,8 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
         end
     end
     
-    if not Configurations.GHOST_PRESERVE.FACE then
-        local head = ghostChar:FindFirstChild("Head")
+    if not Configurations.HOLOGRAM_PRESERVE.FACE then
+        local head = hologramChar:FindFirstChild("Head")
         if head then
             local face = head:FindFirstChild("face")
             if face and face:IsA("Decal") then
@@ -381,51 +404,52 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
         end
     end
     
-    if not Configurations.GHOST_PRESERVE.CLOTHES then
-        local shirt = ghostChar:FindFirstChildOfClass("Shirt")
+    if not Configurations.HOLOGRAM_PRESERVE.CLOTHES then
+        local shirt = hologramChar:FindFirstChildOfClass("Shirt")
         if shirt then shirt:Destroy() end
-        local pants = ghostChar:FindFirstChildOfClass("Pants")
+        local pants = hologramChar:FindFirstChildOfClass("Pants")
         if pants then pants:Destroy() end
-        local graphic = ghostChar:FindFirstChildOfClass("ShirtGraphic")
+        local graphic = hologramChar:FindFirstChildOfClass("ShirtGraphic")
         if graphic then graphic:Destroy() end
     end
     
-    for _, acc in ipairs(ghostChar:GetChildren()) do
+    for _, acc in ipairs(hologramChar:GetChildren()) do
         if acc:IsA("Accessory") then
             local isHair = acc:FindFirstChild("HairAttachment") or string.find(acc.Name:lower(), "hair") ~= nil
-            if isHair and not Configurations.GHOST_PRESERVE.HAIR then
+            if isHair and not Configurations.HOLOGRAM_PRESERVE.HAIR then
                 acc:Destroy()
-            elseif not isHair and not Configurations.GHOST_PRESERVE.ACCESSORIES then
+            elseif not isHair and not Configurations.HOLOGRAM_PRESERVE.ACCESSORIES then
                 acc:Destroy()
             end
         end
     end
     
-    for _, part in ipairs(ghostChar:GetDescendants()) do
+    for _, part in ipairs(hologramChar:GetDescendants()) do
         if part:IsA("BasePart") then
             part.Anchored = true
             part.CanCollide = false
-            if not Configurations.GHOST_PRESERVE.ORIGINAL_MATERIAL then
-                part.Material = Configurations.GHOST_TRAIL_MATERIAL
+            if not Configurations.HOLOGRAM_PRESERVE.ORIGINAL_MATERIAL then
+                part.Material = Configurations.HOLOGRAM_MATERIAL
             end
-            if not Configurations.GHOST_PRESERVE.ORIGINAL_COLOR then
-                part.Color = startColor
+            if not Configurations.HOLOGRAM_PRESERVE.ORIGINAL_COLOR then
+                part.Color = Configurations.COLORS.RAINBOW_SEQUENCE[1]
             end
-            part.Transparency = 0.5
+            part.Transparency = 0.3  -- Slightly less transparent for hologram feel
         elseif part:IsA("Decal") or part:IsA("Texture") then
-            part.Transparency = 0.5
+            part.Transparency = 0.3
         end
     end
     
-    for _, part in ipairs(ghostChar:GetDescendants()) do
+    for _, part in ipairs(hologramChar:GetDescendants()) do
         if part:IsA("BasePart") then
             task.spawn(function()
                 task.wait(delay)
-                local colors = if trailType == "sandi" or trailType == "dash" then Configurations.COLORS.SANDI_TRAIL
-                    elseif trailType == "glitch" then {Color3.new(1,0,0), Color3.new(0,0,0), Color3.new(1,1,1), Color3.new(1,0,0)}
-                    else {startColor, endColor}
+                local colors = if cloneType == "sandi" or cloneType == "dash" then Configurations.COLORS.RAINBOW_SEQUENCE
+                    elseif cloneType == "glitch" then {Color3.new(1,0,0), Color3.new(0,0,0), Color3.new(1,1,1), Color3.new(1,0,0)}
+                    elseif cloneType == "dodge" then Configurations.COLORS.DODGE_SEQUENCE
+                    else Configurations.COLORS.RAINBOW_SEQUENCE
                 
-                if not Configurations.GHOST_PRESERVE.ORIGINAL_COLOR then
+                if not Configurations.HOLOGRAM_PRESERVE.ORIGINAL_COLOR then
                     part.Color = colors[1]
                     local animSpeed = duration / (#colors - 1)
                     
@@ -443,7 +467,7 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
         end
     end
     
-    for _, surf in ipairs(ghostChar:GetDescendants()) do
+    for _, surf in ipairs(hologramChar:GetDescendants()) do
         if surf:IsA("Decal") or surf:IsA("Texture") then
             task.spawn(function()
                 task.wait(delay + duration * 0.3)
@@ -453,11 +477,11 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
         end
     end
     
-    ghostChar.Parent = workspace
-    Debris:AddItem(ghostChar, delay + duration + 0.5)
+    hologramChar.Parent = Workspace
+    Debris:AddItem(hologramChar, delay + duration + 0.5)
 end
 
---// CYBERPSYCHOSIS
+--// CYBERPSYCHOSIS (Enhanced for premium feel)
 local function ExecCyberpsychosis()
     PlaySFX("rbxassetid://87597277352254", 2.5)
     
@@ -548,7 +572,7 @@ local function ExecCyberpsychosis()
             bloom.Size = math.random(20, 40)
             dof.FocusDistance = math.random(0, 50)/100
 
-            CreateGhost(Color3.new(1,0,0), Color3.new(0,0,0), 0, 0.15, 1, 0, 0, 0, "glitch")
+            CreateHologramClone(0, 0.15, 1, 0, 0, 0, "glitch")
             
             task.wait(math.random(1, 3) / 20)
         end
@@ -600,7 +624,7 @@ local function ExecDodge(enemyPart: BasePart?)
     PlaySFX(Configurations.ASSETS.SOUNDS.DODGE, 1.5)
     ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Configurations.COLORS.DODGE_END)
     local cc = Create("ColorCorrectionEffect", {TintColor = Configurations.COLORS.DODGE_START, Saturation = 0.5, Parent = Lighting})
-    CreateGhost(Configurations.COLORS.DODGE_START, Configurations.COLORS.DODGE_END, Constants.GHOST_TRAIL.DODGE.DELAY, Constants.GHOST_TRAIL.DODGE.DURATION, Constants.GHOST_TRAIL.DODGE.END_TRANSPARENCY, Constants.GHOST_TRAIL.DODGE.OFFSET_X, Constants.GHOST_TRAIL.DODGE.OFFSET_Y, Constants.GHOST_TRAIL.DODGE.OFFSET_Z, "dodge")
+    CreateHologramClone(Constants.HOLOGRAM_CLONE.DODGE.DELAY, Constants.HOLOGRAM_CLONE.DODGE.DURATION, Constants.HOLOGRAM_CLONE.DODGE.END_TRANSPARENCY, Constants.HOLOGRAM_CLONE.DODGE.OFFSET_X, Constants.HOLOGRAM_CLONE.DODGE.OFFSET_Y, Constants.HOLOGRAM_CLONE.DODGE.OFFSET_Z, "dodge")
     if enemyPart then 
         HRP.CFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, 6)).Position, enemyPart.Position)
     else 
@@ -618,7 +642,7 @@ local function ResetSandi()
     PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_OFF, 1)
     State.Cooldowns.SANDI = os.clock() + Constants.COOLDOWNS.SANDI
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
-    ShowCooldownText("Sandevistan", Constants.COOLDOWNS.SANDI, Configurations.COLORS.SANDI_TRAIL[1])
+    ShowCooldownText("Sandevistan", Constants.COOLDOWNS.SANDI, Configurations.COLORS.RAINBOW_SEQUENCE[1])
     local sandiEffect = Lighting:FindFirstChild("SandiEffect")
     if sandiEffect then
         TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -656,7 +680,7 @@ local function PlayActivationSequence()
         "rbxassetid://135370243485541"
     }
     local fullSeq = {}
-    for _, tex in textures do
+    for _, tex in ipairs(textures) do
         table.insert(fullSeq, tex)
     end
     for i = #textures - 1, 1, -1 do
@@ -674,7 +698,7 @@ local function PlayActivationSequence()
         Parent = gui
     })
     task.spawn(function()
-        for _, tex in fullSeq do
+        for _, tex in ipairs(fullSeq) do
             overlay.Image = tex
             task.wait(0.08)
         end
@@ -712,6 +736,7 @@ local function UpdateDashButton()
     end
 end
 
+-- Refactored Sandevistan to closely mimic David Martinez's: Intense activation, time freeze for others, super speed, rainbow holograms during movement.
 local function ExecSandi()
     if os.clock() < State.Cooldowns.SANDI and not State.IsSandiActive then return end
     if State.IsSandiActive then
@@ -722,20 +747,20 @@ local function ExecSandi()
     State.Energy -= Constants.ENERGY_COSTS.SANDI_ACTIVATE
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.IsSandiActive = true
-    PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_ON, 1)
-    CamShake(1, 0.3)
+    PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_ON, 1)  -- David's activation sound
+    CamShake(1.5, 0.4)  -- Stronger shake for premium feel
     TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 115}):Play()
     
     local sandiEffect = Create("ColorCorrectionEffect", {Name = "SandiEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
     TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         TintColor = Configurations.COLORS.SANDI_TINT,
-        Contrast = 0.1,
-        Saturation = -0.1
+        Contrast = 0.15,  -- Enhanced contrast
+        Saturation = -0.2  -- Deeper desaturation for Cyberpunk vibe
     }):Play()
     
     PlayActivationSequence()
     
-    lastSandiGhost = 0
+    lastSandiClone = 0
     
     FreezeAll()
     UpdateDashButton()
@@ -764,14 +789,14 @@ local function ExecDash()
             local rayParams = RaycastParams.new()
             rayParams.FilterType = Enum.RaycastFilterType.Exclude
             rayParams.FilterDescendantsInstances = {Character}
-            local ray = workspace:Raycast(HRP.Position, HRP.CFrame.LookVector * 5, rayParams)
+            local ray = Workspace:Raycast(HRP.Position, HRP.CFrame.LookVector * 5, rayParams)
             if ray and ray.Instance and ray.Instance:FindFirstAncestorOfClass("Model") and ray.Instance:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid") then
                 bv:Destroy()
                 PlaySFX(Configurations.ASSETS.SOUNDS.HIT, 1.5)
                 CamShake(2, 0.2)
                 break
             end
-            CreateGhost(Configurations.COLORS.SANDI_TRAIL[1], Configurations.COLORS.SANDI_TRAIL[#Configurations.COLORS.SANDI_TRAIL], Constants.GHOST_TRAIL.DASH.DELAY, Constants.GHOST_TRAIL.DASH.DURATION, Constants.GHOST_TRAIL.DASH.END_TRANSPARENCY, Constants.GHOST_TRAIL.DASH.OFFSET_X, Constants.GHOST_TRAIL.DASH.OFFSET_Y, Constants.GHOST_TRAIL.DASH.OFFSET_Z, "dash")
+            CreateHologramClone(Constants.HOLOGRAM_CLONE.DASH.DELAY, Constants.HOLOGRAM_CLONE.DASH.DURATION, Constants.HOLOGRAM_CLONE.DASH.END_TRANSPARENCY, Constants.HOLOGRAM_CLONE.DASH.OFFSET_X, Constants.HOLOGRAM_CLONE.DASH.OFFSET_Y, Constants.HOLOGRAM_CLONE.DASH.OFFSET_Z, "dash")
             RunService.Heartbeat:Wait()
         end
         TweenService:Create(dashEffect, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0}):Play()
@@ -793,7 +818,7 @@ local function ExecKiroshi()
         Saturation = -0.1
     }):Play()
 
-    for _, p in pairs(Players:GetPlayers()) do
+    for _, p in ipairs(Players:GetPlayers()) do
         if p ~= Player then
             local char = p.Character
             if char then
@@ -867,14 +892,14 @@ local function ExecKiroshi()
             task.delay(0.5, function() kiroshiEffect:Destroy() end)
         end
 
-        for _, h in pairs(activeHighlights) do
+        for _, h in ipairs(activeHighlights) do
             h:Destroy()
         end
         activeHighlights = {}
     end)
 end
 
---// UI SYSTEM
+--// UI SYSTEM (Enhanced for premium Cyberpunk UI)
 local function MakeDraggable(frame: Frame)
     local dragging = false
     local dragStart, startPos
@@ -955,9 +980,9 @@ local function BuildUI()
         return btn
     end
     
-    CreateSkillBtn("Q", Configurations.COLORS.DASH_CYAN, UDim2.new(0.8, 0, 0.85, 0), "DashBtn", ExecDash)
-    CreateSkillBtn("E", Color3.new(1,1,1), UDim2.new(0.85, 0, 0.85, 0), "SandiBtn", ExecSandi)
-    CreateSkillBtn("R", Configurations.COLORS.KIROSHI, UDim2.new(0.9, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
+    CreateSkillBtn("Q", Configurations.COLORS.DASH_CYAN, UDim2.new(0.75, 0, 0.85, 0), "DashBtn", ExecDash)
+    CreateSkillBtn("E", Color3.new(1,1,1), UDim2.new(0.8, 0, 0.85, 0), "SandiBtn", ExecSandi)
+    CreateSkillBtn("R", Configurations.COLORS.KIROSHI, UDim2.new(0.85, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
     
     MakeDraggable(energyContainer)
     MakeDraggable(lockBtn)
@@ -966,7 +991,7 @@ local function BuildUI()
         State.EditMode = not State.EditMode
         lockBtn.BackgroundColor3 = State.EditMode and Configurations.COLORS.EDIT_MODE or Configurations.COLORS.UI_BG
         lockBtn.TextColor3 = State.EditMode and Configurations.COLORS.UI_BG or Configurations.COLORS.TEXT_DEFAULT
-        for _, item in UI_Elements do item.Stroke.Enabled = State.EditMode end
+        for _, item in ipairs(UI_Elements) do item.Stroke.Enabled = State.EditMode end
         if not State.EditMode then
             savedPositions["LockBtn"] = lockBtn.Position
             savedPositions["EnergyContainer"] = energyContainer.Position
@@ -1007,7 +1032,7 @@ RunService.Heartbeat:Connect(function(dt)
         if dmgDealt > 1 and os.clock() >= State.Cooldowns.DODGE then
             local ca = nil
             local ld = 25
-            for _, obj in workspace:GetDescendants() do
+            for _, obj in ipairs(Workspace:GetDescendants()) do
                 if obj:IsA("Humanoid") and obj.Parent ~= Character then
                     local r = obj.Parent:FindFirstChild("HumanoidRootPart")
                     if r and (HRP.Position - r.Position).Magnitude < ld then 
@@ -1031,9 +1056,9 @@ RunService.Heartbeat:Connect(function(dt)
             if idleSound and idleSound.Playing then
                 idleSound:Stop()
             end
-            if os.clock() - lastSandiGhost > 0.05 then
-                CreateGhost(Configurations.COLORS.SANDI_TRAIL[1], Configurations.COLORS.SANDI_TRAIL[#Configurations.COLORS.SANDI_TRAIL], Constants.GHOST_TRAIL.SANDI.DELAY, Constants.GHOST_TRAIL.SANDI.DURATION, Constants.GHOST_TRAIL.SANDI.END_TRANSPARENCY, Constants.GHOST_TRAIL.SANDI.OFFSET_X, Constants.GHOST_TRAIL.SANDI.OFFSET_Y, Constants.GHOST_TRAIL.SANDI.OFFSET_Z, "sandi")
-                lastSandiGhost = os.clock()
+            if os.clock() - lastSandiClone > Constants.HOLOGRAM_CLONE.SANDI.DELAY then
+                CreateHologramClone(Constants.HOLOGRAM_CLONE.SANDI.DELAY, Constants.HOLOGRAM_CLONE.SANDI.DURATION, Constants.HOLOGRAM_CLONE.SANDI.END_TRANSPARENCY, Constants.HOLOGRAM_CLONE.SANDI.OFFSET_X, Constants.HOLOGRAM_CLONE.SANDI.OFFSET_Y, Constants.HOLOGRAM_CLONE.SANDI.OFFSET_Z, "sandi")
+                lastSandiClone = os.clock()
             end
             if sandiLoopSound and not sandiLoopSound.Playing then
                 sandiLoopSound:Play()
