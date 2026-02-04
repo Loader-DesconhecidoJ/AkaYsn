@@ -1,8 +1,8 @@
 --!strict
 --[[
     ╔════════════════════════════════════════════════════════════════════╗
-    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V3.6     ║
-    ║           UPDATES: FIXES FOR ACCESSORIES, FACES, CLOTHES, R6/R15  ║
+    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V3.7     ║
+    ║           UPDATES: CONFIGURABLE GHOST CLONE PRESERVES             ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -76,15 +76,15 @@ local Constants = {
 
 --// CONFIGURATIONS
 local Configurations = {
-    GHOST_TRAIL_MATERIAL = Enum.Material.Glass, -- Opção para escolher a textura (material) dos ghost trails. Pode mudar para Enum.Material.Neon, Enum.Material.Ice, etc.
+    GHOST_TRAIL_MATERIAL = Enum.Material.Neon, -- Mudado para Neon para efeito de holograma
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200), -- Greener tint without white mix
         SANDI_TRAIL = {
-            Color3.fromRGB(0, 255, 0),    -- Green
-            Color3.fromRGB(0, 0, 255),    -- Blue
-            Color3.fromRGB(128, 0, 128),  -- Purple
-            Color3.fromRGB(255, 0, 0),    -- Red
-            Color3.fromRGB(255, 255, 0)   -- Yellow
+            Color3.fromRGB(0, 200, 255),    -- Azul claro holográfico
+            Color3.fromRGB(0, 100, 255),    -- Azul médio
+            Color3.fromRGB(0, 50, 200),     -- Azul escuro
+            Color3.fromRGB(0, 0, 150),      -- Azul profundo
+            Color3.fromRGB(0, 255, 255)     -- Ciano para variação
         },
         DASH_CYAN = Color3.fromRGB(0, 255, 255), -- Novo ciano para Dash
         DASH_CYAN_LIGHT = Color3.fromRGB(100, 255, 255),
@@ -114,6 +114,14 @@ local Configurations = {
             SPARKS = "rbxassetid://6071575297",
             HEX = "rbxassetid://6522338870"
         }
+    },
+    GHOST_PRESERVE = {
+        ACCESSORIES = true,  -- Preserva acessórios (exceto cabelo) nos clones
+        HAIR = true,         -- Preserva cabelo nos clones
+        FACE = true,         -- Preserva o rosto (decal face) nos clones
+        CLOTHES = true,      -- Preserva roupas (Shirt, Pants, etc.) nos clones
+        ORIGINAL_MATERIAL = false,  -- Não preserva material original para aplicar Neon
+        ORIGINAL_COLOR = false     -- Não preserva cor original para aplicar cores holográficas
     }
 }
 
@@ -313,7 +321,7 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
     end)
 end
 
---// VISUAL EFFECTS - FULL FIX FOR ACCESSORIES, FACES, CLOTHES, R6/R15 BODIES
+--// VISUAL EFFECTS - FULL FIX FOR ACCESSORIES, FACES, CLOTHES, R6/R15 BODIES WITH CONFIGURABLE PRESERVES
 local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, trailType: string)
     if not Character then return end
     Character.Archivable = true
@@ -347,16 +355,51 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
         end
     end
     
+    -- Handle configurable preserves (remove if not preserved)
+    if not Configurations.GHOST_PRESERVE.FACE then
+        local head = ghostChar:FindFirstChild("Head")
+        if head then
+            local face = head:FindFirstChild("face")
+            if face and face:IsA("Decal") then
+                face:Destroy()
+            end
+        end
+    end
+    
+    if not Configurations.GHOST_PRESERVE.CLOTHES then
+        local shirt = ghostChar:FindFirstChildOfClass("Shirt")
+        if shirt then shirt:Destroy() end
+        local pants = ghostChar:FindFirstChildOfClass("Pants")
+        if pants then pants:Destroy() end
+        local graphic = ghostChar:FindFirstChildOfClass("ShirtGraphic")
+        if graphic then graphic:Destroy() end
+    end
+    
+    for _, acc in ipairs(ghostChar:GetChildren()) do
+        if acc:IsA("Accessory") then
+            local isHair = acc:FindFirstChild("HairAttachment") or string.find(acc.Name:lower(), "hair") ~= nil
+            if isHair and not Configurations.GHOST_PRESERVE.HAIR then
+                acc:Destroy()
+            elseif not isHair and not Configurations.GHOST_PRESERVE.ACCESSORIES then
+                acc:Destroy()
+            end
+        end
+    end
+    
     -- Process BaseParts: anchor, material, initial color/trans
     for _, part in ipairs(ghostChar:GetDescendants()) do
         if part:IsA("BasePart") then
             part.Anchored = true
             part.CanCollide = false
-            part.Material = Configurations.GHOST_TRAIL_MATERIAL
-            part.Color = startColor
-            part.Transparency = 0.3
+            if not Configurations.GHOST_PRESERVE.ORIGINAL_MATERIAL then
+                part.Material = Configurations.GHOST_TRAIL_MATERIAL
+            end
+            if not Configurations.GHOST_PRESERVE.ORIGINAL_COLOR then
+                part.Color = startColor
+            end
+            part.Transparency = 0.4 -- Ajustado para mais holográfico (semi-transparente)
         elseif part:IsA("Decal") or part:IsA("Texture") then
-            part.Transparency = 0.3
+            part.Transparency = 0.4
         end
     end
     
@@ -369,14 +412,16 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
                     elseif trailType == "glitch" then {Color3.new(1,0,0), Color3.new(0,0,0), Color3.new(1,1,1), Color3.new(1,0,0)}
                     else {startColor, endColor}
                 
-                part.Color = colors[1]
-                local animSpeed = duration / (#colors - 1)
-                
-                for i = 1, #colors - 1 do
-                    local ti = TweenInfo.new(animSpeed, Enum.EasingStyle.Linear)
-                    local tween = TweenService:Create(part, ti, {Color = colors[i + 1]})
-                    tween:Play()
-                    tween.Completed:Wait()
+                if not Configurations.GHOST_PRESERVE.ORIGINAL_COLOR then
+                    part.Color = colors[1]
+                    local animSpeed = duration / (#colors - 1)
+                    
+                    for i = 1, #colors - 1 do
+                        local ti = TweenInfo.new(animSpeed, Enum.EasingStyle.Linear)
+                        local tween = TweenService:Create(part, ti, {Color = colors[i + 1]})
+                        tween:Play()
+                        tween.Completed:Wait()
+                    end
                 end
                 
                 local fadeTween = TweenService:Create(part, TweenInfo.new(duration * 0.7), {Transparency = endTransparency})
