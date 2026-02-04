@@ -1,8 +1,8 @@
 --!strict
 --[[
     ╔════════════════════════════════════════════════════════════════════╗
-    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V3.7     ║
-    ║           UPDATES: CONFIGURABLE GHOST CLONE PRESERVES             ║
+    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V3.8     ║
+    ║           UPDATES: DYNAMIC ENERGY BAR, REGEN DELAY, ENERGY COSTS  ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -30,7 +30,8 @@ type SystemState = {
     LastVelocityY: number,
     ActiveLabels: number,
     LastHealth: number,
-    LastDeactivationTime: number
+    LastDeactivationTime: number,
+    NoRegenUntil: number
 }
 
 --// CONSTANTS
@@ -48,8 +49,8 @@ local Constants = {
     },
     GHOST_TRAIL = {
         SANDI = {
-            DELAY = 0.03, -- Ajuste aqui: tempo antes de animar o ghost (menor = inicia mais rápido)
-            DURATION = 1.5, -- Ajuste aqui: duração do fade/color change (maior = trail mais longa)
+            DELAY = 0.05,
+            DURATION = 1.5,
             END_TRANSPARENCY = 0.9,
             OFFSET_X = 0,
             OFFSET_Y = 0,
@@ -71,22 +72,34 @@ local Constants = {
             OFFSET_Y = 0,
             OFFSET_Z = 0
         }
-    }
+    },
+    ENERGY_COSTS = {
+        SANDI_ACTIVATE = 30,
+        SANDI_DRAIN = 1,  -- per second
+        DASH = 10,
+        DODGE = 10,
+        KIROSHI = 10
+    },
+    REGEN_RATE = 15,  -- per second
+    REGEN_DELAY_ZERO = 10,
+    REGEN_DELAY_USE = 5
 }
 
 --// CONFIGURATIONS
 local Configurations = {
-    GHOST_TRAIL_MATERIAL = Enum.Material.Neon, -- Mudado para Neon para efeito de holograma
+    GHOST_TRAIL_MATERIAL = Enum.Material.Neon,
     COLORS = {
-        SANDI_TINT = Color3.fromRGB(200, 255, 200), -- Greener tint without white mix
+        SANDI_TINT = Color3.fromRGB(200, 255, 200),
         SANDI_TRAIL = {
-            Color3.fromRGB(0, 200, 255),    -- Azul claro holográfico
-            Color3.fromRGB(0, 100, 255),    -- Azul médio
-            Color3.fromRGB(0, 50, 200),     -- Azul escuro
-            Color3.fromRGB(0, 0, 150),      -- Azul profundo
-            Color3.fromRGB(0, 255, 255)     -- Ciano para variação
+            Color3.fromRGB(255, 0, 0),
+            Color3.fromRGB(255, 165, 0),
+            Color3.fromRGB(255, 255, 0),
+            Color3.fromRGB(0, 255, 0),
+            Color3.fromRGB(0, 0, 255),
+            Color3.fromRGB(75, 0, 130),
+            Color3.fromRGB(238, 130, 238)
         },
-        DASH_CYAN = Color3.fromRGB(0, 255, 255), -- Novo ciano para Dash
+        DASH_CYAN = Color3.fromRGB(0, 255, 255),
         DASH_CYAN_LIGHT = Color3.fromRGB(100, 255, 255),
         DASH_CYAN_DARK = Color3.fromRGB(0, 200, 200),
         DODGE_START = Color3.fromRGB(160, 0, 255),
@@ -96,7 +109,10 @@ local Configurations = {
         UI_BG = Color3.fromRGB(10, 10, 12),
         UI_ACCENT = Color3.fromRGB(40, 40, 45),
         KIROSHI_TINT = Color3.fromRGB(255, 100, 100),
-        KIROSHI = Color3.fromRGB(255, 0, 0)
+        KIROSHI = Color3.fromRGB(255, 0, 0),
+        ENERGY_FULL = Color3.fromRGB(46, 139, 87),  -- Verde marinho (sea green)
+        ENERGY_MEDIUM = Color3.fromRGB(255, 255, 0),  -- Amarelo
+        ENERGY_LOW = Color3.fromRGB(255, 0, 0)  -- Vermelho
     },
     ASSETS = {
         SOUNDS = {
@@ -107,7 +123,7 @@ local Configurations = {
             SANDI_OFF = "rbxassetid://118534165523355",
             HIT = "rbxassetid://5665936061",
             SANDI_LOOP = "rbxassetid://81793359483683",
-            IDLE_MUSIC = "rbxassetid://84295656118500", -- New idle music
+            IDLE_MUSIC = "rbxassetid://84295656118500"
         },
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
@@ -116,12 +132,12 @@ local Configurations = {
         }
     },
     GHOST_PRESERVE = {
-        ACCESSORIES = true,  -- Preserva acessórios (exceto cabelo) nos clones
-        HAIR = true,         -- Preserva cabelo nos clones
-        FACE = true,         -- Preserva o rosto (decal face) nos clones
-        CLOTHES = true,      -- Preserva roupas (Shirt, Pants, etc.) nos clones
-        ORIGINAL_MATERIAL = false,  -- Não preserva material original para aplicar Neon
-        ORIGINAL_COLOR = false     -- Não preserva cor original para aplicar cores holográficas
+        ACCESSORIES = true,
+        HAIR = true,
+        FACE = true,
+        CLOTHES = true,
+        ORIGINAL_MATERIAL = false,
+        ORIGINAL_COLOR = false
     }
 }
 
@@ -135,7 +151,8 @@ local State: SystemState = {
     LastVelocityY = 0,
     ActiveLabels = 0,
     LastHealth = 100,
-    LastDeactivationTime = 0
+    LastDeactivationTime = 0,
+    NoRegenUntil = 0
 }
 
 local Player = Players.LocalPlayer
@@ -321,7 +338,7 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
     end)
 end
 
---// VISUAL EFFECTS - FULL FIX FOR ACCESSORIES, FACES, CLOTHES, R6/R15 BODIES WITH CONFIGURABLE PRESERVES
+--// VISUAL EFFECTS
 local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, trailType: string)
     if not Character then return end
     Character.Archivable = true
@@ -337,7 +354,6 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
         ghostHRP.CFrame = HRP.CFrame + Vector3.new(offsetX, offsetY, offsetZ)
     end
     
-    -- Destroy non-visual elements TARGETED (preserve BodyColors, Shirt, Pants, ShirtGraphic, etc.)
     local humanoid = ghostChar:FindFirstChildOfClass("Humanoid")
     if humanoid then
         humanoid:Destroy()
@@ -355,7 +371,6 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
         end
     end
     
-    -- Handle configurable preserves (remove if not preserved)
     if not Configurations.GHOST_PRESERVE.FACE then
         local head = ghostChar:FindFirstChild("Head")
         if head then
@@ -386,7 +401,6 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
         end
     end
     
-    -- Process BaseParts: anchor, material, initial color/trans
     for _, part in ipairs(ghostChar:GetDescendants()) do
         if part:IsA("BasePart") then
             part.Anchored = true
@@ -397,13 +411,12 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
             if not Configurations.GHOST_PRESERVE.ORIGINAL_COLOR then
                 part.Color = startColor
             end
-            part.Transparency = 0.4 -- Ajustado para mais holográfico (semi-transparente)
+            part.Transparency = 0.5
         elseif part:IsA("Decal") or part:IsA("Texture") then
-            part.Transparency = 0.4
+            part.Transparency = 0.5
         end
     end
     
-    -- Animate colors and fade for BaseParts
     for _, part in ipairs(ghostChar:GetDescendants()) do
         if part:IsA("BasePart") then
             task.spawn(function()
@@ -430,11 +443,10 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
         end
     end
     
-    -- Fade surfaces (faces, clothes decals, textures)
     for _, surf in ipairs(ghostChar:GetDescendants()) do
         if surf:IsA("Decal") or surf:IsA("Texture") then
             task.spawn(function()
-                task.wait(delay + duration * 0.3)  -- Start fading later
+                task.wait(delay + duration * 0.3)
                 local fadeTween = TweenService:Create(surf, TweenInfo.new(duration * 0.7), {Transparency = endTransparency})
                 fadeTween:Play()
             end)
@@ -442,10 +454,10 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
     end
     
     ghostChar.Parent = workspace
-    Debris:AddItem(ghostChar, delay + duration + 0.5)  -- Extra time for tweens
+    Debris:AddItem(ghostChar, delay + duration + 0.5)
 end
 
---// CYBERPSYCHOSIS (IDENTICAL)
+--// CYBERPSYCHOSIS
 local function ExecCyberpsychosis()
     PlaySFX("rbxassetid://87597277352254", 2.5)
     
@@ -581,7 +593,9 @@ local function CleanupSandiSounds()
 end
 
 local function ExecDodge(enemyPart: BasePart?)
-    if os.clock() < State.Cooldowns.DODGE then return end
+    if State.Energy < Constants.ENERGY_COSTS.DODGE or os.clock() < State.Cooldowns.DODGE then return end
+    State.Energy -= Constants.ENERGY_COSTS.DODGE
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
     PlaySFX(Configurations.ASSETS.SOUNDS.DODGE, 1.5)
     ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Configurations.COLORS.DODGE_END)
@@ -603,6 +617,7 @@ local function ResetSandi()
     State.IsSandiActive = false
     PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_OFF, 1)
     State.Cooldowns.SANDI = os.clock() + Constants.COOLDOWNS.SANDI
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     ShowCooldownText("Sandevistan", Constants.COOLDOWNS.SANDI, Configurations.COLORS.SANDI_TRAIL[1])
     local sandiEffect = Lighting:FindFirstChild("SandiEffect")
     if sandiEffect then
@@ -620,7 +635,6 @@ local function ResetSandi()
     CleanupSandiSounds()
     UnfreezeAll()
     originalStates = {}
-    -- Atualiza o botão de Dash ao resetar
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
     if gui then
         local dashBtn = gui:FindFirstChild("DashBtn")
@@ -655,14 +669,14 @@ local function PlayActivationSequence()
         Size = UDim2.new(1, 0, 1, 0),
         Position = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1,
-        ImageTransparency = 0.3, -- Semi-transparent overlay
-        ZIndex = 100, -- On top of other UI
+        ImageTransparency = 0.3,
+        ZIndex = 100,
         Parent = gui
     })
     task.spawn(function()
         for _, tex in fullSeq do
             overlay.Image = tex
-            task.wait(0.08) -- Adjusted for smooth but not too slow/fast transition
+            task.wait(0.08)
         end
         TweenService:Create(overlay, TweenInfo.new(0.2), {ImageTransparency = 1}):Play()
         task.wait(0.2)
@@ -690,7 +704,7 @@ local function UpdateDashButton()
                 Parent = dashBtn
             })
         end
-        dashBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5) -- Diminuído
+        dashBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
     else
         local lockLabel = dashBtn:FindFirstChild("LockLabel")
         if lockLabel then lockLabel:Destroy() end
@@ -700,61 +714,41 @@ end
 
 local function ExecSandi()
     if os.clock() < State.Cooldowns.SANDI and not State.IsSandiActive then return end
-    State.IsSandiActive = not State.IsSandiActive
     if State.IsSandiActive then
-        if State.Energy < 20 then 
-            State.IsSandiActive = false 
-            return 
-        end
-        PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_ON, 1)
-        CamShake(1, 0.3)
-        TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 115}):Play()
-        
-        -- Smooth tween to green tint (no white flash)
-        local sandiEffect = Create("ColorCorrectionEffect", {Name = "SandiEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
-        TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            TintColor = Configurations.COLORS.SANDI_TINT,
-            Contrast = 0.1,
-            Saturation = -0.1
-        }):Play()
-        
-        -- Play texture sequence
-        PlayActivationSequence()
-        
-        lastSandiGhost = 0 -- Reset ghost timer
-        
-        -- Desync Universal (Freeze All)
-        FreezeAll()
-    else
-        PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_OFF, 1)
-        State.Cooldowns.SANDI = os.clock() + Constants.COOLDOWNS.SANDI
-        ShowCooldownText("Sandevistan", Constants.COOLDOWNS.SANDI, Configurations.COLORS.SANDI_TRAIL[1])
-        local sandiEffect = Lighting:FindFirstChild("SandiEffect")
-        if sandiEffect then
-            TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                TintColor = Color3.new(1,1,1),
-                Contrast = 0,
-                Saturation = 0
-            }):Play()
-            task.delay(0.5, function() sandiEffect:Destroy() end)
-        end
-        Humanoid.WalkSpeed = 16
-        TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
-        CleanupSandiSounds()
-        
-        -- Desativa Desync Universal (Unfreeze All)
-        UnfreezeAll()
+        ResetSandi()
+        return
     end
-    UpdateDashButton() -- Atualiza o estado do botão Dash
+    if State.Energy < Constants.ENERGY_COSTS.SANDI_ACTIVATE then return end
+    State.Energy -= Constants.ENERGY_COSTS.SANDI_ACTIVATE
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+    State.IsSandiActive = true
+    PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_ON, 1)
+    CamShake(1, 0.3)
+    TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 115}):Play()
+    
+    local sandiEffect = Create("ColorCorrectionEffect", {Name = "SandiEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
+    TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        TintColor = Configurations.COLORS.SANDI_TINT,
+        Contrast = 0.1,
+        Saturation = -0.1
+    }):Play()
+    
+    PlayActivationSequence()
+    
+    lastSandiGhost = 0
+    
+    FreezeAll()
+    UpdateDashButton()
 end
 
 local function ExecDash()
-    if State.IsSandiActive then return end -- Bloqueia Dash se Sandevistan ativo
-    if State.Energy < 15 or os.clock() < State.Cooldowns.DASH then return end
+    if State.IsSandiActive then return end
+    if State.Energy < Constants.ENERGY_COSTS.DASH or os.clock() < State.Cooldowns.DASH then return end
+    State.Energy -= Constants.ENERGY_COSTS.DASH
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.Cooldowns.DASH = os.clock() + Constants.COOLDOWNS.DASH
-    State.Energy -= 15
     PlaySFX(Configurations.ASSETS.SOUNDS.DASH, 1.2)
-    ShowCooldownText("Dash Impulse", Constants.COOLDOWNS.DASH, Configurations.COLORS.DASH_CYAN) -- Mudado para ciano
+    ShowCooldownText("Dash Impulse", Constants.COOLDOWNS.DASH, Configurations.COLORS.DASH_CYAN)
     local dashEffect = Create("ColorCorrectionEffect", {Name = "DashEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
     TweenService:Create(dashEffect, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         TintColor = Configurations.COLORS.DASH_CYAN,
@@ -787,10 +781,11 @@ local function ExecDash()
 end
 
 local function ExecKiroshi()
-    if os.clock() < State.Cooldowns.KIROSHI or State.IsKiroshiActive then return end
+    if State.Energy < Constants.ENERGY_COSTS.KIROSHI or os.clock() < State.Cooldowns.KIROSHI or State.IsKiroshiActive then return end
+    State.Energy -= Constants.ENERGY_COSTS.KIROSHI
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.IsKiroshiActive = true
 
-    -- Red overlay effect
     local kiroshiEffect = Create("ColorCorrectionEffect", {Name = "KiroshiEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
     TweenService:Create(kiroshiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         TintColor = Configurations.COLORS.KIROSHI_TINT,
@@ -798,7 +793,6 @@ local function ExecKiroshi()
         Saturation = -0.1
     }):Play()
 
-    -- Highlight enemies and analysis
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= Player then
             local char = p.Character
@@ -811,7 +805,6 @@ local function ExecKiroshi()
                 })
                 table.insert(activeHighlights, highlight)
                 
-                -- Análise HUD
                 local billboard = Create("BillboardGui", {
                     Size = UDim2.new(0, 200, 0, 80),
                     StudsOffset = Vector3.new(0, 3, 0),
@@ -837,9 +830,8 @@ local function ExecKiroshi()
                     TextSize = 16,
                     Parent = billboard
                 })
-                table.insert(activeHighlights, billboard)  -- Pra limpar junto
+                table.insert(activeHighlights, billboard)
                 
-                -- Loop pra atualizar
                 task.spawn(function()
                     while State.IsKiroshiActive do
                         local hum = char:FindFirstChildOfClass("Humanoid")
@@ -848,7 +840,7 @@ local function ExecKiroshi()
                             hpLabel.Text = string.format("HP: %d/%d", hum.Health, hum.MaxHealth)
                             distLabel.Text = string.format("DIST: %dm", dist)
                             if hum.Health / hum.MaxHealth < 0.5 then
-                                hpLabel.TextColor3 = Color3.new(1, 0.2, 0.2)  -- Vermelho fraco
+                                hpLabel.TextColor3 = Color3.new(1, 0.2, 0.2)
                                 hpLabel.Text = hpLabel.Text .. " [FRACO]"
                             end
                         end
@@ -866,7 +858,6 @@ local function ExecKiroshi()
         State.Cooldowns.KIROSHI = os.clock() + Constants.COOLDOWNS.KIROSHI
         ShowCooldownText("Kiroshi Optics", Constants.COOLDOWNS.KIROSHI, Configurations.COLORS.KIROSHI)
 
-        -- Remove effect
         if kiroshiEffect then
             TweenService:Create(kiroshiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
                 TintColor = Color3.new(1,1,1),
@@ -876,7 +867,6 @@ local function ExecKiroshi()
             task.delay(0.5, function() kiroshiEffect:Destroy() end)
         end
 
-        -- Remove highlights
         for _, h in pairs(activeHighlights) do
             h:Destroy()
         end
@@ -932,16 +922,15 @@ local function BuildUI()
     Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = energyContainer})
     Create("UIStroke", {Color = Configurations.COLORS.UI_ACCENT, Thickness = 1, Parent = energyContainer})
     
-    local fill = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Configurations.COLORS.SANDI_TRAIL[1], BorderSizePixel = 0, Parent = energyContainer})
+    local fill = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Configurations.COLORS.ENERGY_FULL, BorderSizePixel = 0, Parent = energyContainer})
     Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = fill})
-    Create("UIGradient", {Color = ColorSequence.new(Configurations.COLORS.SANDI_TRAIL[1], Configurations.COLORS.SANDI_TRAIL[#Configurations.COLORS.SANDI_TRAIL]), Parent = fill})
     
-    local energyLabel = Create("TextLabel", {Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, -1.2, 0), BackgroundTransparency = 1, Text = "SYSTEM ENERGY: 100%", TextColor3 = Configurations.COLORS.SANDI_TRAIL[1], Font = Enum.Font.RobotoMono, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = energyContainer})
+    local energyLabel = Create("TextLabel", {Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, -1.2, 0), BackgroundTransparency = 1, Text = "SYSTEM ENERGY: 100%", TextColor3 = Configurations.COLORS.ENERGY_FULL, Font = Enum.Font.RobotoMono, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = energyContainer})
     
     local function CreateSkillBtn(key, color, pos, name, func)
         local btn = Create("TextButton", {Name = name, Size = UDim2.new(0, 50, 0, 50), Position = savedPositions[name] or pos, Text = key, BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = color, Font = Enum.Font.GothamBlack, TextSize = 18, AutoButtonColor = false, Parent = gui})
+        local stroke = Create("UIStroke", {Color = color, Thickness = 2, Transparency = 0.5, Parent = btn})
         Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = btn})
-        Create("UIStroke", {Color = color, Thickness = 2, Transparency = 0.5, Parent = btn})
         btn.MouseButton1Down:Connect(function()
             TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = Configurations.COLORS.UI_BG}):Play()
             if not State.EditMode then 
@@ -952,11 +941,22 @@ local function BuildUI()
             TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(0, 50, 0, 50), BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = color}):Play()
         end)
         MakeDraggable(btn)
+        if name == "SandiBtn" then
+            task.spawn(function()
+                while btn.Parent do
+                    local hue = (os.clock() % 5) / 5
+                    local rainbowColor = Color3.fromHSV(hue, 1, 1)
+                    btn.TextColor3 = rainbowColor
+                    stroke.Color = rainbowColor
+                    task.wait()
+                end
+            end)
+        end
         return btn
     end
     
-    CreateSkillBtn("Q", Configurations.COLORS.DASH_CYAN, UDim2.new(0.8, 0, 0.85, 0), "DashBtn", ExecDash) -- Mudado para ciano
-    CreateSkillBtn("E", Configurations.COLORS.SANDI_TRAIL[1], UDim2.new(0.85, 0, 0.85, 0), "SandiBtn", ExecSandi)
+    CreateSkillBtn("Q", Configurations.COLORS.DASH_CYAN, UDim2.new(0.8, 0, 0.85, 0), "DashBtn", ExecDash)
+    CreateSkillBtn("E", Color3.new(1,1,1), UDim2.new(0.85, 0, 0.85, 0), "SandiBtn", ExecSandi)
     CreateSkillBtn("R", Configurations.COLORS.KIROSHI, UDim2.new(0.9, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
     
     MakeDraggable(energyContainer)
@@ -976,15 +976,21 @@ local function BuildUI()
         end
     end)
     
-    -- Atualiza botão Dash se Sandi já ativo
     UpdateDashButton()
     
     local rsConn
     rsConn = RunService.RenderStepped:Connect(function()
         local percent = State.Energy / Constants.MAX_ENERGY
         fill.Size = fill.Size:Lerp(UDim2.new(percent, 0, 1, 0), 0.1)
+        local energyColor
+        if percent > 0.5 then
+            energyColor = Configurations.COLORS.ENERGY_MEDIUM:Lerp(Configurations.COLORS.ENERGY_FULL, (percent - 0.5) * 2)
+        else
+            energyColor = Configurations.COLORS.ENERGY_LOW:Lerp(Configurations.COLORS.ENERGY_MEDIUM, percent * 2)
+        end
+        fill.BackgroundColor3 = energyColor
+        energyLabel.TextColor3 = energyColor
         energyLabel.Text = string.format("SYSTEM ENERGY: %d%%", math.floor(State.Energy))
-        energyLabel.TextColor3 = energyLabel.TextColor3:Lerp(Configurations.COLORS.SANDI_TRAIL[1], 0.1)
     end)
     gui.AncestryChanged:Connect(function()
         if not gui.Parent then
@@ -1017,16 +1023,15 @@ RunService.Heartbeat:Connect(function(dt)
     State.LastVelocityY = HRP.Velocity.Y
     local isMoving = HRP.Velocity.Magnitude > Constants.MOVING_THRESHOLD
     if State.IsSandiActive then
-        State.Energy -= 12 * dt
+        State.Energy -= Constants.ENERGY_COSTS.SANDI_DRAIN * dt
         Humanoid.WalkSpeed = Constants.SANDI_SPEED
         
-        -- MOVING: GHOST TRAIL (DENSER: every 0.05s)
         if isMoving then
             idleTime = 0
             if idleSound and idleSound.Playing then
                 idleSound:Stop()
             end
-            if os.clock() - lastSandiGhost > 0.05 then  -- Ajuste aqui: intervalo entre ghosts (menor = mais denso/menos separado)
+            if os.clock() - lastSandiGhost > 0.05 then
                 CreateGhost(Configurations.COLORS.SANDI_TRAIL[1], Configurations.COLORS.SANDI_TRAIL[#Configurations.COLORS.SANDI_TRAIL], Constants.GHOST_TRAIL.SANDI.DELAY, Constants.GHOST_TRAIL.SANDI.DURATION, Constants.GHOST_TRAIL.SANDI.END_TRANSPARENCY, Constants.GHOST_TRAIL.SANDI.OFFSET_X, Constants.GHOST_TRAIL.SANDI.OFFSET_Y, Constants.GHOST_TRAIL.SANDI.OFFSET_Z, "sandi")
                 lastSandiGhost = os.clock()
             end
@@ -1041,7 +1046,6 @@ RunService.Heartbeat:Connect(function(dt)
                 })
                 sandiLoopSound:Play()
             end
-        -- IDLE: IDLE MUSIC AFTER 60s
         else
             idleTime += dt
             if idleTime >= 60 then
@@ -1061,14 +1065,17 @@ RunService.Heartbeat:Connect(function(dt)
         end
         
         if State.Energy <= 0 then
+            State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_ZERO
             local luck = math.random(1, 100)
             if luck <= 30 then
                 ExecCyberpsychosis()
             end
-            ExecSandi()
+            ResetSandi()
         end
     else
-        State.Energy = math.min(Constants.MAX_ENERGY, State.Energy + (15 * dt))
+        if os.clock() > State.NoRegenUntil then
+            State.Energy = math.min(Constants.MAX_ENERGY, State.Energy + (Constants.REGEN_RATE * dt))
+        end
     end
 end)
 
@@ -1080,14 +1087,12 @@ UserInputService.InputBegan:Connect(function(input, gp)
 end)
 
 local function Init()
-    -- Reset Sandevistan no init pra evitar congelamento
     ResetSandi()
     
-    -- Adicionando shaders para melhorar os visuais dos poderes
     local bloom = Create("BloomEffect", {Intensity = 0.5, Size = 20, Threshold = 1, Parent = Lighting})
     local sunRays = Create("SunRaysEffect", {Intensity = 0.2, Spread = 0.5, Parent = Lighting})
-    local blur = Create("BlurEffect", {Size = 2, Parent = Lighting}) -- Leve blur para efeito cyberpunk
-    local globalCC = Create("ColorCorrectionEffect", {Contrast = 0.1, Saturation = 0.2, Parent = Lighting}) -- Ajuste global para mais vibrância
+    local blur = Create("BlurEffect", {Size = 2, Parent = Lighting})
+    local globalCC = Create("ColorCorrectionEffect", {Contrast = 0.1, Saturation = 0.2, Parent = Lighting})
 
     Character = Player.Character or Player.CharacterAdded:Wait()
     HRP = Character:WaitForChild("HumanoidRootPart")
@@ -1095,12 +1100,12 @@ local function Init()
     State.LastHealth = Humanoid.Health
     BuildUI()
     Player.CharacterAdded:Connect(function(newChar)
-        ResetSandi()  -- Reset Sandevistan on respawn to prevent freezing
+        ResetSandi()
         Character = newChar
         HRP = newChar:WaitForChild("HumanoidRootPart")
         Humanoid = newChar:WaitForChild("Humanoid")
         State.LastHealth = Humanoid.Health
-        CleanupSandiSounds() -- Cleanup on respawn
+        CleanupSandiSounds()
         BuildUI()
     end)
 end
