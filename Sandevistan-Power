@@ -184,6 +184,58 @@ local frozenVelocitiesHRP = {}
 local frozenVelocitiesParts = {}
 local frozenWalkSpeeds = {}
 
+-- Invisibility variables and functions
+local invisSound = Instance.new("Sound", Player:WaitForChild("PlayerGui"))
+invisSound.SoundId = "rbxassetid://942127495"
+invisSound.Volume = 1
+
+local function setTransparency(character, transparency)
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") or part:IsA("Decal") then
+            part.Transparency = transparency
+        end
+    end
+end
+
+local function activateInvisibility()
+    invisSound:Play()
+    local savedpos = Player.Character.HumanoidRootPart.CFrame
+    wait()
+    Player.Character:MoveTo(Vector3.new(-25.95, 84, 3537.55))
+    wait(.15)
+    local Seat = Instance.new('Seat', game.Workspace)
+    Seat.Anchored = false
+    Seat.CanCollide = false
+    Seat.Name = 'invischair'
+    Seat.Transparency = 1
+    Seat.Position = Vector3.new(-25.95, 84, 3537.55)
+    local Weld = Instance.new("Weld", Seat)
+    Weld.Part0 = Seat
+    Weld.Part1 = Player.Character:FindFirstChild("Torso") or Player.Character.UpperTorso
+    wait()
+    Seat.CFrame = savedpos
+    setTransparency(Player.Character, 0.5)
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Invis (on)",
+        Duration = 3,
+        Text = "STATUS:"
+    })
+end
+
+local function deactivateInvisibility()
+    invisSound:Play()
+    local invisChair = workspace:FindFirstChild('invischair')
+    if invisChair then
+        invisChair:Destroy()
+    end
+    setTransparency(Player.Character, 0)
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Invis (off)",
+        Duration = 3,
+        Text = "STATUS:"
+    })
+end
+
 --// UTILITY FUNCTIONS
 local function Create(className: string, properties: {[string]: any})
     local instance = Instance.new(className)
@@ -668,6 +720,7 @@ local function ResetSandi()
             dashBtn.TextColor3 = Configurations.COLORS.DASH_CYAN
         end
     end
+    deactivateInvisibility()
 end
 
 local function PlayActivationSequence()
@@ -764,6 +817,7 @@ local function ExecSandi()
     
     FreezeAll()
     UpdateDashButton()
+    activateInvisibility()
 end
 
 local function ExecDash()
