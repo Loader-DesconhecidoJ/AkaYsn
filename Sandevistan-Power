@@ -1,9 +1,8 @@
 --!strict
 --[[
     ╔════════════════════════════════════════════════════════════════════╗
-    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V3.5     ║
-    ║           UPDATES:                                                 ║
-    ║     ║
+    ║           CYBERPUNK SANDEVISTAN - EDGERUNNERS ANIME STYLE V3.6     ║
+    ║           UPDATES: FIXES FOR ACCESSORIES, FACES, CLOTHES, R6/R15  ║
     ╚════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -314,15 +313,13 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
     end)
 end
 
---// VISUAL EFFECTS - FIXED GREEN BLOCK BY REMOVING ACCESSORIES
+--// VISUAL EFFECTS - FULL FIX FOR ACCESSORIES, FACES, CLOTHES, R6/R15 BODIES
 local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, trailType: string)
     if not Character then return end
     Character.Archivable = true
     local ghostChar = Character:Clone()
     local ghostHRP = ghostChar:FindFirstChild("HumanoidRootPart")
     
-    -- Removido o fix de destruir accessories para copiar hats, hair, accessories e clothes
-
     if trailType == "glitch" then
         offsetX = math.random(-2, 2)
         offsetZ = math.random(-2, 2)
@@ -332,30 +329,43 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
         ghostHRP.CFrame = HRP.CFrame + Vector3.new(offsetX, offsetY, offsetZ)
     end
     
-    local head = ghostChar:FindFirstChild("Head")
-    if head then
-        local face = head:FindFirstChild("face")
-        if face and face:IsA("Decal") then
-            face.Transparency = 1
+    -- Destroy non-visual elements TARGETED (preserve BodyColors, Shirt, Pants, ShirtGraphic, etc.)
+    local humanoid = ghostChar:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid:Destroy()
+    end
+    local animateFolder = ghostChar:FindFirstChild("Animate")
+    if animateFolder then
+        animateFolder:Destroy()
+    end
+    for _, obj in ipairs(ghostChar:GetDescendants()) do
+        if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") or
+           obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") or
+           obj:IsA("BindableEvent") or obj:IsA("BindableFunction") or
+           obj:IsA("Animator") then
+            obj:Destroy()
         end
     end
-
-    for _, part in ghostChar:GetDescendants() do
+    
+    -- Process BaseParts: anchor, material, initial color/trans
+    for _, part in ipairs(ghostChar:GetDescendants()) do
         if part:IsA("BasePart") then
             part.Anchored = true
             part.CanCollide = false
-            
             part.Material = Configurations.GHOST_TRAIL_MATERIAL
-            
             part.Color = startColor
-            part.Transparency = 0.3 -- Start slightly transparent to reduce intensity
-            if part:IsA("MeshPart") then
-                part.TextureID = ""
-            end
-            
+            part.Transparency = 0.3
+        elseif part:IsA("Decal") or part:IsA("Texture") then
+            part.Transparency = 0.3
+        end
+    end
+    
+    -- Animate colors and fade for BaseParts
+    for _, part in ipairs(ghostChar:GetDescendants()) do
+        if part:IsA("BasePart") then
             task.spawn(function()
                 task.wait(delay)
-                local colors = if trailType == "sandi" or trailType == "dash" then Configurations.COLORS.SANDI_TRAIL -- Mesmo trail do Sandi para Dash
+                local colors = if trailType == "sandi" or trailType == "dash" then Configurations.COLORS.SANDI_TRAIL
                     elseif trailType == "glitch" then {Color3.new(1,0,0), Color3.new(0,0,0), Color3.new(1,1,1), Color3.new(1,0,0)}
                     else {startColor, endColor}
                 
@@ -372,12 +382,22 @@ local function CreateGhost(startColor: Color3, endColor: Color3, delay: number, 
                 local fadeTween = TweenService:Create(part, TweenInfo.new(duration * 0.7), {Transparency = endTransparency})
                 fadeTween:Play()
             end)
-        elseif not part:IsA("SpecialMesh") and not part:IsA("MeshPart") and not part:IsA("Decal") and not part:IsA("Accessory") and not part:IsA("Shirt") and not part:IsA("Pants") then 
-            part:Destroy() 
         end
     end
+    
+    -- Fade surfaces (faces, clothes decals, textures)
+    for _, surf in ipairs(ghostChar:GetDescendants()) do
+        if surf:IsA("Decal") or surf:IsA("Texture") then
+            task.spawn(function()
+                task.wait(delay + duration * 0.3)  -- Start fading later
+                local fadeTween = TweenService:Create(surf, TweenInfo.new(duration * 0.7), {Transparency = endTransparency})
+                fadeTween:Play()
+            end)
+        end
+    end
+    
     ghostChar.Parent = workspace
-    Debris:AddItem(ghostChar, delay + duration)
+    Debris:AddItem(ghostChar, delay + duration + 0.5)  -- Extra time for tweens
 end
 
 --// CYBERPSYCHOSIS (IDENTICAL)
