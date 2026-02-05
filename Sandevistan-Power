@@ -6,7 +6,6 @@
     ║        UPDATES: DODGE CLONES PURPLE/PINK, RAINBOW COOLDOWN FOR SANDEVISTAN ║
     ╚═════════════════════════════════════════════════════════════════════════════╝
 
-    
 ]]
 
 local Players = game:GetService("Players")
@@ -1049,16 +1048,6 @@ local function ExecKiroshi()
                     TextSize = 16,
                     Parent = billboard
                 })
-                local weakLabel = Create("TextLabel", {
-                    Size = UDim2.new(1, 0, 0.3, 0),
-                    Position = UDim2.new(0,0,0.6,0),
-                    BackgroundTransparency = 1,
-                    Text = "Fraqueza: " .. Constants.KIROSHI_WEAKNESSES[math.random(1, #Constants.KIROSHI_WEAKNESSES)],
-                    TextColor3 = Color3.new(1,0.5,0),
-                    Font = Enum.Font.RobotoMono,
-                    TextSize = 16,
-                    Parent = billboard
-                })
                 table.insert(activeHighlights, billboard)
                 
                 task.spawn(function()
@@ -1379,6 +1368,84 @@ UserInputService.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.F then ExecOptical() end
 end)
 
+-- Função para equipar o Sandevistan com animação de inicialização
+local function EquipSandevistanCyberware(character, humanoid)
+    -- Remove acessórios existentes com o mesmo nome para evitar duplicatas
+    for _, acc in pairs(character:GetChildren()) do
+        if acc:IsA("Accessory") and acc.Name == "Sandevistan Cyberware" then
+            acc:Destroy()
+        end
+    end
+    
+    local InsertService = game:GetService("InsertService")
+    local assetId = 120005268911290  -- ID do item no catálogo
+    
+    local success, model = pcall(function()
+        return InsertService:LoadAsset(assetId)
+    end)
+    
+    if success and model then
+        local accessory = model:FindFirstChildOfClass("Accessory")
+        if accessory then
+            accessory.Parent = character
+            if humanoid then
+                humanoid:AddAccessory(accessory)
+            end
+            print("✅ Sandevistan Cyberware equipado com sucesso!")
+            
+            -- Inicia a animação de execução do script (duração 3s)
+            task.spawn(function()
+                -- Som de ativação
+                PlaySFX("rbxassetid://94953895555975", 1.5)
+                
+                -- Efeitos de glitch na tela (fade in)
+                local glitchCC = Create("ColorCorrectionEffect", {Name = "GlitchCC", TintColor = Color3.new(1,1,1), Brightness = 0, Contrast = 0, Saturation = 0, Parent = Lighting})
+                local glitchBlur = Create("BlurEffect", {Size = 0, Parent = Lighting})
+                local glitchBloom = Create("BloomEffect", {Intensity = 0, Size = 0, Threshold = 0.5, Parent = Lighting})
+                
+                -- Fade in (0.5s)
+                TweenService:Create(glitchCC, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    TintColor = Color3.fromRGB(255, 50, 50),
+                    Brightness = -0.2,
+                    Contrast = 1.5,
+                    Saturation = -0.5
+                }):Play()
+                TweenService:Create(glitchBlur, TweenInfo.new(0.5), {Size = 15}):Play()
+                TweenService:Create(glitchBloom, TweenInfo.new(0.5), {Intensity = 1.5, Size = 30}):Play()
+                
+                -- Glitches no boneco (criar clones glitch durante 3s)
+                local startTime = os.clock()
+                while os.clock() - startTime < 3 do
+                    CreateHologramClone(0, 0.15, 1, 0, 0, 0, "glitch")
+                    CamShake(0.5, 0.1)  -- Shake leve para glitch
+                    glitchCC.TintColor = Color3.fromHSV(math.random(), 1, 1)  -- Muda cor random para glitch
+                    glitchBlur.Size = math.random(10, 20)
+                    task.wait(0.1)
+                end
+                
+                -- Fade out (0.5s)
+                TweenService:Create(glitchCC, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    TintColor = Color3.new(1,1,1),
+                    Brightness = 0,
+                    Contrast = 0,
+                    Saturation = 0
+                }):Play()
+                TweenService:Create(glitchBlur, TweenInfo.new(0.5), {Size = 0}):Play()
+                TweenService:Create(glitchBloom, TweenInfo.new(0.5), {Intensity = 0, Size = 0}):Play()
+                
+                -- Limpa efeitos após fade out
+                task.wait(0.5)
+                glitchCC:Destroy()
+                glitchBlur:Destroy()
+                glitchBloom:Destroy()
+            end)
+        end
+        model:Destroy()  -- Limpa o modelo temporário
+    else
+        warn("❌ Falha ao carregar Sandevistan Cyberware. Verifique o executor ou ownership.")
+    end
+end
+
 local function Init()
     ResetSandi()
     
@@ -1391,6 +1458,7 @@ local function Init()
     HRP = Character:WaitForChild("HumanoidRootPart")
     Humanoid = Character:WaitForChild("Humanoid")
     State.LastHealth = Humanoid.Health
+    EquipSandevistanCyberware(Character, Humanoid)  -- Equipa com animação
     BuildUI()
     Player.CharacterAdded:Connect(function(newChar)
         ResetSandi()
@@ -1399,6 +1467,7 @@ local function Init()
         HRP = newChar:WaitForChild("HumanoidRootPart")
         Humanoid = newChar:WaitForChild("Humanoid")
         State.LastHealth = Humanoid.Health
+        EquipSandevistanCyberware(Character, Humanoid)  -- Equipa com animação no respawn
         CleanupSandiSounds()
         BuildUI()
     end)
