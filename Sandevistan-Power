@@ -25,13 +25,15 @@ type Cooldowns = {
     SANDI: number,
     DASH: number,
     DODGE: number,
-    KIROSHI: number
+    KIROSHI: number,
+    OPTICAL: number
 }
 
 type SystemState = {
     Energy: number,
     IsSandiActive: boolean,
     IsKiroshiActive: boolean,
+    IsOpticalActive: boolean,
     Cooldowns: Cooldowns,
     EditMode: boolean,
     LastVelocityY: number,
@@ -48,11 +50,14 @@ local Constants = {
     DASH_FORCE = 100,
     IMPACT_THRESHOLD = -60,
     MOVING_THRESHOLD = 1,
+    OPTICAL_DURATION = 5,
+    SLOW_FACTOR = 0.8,
     COOLDOWNS = {
         SANDI = 10,
         DASH = 3.5,
         DODGE = 5,
-        KIROSHI = 8
+        KIROSHI = 8,
+        OPTICAL = 8
     },
     HOLOGRAM_CLONE = {
         SANDI = {
@@ -82,18 +87,22 @@ local Constants = {
     },
     ENERGY_COSTS = {
         SANDI_ACTIVATE = 30,
-        SANDI_DRAIN = 1,  -- per second
+        SANDI_DRAIN = 3,  -- per second
         DASH = 10,
         DODGE = 10,
-        KIROSHI = 10
+        KIROSHI = 10,
+        OPTICAL = 20
     },
     REGEN_RATE = 15,  -- per second
     REGEN_DELAY_ZERO = 10,
-    REGEN_DELAY_USE = 5
+    REGEN_DELAY_USE = 5,
+    DODGE_INVINCIBILITY_DURATION = 1,  -- seconds
+    KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"}  -- Example weaknesses
 }
 
 --// CONFIGURATIONS
 local Configurations = {
+    SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Adjust this independently if you want custom gravity during slow motion (default is SLOW_FACTOR ^ 2 for realistic physics)
     HOLOGRAM_MATERIAL = Enum.Material.Neon,
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200),
@@ -121,6 +130,7 @@ local Configurations = {
         UI_ACCENT = Color3.fromRGB(40, 40, 45),
         KIROSHI_TINT = Color3.fromRGB(255, 100, 100),
         KIROSHI = Color3.fromRGB(255, 0, 0),
+        OPTICAL = Color3.fromRGB(0, 255, 255),
         ENERGY_FULL = Color3.fromRGB(50, 205, 50),  -- Lime green
         ENERGY_MEDIUM = Color3.fromRGB(255, 255, 0),  -- Yellow
         ENERGY_LOW = Color3.fromRGB(255, 0, 0)  -- Red
@@ -157,7 +167,8 @@ local State: SystemState = {
     Energy = Constants.MAX_ENERGY,
     IsSandiActive = false,
     IsKiroshiActive = false,
-    Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, KIROSHI = 0},
+    IsOpticalActive = false,
+    Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, KIROSHI = 0, OPTICAL = 0},
     EditMode = false,
     LastVelocityY = 0,
     ActiveLabels = 0,
@@ -178,21 +189,31 @@ local lastSandiClone = 0
 local savedPositions = {}
 local originalStates = {}
 local activeHighlights = {}
-local frozenHRPs = {}
-local frozenParts = {}
-local frozenVelocitiesHRP = {}
-local frozenVelocitiesParts = {}
-local frozenWalkSpeeds = {}
+local originalGravity: number?
+local originalPlayerJumpPower: number?
+local originalWalkSpeeds: {[Humanoid]: number} = {}
+local originalJumpPowers: {[Humanoid]: number} = {}
+local originalAnimationSpeeds: {[AnimationTrack]: number} = {}
+local originalSoundSpeeds: {[Sound]: number} = {}
+local originalVelocityInstances: {Instance: Vector3} = {}
+local animationConnections: {RBXScriptConnection} = {}
+local isInvincible = false
 
 -- Invisibility variables and functions
 local invisSound = Instance.new("Sound", Player:WaitForChild("PlayerGui"))
 invisSound.SoundId = "rbxassetid://942127495"
 invisSound.Volume = 1
 
-local function setTransparency(character, transparency)
+local function getSafeInvisPosition()
+    local offset = Vector3.new(math.random(-5000, 5000), math.random(10000, 15000), math.random(-5000, 5000))  -- Alto no céu, randômico
+    return offset
+end
+
+local function setTransparency(character, targetTransparency, duration)
+    local tweenInfo = TweenInfo.new(duration or 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") or part:IsA("Decal") then
-            part.Transparency = transparency
+            TweenService:Create(part, tweenInfo, {Transparency = targetTransparency}):Play()
         end
     end
 end
@@ -201,22 +222,23 @@ local function activateInvisibility()
     invisSound:Play()
     local savedpos = Player.Character.HumanoidRootPart.CFrame
     wait()
-    Player.Character:MoveTo(Vector3.new(-25.95, 84, 3537.55))
+    local invisPos = getSafeInvisPosition()
+    Player.Character:MoveTo(invisPos)
     wait(.15)
     local Seat = Instance.new('Seat', game.Workspace)
     Seat.Anchored = false
     Seat.CanCollide = false
     Seat.Name = 'invischair'
     Seat.Transparency = 1
-    Seat.Position = Vector3.new(-25.95, 84, 3537.55)
+    Seat.Position = invisPos
     local Weld = Instance.new("Weld", Seat)
     Weld.Part0 = Seat
     Weld.Part1 = Player.Character:FindFirstChild("Torso") or Player.Character.UpperTorso
     wait()
     Seat.CFrame = savedpos
-    setTransparency(Player.Character, 0.5)
+    setTransparency(Player.Character, 0.5, 0.5)  -- Fade to semi-transparent
     game.StarterGui:SetCore("SendNotification", {
-        Title = "Invis (on)",
+        Title = "Optical Camo (on)",
         Duration = 3,
         Text = "STATUS:"
     })
@@ -228,9 +250,9 @@ local function deactivateInvisibility()
     if invisChair then
         invisChair:Destroy()
     end
-    setTransparency(Player.Character, 0)
+    setTransparency(Player.Character, 0, 0.5)  -- Fade to visible
     game.StarterGui:SetCore("SendNotification", {
-        Title = "Invis (off)",
+        Title = "Optical Camo (off)",
         Duration = 3,
         Text = "STATUS:"
     })
@@ -270,63 +292,6 @@ local function CamShake(intensity: number, duration: number)
         end
         if Humanoid then Humanoid.CameraOffset = Vector3.zero end
     end)
-end
-
-local function FreezeAll()
-    frozenHRPs = {}
-    frozenParts = {}
-    frozenVelocitiesHRP = {}
-    frozenVelocitiesParts = {}
-    frozenWalkSpeeds = {}
-    for _, desc in ipairs(Workspace:GetDescendants()) do
-        if desc:IsA("Humanoid") and desc.Parent ~= Character then
-            local hrp = desc.Parent:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                frozenHRPs[hrp] = hrp.Anchored
-                frozenVelocitiesHRP[hrp] = hrp.Velocity
-                frozenWalkSpeeds[desc] = desc.WalkSpeed
-                hrp.Anchored = true
-                hrp.Velocity = Vector3.zero
-                desc.WalkSpeed = 0
-            end
-        end
-    end
-    for _, desc in ipairs(Workspace:GetDescendants()) do
-        if desc:IsA("BasePart") and not desc.Anchored then
-            local model = desc:FindFirstAncestorWhichIsA("Model")
-            if not (model and model:FindFirstChildOfClass("Humanoid")) then
-                frozenParts[desc] = desc.Anchored
-                frozenVelocitiesParts[desc] = desc.Velocity
-                desc.Anchored = true
-                desc.Velocity = Vector3.zero
-            end
-        end
-    end
-end
-
-local function UnfreezeAll()
-    for part, orig in pairs(frozenHRPs) do
-        if part.Parent then
-            part.Anchored = orig
-            part.Velocity = frozenVelocitiesHRP[part] or Vector3.zero
-        end
-    end
-    for hum in pairs(frozenWalkSpeeds) do
-        if hum.Parent then
-            hum.WalkSpeed = frozenWalkSpeeds[hum]
-        end
-    end
-    frozenHRPs = {}
-    frozenVelocitiesHRP = {}
-    frozenWalkSpeeds = {}
-    for part, orig in pairs(frozenParts) do
-        if part.Parent then
-            part.Anchored = orig
-            part.Velocity = frozenVelocitiesParts[part] or Vector3.zero
-        end
-    end
-    frozenParts = {}
-    frozenVelocitiesParts = {}
 end
 
 --// COOLDOWN UI (Updated for rainbow animation on Sandevistan)
@@ -686,6 +651,15 @@ local function ExecDodge(enemyPart: BasePart?)
     local t = TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0})
     t:Play()
     t.Completed:Connect(function() cc:Destroy() end)
+    
+    -- Buff: Short invincibility
+    isInvincible = true
+    local forceField = Instance.new("ForceField")
+    forceField.Parent = Character
+    task.delay(Constants.DODGE_INVINCIBILITY_DURATION, function()
+        isInvincible = false
+        if forceField then forceField:Destroy() end
+    end)
 end
 
 local function ResetSandi()
@@ -706,21 +680,60 @@ local function ResetSandi()
     end
     if Humanoid then
         Humanoid.WalkSpeed = 16
+        if originalPlayerJumpPower then
+            Humanoid.JumpPower = originalPlayerJumpPower
+            originalPlayerJumpPower = nil
+        end
     end
     TweenService:Create(Camera, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
     CleanupSandiSounds()
-    UnfreezeAll()
-    originalStates = {}
-    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
-    if gui then
-        local dashBtn = gui:FindFirstChild("DashBtn")
-        if dashBtn then
-            local lockLabel = dashBtn:FindFirstChild("LockLabel")
-            if lockLabel then lockLabel:Destroy() end
-            dashBtn.TextColor3 = Configurations.COLORS.DASH_CYAN
+    -- Restore slow motion
+    if originalGravity then
+        Workspace.Gravity = originalGravity
+        originalGravity = nil
+    end
+    for hum, speed in pairs(originalWalkSpeeds) do
+        if hum and hum.Parent then
+            hum.WalkSpeed = speed
         end
     end
-    deactivateInvisibility()
+    for hum, power in pairs(originalJumpPowers) do
+        if hum and hum.Parent then
+            hum.JumpPower = power
+        end
+    end
+    for track, speed in pairs(originalAnimationSpeeds) do
+        if track then
+            track:AdjustSpeed(speed)
+        end
+    end
+    for sound, speed in pairs(originalSoundSpeeds) do
+        if sound and sound.Parent then
+            sound.PlaybackSpeed = speed
+        end
+    end
+    for velInst, vel in pairs(originalVelocityInstances) do
+        if velInst and velInst.Parent then
+            if velInst:IsA("BodyVelocity") then
+                velInst.Velocity = vel
+            elseif velInst:IsA("LinearVelocity") then
+                velInst.VectorVelocity = vel
+            end
+        end
+    end
+    for _, conn in ipairs(animationConnections) do
+        conn:Disconnect()
+    end
+    originalWalkSpeeds = {}
+    originalJumpPowers = {}
+    originalAnimationSpeeds = {}
+    originalSoundSpeeds = {}
+    originalVelocityInstances = {}
+    animationConnections = {}
+    originalStates = {}
+    UpdateDashButton()
+    UpdateKiroshiButton()
+    UpdateOpticalButton()
 end
 
 local function PlayActivationSequence()
@@ -768,24 +781,35 @@ local function UpdateDashButton()
     if not dashBtn then return end
     
     if State.IsSandiActive then
-        if not dashBtn:FindFirstChild("LockLabel") then
-            Create("TextLabel", {
-                Name = "LockLabel",
-                Text = "🔒",
-                Font = Enum.Font.GothamBold,
-                TextSize = 30,
-                TextColor3 = Color3.new(1,1,1),
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1,0,1,0),
-                Position = UDim2.new(0,0,0,0),
-                Parent = dashBtn
-            })
-        end
         dashBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
     else
-        local lockLabel = dashBtn:FindFirstChild("LockLabel")
-        if lockLabel then lockLabel:Destroy() end
         dashBtn.TextColor3 = Configurations.COLORS.DASH_CYAN
+    end
+end
+
+local function UpdateKiroshiButton()
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if not gui then return end
+    local kiroshiBtn = gui:FindFirstChild("KiroshiBtn")
+    if not kiroshiBtn then return end
+    
+    if State.IsSandiActive then
+        kiroshiBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
+    else
+        kiroshiBtn.TextColor3 = Configurations.COLORS.KIROSHI
+    end
+end
+
+local function UpdateOpticalButton()
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if not gui then return end
+    local opticalBtn = gui:FindFirstChild("OpticalBtn")
+    if not opticalBtn then return end
+    
+    if State.IsSandiActive then
+        opticalBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
+    else
+        opticalBtn.TextColor3 = Configurations.COLORS.OPTICAL
     end
 end
 
@@ -815,9 +839,121 @@ local function ExecSandi()
     
     lastSandiClone = 0
     
-    FreezeAll()
+    -- Start slow motion for the world
+    originalGravity = Workspace.Gravity
+    Workspace.Gravity = originalGravity * Configurations.SLOW_GRAVITY_MULTIPLIER
+    originalWalkSpeeds = {}
+    originalJumpPowers = {}
+    originalAnimationSpeeds = {}
+    originalSoundSpeeds = {}
+    originalVelocityInstances = {}
+    animationConnections = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= Player then
+            local char = p.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    originalWalkSpeeds[hum] = hum.WalkSpeed
+                    hum.WalkSpeed = hum.WalkSpeed * Constants.SLOW_FACTOR
+                    originalJumpPowers[hum] = hum.JumpPower
+                    hum.JumpPower = hum.JumpPower * Constants.SLOW_FACTOR
+                    local animator = hum:FindFirstChild("Animator")
+                    if animator then
+                        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                            originalAnimationSpeeds[track] = track.Speed
+                            track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
+                        end
+                        local conn = animator.AnimationPlayed:Connect(function(track)
+                            originalAnimationSpeeds[track] = track.Speed / Constants.SLOW_FACTOR
+                            track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
+                        end)
+                        table.insert(animationConnections, conn)
+                    end
+                end
+                -- Slow sounds in character
+                for _, sound in ipairs(char:GetDescendants()) do
+                    if sound:IsA("Sound") and sound.Playing then
+                        originalSoundSpeeds[sound] = sound.PlaybackSpeed
+                        sound.PlaybackSpeed = sound.PlaybackSpeed * Constants.SLOW_FACTOR
+                    end
+                end
+            end
+        end
+    end
+    -- Adjust player's jump power to keep jump height consistent
+    if Humanoid then
+        originalPlayerJumpPower = Humanoid.JumpPower
+        Humanoid.JumpPower = Humanoid.JumpPower / Constants.SLOW_FACTOR  -- Inverse to compensate for slower time
+    end
+    -- Slow world sounds
+    for _, sound in ipairs(Workspace:GetDescendants()) do
+        if sound:IsA("Sound") and sound.Playing and not sound:IsDescendantOf(Character) then
+            originalSoundSpeeds[sound] = sound.PlaybackSpeed
+            sound.PlaybackSpeed = sound.PlaybackSpeed * Constants.SLOW_FACTOR
+        end
+    end
+    -- Connect for new sounds
+    local soundConn = Workspace.DescendantAdded:Connect(function(desc)
+        if desc:IsA("Sound") and not desc:IsDescendantOf(Character) then
+            originalSoundSpeeds[desc] = desc.PlaybackSpeed
+            desc.PlaybackSpeed = desc.PlaybackSpeed * Constants.SLOW_FACTOR
+        end
+    end)
+    table.insert(animationConnections, soundConn)
+    -- Connect for new players/characters
+    local playerAddedConn = Players.PlayerAdded:Connect(function(newPlayer)
+        newPlayer.CharacterAdded:Connect(function(char)
+            local hum = char:WaitForChild("Humanoid")
+            originalWalkSpeeds[hum] = hum.WalkSpeed
+            hum.WalkSpeed = hum.WalkSpeed * Constants.SLOW_FACTOR
+            originalJumpPowers[hum] = hum.JumpPower
+            hum.JumpPower = hum.JumpPower * Constants.SLOW_FACTOR
+            local animator = hum:WaitForChild("Animator")
+            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                originalAnimationSpeeds[track] = track.Speed
+                track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
+            end
+            local conn = animator.AnimationPlayed:Connect(function(track)
+                originalAnimationSpeeds[track] = track.Speed / Constants.SLOW_FACTOR
+                track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
+            end)
+            table.insert(animationConnections, conn)
+            -- Slow sounds
+            for _, sound in ipairs(char:GetDescendants()) do
+                if sound:IsA("Sound") and sound.Playing then
+                    originalSoundSpeeds[sound] = sound.PlaybackSpeed
+                    sound.PlaybackSpeed = sound.PlaybackSpeed * Constants.SLOW_FACTOR
+                end
+            end
+        end)
+    end)
+    table.insert(animationConnections, playerAddedConn)
+    
+    -- Slow projectiles (BodyVelocity and LinearVelocity)
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BodyVelocity") then
+            originalVelocityInstances[obj] = obj.Velocity
+            obj.Velocity = obj.Velocity * Constants.SLOW_FACTOR
+        elseif obj:IsA("LinearVelocity") then
+            originalVelocityInstances[obj] = obj.VectorVelocity
+            obj.VectorVelocity = obj.VectorVelocity * Constants.SLOW_FACTOR
+        end
+    end
+    local velocityConn = Workspace.DescendantAdded:Connect(function(obj)
+        if obj:IsA("BodyVelocity") then
+            originalVelocityInstances[obj] = obj.Velocity
+            obj.Velocity = obj.Velocity * Constants.SLOW_FACTOR
+        elseif obj:IsA("LinearVelocity") then
+            originalVelocityInstances[obj] = obj.VectorVelocity
+            obj.VectorVelocity = obj.VectorVelocity * Constants.SLOW_FACTOR
+        end
+    end)
+    table.insert(animationConnections, velocityConn)
+    
     UpdateDashButton()
-    activateInvisibility()
+    UpdateKiroshiButton()
+    UpdateOpticalButton()
 end
 
 local function ExecDash()
@@ -835,7 +971,13 @@ local function ExecDash()
         Saturation = -0.1
     }):Play()
     TweenService:Create(Camera, TweenInfo.new(0.25), {FieldOfView = 125}):Play()
-    local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e6, 1e6, 1e6), Velocity = Camera.CFrame.LookVector * Constants.DASH_FORCE, Parent = HRP})
+    local direction
+    if Humanoid.FloorMaterial ~= Enum.Material.Air then
+        direction = HRP.CFrame.LookVector
+    else
+        direction = Camera.CFrame.LookVector
+    end
+    local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e6, 1e6, 1e6), Velocity = direction * Constants.DASH_FORCE, Parent = HRP})
     Debris:AddItem(bv, 0.25)
     task.spawn(function()
         local start = os.clock()
@@ -860,6 +1002,7 @@ local function ExecDash()
 end
 
 local function ExecKiroshi()
+    if State.IsSandiActive then return end
     if State.Energy < Constants.ENERGY_COSTS.KIROSHI or os.clock() < State.Cooldowns.KIROSHI or State.IsKiroshiActive then return end
     State.Energy -= Constants.ENERGY_COSTS.KIROSHI
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
@@ -891,7 +1034,7 @@ local function ExecKiroshi()
                     Parent = char
                 })
                 local hpLabel = Create("TextLabel", {
-                    Size = UDim2.new(1, 0, 0.5, 0),
+                    Size = UDim2.new(1, 0, 0.3, 0),
                     BackgroundTransparency = 1,
                     Text = "HP: 100/100",
                     TextColor3 = Color3.new(1,1,1),
@@ -900,11 +1043,21 @@ local function ExecKiroshi()
                     Parent = billboard
                 })
                 local distLabel = Create("TextLabel", {
-                    Size = UDim2.new(1, 0, 0.5, 0),
-                    Position = UDim2.new(0,0,0.5,0),
+                    Size = UDim2.new(1, 0, 0.3, 0),
+                    Position = UDim2.new(0,0,0.3,0),
                     BackgroundTransparency = 1,
                     Text = "DIST: 10m",
                     TextColor3 = Configurations.COLORS.KIROSHI,
+                    Font = Enum.Font.RobotoMono,
+                    TextSize = 16,
+                    Parent = billboard
+                })
+                local weakLabel = Create("TextLabel", {
+                    Size = UDim2.new(1, 0, 0.3, 0),
+                    Position = UDim2.new(0,0,0.6,0),
+                    BackgroundTransparency = 1,
+                    Text = "Fraqueza: " .. Constants.KIROSHI_WEAKNESSES[math.random(1, #Constants.KIROSHI_WEAKNESSES)],
+                    TextColor3 = Color3.new(1,0.5,0),
                     Font = Enum.Font.RobotoMono,
                     TextSize = 16,
                     Parent = billboard
@@ -931,6 +1084,31 @@ local function ExecKiroshi()
         end
     end
 
+    -- Environment scan loop
+    task.spawn(function()
+        while State.IsKiroshiActive do
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+            rayParams.FilterDescendantsInstances = {Character}
+            local ray = Workspace:Raycast(Camera.CFrame.Position, Camera.CFrame.LookVector * 50, rayParams)
+            if ray and ray.Instance then
+                local objectInfo = "Objeto: " .. ray.Instance.Name
+                if ray.Instance.Anchored then
+                    objectInfo = objectInfo .. " [Trancado/Imóvel]"
+                else
+                    objectInfo = objectInfo .. " [Aberto/Móvel]"
+                end
+                -- Show notification or GUI for object info
+                game.StarterGui:SetCore("SendNotification", {
+                    Title = "Scan de Ambiente",
+                    Text = objectInfo,
+                    Duration = 2
+                })
+            end
+            task.wait(0.5)
+        end
+    end)
+
     task.spawn(function()
         task.wait(5)
         State.IsKiroshiActive = false
@@ -951,6 +1129,37 @@ local function ExecKiroshi()
         end
         activeHighlights = {}
     end)
+end
+
+local opticalTimer: thread? = nil
+
+local function ResetOptical()
+    if not State.IsOpticalActive then return end
+    State.IsOpticalActive = false
+    deactivateInvisibility()
+    State.Cooldowns.OPTICAL = os.clock() + Constants.COOLDOWNS.OPTICAL
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+    ShowCooldownText("Optical Camouflage", Constants.COOLDOWNS.OPTICAL, Configurations.COLORS.OPTICAL)
+    if opticalTimer then
+        task.cancel(opticalTimer)
+        opticalTimer = nil
+    end
+end
+
+local function ExecOptical()
+    if State.IsSandiActive then return end
+    if os.clock() < State.Cooldowns.OPTICAL or State.IsOpticalActive then
+        if State.IsOpticalActive then
+            ResetOptical()
+        end
+        return
+    end
+    if State.Energy < Constants.ENERGY_COSTS.OPTICAL then return end
+    State.Energy -= Constants.ENERGY_COSTS.OPTICAL
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+    State.IsOpticalActive = true
+    activateInvisibility()
+    opticalTimer = task.delay(Constants.OPTICAL_DURATION, ResetOptical)
 end
 
 --// UI SYSTEM (Enhanced for premium Cyberpunk UI)
@@ -1037,6 +1246,7 @@ local function BuildUI()
     CreateSkillBtn("Q", Configurations.COLORS.DASH_CYAN, UDim2.new(0.75, 0, 0.85, 0), "DashBtn", ExecDash)
     CreateSkillBtn("E", Color3.new(1,1,1), UDim2.new(0.8, 0, 0.85, 0), "SandiBtn", ExecSandi)
     CreateSkillBtn("R", Configurations.COLORS.KIROSHI, UDim2.new(0.85, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
+    CreateSkillBtn("F", Configurations.COLORS.OPTICAL, UDim2.new(0.9, 0, 0.85, 0), "OpticalBtn", ExecOptical)
     
     MakeDraggable(energyContainer)
     MakeDraggable(lockBtn)
@@ -1052,10 +1262,13 @@ local function BuildUI()
             savedPositions["DashBtn"] = gui:FindFirstChild("DashBtn").Position
             savedPositions["SandiBtn"] = gui:FindFirstChild("SandiBtn").Position
             savedPositions["KiroshiBtn"] = gui:FindFirstChild("KiroshiBtn").Position
+            savedPositions["OpticalBtn"] = gui:FindFirstChild("OpticalBtn").Position
         end
     end)
     
     UpdateDashButton()
+    UpdateKiroshiButton()
+    UpdateOpticalButton()
     
     local rsConn
     rsConn = RunService.RenderStepped:Connect(function()
@@ -1096,6 +1309,9 @@ RunService.Heartbeat:Connect(function(dt)
                 end
             end
             ExecDodge(ca)
+        end
+        if isInvincible then
+            Humanoid.Health = State.LastHealth  -- Prevent health loss during invincibility
         end
     end
     State.LastHealth = Humanoid.Health
@@ -1163,6 +1379,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.E then ExecSandi() end
     if input.KeyCode == Enum.KeyCode.Q then ExecDash() end
     if input.KeyCode == Enum.KeyCode.R then ExecKiroshi() end
+    if input.KeyCode == Enum.KeyCode.F then ExecOptical() end
 end)
 
 local function Init()
@@ -1180,6 +1397,7 @@ local function Init()
     BuildUI()
     Player.CharacterAdded:Connect(function(newChar)
         ResetSandi()
+        ResetOptical()
         Character = newChar
         HRP = newChar:WaitForChild("HumanoidRootPart")
         Humanoid = newChar:WaitForChild("Humanoid")
