@@ -1,9 +1,9 @@
 --!strict
 --[[
     ╔═════════════════════════════════════════════════════════════════════════════╗
-    ║               PREMIUM CYBERPUNK SANDEVISTAN - EDGERUNNERS STYLE V4.1        ║
+    ║               PREMIUM CYBERPUNK SANDEVISTAN - EDGERUNNERS STYLE V4.3        ║
     ║              INSPIRED BY DAVID MARTINEZ'S SANDEVISTAN FROM CYBERPUNK 2077   ║
-    ║        UPDATES: DODGE CLONES PURPLE/PINK, RAINBOW COOLDOWN FOR SANDEVISTAN ║
+    ║        UPDATES: FIXED INIT ANIMATION, REMOVED OBJECT SCAN IN KIROSHI        ║
     ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ]]
@@ -15,6 +15,7 @@ local UserInputService = game:GetService("UserInputService")
 local Debris = game:GetService("Debris")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 --// TYPES
 type Cooldowns = {
@@ -32,6 +33,7 @@ type SystemState = {
     IsOpticalActive: boolean,
     Cooldowns: Cooldowns,
     EditMode: boolean,
+    ExtremePerformance: boolean,
     LastVelocityY: number,
     ActiveLabels: number,
     LastHealth: number,
@@ -42,23 +44,23 @@ type SystemState = {
 --// CONSTANTS
 local Constants = {
     MAX_ENERGY = 100,
-    SANDI_SPEED = 100,
+    SANDI_SPEED = 75,
     DASH_FORCE = 100,
     IMPACT_THRESHOLD = -60,
     MOVING_THRESHOLD = 1,
     OPTICAL_DURATION = 5,
     SLOW_FACTOR = 0.8,
     COOLDOWNS = {
-        SANDI = 10,
+        SANDI = 8,
         DASH = 3.5,
-        DODGE = 5,
-        KIROSHI = 8,
-        OPTICAL = 8
+        DODGE = 4.5,
+        KIROSHI = 5,
+        OPTICAL = 6.5
     },
     HOLOGRAM_CLONE = {
         SANDI = {
-            DELAY = 0.05,
-            DURATION = 1.5,
+            DELAY = 0.03,
+            DURATION = 1.7,
             END_TRANSPARENCY = 0.9,
             OFFSET_X = 0,
             OFFSET_Y = 0,
@@ -66,14 +68,14 @@ local Constants = {
         },
         DASH = {
             DELAY = 0.2,
-            DURATION = 0.5,
+            DURATION = 0.4,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
             OFFSET_Y = 0,
             OFFSET_Z = 0
         },
         DODGE = {
-            DELAY = 0.1,
+            DELAY = 0.2,
             DURATION = 0.5,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
@@ -84,7 +86,7 @@ local Constants = {
     ENERGY_COSTS = {
         SANDI_ACTIVATE = 30,
         SANDI_DRAIN = 3,  -- per second
-        DASH = 10,
+        DASH = 8,
         DODGE = 10,
         KIROSHI = 10,
         OPTICAL = 20
@@ -92,7 +94,7 @@ local Constants = {
     REGEN_RATE = 15,  -- per second
     REGEN_DELAY_ZERO = 10,
     REGEN_DELAY_USE = 5,
-    DODGE_INVINCIBILITY_DURATION = 1,  -- seconds
+    DODGE_INVINCIBILITY_DURATION = 1.5,  -- seconds
     KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"}  -- Example weaknesses
 }
 
@@ -153,8 +155,8 @@ local Configurations = {
         HAIR = true,
         FACE = false,
         CLOTHES = true,
-        ORIGINAL_MATERIAL = True,
-        ORIGINAL_COLOR = True
+        ORIGINAL_MATERIAL = false,
+        ORIGINAL_COLOR = false
     }
 }
 
@@ -166,6 +168,7 @@ local State: SystemState = {
     IsOpticalActive = false,
     Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, KIROSHI = 0, OPTICAL = 0},
     EditMode = false,
+    ExtremePerformance = false,
     LastVelocityY = 0,
     ActiveLabels = 0,
     LastHealth = 100,
@@ -194,6 +197,20 @@ local originalSoundSpeeds: {[Sound]: number} = {}
 local originalVelocityInstances: {Instance: Vector3} = {}
 local animationConnections: {RBXScriptConnection} = {}
 local isInvincible = false
+
+-- Extreme performance saved states
+local savedParticles = {}
+local savedTextures = {}
+local savedEffects = {}
+local savedLighting = {
+    GlobalShadows = Lighting.GlobalShadows,
+    FogEnd = Lighting.FogEnd,
+    Brightness = Lighting.Brightness
+}
+local savedTerrain = {
+    WaterWaveSize = Workspace.Terrain.WaterWaveSize,
+    WaterWaveSpeed = Workspace.Terrain.WaterWaveSpeed
+}
 
 -- Invisibility variables and functions
 local invisSound = Instance.new("Sound", Player:WaitForChild("PlayerGui"))
@@ -1070,31 +1087,6 @@ local function ExecKiroshi()
         end
     end
 
-    -- Environment scan loop
-    task.spawn(function()
-        while State.IsKiroshiActive do
-            local rayParams = RaycastParams.new()
-            rayParams.FilterType = Enum.RaycastFilterType.Exclude
-            rayParams.FilterDescendantsInstances = {Character}
-            local ray = Workspace:Raycast(Camera.CFrame.Position, Camera.CFrame.LookVector * 50, rayParams)
-            if ray and ray.Instance then
-                local objectInfo = "Objeto: " .. ray.Instance.Name
-                if ray.Instance.Anchored then
-                    objectInfo = objectInfo .. " [Trancado/Imóvel]"
-                else
-                    objectInfo = objectInfo .. " [Aberto/Móvel]"
-                end
-                -- Show notification or GUI for object info
-                game.StarterGui:SetCore("SendNotification", {
-                    Title = "Scan de Ambiente",
-                    Text = objectInfo,
-                    Duration = 2
-                })
-            end
-            task.wait(0.5)
-        end
-    end)
-
     task.spawn(function()
         task.wait(5)
         State.IsKiroshiActive = false
@@ -1148,6 +1140,83 @@ local function ExecOptical()
     opticalTimer = task.delay(Constants.OPTICAL_DURATION, ResetOptical)
 end
 
+local function ActivateExtremePerformance()
+    -- Save and disable heavy elements
+    savedParticles = {}
+    for _, particle in ipairs(Workspace:GetDescendants()) do
+        if particle:IsA("ParticleEmitter") or particle:IsA("Trail") or particle:IsA("Beam") then
+            savedParticles[particle] = particle.Enabled
+            particle.Enabled = false
+        end
+    end
+    
+    savedTextures = {}
+    for _, tex in ipairs(Workspace:GetDescendants()) do
+        if tex:IsA("Decal") or tex:IsA("Texture") then
+            savedTextures[tex] = tex.Transparency
+            tex.Transparency = 1
+        end
+    end
+    
+    savedEffects = {}
+    for _, effect in ipairs(Lighting:GetChildren()) do
+        if effect:IsA("PostEffect") then
+            savedEffects[effect] = effect.Enabled
+            effect.Enabled = false
+        end
+    end
+    
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = math.huge
+    Lighting.Brightness = 1
+    
+    Workspace.Terrain.WaterWaveSize = 0
+    Workspace.Terrain.WaterWaveSpeed = 0
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Extreme Performance Mode",
+        Text = "Activated: Heavy elements disabled!",
+        Duration = 3
+    })
+end
+
+local function DeactivateExtremePerformance()
+    -- Restore
+    for particle, enabled in pairs(savedParticles) do
+        if particle.Parent then
+            particle.Enabled = enabled
+        end
+    end
+    savedParticles = {}
+    
+    for tex, trans in pairs(savedTextures) do
+        if tex.Parent then
+            tex.Transparency = trans
+        end
+    end
+    savedTextures = {}
+    
+    for effect, enabled in pairs(savedEffects) do
+        if effect.Parent then
+            effect.Enabled = enabled
+        end
+    end
+    savedEffects = {}
+    
+    Lighting.GlobalShadows = savedLighting.GlobalShadows
+    Lighting.FogEnd = savedLighting.FogEnd
+    Lighting.Brightness = savedLighting.Brightness
+    
+    Workspace.Terrain.WaterWaveSize = savedTerrain.WaterWaveSize
+    Workspace.Terrain.WaterWaveSpeed = savedTerrain.WaterWaveSpeed
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Extreme Performance Mode",
+        Text = "Deactivated: Elements restored!",
+        Duration = 3
+    })
+end
+
 --// UI SYSTEM (Enhanced for premium Cyberpunk UI)
 local function MakeDraggable(frame: Frame)
     local dragging = false
@@ -1191,6 +1260,10 @@ local function BuildUI()
     local lockBtn = Create("TextButton", {Name = "LockBtn", Size = UDim2.new(0, 35, 0, 35), Position = savedPositions["LockBtn"] or UDim2.new(1, -50, 0, 50), Text = "⚙️", BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = Configurations.COLORS.TEXT_DEFAULT, Font = Enum.Font.GothamBold, TextSize = 16, Parent = gui})
     Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = lockBtn})
     Create("UIStroke", {Color = Configurations.COLORS.UI_ACCENT, Thickness = 2, Parent = lockBtn})
+    
+    local extremePerfBtn = Create("TextButton", {Name = "ExtremePerfBtn", Size = UDim2.new(0, 35, 0, 35), Position = UDim2.new(1, -90, 0, 50), Text = "EP", BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = Configurations.COLORS.TEXT_DEFAULT, Font = Enum.Font.GothamBold, TextSize = 16, Parent = gui})
+    Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = extremePerfBtn})
+    Create("UIStroke", {Color = Configurations.COLORS.UI_ACCENT, Thickness = 2, Parent = extremePerfBtn})
     
     local energyContainer = Create("Frame", {Name = "EnergyContainer", Size = UDim2.new(0, 300, 0, 15), Position = savedPositions["EnergyContainer"] or UDim2.new(0.5, -150, 0.92, 0), BackgroundColor3 = Configurations.COLORS.UI_BG, BorderSizePixel = 0, Parent = gui})
     Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = energyContainer})
@@ -1236,6 +1309,7 @@ local function BuildUI()
     
     MakeDraggable(energyContainer)
     MakeDraggable(lockBtn)
+    MakeDraggable(extremePerfBtn)
     
     lockBtn.MouseButton1Click:Connect(function()
         State.EditMode = not State.EditMode
@@ -1244,11 +1318,25 @@ local function BuildUI()
         for _, item in ipairs(UI_Elements) do item.Stroke.Enabled = State.EditMode end
         if not State.EditMode then
             savedPositions["LockBtn"] = lockBtn.Position
+            savedPositions["ExtremePerfBtn"] = extremePerfBtn.Position
             savedPositions["EnergyContainer"] = energyContainer.Position
             savedPositions["DashBtn"] = gui:FindFirstChild("DashBtn").Position
             savedPositions["SandiBtn"] = gui:FindFirstChild("SandiBtn").Position
             savedPositions["KiroshiBtn"] = gui:FindFirstChild("KiroshiBtn").Position
             savedPositions["OpticalBtn"] = gui:FindFirstChild("OpticalBtn").Position
+        end
+    end)
+    
+    extremePerfBtn.MouseButton1Click:Connect(function()
+        State.ExtremePerformance = not State.ExtremePerformance
+        if State.ExtremePerformance then
+            ActivateExtremePerformance()
+            extremePerfBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+            extremePerfBtn.TextColor3 = Color3.new(1,1,1)
+        else
+            DeactivateExtremePerformance()
+            extremePerfBtn.BackgroundColor3 = Configurations.COLORS.UI_BG
+            extremePerfBtn.TextColor3 = Configurations.COLORS.TEXT_DEFAULT
         end
     end)
     
@@ -1377,73 +1465,73 @@ local function EquipSandevistanCyberware(character, humanoid)
         end
     end
     
-    local InsertService = game:GetService("InsertService")
     local assetId = 120005268911290  -- ID do item no catálogo
-    
-    local success, model = pcall(function()
-        return InsertService:LoadAsset(assetId)
+    local ownsAsset = false
+    pcall(function()
+        ownsAsset = MarketplaceService:UserOwnsAsset(Player.UserId, assetId)
     end)
     
-    if success and model then
-        local accessory = model:FindFirstChildOfClass("Accessory")
-        if accessory then
-            accessory.Parent = character
-            if humanoid then
-                humanoid:AddAccessory(accessory)
-            end
+    if ownsAsset then
+        local success, err = pcall(function()
+            local description = humanoid:GetAppliedDescription()
+            description.BackAccessory = tostring(assetId)
+            humanoid:ApplyDescription(description)
+        end)
+        if success then
             print("✅ Sandevistan Cyberware equipado com sucesso!")
-            
-            -- Inicia a animação de execução do script (duração 3s)
-            task.spawn(function()
-                -- Som de ativação
-                PlaySFX("rbxassetid://94953895555975", 1.5)
-                
-                -- Efeitos de glitch na tela (fade in)
-                local glitchCC = Create("ColorCorrectionEffect", {Name = "GlitchCC", TintColor = Color3.new(1,1,1), Brightness = 0, Contrast = 0, Saturation = 0, Parent = Lighting})
-                local glitchBlur = Create("BlurEffect", {Size = 0, Parent = Lighting})
-                local glitchBloom = Create("BloomEffect", {Intensity = 0, Size = 0, Threshold = 0.5, Parent = Lighting})
-                
-                -- Fade in (0.5s)
-                TweenService:Create(glitchCC, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    TintColor = Color3.fromRGB(255, 50, 50),
-                    Brightness = -0.2,
-                    Contrast = 1.5,
-                    Saturation = -0.5
-                }):Play()
-                TweenService:Create(glitchBlur, TweenInfo.new(0.5), {Size = 15}):Play()
-                TweenService:Create(glitchBloom, TweenInfo.new(0.5), {Intensity = 1.5, Size = 30}):Play()
-                
-                -- Glitches no boneco (criar clones glitch durante 3s)
-                local startTime = os.clock()
-                while os.clock() - startTime < 3 do
-                    CreateHologramClone(0, 0.15, 1, 0, 0, 0, "glitch")
-                    CamShake(0.5, 0.1)  -- Shake leve para glitch
-                    glitchCC.TintColor = Color3.fromHSV(math.random(), 1, 1)  -- Muda cor random para glitch
-                    glitchBlur.Size = math.random(10, 20)
-                    task.wait(0.1)
-                end
-                
-                -- Fade out (0.5s)
-                TweenService:Create(glitchCC, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                    TintColor = Color3.new(1,1,1),
-                    Brightness = 0,
-                    Contrast = 0,
-                    Saturation = 0
-                }):Play()
-                TweenService:Create(glitchBlur, TweenInfo.new(0.5), {Size = 0}):Play()
-                TweenService:Create(glitchBloom, TweenInfo.new(0.5), {Intensity = 0, Size = 0}):Play()
-                
-                -- Limpa efeitos após fade out
-                task.wait(0.5)
-                glitchCC:Destroy()
-                glitchBlur:Destroy()
-                glitchBloom:Destroy()
-            end)
+        else
+            warn("❌ Erro ao equipar o item: " .. tostring(err))
         end
-        model:Destroy()  -- Limpa o modelo temporário
     else
-        warn("❌ Falha ao carregar Sandevistan Cyberware. Verifique o executor ou ownership.")
+        warn("❌ Você não possui o Sandevistan Cyberware. Compre no catálogo: https://www.roblox.com/catalog/120005268911290/Sandevistan-Cyberware")
     end
+    
+    -- Inicia a animação de execução do script (duração 3s), independentemente de equipar ou não
+    task.spawn(function()
+        -- Som de ativação
+        PlaySFX("rbxassetid://94953895555975", 1.5)
+        
+        -- Efeitos de glitch na tela (fade in)
+        local glitchCC = Create("ColorCorrectionEffect", {Name = "GlitchCC", TintColor = Color3.new(1,1,1), Brightness = 0, Contrast = 0, Saturation = 0, Parent = Lighting})
+        local glitchBlur = Create("BlurEffect", {Size = 0, Parent = Lighting})
+        local glitchBloom = Create("BloomEffect", {Intensity = 0, Size = 0, Threshold = 0.5, Parent = Lighting})
+        
+        -- Fade in (0.5s)
+        TweenService:Create(glitchCC, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            TintColor = Color3.fromRGB(255, 50, 50),
+            Brightness = -0.2,
+            Contrast = 1.5,
+            Saturation = -0.5
+        }):Play()
+        TweenService:Create(glitchBlur, TweenInfo.new(0.5), {Size = 15}):Play()
+        TweenService:Create(glitchBloom, TweenInfo.new(0.5), {Intensity = 1.5, Size = 30}):Play()
+        
+        -- Glitches no boneco (criar clones glitch durante 3s)
+        local startTime = os.clock()
+        while os.clock() - startTime < 3 do
+            CreateHologramClone(0, 0.15, 1, 0, 0, 0, "glitch")
+            CamShake(0.5, 0.1)  -- Shake leve para glitch
+            glitchCC.TintColor = Color3.fromHSV(math.random(), 1, 1)  -- Muda cor random para glitch
+            glitchBlur.Size = math.random(10, 20)
+            task.wait(0.1)
+        end
+        
+        -- Fade out (0.5s)
+        TweenService:Create(glitchCC, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            TintColor = Color3.new(1,1,1),
+            Brightness = 0,
+            Contrast = 0,
+            Saturation = 0
+        }):Play()
+        TweenService:Create(glitchBlur, TweenInfo.new(0.5), {Size = 0}):Play()
+        TweenService:Create(glitchBloom, TweenInfo.new(0.5), {Intensity = 0, Size = 0}):Play()
+        
+        -- Limpa efeitos após fade out
+        task.wait(0.5)
+        glitchCC:Destroy()
+        glitchBlur:Destroy()
+        glitchBloom:Destroy()
+    end)
 end
 
 local function Init()
