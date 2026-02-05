@@ -99,7 +99,7 @@ local Constants = {
 --// CONFIGURATIONS
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Adjust this independently if you want custom gravity during slow motion (default is SLOW_FACTOR ^ 2 for realistic physics)
-    HOLOGRAM_MATERIAL = Enum.Material.Neon,
+    HOLOGRAM_MATERIAL = Enum.Material.Snow,
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200),
         RAINBOW_SEQUENCE = {
@@ -151,10 +151,10 @@ local Configurations = {
     HOLOGRAM_PRESERVE = {
         ACCESSORIES = true,
         HAIR = true,
-        FACE = true,
+        FACE = false,
         CLOTHES = true,
-        ORIGINAL_MATERIAL = false,
-        ORIGINAL_COLOR = false
+        ORIGINAL_MATERIAL = True,
+        ORIGINAL_COLOR = True
     }
 }
 
