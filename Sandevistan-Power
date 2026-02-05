@@ -6,10 +6,7 @@
     ║        UPDATES: DODGE CLONES PURPLE/PINK, RAINBOW COOLDOWN FOR SANDEVISTAN ║
     ╚═════════════════════════════════════════════════════════════════════════════╝
 
-    This script is designed to be universal across all Roblox games, functioning seamlessly
-    with both R6 and R15 character rigs. It implements a premium Cyberpunk 2077-inspired
-    Sandevistan system with time dilation, dash, dodge, and Kiroshi optics abilities.
-    Visual effects use rainbow hologram clones for Sandevistan and Dash, purple/pink for Dodge.
+    
 ]]
 
 local Players = game:GetService("Players")
