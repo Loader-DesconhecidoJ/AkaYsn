@@ -1587,82 +1587,94 @@ local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
 
 -- ================= CONFIGURAÇÃO =================
--- Adicione quantos IDs quiser na lista abaixo, separados por vírgula
 local IDS_CATALOGO = {
-    120005268911290,
-    -- 000000000, (Exemplo de como adicionar mais)
+    18358624045,
+    18358533023,
+    18358615215,
 }
-
--- Ajustes de Posição e Rotação
-local OFFSET_COSTAS = CFrame.new(0, 0, 0.7) 
-local ROTACAO = CFrame.Angles(0, math.rad(180), 0)
 -- ================================================
 
 local function AnexarTudo()
     local character = lp.Character or lp.CharacterAdded:Wait()
-    local torso = character:WaitForChild("UpperTorso", 5) or character:WaitForChild("Torso", 5) or character:FindFirstChild("HumanoidRootPart")
     
-    if not torso then return warn("❌ Torso não encontrado para anexar itens.") end
-
     for _, id in pairs(IDS_CATALOGO) do
-        task.spawn(function() -- Usa spawn para carregar itens simultaneamente (mais rápido)
+        task.spawn(function()
             local sucesso, objects = pcall(function()
                 return game:GetObjects("rbxassetid://" .. id)
             end)
 
             if sucesso and objects and objects[1] then
-                local asset = objects[1]
-                local mainPart = nil
+                -- Clona para evitar o erro de "already worn"
+                local asset = objects[1]:Clone()
+                local handle = asset:IsA("BasePart") and asset or asset:FindFirstChild("Handle", true)
 
-                -- Busca a parte física (Handle ou BasePart)
-                if asset:IsA("Accessory") then
-                    mainPart = asset:FindFirstChild("Handle")
-                elseif asset:IsA("BasePart") then
-                    mainPart = asset
-                else
-                    mainPart = asset:FindFirstChildWhichIsA("BasePart", true)
-                end
-
-                if mainPart then
-                    -- Limpeza de scripts e sons
+                if handle then
+                    -- Limpeza de scripts
                     for _, v in pairs(asset:GetDescendants()) do
-                        if v:IsA("LuaSourceContainer") or v:IsA("Sound") then v:Destroy() end
+                        if v:IsA("LuaSourceContainer") then v:Destroy() end
                     end
 
-                    -- Configuração de Física
+                    handle.CanCollide = false
+                    handle.Massless = true
                     asset.Parent = character
-                    mainPart.CanCollide = false
-                    mainPart.Massless = true
-                    mainPart.Anchored = false
 
-                    -- Criação da Solda (Weld)
-                    local weld = Instance.new("Weld")
-                    weld.Name = "ExtraItemWeld_" .. id
-                    weld.Part0 = torso
-                    weld.Part1 = mainPart
-                    weld.C0 = OFFSET_COSTAS * ROTACAO
-                    weld.Parent = mainPart
-                    
-                    print("✅ Item carregado: " .. id)
-                else
-                    warn("⚠️ Item " .. id .. " não tem partes físicas.")
+                    -- IDENTIFICAÇÃO AUTOMÁTICA
+                    -- Procura o Attachment dentro do item (ex: HatAttachment, BackAttachment)
+                    local attachmentItem = handle:FindFirstChildWhichIsA("Attachment")
+                    local partAlvo = nil
+                    local attachmentCorpo = nil
+
+                    if attachmentItem then
+                        -- Procura o Attachment correspondente no seu corpo
+                        for _, parte in pairs(character:GetChildren()) do
+                            if parte:IsA("BasePart") then
+                                local found = parte:FindFirstChild(attachmentItem.Name)
+                                if found then
+                                    partAlvo = parte
+                                    attachmentCorpo = found
+                                    break
+                                end
+                            end
+                        end
+                    end
+
+                    -- Se não identificou o lugar, manda para o Torso como padrão
+                    if not partAlvo then
+                        partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+                    end
+
+                    if partAlvo then
+                        local weld = Instance.new("Weld")
+                        weld.Name = "AutoWeld_" .. id
+                        weld.Part0 = partAlvo
+                        weld.Part1 = handle
+                        
+                        -- Se achou os pontos de encaixe, alinha eles perfeitamente
+                        if attachmentItem and attachmentCorpo then
+                            weld.C0 = attachmentCorpo.CFrame
+                            weld.C1 = attachmentItem.CFrame
+                        else
+                            -- Se for um modelo sem configuração, coloca nas costas por padrão
+                            weld.C0 = CFrame.new(0, 0, 0.6) * CFrame.Angles(0, math.rad(180), 0)
+                        end
+                        
+                        weld.Parent = handle
+                        print("✅ Item " .. id .. " identificado e preso em: " .. partAlvo.Name)
+                    end
                 end
-            else
-                warn("❌ Erro ao baixar ID: " .. id)
+                -- Limpa o objeto original baixado da memória
+                objects[1]:Destroy()
             end
         end)
     end
 end
 
--- --- CONTROLE DE RESPAWN ---
--- Executa pela primeira vez
+-- --- EXECUÇÃO ---
 AnexarTudo()
 
--- Conecta ao evento de spawn para sempre reexecutar ao morrer
-lp.CharacterAdded:Connect(function(newCharacter)
-    -- Pequeno delay para garantir que o personagem carregou no mundo antes de soldar
-    task.wait(1.5) 
+lp.CharacterAdded:Connect(function()
+    task.wait(2) 
     AnexarTudo()
 end)
 
-print("🚀 Script de Múltiplos Itens Ativado!")
+print("🚀 Identificação de Categoria Ativa!")
