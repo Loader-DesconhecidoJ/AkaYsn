@@ -155,7 +155,7 @@ local Configurations = {
         HAIR = true,
         FACE = false,
         CLOTHES = true,
-        ORIGINAL_MATERIAL = false,
+        ORIGINAL_MATERIAL = true,
         ORIGINAL_COLOR = false
     },
     ANIMATIONS = {
