@@ -1589,9 +1589,7 @@ local lp = Players.LocalPlayer
 -- ================= CONFIGURAÇÃO =================
 -- Adicione quantos IDs quiser na lista abaixo, separados por vírgula
 local IDS_CATALOGO = {
-    18358624045,
-    18358615215,
-    18358533023,
+    120005268911290,
     -- 000000000, (Exemplo de como adicionar mais)
 }
 
