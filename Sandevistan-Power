@@ -58,7 +58,7 @@ local Constants = {
     },
     HOLOGRAM_CLONE = {
         SANDI = {
-            DELAY = 0.045,
+            DELAY = 0.55,
             DURATION = 1,
             END_TRANSPARENCY = 0.9,
             OFFSET_X = 0,
