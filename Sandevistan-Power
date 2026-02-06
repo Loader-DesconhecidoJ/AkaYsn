@@ -157,6 +157,21 @@ local Configurations = {
         CLOTHES = true,
         ORIGINAL_MATERIAL = false,
         ORIGINAL_COLOR = false
+    },
+    ANIMATIONS = {
+        R6 = {
+            idle = "rbxassetid://... ",  -- Coloque o ID da animação idle para R6 aqui
+            walk = "rbxassetid://... ",  -- Coloque o ID da animação walk para R6 aqui
+            run = "rbxassetid://... ",  -- Coloque o ID da animação run para R6 aqui
+            jump = "rbxassetid://... "   -- Coloque o ID da animação jump para R6 aqui
+        },
+        R15 = {
+            idle1 = "rbxassetid://... ",  -- Coloque o ID da animação idle1 para R15 aqui
+            idle2 = "rbxassetid://... ",  -- Coloque o ID da animação idle2 para R15 aqui
+            walk = "rbxassetid://... ",  -- Coloque o ID da animação walk para R15 aqui
+            run = "rbxassetid://... ",  -- Coloque o ID da animação run para R15 aqui
+            jump = "rbxassetid://... "   -- Coloque o ID da animação jump para R15 aqui
+        }
     }
 }
 
@@ -197,6 +212,7 @@ local originalSoundSpeeds: {[Sound]: number} = {}
 local originalVelocityInstances: {Instance: Vector3} = {}
 local animationConnections: {RBXScriptConnection} = {}
 local isInvincible = false
+local originalAnimations: {[string]: string} = {}  -- Tabela para armazenar IDs originais das animações
 
 -- Extreme performance saved states
 local savedParticles = {}
@@ -747,6 +763,46 @@ local function ResetSandi()
     UpdateDashButton()
     UpdateKiroshiButton()
     UpdateOpticalButton()
+
+    -- Reverter animações customizadas
+    local animateScript = Character:FindFirstChild("Animate")
+    if animateScript then
+        if Humanoid.RigType == Enum.HumanoidRigType.R6 then
+            for _, animName in {"idle", "walk", "run", "jump"} do
+                local anim = animateScript:FindFirstChild(animName)
+                if anim and originalAnimations[animName] then
+                    anim.AnimationId = originalAnimations[animName]
+                end
+            end
+        elseif Humanoid.RigType == Enum.HumanoidRigType.R15 then
+            local idleValue = animateScript:FindFirstChild("idle")
+            if idleValue then
+                local anim1 = idleValue:FindFirstChild("Animation1")
+                if anim1 and originalAnimations["idle1"] then
+                    anim1.AnimationId = originalAnimations["idle1"]
+                end
+                local anim2 = idleValue:FindFirstChild("Animation2")
+                if anim2 and originalAnimations["idle2"] then
+                    anim2.AnimationId = originalAnimations["idle2"]
+                end
+            end
+            for _, animName in {"walk", "run", "jump"} do
+                local animFolder = animateScript:FindFirstChild(animName)
+                if animFolder then
+                    local anim = animFolder:FindFirstChild(animName:sub(1,1):upper() .. animName:sub(2) .. "Anim")
+                    if anim and originalAnimations[animName] then
+                        anim.AnimationId = originalAnimations[animName]
+                    end
+                end
+            end
+        end
+        -- Forçar reload da animação
+        local currentSpeed = Humanoid.WalkSpeed
+        Humanoid.WalkSpeed = 0
+        task.wait(0.1)
+        Humanoid.WalkSpeed = currentSpeed
+    end
+    originalAnimations = {}
 end
 
 local function PlayActivationSequence()
@@ -967,6 +1023,51 @@ local function ExecSandi()
     UpdateDashButton()
     UpdateKiroshiButton()
     UpdateOpticalButton()
+
+    -- Aplicar animações customizadas
+    local animateScript = Character:FindFirstChild("Animate")
+    if animateScript then
+        if Humanoid.RigType == Enum.HumanoidRigType.R6 then
+            originalAnimations = {}
+            for _, animName in {"idle", "walk", "run", "jump"} do
+                local anim = animateScript:FindFirstChild(animName)
+                if anim and Configurations.ANIMATIONS.R6[animName] ~= "" then
+                    originalAnimations[animName] = anim.AnimationId
+                    anim.AnimationId = Configurations.ANIMATIONS.R6[animName]
+                end
+            end
+        elseif Humanoid.RigType == Enum.HumanoidRigType.R15 then
+            originalAnimations = {}
+            local idleValue = animateScript:FindFirstChild("idle")
+            if idleValue then
+                local anim1 = idleValue:FindFirstChild("Animation1")
+                if anim1 and Configurations.ANIMATIONS.R15.idle1 ~= "" then
+                    originalAnimations["idle1"] = anim1.AnimationId
+                    anim1.AnimationId = Configurations.ANIMATIONS.R15.idle1
+                end
+                local anim2 = idleValue:FindFirstChild("Animation2")
+                if anim2 and Configurations.ANIMATIONS.R15.idle2 ~= "" then
+                    originalAnimations["idle2"] = anim2.AnimationId
+                    anim2.AnimationId = Configurations.ANIMATIONS.R15.idle2
+                end
+            end
+            for _, animName in {"walk", "run", "jump"} do
+                local animFolder = animateScript:FindFirstChild(animName)
+                if animFolder then
+                    local anim = animFolder:FindFirstChild(animName:sub(1,1):upper() .. animName:sub(2) .. "Anim")
+                    if anim and Configurations.ANIMATIONS.R15[animName] ~= "" then
+                        originalAnimations[animName] = anim.AnimationId
+                        anim.AnimationId = Configurations.ANIMATIONS.R15[animName]
+                    end
+                end
+            end
+        end
+        -- Forçar reload da animação
+        local currentSpeed = Humanoid.WalkSpeed
+        Humanoid.WalkSpeed = 0
+        task.wait(0.1)
+        Humanoid.WalkSpeed = Constants.SANDI_SPEED
+    end
 end
 
 local function ExecDash()
@@ -1456,84 +1557,6 @@ UserInputService.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.F then ExecOptical() end
 end)
 
--- Função para equipar o Sandevistan com animação de inicialização
-local function EquipSandevistanCyberware(character, humanoid)
-    -- Remove acessórios existentes com o mesmo nome para evitar duplicatas
-    for _, acc in pairs(character:GetChildren()) do
-        if acc:IsA("Accessory") and acc.Name == "Sandevistan Cyberware" then
-            acc:Destroy()
-        end
-    end
-    
-    local assetId = 120005268911290  -- ID do item no catálogo
-    local ownsAsset = false
-    pcall(function()
-        ownsAsset = MarketplaceService:UserOwnsAsset(Player.UserId, assetId)
-    end)
-    
-    if ownsAsset then
-        local success, err = pcall(function()
-            local description = humanoid:GetAppliedDescription()
-            description.BackAccessory = tostring(assetId)
-            humanoid:ApplyDescription(description)
-        end)
-        if success then
-            print("✅ Sandevistan Cyberware equipado com sucesso!")
-        else
-            warn("❌ Erro ao equipar o item: " .. tostring(err))
-        end
-    else
-        warn("❌ Você não possui o Sandevistan Cyberware. Compre no catálogo: https://www.roblox.com/catalog/120005268911290/Sandevistan-Cyberware")
-    end
-    
-    -- Inicia a animação de execução do script (duração 3s), independentemente de equipar ou não
-    task.spawn(function()
-        -- Som de ativação
-        PlaySFX("rbxassetid://94953895555975", 1.5)
-        
-        -- Efeitos de glitch na tela (fade in)
-        local glitchCC = Create("ColorCorrectionEffect", {Name = "GlitchCC", TintColor = Color3.new(1,1,1), Brightness = 0, Contrast = 0, Saturation = 0, Parent = Lighting})
-        local glitchBlur = Create("BlurEffect", {Size = 0, Parent = Lighting})
-        local glitchBloom = Create("BloomEffect", {Intensity = 0, Size = 0, Threshold = 0.5, Parent = Lighting})
-        
-        -- Fade in (0.5s)
-        TweenService:Create(glitchCC, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            TintColor = Color3.fromRGB(255, 50, 50),
-            Brightness = -0.2,
-            Contrast = 1.5,
-            Saturation = -0.5
-        }):Play()
-        TweenService:Create(glitchBlur, TweenInfo.new(0.5), {Size = 15}):Play()
-        TweenService:Create(glitchBloom, TweenInfo.new(0.5), {Intensity = 1.5, Size = 30}):Play()
-        
-        -- Glitches no boneco (criar clones glitch durante 3s)
-        local startTime = os.clock()
-        while os.clock() - startTime < 3 do
-            CreateHologramClone(0, 0.15, 1, 0, 0, 0, "glitch")
-            CamShake(0.5, 0.1)  -- Shake leve para glitch
-            glitchCC.TintColor = Color3.fromHSV(math.random(), 1, 1)  -- Muda cor random para glitch
-            glitchBlur.Size = math.random(10, 20)
-            task.wait(0.1)
-        end
-        
-        -- Fade out (0.5s)
-        TweenService:Create(glitchCC, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            TintColor = Color3.new(1,1,1),
-            Brightness = 0,
-            Contrast = 0,
-            Saturation = 0
-        }):Play()
-        TweenService:Create(glitchBlur, TweenInfo.new(0.5), {Size = 0}):Play()
-        TweenService:Create(glitchBloom, TweenInfo.new(0.5), {Intensity = 0, Size = 0}):Play()
-        
-        -- Limpa efeitos após fade out
-        task.wait(0.5)
-        glitchCC:Destroy()
-        glitchBlur:Destroy()
-        glitchBloom:Destroy()
-    end)
-end
-
 local function Init()
     ResetSandi()
     
@@ -1546,7 +1569,6 @@ local function Init()
     HRP = Character:WaitForChild("HumanoidRootPart")
     Humanoid = Character:WaitForChild("Humanoid")
     State.LastHealth = Humanoid.Health
-    EquipSandevistanCyberware(Character, Humanoid)  -- Equipa com animação
     BuildUI()
     Player.CharacterAdded:Connect(function(newChar)
         ResetSandi()
@@ -1555,9 +1577,93 @@ local function Init()
         HRP = newChar:WaitForChild("HumanoidRootPart")
         Humanoid = newChar:WaitForChild("Humanoid")
         State.LastHealth = Humanoid.Health
-        EquipSandevistanCyberware(Character, Humanoid)  -- Equipa com animação no respawn
         CleanupSandiSounds()
         BuildUI()
     end)
 end
 Init()
+
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+
+-- ================= CONFIGURAÇÃO =================
+-- Adicione quantos IDs quiser na lista abaixo, separados por vírgula
+local IDS_CATALOGO = {
+    120005268911290,
+    15717334499,
+    -- 000000000, (Exemplo de como adicionar mais)
+}
+
+-- Ajustes de Posição e Rotação
+local OFFSET_COSTAS = CFrame.new(0, 0, 0.7) 
+local ROTACAO = CFrame.Angles(0, math.rad(180), 0)
+-- ================================================
+
+local function AnexarTudo()
+    local character = lp.Character or lp.CharacterAdded:Wait()
+    local torso = character:WaitForChild("UpperTorso", 5) or character:WaitForChild("Torso", 5) or character:FindFirstChild("HumanoidRootPart")
+    
+    if not torso then return warn("❌ Torso não encontrado para anexar itens.") end
+
+    for _, id in pairs(IDS_CATALOGO) do
+        task.spawn(function() -- Usa spawn para carregar itens simultaneamente (mais rápido)
+            local sucesso, objects = pcall(function()
+                return game:GetObjects("rbxassetid://" .. id)
+            end)
+
+            if sucesso and objects and objects[1] then
+                local asset = objects[1]
+                local mainPart = nil
+
+                -- Busca a parte física (Handle ou BasePart)
+                if asset:IsA("Accessory") then
+                    mainPart = asset:FindFirstChild("Handle")
+                elseif asset:IsA("BasePart") then
+                    mainPart = asset
+                else
+                    mainPart = asset:FindFirstChildWhichIsA("BasePart", true)
+                end
+
+                if mainPart then
+                    -- Limpeza de scripts e sons
+                    for _, v in pairs(asset:GetDescendants()) do
+                        if v:IsA("LuaSourceContainer") or v:IsA("Sound") then v:Destroy() end
+                    end
+
+                    -- Configuração de Física
+                    asset.Parent = character
+                    mainPart.CanCollide = false
+                    mainPart.Massless = true
+                    mainPart.Anchored = false
+
+                    -- Criação da Solda (Weld)
+                    local weld = Instance.new("Weld")
+                    weld.Name = "ExtraItemWeld_" .. id
+                    weld.Part0 = torso
+                    weld.Part1 = mainPart
+                    weld.C0 = OFFSET_COSTAS * ROTACAO
+                    weld.Parent = mainPart
+                    
+                    print("✅ Item carregado: " .. id)
+                else
+                    warn("⚠️ Item " .. id .. " não tem partes físicas.")
+                end
+            else
+                warn("❌ Erro ao baixar ID: " .. id)
+            end
+        end)
+    end
+end
+
+-- --- CONTROLE DE RESPAWN ---
+-- Executa pela primeira vez
+AnexarTudo()
+
+-- Conecta ao evento de spawn para sempre reexecutar ao morrer
+lp.CharacterAdded:Connect(function(newCharacter)
+    -- Pequeno delay para garantir que o personagem carregou no mundo antes de soldar
+    task.wait(1.5) 
+    AnexarTudo()
+end)
+
+print("🚀 Script de Múltiplos Itens Ativado!")
