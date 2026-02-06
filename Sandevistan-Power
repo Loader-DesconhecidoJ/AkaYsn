@@ -997,7 +997,13 @@ local function ExecDash()
     TweenService:Create(Camera, TweenInfo.new(0.25), {FieldOfView = 125}):Play()
     local direction
     if Humanoid.FloorMaterial ~= Enum.Material.Air then
-        direction = HRP.CFrame.LookVector
+        local lookVector = HRP.CFrame.LookVector
+        local moveDir = Humanoid.MoveDirection
+        if moveDir:Dot(lookVector) < 0 then  -- moving backwards
+            direction = -lookVector
+        else
+            direction = lookVector
+        end
     else
         direction = Camera.CFrame.LookVector
     end
@@ -1009,7 +1015,7 @@ local function ExecDash()
             local rayParams = RaycastParams.new()
             rayParams.FilterType = Enum.RaycastFilterType.Exclude
             rayParams.FilterDescendantsInstances = {Character}
-            local ray = Workspace:Raycast(HRP.Position, HRP.CFrame.LookVector * 5, rayParams)
+            local ray = Workspace:Raycast(HRP.Position, direction * 5, rayParams)
             if ray and ray.Instance and ray.Instance:FindFirstAncestorOfClass("Model") and ray.Instance:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid") then
                 bv:Destroy()
                 PlaySFX(Configurations.ASSETS.SOUNDS.HIT, 1.5)
@@ -1376,6 +1382,174 @@ local function BuildUI()
     end)
 end
 
+--// WALK EFFECT INTEGRATION
+local function InitWalkEffect()
+    RunService.RenderStepped:Connect(function()
+        local CT = tick()
+        
+        if Humanoid.MoveDirection.Magnitude > 0 then
+            local BobbleX = math.cos(CT*5)*0.25
+            local BobbleY = math.abs(math.sin(CT*5))*0.25
+            local Bobble = Vector3.new(BobbleX,BobbleY,0)
+            Humanoid.CameraOffset = Humanoid.CameraOffset:lerp(Bobble, 0.25)
+        else
+            Humanoid.CameraOffset = Humanoid.CameraOffset * 0.75
+        end
+    end)
+end
+
+--// DIRECTIONAL MOVEMENT INTEGRATION
+local Joints = {}
+local JointsC0 = {}
+local JointTilts = {}
+local DefaultLerpAlpha = 0.145
+local dotThreshold = 0.9
+local lastTime = 0
+local tickRate = 1 / 60
+
+local function LerpJoints(moveDirection, angles)
+    JointTilts.RootJointTilt = JointTilts.RootJointTilt:Lerp(CFrame.Angles(unpack(angles.RootJoint)), DefaultLerpAlpha)
+    Joints.RootJoint.C0 = JointsC0.RootJointC0 * JointTilts.RootJointTilt
+    
+    JointTilts.NeckTilt = JointTilts.NeckTilt:Lerp(CFrame.Angles(unpack(angles.Neck)), DefaultLerpAlpha)
+    Joints.Neck.C0 = JointsC0.NeckC0 * JointTilts.NeckTilt
+    
+    JointTilts.RightShoulderTilt = JointTilts.RightShoulderTilt:Lerp(CFrame.Angles(unpack(angles.RightShoulder)), DefaultLerpAlpha)
+    Joints.RightShoulder.C0 = JointsC0.RightShoulderC0 * JointTilts.RightShoulderTilt
+    
+    JointTilts.LeftShoulderTilt = JointTilts.LeftShoulderTilt:Lerp(CFrame.Angles(unpack(angles.LeftShoulder)), DefaultLerpAlpha)
+    Joints.LeftShoulder.C0 = JointsC0.LeftShoulderC0 * JointTilts.LeftShoulderTilt
+    
+    JointTilts.RightHipTilt = JointTilts.RightHipTilt:Lerp(CFrame.Angles(unpack(angles.RightHip)), DefaultLerpAlpha)
+    Joints.RightHip.C0 = JointsC0.RightHipC0 * JointTilts.RightHipTilt
+    
+    JointTilts.LeftHipTilt = JointTilts.LeftHipTilt:Lerp(CFrame.Angles(unpack(angles.LeftHip)), DefaultLerpAlpha)
+    Joints.LeftHip.C0 = JointsC0.LeftHipC0 * JointTilts.LeftHipTilt
+end
+
+local function UpdateDirectionalMovement(deltaTime)
+    local now = workspace:GetServerTimeNow()
+    if now - lastTime >= tickRate then
+        lastTime = now
+        
+        local moveDirection = HRP.CFrame:VectorToObjectSpace(Humanoid.MoveDirection)
+        
+        if moveDirection:Dot(Vector3.new(1,0,-1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 5, 0, math.rad(-moveDirection.X) * 25},
+            Neck = {math.rad(moveDirection.Z) * 5, 0, math.rad(moveDirection.X) * 15},
+            RightShoulder = {0, math.rad(-moveDirection.X) * 10, 0},
+            LeftShoulder = {0, math.rad(-moveDirection.X) * 10, 0},
+            RightHip = {0, math.rad(-moveDirection.X) * 10, 0},
+            LeftHip = {0, math.rad(-moveDirection.X) * 10, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(1,0,1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 5, 0, math.rad(moveDirection.X) * 25},
+            Neck = {math.rad(moveDirection.Z) * 5, 0, math.rad(-moveDirection.X) * 25},
+            RightShoulder = {0, math.rad(moveDirection.X) * 10, 0},
+            LeftShoulder = {0, math.rad(moveDirection.X) * 10, 0},
+            RightHip = {0, math.rad(moveDirection.X) * 10, 0},
+            LeftHip = {0, math.rad(moveDirection.X) * 10, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(-1,0,1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 5, 0, math.rad(moveDirection.X) * 25},
+            Neck = {math.rad(moveDirection.Z) * 5, 0, math.rad(-moveDirection.X) * 25},
+            RightShoulder = {0, math.rad(moveDirection.X) * 10, 0},
+            LeftShoulder = {0, math.rad(moveDirection.X) * 10, 0},
+            RightHip = {0, math.rad(moveDirection.X) * 10, 0},
+            LeftHip = {0, math.rad(moveDirection.X) * 10, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(-1,0,-1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 5, 0, math.rad(-moveDirection.X) * 25},
+            Neck = {math.rad(moveDirection.Z) * 5, 0, math.rad(moveDirection.X) * 15},
+            RightShoulder = {0, math.rad(-moveDirection.X) * 10, 0},
+            LeftShoulder = {0, math.rad(-moveDirection.X) * 10, 0},
+            RightHip = {0, math.rad(-moveDirection.X) * 10, 0},
+            LeftHip = {0, math.rad(-moveDirection.X) * 10, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(0,0,-1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 10, 0, 0},
+            Neck = {math.rad(moveDirection.Z) * 10, 0, 0},
+            RightShoulder = {0, 0, 0},
+            LeftShoulder = {0, 0, 0},
+            RightHip = {0, 0, 0},
+            LeftHip = {0, 0, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(1,0,0).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {0, 0, math.rad(-moveDirection.X) * 35},
+            Neck = {0, 0, math.rad(moveDirection.X) * 35},
+            RightShoulder = {0, math.rad(-moveDirection.X) * 15, 0},
+            LeftShoulder = {0, math.rad(-moveDirection.X) * 15, 0},
+            RightHip = {0, math.rad(-moveDirection.X) * 15, 0},
+            LeftHip = {0, math.rad(-moveDirection.X) * 15, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(0,0,1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 10, 0, 0},
+            Neck = {math.rad(moveDirection.Z) * 10, 0, 0},
+            RightShoulder = {0, 0, 0},
+            LeftShoulder = {0, 0, 0},
+            RightHip = {0, 0, 0},
+            LeftHip = {0, 0, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(-1,0,0).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {0, 0, math.rad(-moveDirection.X) * 35},
+            Neck = {0, 0, math.rad(moveDirection.X) * 35},
+            RightShoulder = {0, math.rad(-moveDirection.X) * 15, 0},
+            LeftShoulder = {0, math.rad(-moveDirection.X) * 15, 0},
+            RightHip = {0, math.rad(-moveDirection.X) * 15, 0},
+            LeftHip = {0, math.rad(-moveDirection.X) * 15, 0}
+            })
+        else
+            LerpJoints(moveDirection, {
+            RootJoint = {0, 0, 0},
+            Neck = {0, 0, 0},
+            RightShoulder = {0, 0, 0},
+            LeftShoulder = {0, 0, 0},
+            RightHip = {0, 0, 0},
+            LeftHip = {0, 0, 0}
+            })
+        end
+    end
+end
+
+local function InitDirectionalMovement()
+    Joints = {
+        RootJoint = HRP:WaitForChild("RootJoint"),
+        Neck = Character.Torso:WaitForChild("Neck"),
+        RightShoulder = Character.Torso:WaitForChild("Right Shoulder"),
+        LeftShoulder = Character.Torso:WaitForChild("Left Shoulder"),
+        RightHip = Character.Torso:WaitForChild("Right Hip"),
+        LeftHip = Character.Torso:WaitForChild("Left Hip")
+    }
+
+    JointsC0 = {
+        RootJointC0 = Joints.RootJoint.C0,
+        NeckC0 = Joints.Neck.C0,
+        RightShoulderC0 = Joints.RightShoulder.C0,
+        LeftShoulderC0 = Joints.LeftShoulder.C0,
+        RightHipC0 = Joints.RightHip.C0,
+        LeftHipC0 = Joints.LeftHip.C0
+    }
+
+    JointTilts = {
+        RootJointTilt = CFrame.new(),
+        NeckTilt = CFrame.new(),
+        RightShoulderTilt = CFrame.new(),
+        LeftShoulderTilt = CFrame.new(),
+        RightHipTilt = CFrame.new(),
+        LeftHipTilt = CFrame.new()
+    }
+
+    RunService.Heartbeat:Connect(UpdateDirectionalMovement)
+end
+
 --// MAIN LOOP
 RunService.Heartbeat:Connect(function(dt)
     if not HRP or not Humanoid then return end
@@ -1480,6 +1654,8 @@ local function Init()
     Humanoid = Character:WaitForChild("Humanoid")
     State.LastHealth = Humanoid.Health
     BuildUI()
+    InitWalkEffect()
+    InitDirectionalMovement()
     Player.CharacterAdded:Connect(function(newChar)
         ResetSandi()
         ResetOptical()
@@ -1489,6 +1665,8 @@ local function Init()
         State.LastHealth = Humanoid.Health
         CleanupSandiSounds()
         BuildUI()
+        InitWalkEffect()
+        InitDirectionalMovement()
     end)
 end
 Init()
