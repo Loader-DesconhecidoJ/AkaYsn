@@ -15,7 +15,6 @@ local UserInputService = game:GetService("UserInputService")
 local Debris = game:GetService("Debris")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
-local MarketplaceService = game:GetService("MarketplaceService")
 
 --// TYPES
 type Cooldowns = {
@@ -59,7 +58,7 @@ local Constants = {
     },
     HOLOGRAM_CLONE = {
         SANDI = {
-            DELAY = 0.03,
+            DELAY = 0.045,
             DURATION = 1,
             END_TRANSPARENCY = 0.9,
             OFFSET_X = 0,
@@ -153,25 +152,10 @@ local Configurations = {
     HOLOGRAM_PRESERVE = {
         ACCESSORIES = true,
         HAIR = true,
-        FACE = false,
-        CLOTHES = true,
-        ORIGINAL_MATERIAL = true,
+        FACE = true,
+        CLOTHES = false,
+        ORIGINAL_MATERIAL = false,
         ORIGINAL_COLOR = false
-    },
-    ANIMATIONS = {
-        R6 = {
-            idle = "rbxassetid://... ",  -- Coloque o ID da animação idle para R6 aqui
-            walk = "rbxassetid://... ",  -- Coloque o ID da animação walk para R6 aqui
-            run = "rbxassetid://... ",  -- Coloque o ID da animação run para R6 aqui
-            jump = "rbxassetid://... "   -- Coloque o ID da animação jump para R6 aqui
-        },
-        R15 = {
-            idle1 = "rbxassetid://... ",  -- Coloque o ID da animação idle1 para R15 aqui
-            idle2 = "rbxassetid://... ",  -- Coloque o ID da animação idle2 para R15 aqui
-            walk = "rbxassetid://... ",  -- Coloque o ID da animação walk para R15 aqui
-            run = "rbxassetid://... ",  -- Coloque o ID da animação run para R15 aqui
-            jump = "rbxassetid://... "   -- Coloque o ID da animação jump para R15 aqui
-        }
     }
 }
 
@@ -212,7 +196,6 @@ local originalSoundSpeeds: {[Sound]: number} = {}
 local originalVelocityInstances: {Instance: Vector3} = {}
 local animationConnections: {RBXScriptConnection} = {}
 local isInvincible = false
-local originalAnimations: {[string]: string} = {}  -- Tabela para armazenar IDs originais das animações
 
 -- Extreme performance saved states
 local savedParticles = {}
@@ -763,46 +746,6 @@ local function ResetSandi()
     UpdateDashButton()
     UpdateKiroshiButton()
     UpdateOpticalButton()
-
-    -- Reverter animações customizadas
-    local animateScript = Character:FindFirstChild("Animate")
-    if animateScript then
-        if Humanoid.RigType == Enum.HumanoidRigType.R6 then
-            for _, animName in {"idle", "walk", "run", "jump"} do
-                local anim = animateScript:FindFirstChild(animName)
-                if anim and originalAnimations[animName] then
-                    anim.AnimationId = originalAnimations[animName]
-                end
-            end
-        elseif Humanoid.RigType == Enum.HumanoidRigType.R15 then
-            local idleValue = animateScript:FindFirstChild("idle")
-            if idleValue then
-                local anim1 = idleValue:FindFirstChild("Animation1")
-                if anim1 and originalAnimations["idle1"] then
-                    anim1.AnimationId = originalAnimations["idle1"]
-                end
-                local anim2 = idleValue:FindFirstChild("Animation2")
-                if anim2 and originalAnimations["idle2"] then
-                    anim2.AnimationId = originalAnimations["idle2"]
-                end
-            end
-            for _, animName in {"walk", "run", "jump"} do
-                local animFolder = animateScript:FindFirstChild(animName)
-                if animFolder then
-                    local anim = animFolder:FindFirstChild(animName:sub(1,1):upper() .. animName:sub(2) .. "Anim")
-                    if anim and originalAnimations[animName] then
-                        anim.AnimationId = originalAnimations[animName]
-                    end
-                end
-            end
-        end
-        -- Forçar reload da animação
-        local currentSpeed = Humanoid.WalkSpeed
-        Humanoid.WalkSpeed = 0
-        task.wait(0.1)
-        Humanoid.WalkSpeed = currentSpeed
-    end
-    originalAnimations = {}
 end
 
 local function PlayActivationSequence()
@@ -1023,51 +966,6 @@ local function ExecSandi()
     UpdateDashButton()
     UpdateKiroshiButton()
     UpdateOpticalButton()
-
-    -- Aplicar animações customizadas
-    local animateScript = Character:FindFirstChild("Animate")
-    if animateScript then
-        if Humanoid.RigType == Enum.HumanoidRigType.R6 then
-            originalAnimations = {}
-            for _, animName in {"idle", "walk", "run", "jump"} do
-                local anim = animateScript:FindFirstChild(animName)
-                if anim and Configurations.ANIMATIONS.R6[animName] ~= "" then
-                    originalAnimations[animName] = anim.AnimationId
-                    anim.AnimationId = Configurations.ANIMATIONS.R6[animName]
-                end
-            end
-        elseif Humanoid.RigType == Enum.HumanoidRigType.R15 then
-            originalAnimations = {}
-            local idleValue = animateScript:FindFirstChild("idle")
-            if idleValue then
-                local anim1 = idleValue:FindFirstChild("Animation1")
-                if anim1 and Configurations.ANIMATIONS.R15.idle1 ~= "" then
-                    originalAnimations["idle1"] = anim1.AnimationId
-                    anim1.AnimationId = Configurations.ANIMATIONS.R15.idle1
-                end
-                local anim2 = idleValue:FindFirstChild("Animation2")
-                if anim2 and Configurations.ANIMATIONS.R15.idle2 ~= "" then
-                    originalAnimations["idle2"] = anim2.AnimationId
-                    anim2.AnimationId = Configurations.ANIMATIONS.R15.idle2
-                end
-            end
-            for _, animName in {"walk", "run", "jump"} do
-                local animFolder = animateScript:FindFirstChild(animName)
-                if animFolder then
-                    local anim = animFolder:FindFirstChild(animName:sub(1,1):upper() .. animName:sub(2) .. "Anim")
-                    if anim and Configurations.ANIMATIONS.R15[animName] ~= "" then
-                        originalAnimations[animName] = anim.AnimationId
-                        anim.AnimationId = Configurations.ANIMATIONS.R15[animName]
-                    end
-                end
-            end
-        end
-        -- Forçar reload da animação
-        local currentSpeed = Humanoid.WalkSpeed
-        Humanoid.WalkSpeed = 0
-        task.wait(0.1)
-        Humanoid.WalkSpeed = Constants.SANDI_SPEED
-    end
 end
 
 local function ExecDash()
