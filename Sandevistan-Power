@@ -66,7 +66,7 @@ local Constants = {
             OFFSET_Z = 0
         },
         DASH = {
-            DELAY = 0.2,
+            DELAY = 0.45,
             DURATION = 0.4,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
@@ -152,7 +152,7 @@ local Configurations = {
     HOLOGRAM_PRESERVE = {
         ACCESSORIES = true,
         HAIR = true,
-        FACE = true,
+        FACE = false,
         CLOTHES = false,
         ORIGINAL_MATERIAL = false,
         ORIGINAL_COLOR = false
