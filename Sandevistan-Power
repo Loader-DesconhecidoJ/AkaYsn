@@ -101,7 +101,7 @@ local Constants = {
 --// CONFIGURATIONS
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Adjust this independently if you want custom gravity during slow motion (default is SLOW_FACTOR ^ 2 for realistic physics)
-    HOLOGRAM_MATERIAL = Enum.Material.Snow,
+    HOLOGRAM_MATERIAL = Enum.Material.SmoothPlastic,
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200),
         RAINBOW_SEQUENCE = {
@@ -529,7 +529,7 @@ end
 
 --// CYBERPSYCHOSIS (Enhanced for premium feel)
 local function ExecCyberpsychosis()
-    PlaySFX("rbxassetid://87597277352254", 2.5)
+    PlaySFX("rbxassetid://87597277352254", 2)
     
     if Humanoid then
         Humanoid.WalkSpeed = 0
