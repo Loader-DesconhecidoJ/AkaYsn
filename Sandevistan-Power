@@ -468,6 +468,11 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
             part.Transparency = 0.3
         end
     end
+
+    -- Fix para remover o bloco cinza (HumanoidRootPart visível)
+    if hologramHRP then
+        hologramHRP.Transparency = 1
+    end
     
     for _, part in ipairs(hologramChar:GetDescendants()) do
         if part:IsA("BasePart") then
