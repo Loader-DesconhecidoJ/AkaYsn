@@ -1,3 +1,11 @@
+-- gObl00x Notification
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+    Title = "gOb scripts",
+    Text = "Custom Animations Loaded! (E God was here...)",
+    Icon = "rbxassetid://126389658690593",
+    Duration = 15
+})
+
 --!strict
 --[[
     ╔═════════════════════════════════════════════════════════════════════════════╗
@@ -758,12 +766,6 @@ local function ResetSandi()
     UpdateDashButton()
     UpdateKiroshiButton()
     UpdateOpticalButton()
-    if sandiAnimConn then
-        sandiAnimConn:Disconnect()
-        sandiAnimConn = nil
-    end
-    getgenv().Animator6DStop()
-    currentAnim = nil
 end
 
 local function PlayActivationSequence()
@@ -843,47 +845,6 @@ local function UpdateOpticalButton()
     end
 end
 
------ ANIMATOR 6D --------
-if not getgenv().Animator6D or getgenv().Animator6DStop then
-    getgenv().Animator6DLoadedPro = nil
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/gObl00x/Stuff/refs/heads/main/Animator6D.lua"))()
-end
---------------------------
-
--- // Get animations \\ --
-local animPack = game:GetObjects("rbxassetid://11405076389")[1].R6["Run + Walk + Jump + Fall R6"]
-local AnimFolder = animPack:FindFirstChild("AnimSaves")
-
-local IdleAnim = game:GetObjects("rbxassetid://16600175853")[1].AnimSaves:FindFirstChild("Idle 7")
-local RunAnim = AnimFolder:FindFirstChild("Run")
-
--- // PLAYER Anim Table \\ --
-local PlayerAnims = {
-    Idle = { KFS = IdleAnim, IsPlaying = false },
-    Run = { KFS = RunAnim, IsPlaying = false },
-}
-
--- // Play Animations \\ --
-local currentAnim = nil
-local sandiAnimConn = nil
-local function playSandiAnim(animName, looped)
-    if currentAnim == animName then return end
-    if getgenv().Animator6DStop then
-        getgenv().Animator6DStop()
-    end
-
-    local anim = PlayerAnims[animName]
-    if anim and anim.KFS then
-        for _, data in pairs(PlayerAnims) do
-            data.IsPlaying = false
-        end
-        anim.IsPlaying = true
-        currentAnim = animName
-        
-        getgenv().Animator6D(anim.KFS, 1, looped)
-    end
-end
-
 -- Refactored Sandevistan to closely mimic David Martinez's: Intense activation, time freeze for others, super speed, rainbow holograms during movement.
 local function ExecSandi()
     if os.clock() < State.Cooldowns.SANDI and not State.IsSandiActive then return end
@@ -938,7 +899,7 @@ local function ExecSandi()
                         local conn = animator.AnimationPlayed:Connect(function(track)
                             originalAnimationSpeeds[track] = track.Speed / Constants.SLOW_FACTOR
                             track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
-                        end
+                        end)
                         table.insert(animationConnections, conn)
                     end
                 end
@@ -988,7 +949,7 @@ local function ExecSandi()
             local conn = animator.AnimationPlayed:Connect(function(track)
                 originalAnimationSpeeds[track] = track.Speed / Constants.SLOW_FACTOR
                 track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
-            end
+            end)
             table.insert(animationConnections, conn)
             -- Slow sounds
             for _, sound in ipairs(char:GetDescendants()) do
@@ -1025,21 +986,6 @@ local function ExecSandi()
     UpdateDashButton()
     UpdateKiroshiButton()
     UpdateOpticalButton()
-
-    -- Start custom animations for Sandevistan
-    playSandiAnim("Idle", true)
-    sandiAnimConn = RunService.RenderStepped:Connect(function()
-        local moving = Humanoid.MoveDirection.Magnitude > 0
-        if moving then
-            if currentAnim ~= "Run" then
-                playSandiAnim("Run", true)
-            end
-        else
-            if currentAnim ~= "Idle" then
-                playSandiAnim("Idle", true)
-            end
-        end
-    end)
 end
 
 local function ExecDash()
@@ -1829,3 +1775,133 @@ lp.CharacterAdded:Connect(function()
 end)
 
 print("🚀 Identificação de Categoria Ativa!")
+
+--//==============================================================================================//--
+--||		CUSTOM R6 ANIMATIONS: IDLE, WALK, RUN, JUMP, FALL
+--\\===========================================================================================//--
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+
+----- ANIMATOR 6D --------
+if not getgenv().Animator6D or getgenv().Animator6DStop then
+    getgenv().Animator6DLoadedPro = nil
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/gObl00x/Stuff/refs/heads/main/Animator6D.lua"))()
+end
+--------------------------
+
+-- // CAMERA FOLLOWS HEAD (Without changing CameraSubject) \\--
+local RunService = game:GetService('RunService')
+local Head = Character:FindFirstChild("Head")
+
+RunService.RenderStepped:Connect(function(deltaTime: number)
+local function Alpha(n)
+   return math.clamp(n * deltaTime * 60, 0, 1)
+end
+	Humanoid.CameraOffset = Humanoid.CameraOffset:Lerp((RootPart.CFrame * CFrame.new(0, 1.5, 0)):PointToObjectSpace(Head.Position),Alpha(0.15))
+end)
+-------------------------------------------------------------
+
+-- // Get animations \\ --
+local animPack = game:GetObjects("rbxassetid://11405076389")[1].R6["Run + Walk + Jump + Fall R6"]
+local AnimFolder = animPack:FindFirstChild("AnimSaves")
+
+local IdleAnim = game:GetObjects("rbxassetid://16600175853")[1].AnimSaves:FindFirstChild("Idle 7")
+local WalkAnim = AnimFolder:FindFirstChild("Walk V4")
+local RunAnim = AnimFolder:FindFirstChild("Run")  -- Assuming "Run" exists
+local JumpAnim = AnimFolder:FindFirstChild("Jump V2")
+local FallAnim = AnimFolder:FindFirstChild("Fall")  -- Assuming "Fall" exists
+local SitAnim  = game:GetObjects("rbxassetid://12452064144")[1]["R6 Animation Rig"].AnimSaves:FindFirstChild("SITTING")
+
+-- // Animation Paths \\ --
+local AnimPaths = {
+    Idle = IdleAnim,
+    Walk = WalkAnim,
+    Run = RunAnim,
+    Jump = JumpAnim,
+    Fall = FallAnim,
+    Sit  = SitAnim
+}
+----------------------------------------------------
+
+-- // PLAYER Anim Table \\ --
+local PlayerAnims = {
+    Idle = { KFS = AnimPaths.Idle, IsPlaying = false },
+    Walk = { KFS = AnimPaths.Walk, IsPlaying = false },
+    Run = { KFS = AnimPaths.Run, IsPlaying = false },
+    Jump = { KFS = AnimPaths.Jump, IsPlaying = false },
+    Fall = { KFS = AnimPaths.Fall, IsPlaying = false },
+    Sit  = { KFS = AnimPaths.Sit,  IsPlaying = false },
+}
+----------------------------------------------------
+
+-- // Play Animations \\ --
+local currentAnim = nil
+local function playAnim(animName, looped)
+    if currentAnim == animName then return end
+    if getgenv().Animator6DStop then
+        getgenv().Animator6DStop()
+    end
+
+    local anim = PlayerAnims[animName]
+    if anim and anim.KFS then
+        for _, data in pairs(PlayerAnims) do
+            data.IsPlaying = false
+        end
+        anim.IsPlaying = true
+        currentAnim = animName
+        
+        getgenv().Animator6D(anim.KFS, 1, looped)
+    end
+end
+----------------------------------------------------
+
+-- // Detect Anims \\ --
+RunService.RenderStepped:Connect(function(deltaTime)
+    local moving = Humanoid.MoveDirection.Magnitude > 0
+    local inAir = Humanoid.FloorMaterial == Enum.Material.Air
+    local sitting = Humanoid.Sit or (Humanoid:GetState() == Enum.HumanoidStateType.Seated)
+    local velocity = RootPart.Velocity
+    local speed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+    local ascending = velocity.Y > 0
+
+    if sitting then
+        if not PlayerAnims.Sit.IsPlaying then
+            playAnim("Sit", true)
+        end
+        return
+    end
+
+    if inAir then
+        if ascending then
+            if not PlayerAnims.Jump.IsPlaying then
+                playAnim("Jump", false)
+            end
+        else
+            if not PlayerAnims.Fall.IsPlaying then
+                playAnim("Fall", false)
+            end
+        end
+        return
+    end
+
+    if moving then
+        if speed > 30 then  -- Threshold for run vs walk, adjust as needed
+            if not PlayerAnims.Run.IsPlaying then
+                playAnim("Run", true)
+            end
+        else
+            if not PlayerAnims.Walk.IsPlaying then
+                playAnim("Walk", true)
+            end
+        end
+    else
+        if not PlayerAnims.Idle.IsPlaying then
+            playAnim("Idle", true)
+        end
+    end
+end)
+----------------------------------------------------
