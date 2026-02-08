@@ -43,7 +43,6 @@ local Constants = {
     MAX_ENERGY = 100,
     SANDI_SPEED = 75,
     DASH_FORCE = 100,
-    IMPACT_THRESHOLD = -60,
     MOVING_THRESHOLD = 1,
     OPTICAL_DURATION = 5,
     SLOW_FACTOR = 0.8,
@@ -95,7 +94,7 @@ local Constants = {
     KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"},  -- Example weaknesses
     DODGE_CONFIG = {
         VARIANT_THRESHOLD = 5,
-        VARIANT_DURATION = 0.4,
+        VARIANT_DURATION = 0.5,
         VARIANT_CLONE_INTERVAL = 0.05,
         NORMAL_CLONE_SPACING = 2,
         NORMAL_DISTANCE_NO_ENEMY = 12,
@@ -140,16 +139,6 @@ local Configurations = {
         LIGHT_GREEN = Color3.fromRGB(200, 255, 200)  -- Light green for fades
     },
     ASSETS = {
-        SOUNDS = {
-            IMPACT = "rbxassetid://4453098167",
-            DODGE = "rbxassetid://70643008100559",
-            DASH = "rbxassetid://103247005619946",
-            SANDI_ON = "rbxassetid://123844681344865",  -- Customized to match David's activation sound
-            SANDI_OFF = "rbxassetid://118534165523355",
-            HIT = "rbxassetid://5665936061",
-            SANDI_LOOP = "rbxassetid://81793359483683",
-            IDLE_MUSIC = "rbxassetid://84295656118500"
-        },
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
             SPARKS = "rbxassetid://6071575297",
@@ -164,6 +153,18 @@ local Configurations = {
         ORIGINAL_MATERIAL = false,
         ORIGINAL_COLOR = false
     }
+}
+
+--// SOUNDS (Todos os sons do script com ajustes configuráveis como volume, pitch e looped)
+local Sounds = {
+    DODGE = {id = "rbxassetid://70643008100559", volume = 1.5, pitch = 1, looped = false},
+    DASH = {id = "rbxassetid://103247005619946", volume = 1.2, pitch = 1, looped = false},
+    SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1, pitch = 1, looped = false},
+    SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1, pitch = 1, looped = false},
+    SANDI_LOOP = {id = "rbxassetid://81793359483683", volume = 1, pitch = 1, looped = true},
+    IDLE_MUSIC = {id = "rbxassetid://84295656118500", volume = 5, pitch = 1, looped = true},
+    PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 2, pitch = 1, looped = false},
+    OPTICAL_CAMO = {id = "rbxassetid://942127495", volume = 1, pitch = 1, looped = false}
 }
 
 --// STATE MANAGEMENT
@@ -205,8 +206,10 @@ local isInvincible = false
 
 -- Invisibility variables and functions
 local invisSound = Instance.new("Sound", Player:WaitForChild("PlayerGui"))
-invisSound.SoundId = "rbxassetid://942127495"
-invisSound.Volume = 1
+invisSound.SoundId = Sounds.OPTICAL_CAMO.id
+invisSound.Volume = Sounds.OPTICAL_CAMO.volume
+invisSound.PlaybackSpeed = Sounds.OPTICAL_CAMO.pitch
+invisSound.Looped = Sounds.OPTICAL_CAMO.looped
 
 local function getSafeInvisPosition()
     local offset = Vector3.new(math.random(-5000, 5000), math.random(10000, 15000), math.random(-5000, 5000))  -- Alto no céu, randômico
@@ -271,11 +274,11 @@ local function Create(className: string, properties: {[string]: any})
     return instance
 end
 
-local function PlaySFX(id: string, volume: number?, pitch: number?)
+local function PlaySFX(soundConfig: {id: string, volume: number?, pitch: number?})
     local sound = Create("Sound", {
-        SoundId = id,
-        Volume = volume or 1,
-        PlaybackSpeed = pitch or 1,
+        SoundId = soundConfig.id,
+        Volume = soundConfig.volume or 1,
+        PlaybackSpeed = soundConfig.pitch or 1,
         Parent = HRP or Camera
     })
     sound:Play()
@@ -520,7 +523,7 @@ end
 
 --// CYBERPSYCHOSIS (Enhanced for premium feel)
 local function ExecCyberpsychosis()
-    PlaySFX("rbxassetid://87597277352254", 2)
+    PlaySFX(Sounds.PSYCHOSIS)
     
     if Humanoid then
         Humanoid.WalkSpeed = 0
@@ -669,7 +672,7 @@ local function ExecDodge(enemyPart: BasePart?)
     
     if enemyPart and distance <= Constants.DODGE_CONFIG.VARIANT_THRESHOLD then
         -- Variant: 180° spin around attacker
-        PlaySFX("rbxassetid://70643008100559", 1.5)
+        PlaySFX(Sounds.DODGE)
         
         -- Quick white flash
         local flashGui = Create("ScreenGui", {Parent = Player.PlayerGui})
@@ -712,7 +715,7 @@ local function ExecDodge(enemyPart: BasePart?)
         
     else
         -- Normal dodge
-        PlaySFX(Configurations.ASSETS.SOUNDS.DODGE, 1.5)
+        PlaySFX(Sounds.DODGE)
         local endCFrame
         if enemyPart then 
             endCFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, Constants.DODGE_CONFIG.NORMAL_DISTANCE_ENEMY)).Position, enemyPart.Position)
@@ -753,7 +756,7 @@ end
 local function ResetSandi()
     if not State.IsSandiActive then return end
     State.IsSandiActive = false
-    PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_OFF, 1)
+    PlaySFX(Sounds.SANDI_OFF)
     State.Cooldowns.SANDI = os.clock() + Constants.COOLDOWNS.SANDI
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     ShowCooldownText("Sandevistan", Constants.COOLDOWNS.SANDI, Configurations.COLORS.RAINBOW_SEQUENCE[1])
@@ -912,7 +915,7 @@ local function ExecSandi()
     State.Energy -= Constants.ENERGY_COSTS.SANDI_ACTIVATE
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.IsSandiActive = true
-    PlaySFX(Configurations.ASSETS.SOUNDS.SANDI_ON, 1)  -- David's activation sound
+    PlaySFX(Sounds.SANDI_ON)
     CamShake(1.5, 0.4)  -- Stronger shake for premium feel
     TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 115}):Play()
     
@@ -1051,7 +1054,7 @@ local function ExecDash()
     State.Energy -= Constants.ENERGY_COSTS.DASH
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.Cooldowns.DASH = os.clock() + Constants.COOLDOWNS.DASH
-    PlaySFX(Configurations.ASSETS.SOUNDS.DASH, 1.2)
+    PlaySFX(Sounds.DASH)
     ShowCooldownText("Dash Impulse", Constants.COOLDOWNS.DASH, Configurations.COLORS.DASH_CYAN)
     local dashEffect = Create("ColorCorrectionEffect", {Name = "DashEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
     TweenService:Create(dashEffect, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -1077,16 +1080,6 @@ local function ExecDash()
     task.spawn(function()
         local start = os.clock()
         while os.clock() - start < 0.25 do
-            local rayParams = RaycastParams.new()
-            rayParams.FilterType = Enum.RaycastFilterType.Exclude
-            rayParams.FilterDescendantsInstances = {Character}
-            local ray = Workspace:Raycast(HRP.Position, direction * 5, rayParams)
-            if ray and ray.Instance and ray.Instance:FindFirstAncestorOfClass("Model") and ray.Instance:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid") then
-                bv:Destroy()
-                PlaySFX(Configurations.ASSETS.SOUNDS.HIT, 1.5)
-                CamShake(2, 0.2)
-                break
-            end
             CreateHologramClone(Constants.HOLOGRAM_CLONE.DASH.DELAY, Constants.HOLOGRAM_CLONE.DASH.DURATION, Constants.HOLOGRAM_CLONE.DASH.END_TRANSPARENCY, Constants.HOLOGRAM_CLONE.DASH.OFFSET_X, Constants.HOLOGRAM_CLONE.DASH.OFFSET_Y, Constants.HOLOGRAM_CLONE.DASH.OFFSET_Z, "dash")
             RunService.Heartbeat:Wait()
         end
@@ -1585,9 +1578,10 @@ RunService.Heartbeat:Connect(function(dt)
                 sandiLoopSound:Play()
             elseif not sandiLoopSound then
                 sandiLoopSound = Create("Sound", {
-                    SoundId = Configurations.ASSETS.SOUNDS.SANDI_LOOP,
-                    Volume = 1,
-                    Looped = true,
+                    SoundId = Sounds.SANDI_LOOP.id,
+                    Volume = Sounds.SANDI_LOOP.volume,
+                    PlaybackSpeed = Sounds.SANDI_LOOP.pitch,
+                    Looped = Sounds.SANDI_LOOP.looped,
                     Parent = HRP
                 })
                 sandiLoopSound:Play()
@@ -1597,9 +1591,10 @@ RunService.Heartbeat:Connect(function(dt)
             if idleTime >= 60 then
                 if not idleSound or not idleSound.Playing then
                     idleSound = Create("Sound", {
-                        SoundId = Configurations.ASSETS.SOUNDS.IDLE_MUSIC,
-                        Volume = 5,
-                        Looped = true,
+                        SoundId = Sounds.IDLE_MUSIC.id,
+                        Volume = Sounds.IDLE_MUSIC.volume,
+                        PlaybackSpeed = Sounds.IDLE_MUSIC.pitch,
+                        Looped = Sounds.IDLE_MUSIC.looped,
                         Parent = HRP
                     })
                     idleSound:Play()
