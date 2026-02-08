@@ -49,14 +49,14 @@ local Constants = {
     COOLDOWNS = {
         SANDI = 8,
         DASH = 3.5,
-        DODGE = 4.5,
-        KIROSHI = 5,
-        OPTICAL = 6.5
+        DODGE = 5,
+        KIROSHI = 3.5,
+        OPTICAL = 5
     },
     HOLOGRAM_CLONE = {
         SANDI = {
-            DELAY = 0.045,
-            DURATION = 1,
+            DELAY = 0.055,
+            DURATION = 0.5,
             END_TRANSPARENCY = 0.9,
             OFFSET_X = 0,
             OFFSET_Y = 0,
@@ -100,8 +100,8 @@ local Constants = {
         NORMAL_DISTANCE_NO_ENEMY = 12,
         NORMAL_DISTANCE_ENEMY = 6
     },
-    SANDEVISTAN_FAILURE_CHANCE = 0.2,  -- 20% de falha
-    GLITCH_DURATION = 2  -- Duração do efeito de glitch
+    SANDEVISTAN_FAILURE_CHANCE = 0.3,  -- 20% de falha
+    GLITCH_DURATION = 3  -- Duração do efeito de glitch
 }
 
 --// CONFIGURAÇÕES GERAIS (Valores configuráveis como gravidade lenta, material de hologramas, etc.)
@@ -166,7 +166,7 @@ local Colors = {
 --// SONS (Todos os sons com volume, pitch e looped configuráveis)
 local Sounds = {
     DODGE_NORMAL = {id = "rbxassetid://120416852427789", volume = 1.5, pitch = 1, looped = false},
-    DODGE_VARIANT = {id = "rbxassetid://80429302872625", volume = 1.5, pitch = 1, looped = false},
+    DODGE_VARIANT = {id = "rbxassetid://126105499913504", volume = 1.5, pitch = 1, looped = false},
     DASH = {id = "rbxassetid://103247005619946", volume = 1.2, pitch = 1, looped = false},
     SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1, pitch = 1, looped = false},
     SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1, pitch = 1, looped = false},
@@ -773,19 +773,11 @@ local function ExecDodge(enemyPart: BasePart?)
         else 
             endCFrame = HRP.CFrame * CFrame.new(0, 0, -Constants.DODGE_CONFIG.NORMAL_DISTANCE_NO_ENEMY) 
         end
-        HRP.CFrame = endCFrame
         
-        -- Rastro de clones arco-íris
-        local startPos = startCFrame.Position
-        local endPos = endCFrame.Position
-        local direction = (endPos - startPos).Unit
-        local distance = (endPos - startPos).Magnitude
-        local numClones = math.floor(distance / Constants.DODGE_CONFIG.NORMAL_CLONE_SPACING)
-        for i = 1, numClones do
-            local pos = startPos + direction * (i * (distance / numClones))
-            local cloneCFrame = CFrame.new(pos) * startCFrame.Rotation
-            CreateHologramClone(0, Constants.HOLOGRAM_CLONE.DODGE.DURATION, Constants.HOLOGRAM_CLONE.DODGE.END_TRANSPARENCY, 0, 0, 0, "dodge", cloneCFrame)
-        end
+        -- Adiciona um clone na posição inicial, dura 1s e fade out
+        CreateHologramClone(0, 1, 1, 0, 0, 0, "dodge")
+        
+        HRP.CFrame = endCFrame
     end
     
     CamShake(0.5, 0.2)
@@ -922,11 +914,14 @@ local function UpdateDashButton()
     if not gui then return end
     local dashBtn = gui:FindFirstChild("DashBtn")
     if not dashBtn then return end
+    local lockLabel = dashBtn:FindFirstChild("LockLabel")
     
     if State.IsSandiActive then
         dashBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
+        if lockLabel then lockLabel.Visible = true end
     else
         dashBtn.TextColor3 = Colors.DASH_CYAN
+        if lockLabel then lockLabel.Visible = false end
     end
 end
 
@@ -935,11 +930,14 @@ local function UpdateKiroshiButton()
     if not gui then return end
     local kiroshiBtn = gui:FindFirstChild("KiroshiBtn")
     if not kiroshiBtn then return end
+    local lockLabel = kiroshiBtn:FindFirstChild("LockLabel")
     
     if State.IsSandiActive then
         kiroshiBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
+        if lockLabel then lockLabel.Visible = true end
     else
         kiroshiBtn.TextColor3 = Colors.KIROSHI
+        if lockLabel then lockLabel.Visible = false end
     end
 end
 
@@ -948,11 +946,14 @@ local function UpdateOpticalButton()
     if not gui then return end
     local opticalBtn = gui:FindFirstChild("OpticalBtn")
     if not opticalBtn then return end
+    local lockLabel = opticalBtn:FindFirstChild("LockLabel")
     
     if State.IsSandiActive then
         opticalBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
+        if lockLabel then lockLabel.Visible = true end
     else
         opticalBtn.TextColor3 = Colors.OPTICAL
+        if lockLabel then lockLabel.Visible = false end
     end
 end
 
@@ -1331,6 +1332,19 @@ local function BuildUI()
         Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = btn})
         local gradient = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_BG, color), Rotation = 45, Parent = btn})
         
+        local lockLabel = Create("TextLabel", {
+            Name = "LockLabel",
+            Size = UDim2.new(0.5, 0, 0.5, 0),
+            Position = UDim2.new(0.25, 0, 0.25, 0),
+            BackgroundTransparency = 1,
+            Text = "🔒",
+            TextColor3 = Color3.fromRGB(255, 0, 0),
+            Font = Enum.Font.SciFi,
+            TextSize = 24,
+            Visible = false,
+            Parent = btn
+        })
+        
         btn.MouseButton1Down:Connect(function()
             TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = Colors.UI_BG}):Play()
             TweenService:Create(stroke, TweenInfo.new(0.1), {Transparency = 0}):Play()
@@ -1411,6 +1425,11 @@ local function BuildUI()
             TweenService:Create(energyContainer, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0}):Play()
             TweenService:Create(energyContainer, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.2}):Wait()
         end
+        
+        -- Atualização adicional dos botões para garantir que os cadeados sejam atualizados
+        UpdateDashButton()
+        UpdateKiroshiButton()
+        UpdateOpticalButton()
     end)
     gui.AncestryChanged:Connect(function()
         if not gui.Parent then
