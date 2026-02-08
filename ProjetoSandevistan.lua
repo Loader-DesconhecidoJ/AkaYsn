@@ -90,16 +90,18 @@ local Constants = {
     REGEN_RATE = 15,  -- por segundo
     REGEN_DELAY_ZERO = 10,
     REGEN_DELAY_USE = 5,
-    DODGE_INVINCIBILITY_DURATION = 0,  -- segundos
+    DODGE_INVINCIBILITY_DURATION = 0.3,  -- segundos (aumentado para cobrir a duração da variante)
     KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"},  -- Fraquezas de exemplo
     DODGE_CONFIG = {
-        VARIANT_THRESHOLD = 5,
+        VARIANT_THRESHOLD = 6,
         VARIANT_DURATION = 0.3,
         VARIANT_CLONE_INTERVAL = 0.05,
         NORMAL_CLONE_SPACING = 2,
         NORMAL_DISTANCE_NO_ENEMY = 12,
         NORMAL_DISTANCE_ENEMY = 6
-    }
+    },
+    SANDEVISTAN_FAILURE_CHANCE = 0.2,  -- 20% de falha
+    GLITCH_DURATION = 2  -- Duração do efeito de glitch
 }
 
 --// CONFIGURAÇÕES GERAIS (Valores configuráveis como gravidade lenta, material de hologramas, etc.)
@@ -156,19 +158,23 @@ local Colors = {
     ENERGY_FULL = Color3.fromRGB(50, 205, 50),  -- Verde limão
     ENERGY_MEDIUM = Color3.fromRGB(255, 255, 0),  -- Amarelo
     ENERGY_LOW = Color3.fromRGB(255, 0, 0),  -- Vermelho
-    LIGHT_GREEN = Color3.fromRGB(50,205,50)  -- Verde para fades (Sandevistan e Dodge)
+    LIGHT_GREEN = Color3.fromRGB(100, 200, 100),  -- Verde limão menos intenso para melhor visibilidade dos clones
+    ERROR_TEXT = Color3.fromRGB(169, 169, 169),  -- Cinza para texto de erro
+    ERROR_BORDER = Color3.fromRGB(105, 105, 105)  -- Cinza escuro para bordas
 }
 
 --// SONS (Todos os sons com volume, pitch e looped configuráveis)
 local Sounds = {
-    DODGE = {id = "rbxassetid://70643008100559", volume = 1.5, pitch = 1, looped = false},
+    DODGE_NORMAL = {id = "rbxassetid://120416852427789", volume = 1.5, pitch = 1, looped = false},
+    DODGE_VARIANT = {id = "rbxassetid://80429302872625", volume = 1.5, pitch = 1, looped = false},
     DASH = {id = "rbxassetid://103247005619946", volume = 1.2, pitch = 1, looped = false},
     SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1, pitch = 1, looped = false},
     SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1, pitch = 1, looped = false},
     SANDI_LOOP = {id = "rbxassetid://81793359483683", volume = 1, pitch = 1, looped = true},
     IDLE_MUSIC = {id = "rbxassetid://84295656118500", volume = 5, pitch = 1, looped = true},
     PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 2, pitch = 1, looped = false},
-    OPTICAL_CAMO = {id = "rbxassetid://942127495", volume = 1, pitch = 1, looped = false}
+    OPTICAL_CAMO = {id = "rbxassetid://942127495", volume = 1, pitch = 1, looped = false},
+    SANDI_FAILURE = {id = "rbxassetid://73272481520628", volume = 1, pitch = 1, looped = false}
 }
 
 --// ESTADO DO SISTEMA
@@ -649,6 +655,60 @@ local function CleanupSandiSounds()
     idleTime = 0
 end
 
+local function ShowErrorText()
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
+    
+    local errorLabel = Create("TextLabel", {
+        Size = UDim2.new(0.5, 0, 0.1, 0),
+        Position = UDim2.new(0.25, 0, 0.4, 0),
+        BackgroundTransparency = 1,
+        Text = "Error : Sandevistan Contains Errors",
+        TextColor3 = Colors.ERROR_TEXT,
+        Font = Enum.Font.SciFi,
+        TextSize = 30,
+        TextTransparency = 1,
+        Parent = gui
+    })
+    local stroke = Create("UIStroke", {Color = Colors.ERROR_BORDER, Thickness = 2, Transparency = 1, Parent = errorLabel})
+    
+    local fadeIn = TweenService:Create(errorLabel, TweenInfo.new(0.5), {TextTransparency = 0})
+    local fadeInStroke = TweenService:Create(stroke, TweenInfo.new(0.5), {Transparency = 0})
+    fadeIn:Play()
+    fadeInStroke:Play()
+    
+    task.delay(3, function()
+        local fadeOut = TweenService:Create(errorLabel, TweenInfo.new(0.5), {TextTransparency = 1})
+        local fadeOutStroke = TweenService:Create(stroke, TweenInfo.new(0.5), {Transparency = 1})
+        fadeOut:Play()
+        fadeOutStroke:Play()
+        fadeOut.Completed:Connect(function()
+            errorLabel:Destroy()
+        end)
+    end)
+end
+
+local function ApplyGlitchEffect()
+    task.spawn(function()
+        local startTime = os.clock()
+        local glitchCC = Create("ColorCorrectionEffect", {TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
+        local glitchBlur = Create("BlurEffect", {Size = 0, Parent = Lighting})
+        
+        while os.clock() - startTime < Constants.GLITCH_DURATION do
+            CreateHologramClone(0, 0.1, 1, 0, 0, 0, "glitch")
+            CamShake(0.3, 0.1)
+            
+            glitchCC.TintColor = Color3.fromHSV(math.random(), 1, 1)
+            glitchCC.Contrast = math.random(-2, 2)
+            glitchBlur.Size = math.random(5, 15)
+            
+            task.wait(0.1)
+        end
+        
+        glitchCC:Destroy()
+        glitchBlur:Destroy()
+    end)
+end
+
 local function ExecDodge(enemyPart: BasePart?)
     if State.Energy < Constants.ENERGY_COSTS.DODGE or os.clock() < State.Cooldowns.DODGE then return end
     State.Energy -= Constants.ENERGY_COSTS.DODGE
@@ -656,8 +716,8 @@ local function ExecDodge(enemyPart: BasePart?)
     State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
     ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
     
-    -- Fade in verde claro
-    local cc = Create("ColorCorrectionEffect", {TintColor = Color3.new(1,1,1), Saturation = 0.5, Parent = Lighting})
+    -- Fade in verde limão
+    local cc = Create("ColorCorrectionEffect", {Name = "DodgeEffect", TintColor = Color3.new(1,1,1), Saturation = 0.5, Parent = Lighting})
     TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Colors.LIGHT_GREEN, Saturation = -0.2}):Play()
     
     local startCFrame = HRP.CFrame
@@ -665,7 +725,7 @@ local function ExecDodge(enemyPart: BasePart?)
     
     if enemyPart and distance <= Constants.DODGE_CONFIG.VARIANT_THRESHOLD then
         -- Variante: giro 180° ao redor do atacante
-        PlaySFX(Sounds.DODGE)
+        PlaySFX(Sounds.DODGE_VARIANT)
         
         -- Flash branco rápido
         local flashGui = Create("ScreenGui", {Parent = Player.PlayerGui})
@@ -706,7 +766,7 @@ local function ExecDodge(enemyPart: BasePart?)
         
     else
         -- Dodge normal
-        PlaySFX(Sounds.DODGE)
+        PlaySFX(Sounds.DODGE_NORMAL)
         local endCFrame
         if enemyPart then 
             endCFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, Constants.DODGE_CONFIG.NORMAL_DISTANCE_ENEMY)).Position, enemyPart.Position)
@@ -730,14 +790,14 @@ local function ExecDodge(enemyPart: BasePart?)
     
     CamShake(0.5, 0.2)
     
-    -- Invencibilidade curta
+    -- Invencibilidade (sem stun ou knockback)
     isInvincible = true
     local forceField = Instance.new("ForceField")
     forceField.Parent = Character
     task.delay(Constants.DODGE_INVINCIBILITY_DURATION, function()
         isInvincible = false
         if forceField then forceField:Destroy() end
-        -- Fade out
+        -- Fade out do verde limão
         local t = TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0})
         t:Play()
         t.Completed:Connect(function() cc:Destroy() end)
@@ -753,6 +813,7 @@ local function ResetSandi()
     ShowCooldownText("Sandevistan", Constants.COOLDOWNS.SANDI, Colors.RAINBOW_SEQUENCE[1])
     local sandiEffect = Lighting:FindFirstChild("SandiEffect")
     if sandiEffect then
+        -- Fade out ao desativar
         TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             TintColor = Color3.new(1,1,1),
             Contrast = 0,
@@ -902,6 +963,18 @@ local function ExecSandi()
         return
     end
     if State.Energy < Constants.ENERGY_COSTS.SANDI_ACTIVATE then return end
+    
+    -- 20% chance de falha
+    if math.random() < Constants.SANDEVISTAN_FAILURE_CHANCE then
+        PlaySFX(Sounds.SANDI_FAILURE)
+        ShowErrorText()
+        ApplyGlitchEffect()
+        State.Cooldowns.SANDI = os.clock() + Constants.COOLDOWNS.SANDI
+        State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+        ShowCooldownText("Sandevistan", Constants.COOLDOWNS.SANDI, Colors.RAINBOW_SEQUENCE[1])
+        return
+    end
+    
     State.Energy -= Constants.ENERGY_COSTS.SANDI_ACTIVATE
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.IsSandiActive = true
