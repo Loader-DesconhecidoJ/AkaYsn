@@ -5,7 +5,6 @@
     ║              INSPIRED BY DAVID MARTINEZ'S SANDEVISTAN FROM CYBERPUNK 2077   ║
     ║        UPDATES: FIXED INIT ANIMATION, REMOVED OBJECT SCAN IN KIROSHI        ║
     ╚═════════════════════════════════════════════════════════════════════════════╝
-
 ]]
 
 local Players = game:GetService("Players")
@@ -39,7 +38,7 @@ type SystemState = {
     NoRegenUntil: number
 }
 
---// CONSTANTS
+--// CONSTANTS (Valores fixos que não mudam durante a execução)
 local Constants = {
     MAX_ENERGY = 100,
     SANDI_SPEED = 75,
@@ -92,11 +91,19 @@ local Constants = {
     REGEN_RATE = 15,  -- per second
     REGEN_DELAY_ZERO = 10,
     REGEN_DELAY_USE = 5,
-    DODGE_INVINCIBILITY_DURATION = 0,  -- seconds
-    KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"}  -- Example weaknesses
+    DODGE_INVINCIBILITY_DURATION = 0.5,  -- seconds (aumentado para evitar overlap de tweens e permitir fade correto)
+    KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"},  -- Example weaknesses
+    DODGE_CONFIG = {
+        VARIANT_THRESHOLD = 5,
+        VARIANT_DURATION = 0.5,
+        VARIANT_CLONE_INTERVAL = 0.05,
+        NORMAL_CLONE_SPACING = 2,
+        NORMAL_DISTANCE_NO_ENEMY = 12,
+        NORMAL_DISTANCE_ENEMY = 6
+    }
 }
 
---// CONFIGURATIONS
+--// CONFIGURATIONS (Valores configuráveis pelo usuário, como cores, materiais, assets)
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Adjust this independently if you want custom gravity during slow motion (default is SLOW_FACTOR ^ 2 for realistic physics)
     HOLOGRAM_MATERIAL = Enum.Material.SmoothPlastic,
@@ -658,9 +665,9 @@ local function ExecDodge(enemyPart: BasePart?)
     TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Configurations.COLORS.LIGHT_GREEN, Saturation = -0.2}):Play()
     
     local startCFrame = HRP.CFrame
-    local distance = (HRP.Position - enemyPart.Position).Magnitude
+    local distance = if enemyPart then (HRP.Position - enemyPart.Position).Magnitude else 0
     
-    if enemyPart and distance <= 5 then
+    if enemyPart and distance <= Constants.DODGE_CONFIG.VARIANT_THRESHOLD then
         -- Variant: 180° spin around attacker
         PlaySFX("rbxassetid://70643008100559", 1.5)
         
@@ -675,11 +682,11 @@ local function ExecDodge(enemyPart: BasePart?)
         
         -- Spin movement
         task.spawn(function()
-            local duration = 0.5
+            local duration = Constants.DODGE_CONFIG.VARIANT_DURATION
             local startTime = tick()
             local relative = HRP.Position - enemyPart.Position
             local lastCloneTime = 0
-            local cloneInterval = 0.05
+            local cloneInterval = Constants.DODGE_CONFIG.VARIANT_CLONE_INTERVAL
             
             while tick() - startTime < duration do
                 local alpha = (tick() - startTime) / duration
@@ -708,9 +715,9 @@ local function ExecDodge(enemyPart: BasePart?)
         PlaySFX(Configurations.ASSETS.SOUNDS.DODGE, 1.5)
         local endCFrame
         if enemyPart then 
-            endCFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, 6)).Position, enemyPart.Position)
+            endCFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, Constants.DODGE_CONFIG.NORMAL_DISTANCE_ENEMY)).Position, enemyPart.Position)
         else 
-            endCFrame = HRP.CFrame * CFrame.new(0, 0, -12) 
+            endCFrame = HRP.CFrame * CFrame.new(0, 0, -Constants.DODGE_CONFIG.NORMAL_DISTANCE_NO_ENEMY) 
         end
         HRP.CFrame = endCFrame
         
@@ -719,7 +726,7 @@ local function ExecDodge(enemyPart: BasePart?)
         local endPos = endCFrame.Position
         local direction = (endPos - startPos).Unit
         local distance = (endPos - startPos).Magnitude
-        local numClones = math.floor(distance / 2)  -- Clone every 2 studs
+        local numClones = math.floor(distance / Constants.DODGE_CONFIG.NORMAL_CLONE_SPACING)  -- Clone every configurable studs
         for i = 1, numClones do
             local pos = startPos + direction * (i * (distance / numClones))
             local cloneCFrame = CFrame.new(pos) * startCFrame.Rotation
@@ -1255,9 +1262,9 @@ local function BuildUI()
     if Player.PlayerGui:FindFirstChild("CyberRebuilt") then Player.PlayerGui.CyberRebuilt:Destroy() end
     local gui = Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
     
-    local lockBtn = Create("TextButton", {Name = "LockBtn", Size = UDim2.new(0, 35, 0, 35), Position = savedPositions["LockBtn"] or UDim2.new(1, -50, 0, 50), Text = "⚙️", BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = Configurations.COLORS.TEXT_DEFAULT, Font = Enum.Font.SciFi, TextSize = 16, Parent = gui})
+    local lockBtn = Create("TextButton", {Name = "LockBtn", Size = UDim2.new(0, 35, 0, 35), Position = savedPositions["LockBtn"] or UDim2.new(1, -50, 0, 50), Text = "⚙️", BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = Configurations.COLORS.TEXT_DEFAULT, Font = Enum.Font.SciFi, TextSize = 20, Parent = gui}) -- Aumentado TextSize para maior visibilidade
     Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = lockBtn})
-    Create("UIStroke", {Color = Configurations.COLORS.UI_ACCENT, Thickness = 2, Parent = lockBtn})
+    Create("UIStroke", {Color = Configurations.COLORS.TEXT_DEFAULT, Thickness = 2, Parent = lockBtn}) -- Mudado cor do stroke para branco para maior contraste
     local gradientLock = Create("UIGradient", {Color = ColorSequence.new(Configurations.COLORS.UI_BG, Configurations.COLORS.UI_ACCENT), Rotation = 45, Parent = lockBtn})
     
     local energyContainer = Create("Frame", {Name = "EnergyContainer", Size = UDim2.new(0, 300, 0, 15), Position = savedPositions["EnergyContainer"] or UDim2.new(0.5, -150, 0.92, 0), BackgroundColor3 = Configurations.COLORS.UI_BG, BorderSizePixel = 0, Parent = gui})
