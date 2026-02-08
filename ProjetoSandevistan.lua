@@ -101,7 +101,7 @@ local Constants = {
         NORMAL_DISTANCE_ENEMY = 6
     },
     SANDEVISTAN_FAILURE_CHANCE = 0.3,  -- 20% de falha
-    GLITCH_DURATION = 3  -- Duração do efeito de glitch
+    GLITCH_DURATION = 1.5  -- Duração do efeito de glitch
 }
 
 --// CONFIGURAÇÕES GERAIS (Valores configuráveis como gravidade lenta, material de hologramas, etc.)
