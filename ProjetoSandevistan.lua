@@ -93,10 +93,10 @@ local Constants = {
     DODGE_INVINCIBILITY_DURATION = 0.5,  -- seconds (aumentado para evitar overlap de tweens e permitir fade correto)
     KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"},  -- Example weaknesses
     DODGE_CONFIG = {
-        VARIANT_THRESHOLD = 5,
-        VARIANT_DURATION = 0.5,
-        VARIANT_CLONE_INTERVAL = 0.05,
-        NORMAL_CLONE_SPACING = 2,
+        VARIANT_THRESHOLD = 6,
+        VARIANT_DURATION = 0.3,
+        VARIANT_CLONE_INTERVAL = 0.045,
+        NORMAL_CLONE_SPACING = 1,
         NORMAL_DISTANCE_NO_ENEMY = 12,
         NORMAL_DISTANCE_ENEMY = 6
     }
