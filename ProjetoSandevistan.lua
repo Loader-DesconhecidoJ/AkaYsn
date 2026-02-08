@@ -42,7 +42,7 @@ type SystemState = {
 --// CONSTANTS
 local Constants = {
     MAX_ENERGY = 100,
-    SANDI_SPEED = 80,
+    SANDI_SPEED = 75,
     DASH_FORCE = 100,
     IMPACT_THRESHOLD = -60,
     MOVING_THRESHOLD = 1,
@@ -130,8 +130,7 @@ local Configurations = {
         ENERGY_FULL = Color3.fromRGB(50, 205, 50),  -- Lime green
         ENERGY_MEDIUM = Color3.fromRGB(255, 255, 0),  -- Yellow
         ENERGY_LOW = Color3.fromRGB(255, 0, 0),  -- Red
-        LIGHT_GREEN = Color3.fromRGB(200, 255, 200),  -- Light green for fades
-        FLASH_COLOR = Color3.new(1,1,1)  -- White flash color
+        LIGHT_GREEN = Color3.fromRGB(200, 255, 200)  -- Light green for fades
     },
     ASSETS = {
         SOUNDS = {
@@ -142,8 +141,7 @@ local Configurations = {
             SANDI_OFF = "rbxassetid://118534165523355",
             HIT = "rbxassetid://5665936061",
             SANDI_LOOP = "rbxassetid://81793359483683",
-            IDLE_MUSIC = "rbxassetid://84295656118500",
-            DODGE_VARIANT_SOUND = "rbxassetid://70643008100559"
+            IDLE_MUSIC = "rbxassetid://84295656118500"
         },
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
@@ -158,13 +156,6 @@ local Configurations = {
         CLOTHES = false,
         ORIGINAL_MATERIAL = false,
         ORIGINAL_COLOR = false
-    },
-    DODGE_CONFIG = {
-        VARIANT_DISTANCE = 5,  -- Distance to trigger variant
-        SPIN_DURATION = 0.5,  -- Duration of spin
-        CLONE_INTERVAL = 0.05,  -- Interval for clones during spin
-        CLONE_SPACING = 2,  -- Spacing for normal dodge clones (studs)
-        FLASH_DURATION = 0.1  -- Duration of flash
     }
 }
 
@@ -203,6 +194,7 @@ local originalAnimationSpeeds: {[AnimationTrack]: number} = {}
 local originalSoundSpeeds: {[Sound]: number} = {}
 local originalVelocityInstances: {Instance: Vector3} = {}
 local animationConnections: {RBXScriptConnection} = {}
+local isInvincible = false
 
 -- Invisibility variables and functions
 local invisSound = Instance.new("Sound", Player:WaitForChild("PlayerGui"))
@@ -668,26 +660,26 @@ local function ExecDodge(enemyPart: BasePart?)
     local startCFrame = HRP.CFrame
     local distance = (HRP.Position - enemyPart.Position).Magnitude
     
-    if enemyPart and distance <= Configurations.DODGE_CONFIG.VARIANT_DISTANCE then
+    if enemyPart and distance <= 5 then
         -- Variant: 180° spin around attacker
-        PlaySFX(Configurations.ASSETS.SOUNDS.DODGE_VARIANT_SOUND, 1.5)
+        PlaySFX("rbxassetid://70643008100559", 1.5)
         
         -- Quick white flash
         local flashGui = Create("ScreenGui", {Parent = Player.PlayerGui})
-        local flashFrame = Create("Frame", {Size = UDim2.new(1,0,1,0), BackgroundColor3 = Configurations.COLORS.FLASH_COLOR, Transparency = 1, Parent = flashGui})
-        TweenService:Create(flashFrame, TweenInfo.new(Configurations.DODGE_CONFIG.FLASH_DURATION), {Transparency = 0}):Play()
-        task.delay(Configurations.DODGE_CONFIG.FLASH_DURATION, function()
-            TweenService:Create(flashFrame, TweenInfo.new(Configurations.DODGE_CONFIG.FLASH_DURATION), {Transparency = 1}):Play()
-            task.delay(Configurations.DODGE_CONFIG.FLASH_DURATION, function() flashGui:Destroy() end)
+        local flashFrame = Create("Frame", {Size = UDim2.new(1,0,1,0), BackgroundColor3 = Color3.new(1,1,1), Transparency = 1, Parent = flashGui})
+        TweenService:Create(flashFrame, TweenInfo.new(0.1), {Transparency = 0}):Play()
+        task.delay(0.1, function()
+            TweenService:Create(flashFrame, TweenInfo.new(0.1), {Transparency = 1}):Play()
+            task.delay(0.1, function() flashGui:Destroy() end)
         end)
         
         -- Spin movement
         task.spawn(function()
-            local duration = Configurations.DODGE_CONFIG.SPIN_DURATION
+            local duration = 0.5
             local startTime = tick()
             local relative = HRP.Position - enemyPart.Position
             local lastCloneTime = 0
-            local cloneInterval = Configurations.DODGE_CONFIG.CLONE_INTERVAL
+            local cloneInterval = 0.05
             
             while tick() - startTime < duration do
                 local alpha = (tick() - startTime) / duration
@@ -727,7 +719,7 @@ local function ExecDodge(enemyPart: BasePart?)
         local endPos = endCFrame.Position
         local direction = (endPos - startPos).Unit
         local distance = (endPos - startPos).Magnitude
-        local numClones = math.floor(distance / Configurations.DODGE_CONFIG.CLONE_SPACING)  -- Clone every 2 studs
+        local numClones = math.floor(distance / 2)  -- Clone every 2 studs
         for i = 1, numClones do
             local pos = startPos + direction * (i * (distance / numClones))
             local cloneCFrame = CFrame.new(pos) * startCFrame.Rotation
@@ -737,10 +729,18 @@ local function ExecDodge(enemyPart: BasePart?)
     
     CamShake(0.5, 0.2)
     
-    -- Fade out
-    local t = TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0})
-    t:Play()
-    t.Completed:Connect(function() cc:Destroy() end)
+    -- Buff: Short invincibility
+    isInvincible = true
+    local forceField = Instance.new("ForceField")
+    forceField.Parent = Character
+    task.delay(Constants.DODGE_INVINCIBILITY_DURATION, function()
+        isInvincible = false
+        if forceField then forceField:Destroy() end
+        -- Fade out
+        local t = TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0})
+        t:Play()
+        t.Completed:Connect(function() cc:Destroy() end)
+    end)
 end
 
 local function ResetSandi()
@@ -942,4 +942,813 @@ local function ExecSandi()
                     hum.JumpPower = hum.JumpPower * Constants.SLOW_FACTOR
                     local animator = hum:FindFirstChild("Animator")
                     if animator then
-                        for
+                        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                            originalAnimationSpeeds[track] = track.Speed
+                            track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
+                        end
+                        local conn = animator.AnimationPlayed:Connect(function(track)
+                            originalAnimationSpeeds[track] = track.Speed / Constants.SLOW_FACTOR
+                            track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
+                        end)
+                        table.insert(animationConnections, conn)
+                    end
+                end
+                -- Slow sounds in character
+                for _, sound in ipairs(char:GetDescendants()) do
+                    if sound:IsA("Sound") and sound.Playing then
+                        originalSoundSpeeds[sound] = sound.PlaybackSpeed
+                        sound.PlaybackSpeed = sound.PlaybackSpeed * Constants.SLOW_FACTOR
+                    end
+                end
+            end
+        end
+    end
+    -- Adjust player's jump power to keep jump height consistent
+    if Humanoid then
+        originalPlayerJumpPower = Humanoid.JumpPower
+        Humanoid.JumpPower = Humanoid.JumpPower / Constants.SLOW_FACTOR  -- Inverse to compensate for slower time
+    end
+    -- Slow world sounds
+    for _, sound in ipairs(Workspace:GetDescendants()) do
+        if sound:IsA("Sound") and sound.Playing and not sound:IsDescendantOf(Character) then
+            originalSoundSpeeds[sound] = sound.PlaybackSpeed
+            sound.PlaybackSpeed = sound.PlaybackSpeed * Constants.SLOW_FACTOR
+        end
+    end
+    -- Connect for new sounds
+    local soundConn = Workspace.DescendantAdded:Connect(function(desc)
+        if desc:IsA("Sound") and not desc:IsDescendantOf(Character) then
+            originalSoundSpeeds[desc] = desc.PlaybackSpeed
+            desc.PlaybackSpeed = desc.PlaybackSpeed * Constants.SLOW_FACTOR
+        end
+    end)
+    table.insert(animationConnections, soundConn)
+    -- Connect for new players/characters
+    local playerAddedConn = Players.PlayerAdded:Connect(function(newPlayer)
+        newPlayer.CharacterAdded:Connect(function(char)
+            local hum = char:WaitForChild("Humanoid")
+            originalWalkSpeeds[hum] = hum.WalkSpeed
+            hum.WalkSpeed = hum.WalkSpeed * Constants.SLOW_FACTOR
+            originalJumpPowers[hum] = hum.JumpPower
+            hum.JumpPower = hum.JumpPower * Constants.SLOW_FACTOR
+            local animator = hum:WaitForChild("Animator")
+            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                originalAnimationSpeeds[track] = track.Speed
+                track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
+            end
+            local conn = animator.AnimationPlayed:Connect(function(track)
+                originalAnimationSpeeds[track] = track.Speed / Constants.SLOW_FACTOR
+                track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
+            end)
+            table.insert(animationConnections, conn)
+            -- Slow sounds
+            for _, sound in ipairs(char:GetDescendants()) do
+                if sound:IsA("Sound") and sound.Playing then
+                    originalSoundSpeeds[sound] = sound.PlaybackSpeed
+                    sound.PlaybackSpeed = sound.PlaybackSpeed * Constants.SLOW_FACTOR
+                end
+            end
+        end)
+    end)
+    table.insert(animationConnections, playerAddedConn)
+    
+    -- Slow projectiles (BodyVelocity and LinearVelocity)
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BodyVelocity") then
+            originalVelocityInstances[obj] = obj.Velocity
+            obj.Velocity = obj.Velocity * Constants.SLOW_FACTOR
+        elseif obj:IsA("LinearVelocity") then
+            originalVelocityInstances[obj] = obj.VectorVelocity
+            obj.VectorVelocity = obj.VectorVelocity * Constants.SLOW_FACTOR
+        end
+    end
+    local velocityConn = Workspace.DescendantAdded:Connect(function(obj)
+        if obj:IsA("BodyVelocity") then
+            originalVelocityInstances[obj] = obj.Velocity
+            obj.Velocity = obj.Velocity * Constants.SLOW_FACTOR
+        elseif obj:IsA("LinearVelocity") then
+            originalVelocityInstances[obj] = obj.VectorVelocity
+            obj.VectorVelocity = obj.VectorVelocity * Constants.SLOW_FACTOR
+        end
+    end)
+    table.insert(animationConnections, velocityConn)
+    
+    UpdateDashButton()
+    UpdateKiroshiButton()
+    UpdateOpticalButton()
+end
+
+local function ExecDash()
+    if State.IsSandiActive then return end
+    if State.Energy < Constants.ENERGY_COSTS.DASH or os.clock() < State.Cooldowns.DASH then return end
+    State.Energy -= Constants.ENERGY_COSTS.DASH
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+    State.Cooldowns.DASH = os.clock() + Constants.COOLDOWNS.DASH
+    PlaySFX(Configurations.ASSETS.SOUNDS.DASH, 1.2)
+    ShowCooldownText("Dash Impulse", Constants.COOLDOWNS.DASH, Configurations.COLORS.DASH_CYAN)
+    local dashEffect = Create("ColorCorrectionEffect", {Name = "DashEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
+    TweenService:Create(dashEffect, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        TintColor = Configurations.COLORS.DASH_CYAN,
+        Contrast = 0.1,
+        Saturation = -0.1
+    }):Play()
+    TweenService:Create(Camera, TweenInfo.new(0.25), {FieldOfView = 125}):Play()
+    local direction
+    if Humanoid.FloorMaterial ~= Enum.Material.Air then
+        local lookVector = HRP.CFrame.LookVector
+        local moveDir = Humanoid.MoveDirection
+        if moveDir:Dot(lookVector) < 0 then  -- moving backwards
+            direction = -lookVector
+        else
+            direction = lookVector
+        end
+    else
+        direction = Camera.CFrame.LookVector
+    end
+    local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e6, 1e6, 1e6), Velocity = direction * Constants.DASH_FORCE, Parent = HRP})
+    Debris:AddItem(bv, 0.25)
+    task.spawn(function()
+        local start = os.clock()
+        while os.clock() - start < 0.25 do
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+            rayParams.FilterDescendantsInstances = {Character}
+            local ray = Workspace:Raycast(HRP.Position, direction * 5, rayParams)
+            if ray and ray.Instance and ray.Instance:FindFirstAncestorOfClass("Model") and ray.Instance:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid") then
+                bv:Destroy()
+                PlaySFX(Configurations.ASSETS.SOUNDS.HIT, 1.5)
+                CamShake(2, 0.2)
+                break
+            end
+            CreateHologramClone(Constants.HOLOGRAM_CLONE.DASH.DELAY, Constants.HOLOGRAM_CLONE.DASH.DURATION, Constants.HOLOGRAM_CLONE.DASH.END_TRANSPARENCY, Constants.HOLOGRAM_CLONE.DASH.OFFSET_X, Constants.HOLOGRAM_CLONE.DASH.OFFSET_Y, Constants.HOLOGRAM_CLONE.DASH.OFFSET_Z, "dash")
+            RunService.Heartbeat:Wait()
+        end
+        TweenService:Create(dashEffect, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0}):Play()
+        TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 70}):Play()
+        Debris:AddItem(dashEffect, 0.45)
+    end)
+end
+
+local function ExecKiroshi()
+    if State.IsSandiActive then return end
+    if State.Energy < Constants.ENERGY_COSTS.KIROSHI or os.clock() < State.Cooldowns.KIROSHI or State.IsKiroshiActive then return end
+    State.Energy -= Constants.ENERGY_COSTS.KIROSHI
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+    State.IsKiroshiActive = true
+
+    local kiroshiEffect = Create("ColorCorrectionEffect", {Name = "KiroshiEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
+    TweenService:Create(kiroshiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        TintColor = Configurations.COLORS.KIROSHI_TINT,
+        Contrast = 0.1,
+        Saturation = -0.1
+    }):Play()
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= Player then
+            local char = p.Character
+            if char then
+                local highlight = Create("Highlight", {
+                    OutlineColor = Configurations.COLORS.KIROSHI,
+                    FillTransparency = 1,
+                    OutlineTransparency = 0,
+                    Parent = char
+                })
+                table.insert(activeHighlights, highlight)
+                
+                local billboard = Create("BillboardGui", {
+                    Size = UDim2.new(0, 200, 0, 80),
+                    StudsOffset = Vector3.new(0, 3, 0),
+                    AlwaysOnTop = true,
+                    Parent = char
+                })
+                local hpLabel = Create("TextLabel", {
+                    Size = UDim2.new(1, 0, 0.3, 0),
+                    BackgroundTransparency = 1,
+                    Text = "HP: 100/100",
+                    TextColor3 = Color3.new(1,1,1),
+                    Font = Enum.Font.Code,
+                    TextSize = 18,
+                    Parent = billboard
+                })
+                local distLabel = Create("TextLabel", {
+                    Size = UDim2.new(1, 0, 0.3, 0),
+                    Position = UDim2.new(0,0,0.3,0),
+                    BackgroundTransparency = 1,
+                    Text = "DIST: 10m",
+                    TextColor3 = Configurations.COLORS.KIROSHI,
+                    Font = Enum.Font.Code,
+                    TextSize = 16,
+                    Parent = billboard
+                })
+                table.insert(activeHighlights, billboard)
+                
+                task.spawn(function()
+                    while State.IsKiroshiActive do
+                        local hum = char:FindFirstChildOfClass("Humanoid")
+                        if hum and HRP then
+                            local dist = math.floor((HRP.Position - char.HumanoidRootPart.Position).Magnitude)
+                            hpLabel.Text = string.format("HP: %d/%d", hum.Health, hum.MaxHealth)
+                            distLabel.Text = string.format("DIST: %dm", dist)
+                            if hum.Health / hum.MaxHealth < 0.5 then
+                                hpLabel.TextColor3 = Color3.new(1, 0.2, 0.2)
+                                hpLabel.Text = hpLabel.Text .. " [FRACO]"
+                            end
+                        end
+                        task.wait(0.1)
+                    end
+                    billboard:Destroy()
+                end)
+            end
+        end
+    end
+
+    task.spawn(function()
+        task.wait(5)
+        State.IsKiroshiActive = false
+        State.Cooldowns.KIROSHI = os.clock() + Constants.COOLDOWNS.KIROSHI
+        ShowCooldownText("Kiroshi Optics", Constants.COOLDOWNS.KIROSHI, Configurations.COLORS.KIROSHI)
+
+        if kiroshiEffect then
+            TweenService:Create(kiroshiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                TintColor = Color3.new(1,1,1),
+                Contrast = 0,
+                Saturation = 0
+            }):Play()
+            task.delay(0.5, function() kiroshiEffect:Destroy() end)
+        end
+
+        for _, h in ipairs(activeHighlights) do
+            h:Destroy()
+        end
+        activeHighlights = {}
+    end)
+end
+
+local opticalTimer: thread? = nil
+
+local function ResetOptical()
+    if not State.IsOpticalActive then return end
+    State.IsOpticalActive = false
+    deactivateInvisibility()
+    State.Cooldowns.OPTICAL = os.clock() + Constants.COOLDOWNS.OPTICAL
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+    ShowCooldownText("Optical Camouflage", Constants.COOLDOWNS.OPTICAL, Configurations.COLORS.OPTICAL)
+    if opticalTimer then
+        task.cancel(opticalTimer)
+        opticalTimer = nil
+    end
+end
+
+local function ExecOptical()
+    if State.IsSandiActive then return end
+    if os.clock() < State.Cooldowns.OPTICAL or State.IsOpticalActive then
+        if State.IsOpticalActive then
+            ResetOptical()
+        end
+        return
+    end
+    if State.Energy < Constants.ENERGY_COSTS.OPTICAL then return end
+    State.Energy -= Constants.ENERGY_COSTS.OPTICAL
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+    State.IsOpticalActive = true
+    activateInvisibility()
+    opticalTimer = task.delay(Constants.OPTICAL_DURATION, ResetOptical)
+end
+
+--// UI SYSTEM (Enhanced for premium Cyberpunk UI)
+local function MakeDraggable(frame: Frame)
+    local dragging = false
+    local dragStart, startPos
+    local stroke = Create("UIStroke", {Color = Configurations.COLORS.EDIT_MODE, Thickness = 2, Enabled = false, Parent = frame})
+    table.insert(UI_Elements, {Frame = frame, Stroke = stroke})
+    
+    frame.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and State.EditMode then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging and State.EditMode then
+                local delta = input.Position - dragStart
+                frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            elseif dragging then
+                dragging = false
+            end
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input) 
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+            dragging = false 
+        end 
+    end)
+end
+
+local function BuildUI()
+    if Player.PlayerGui:FindFirstChild("CyberRebuilt") then Player.PlayerGui.CyberRebuilt:Destroy() end
+    local gui = Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
+    
+    local lockBtn = Create("TextButton", {Name = "LockBtn", Size = UDim2.new(0, 35, 0, 35), Position = savedPositions["LockBtn"] or UDim2.new(1, -50, 0, 50), Text = "⚙️", BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = Configurations.COLORS.TEXT_DEFAULT, Font = Enum.Font.SciFi, TextSize = 16, Parent = gui})
+    Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = lockBtn})
+    Create("UIStroke", {Color = Configurations.COLORS.UI_ACCENT, Thickness = 2, Parent = lockBtn})
+    local gradientLock = Create("UIGradient", {Color = ColorSequence.new(Configurations.COLORS.UI_BG, Configurations.COLORS.UI_ACCENT), Rotation = 45, Parent = lockBtn})
+    
+    local energyContainer = Create("Frame", {Name = "EnergyContainer", Size = UDim2.new(0, 300, 0, 15), Position = savedPositions["EnergyContainer"] or UDim2.new(0.5, -150, 0.92, 0), BackgroundColor3 = Configurations.COLORS.UI_BG, BorderSizePixel = 0, Parent = gui})
+    Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = energyContainer})
+    Create("UIStroke", {Color = Configurations.COLORS.UI_ACCENT, Thickness = 1, Parent = energyContainer})
+    
+    local fill = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Configurations.COLORS.ENERGY_FULL, BorderSizePixel = 0, Parent = energyContainer})
+    Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = fill})
+    local energyGradient = Create("UIGradient", {Color = ColorSequence.new(Configurations.COLORS.ENERGY_LOW, Configurations.COLORS.ENERGY_FULL), Rotation = 0, Parent = fill})
+    
+    local energyLabel = Create("TextLabel", {Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, -1.2, 0), BackgroundTransparency = 1, Text = "SYSTEM ENERGY: 100%", TextColor3 = Configurations.COLORS.ENERGY_FULL, Font = Enum.Font.Code, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = energyContainer})
+    
+    local function CreateSkillBtn(key, color, pos, name, func)
+        local btn = Create("TextButton", {Name = name, Size = UDim2.new(0, 50, 0, 50), Position = savedPositions[name] or pos, Text = key, BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = color, Font = Enum.Font.SciFi, TextSize = 18, AutoButtonColor = false, Parent = gui})
+        local stroke = Create("UIStroke", {Color = color, Thickness = 2, Transparency = 0.5, Parent = btn})
+        Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = btn})
+        local gradient = Create("UIGradient", {Color = ColorSequence.new(Configurations.COLORS.UI_BG, color), Rotation = 45, Parent = btn})
+        
+        -- Enhanced click animation with bounce and glow
+        btn.MouseButton1Down:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = Configurations.COLORS.UI_BG}):Play()
+            TweenService:Create(stroke, TweenInfo.new(0.1), {Transparency = 0}):Play()
+            if not State.EditMode then 
+                func()
+            end
+        end)
+        btn.MouseButton1Up:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.2, Enum.EasingStyle.Bounce, Enum.EasingDirection.In), {Size = UDim2.new(0, 50, 0, 50), BackgroundColor3 = Configurations.COLORS.UI_BG, TextColor3 = color}):Play()
+            TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0.5}):Play()
+        end)
+        
+        -- Dynamic pulse animation for buttons
+        task.spawn(function()
+            while btn.Parent do
+                TweenService:Create(btn, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation = 2}):Play()
+                TweenService:Create(btn, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation = -2}):Wait()
+            end
+        end)
+        
+        MakeDraggable(btn)
+        if name == "SandiBtn" then
+            task.spawn(function()
+                while btn.Parent do
+                    local hue = (os.clock() % 5) / 5
+                    local rainbowColor = Color3.fromHSV(hue, 1, 1)
+                    btn.TextColor3 = rainbowColor
+                    stroke.Color = rainbowColor
+                    gradient.Color = ColorSequence.new(Configurations.COLORS.UI_BG, rainbowColor)
+                    task.wait()
+                end
+            end)
+        end
+        return btn
+    end
+    
+    CreateSkillBtn("D", Configurations.COLORS.DASH_CYAN, UDim2.new(0.75, 0, 0.85, 0), "DashBtn", ExecDash)
+    CreateSkillBtn("S", Color3.new(1,1,1), UDim2.new(0.8, 0, 0.85, 0), "SandiBtn", ExecSandi)
+    CreateSkillBtn("Ko", Configurations.COLORS.KIROSHI, UDim2.new(0.85, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
+    CreateSkillBtn("OC", Configurations.COLORS.OPTICAL, UDim2.new(0.9, 0, 0.85, 0), "OpticalBtn", ExecOptical)
+    
+    MakeDraggable(energyContainer)
+    MakeDraggable(lockBtn)
+    
+    lockBtn.MouseButton1Click:Connect(function()
+        State.EditMode = not State.EditMode
+        lockBtn.BackgroundColor3 = State.EditMode and Configurations.COLORS.EDIT_MODE or Configurations.COLORS.UI_BG
+        lockBtn.TextColor3 = State.EditMode and Configurations.COLORS.UI_BG or Configurations.COLORS.TEXT_DEFAULT
+        for _, item in ipairs(UI_Elements) do item.Stroke.Enabled = State.EditMode end
+        if not State.EditMode then
+            savedPositions["LockBtn"] = lockBtn.Position
+            savedPositions["EnergyContainer"] = energyContainer.Position
+            savedPositions["DashBtn"] = gui:FindFirstChild("DashBtn").Position
+            savedPositions["SandiBtn"] = gui:FindFirstChild("SandiBtn").Position
+            savedPositions["KiroshiBtn"] = gui:FindFirstChild("KiroshiBtn").Position
+            savedPositions["OpticalBtn"] = gui:FindFirstChild("OpticalBtn").Position
+        end
+    end)
+    
+    UpdateDashButton()
+    UpdateKiroshiButton()
+    UpdateOpticalButton()
+    
+    local rsConn
+    rsConn = RunService.RenderStepped:Connect(function()
+        local percent = State.Energy / Constants.MAX_ENERGY
+        fill.Size = fill.Size:Lerp(UDim2.new(percent, 0, 1, 0), 0.1)
+        local energyColor
+        if percent > 0.5 then
+            energyColor = Configurations.COLORS.ENERGY_MEDIUM:Lerp(Configurations.COLORS.ENERGY_FULL, (percent - 0.5) * 2)
+        else
+            energyColor = Configurations.COLORS.ENERGY_LOW:Lerp(Configurations.COLORS.ENERGY_MEDIUM, percent * 2)
+        end
+        fill.BackgroundColor3 = energyColor
+        energyLabel.TextColor3 = energyColor
+        energyLabel.Text = string.format("SYSTEM ENERGY: %d%%", math.floor(State.Energy))
+        
+        -- Dynamic pulse for energy bar when low
+        if percent < 0.3 then
+            TweenService:Create(energyContainer, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0}):Play()
+            TweenService:Create(energyContainer, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.2}):Wait()
+        end
+    end)
+    gui.AncestryChanged:Connect(function()
+        if not gui.Parent then
+            rsConn:Disconnect()
+        end
+    end)
+end
+
+--// WALK EFFECT INTEGRATION
+local function InitWalkEffect()
+    RunService.RenderStepped:Connect(function()
+        local CT = tick()
+        
+        if Humanoid.MoveDirection.Magnitude > 0 then
+            local BobbleX = math.cos(CT*5)*0.25
+            local BobbleY = math.abs(math.sin(CT*5))*0.25
+            local Bobble = Vector3.new(BobbleX,BobbleY,0)
+            Humanoid.CameraOffset = Humanoid.CameraOffset:lerp(Bobble, 0.25)
+        else
+            Humanoid.CameraOffset = Humanoid.CameraOffset * 0.75
+        end
+    end)
+end
+
+--// DIRECTIONAL MOVEMENT INTEGRATION
+local Joints = {}
+local JointsC0 = {}
+local JointTilts = {}
+local DefaultLerpAlpha = 0.145
+local dotThreshold = 0.9
+local lastTime = 0
+local tickRate = 1 / 60
+
+local function LerpJoints(moveDirection, angles)
+    JointTilts.RootJointTilt = JointTilts.RootJointTilt:Lerp(CFrame.Angles(unpack(angles.RootJoint)), DefaultLerpAlpha)
+    Joints.RootJoint.C0 = JointsC0.RootJointC0 * JointTilts.RootJointTilt
+    
+    JointTilts.NeckTilt = JointTilts.NeckTilt:Lerp(CFrame.Angles(unpack(angles.Neck)), DefaultLerpAlpha)
+    Joints.Neck.C0 = JointsC0.NeckC0 * JointTilts.NeckTilt
+    
+    JointTilts.RightShoulderTilt = JointTilts.RightShoulderTilt:Lerp(CFrame.Angles(unpack(angles.RightShoulder)), DefaultLerpAlpha)
+    Joints.RightShoulder.C0 = JointsC0.RightShoulderC0 * JointTilts.RightShoulderTilt
+    
+    JointTilts.LeftShoulderTilt = JointTilts.LeftShoulderTilt:Lerp(CFrame.Angles(unpack(angles.LeftShoulder)), DefaultLerpAlpha)
+    Joints.LeftShoulder.C0 = JointsC0.LeftShoulderC0 * JointTilts.LeftShoulderTilt
+    
+    JointTilts.RightHipTilt = JointTilts.RightHipTilt:Lerp(CFrame.Angles(unpack(angles.RightHip)), DefaultLerpAlpha)
+    Joints.RightHip.C0 = JointsC0.RightHipC0 * JointTilts.RightHipTilt
+    
+    JointTilts.LeftHipTilt = JointTilts.LeftHipTilt:Lerp(CFrame.Angles(unpack(angles.LeftHip)), DefaultLerpAlpha)
+    Joints.LeftHip.C0 = JointsC0.LeftHipC0 * JointTilts.LeftHipTilt
+end
+
+local function UpdateDirectionalMovement(deltaTime)
+    local now = workspace:GetServerTimeNow()
+    if now - lastTime >= tickRate then
+        lastTime = now
+        
+        local moveDirection = HRP.CFrame:VectorToObjectSpace(Humanoid.MoveDirection)
+        
+        if moveDirection:Dot(Vector3.new(1,0,-1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 5, 0, math.rad(-moveDirection.X) * 25},
+            Neck = {math.rad(moveDirection.Z) * 5, 0, math.rad(moveDirection.X) * 15},
+            RightShoulder = {0, math.rad(-moveDirection.X) * 10, 0},
+            LeftShoulder = {0, math.rad(-moveDirection.X) * 10, 0},
+            RightHip = {0, math.rad(-moveDirection.X) * 10, 0},
+            LeftHip = {0, math.rad(-moveDirection.X) * 10, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(1,0,1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 5, 0, math.rad(moveDirection.X) * 25},
+            Neck = {math.rad(moveDirection.Z) * 5, 0, math.rad(-moveDirection.X) * 25},
+            RightShoulder = {0, math.rad(moveDirection.X) * 10, 0},
+            LeftShoulder = {0, math.rad(moveDirection.X) * 10, 0},
+            RightHip = {0, math.rad(moveDirection.X) * 10, 0},
+            LeftHip = {0, math.rad(moveDirection.X) * 10, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(-1,0,1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 5, 0, math.rad(moveDirection.X) * 25},
+            Neck = {math.rad(moveDirection.Z) * 5, 0, math.rad(-moveDirection.X) * 25},
+            RightShoulder = {0, math.rad(moveDirection.X) * 10, 0},
+            LeftShoulder = {0, math.rad(moveDirection.X) * 10, 0},
+            RightHip = {0, math.rad(moveDirection.X) * 10, 0},
+            LeftHip = {0, math.rad(moveDirection.X) * 10, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(-1,0,-1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 5, 0, math.rad(-moveDirection.X) * 25},
+            Neck = {math.rad(moveDirection.Z) * 5, 0, math.rad(moveDirection.X) * 15},
+            RightShoulder = {0, math.rad(-moveDirection.X) * 10, 0},
+            LeftShoulder = {0, math.rad(-moveDirection.X) * 10, 0},
+            RightHip = {0, math.rad(-moveDirection.X) * 10, 0},
+            LeftHip = {0, math.rad(-moveDirection.X) * 10, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(0,0,-1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 10, 0, 0},
+            Neck = {math.rad(moveDirection.Z) * 10, 0, 0},
+            RightShoulder = {0, 0, 0},
+            LeftShoulder = {0, 0, 0},
+            RightHip = {0, 0, 0},
+            LeftHip = {0, 0, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(1,0,0).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {0, 0, math.rad(-moveDirection.X) * 35},
+            Neck = {0, 0, math.rad(moveDirection.X) * 35},
+            RightShoulder = {0, math.rad(-moveDirection.X) * 15, 0},
+            LeftShoulder = {0, math.rad(-moveDirection.X) * 15, 0},
+            RightHip = {0, math.rad(-moveDirection.X) * 15, 0},
+            LeftHip = {0, math.rad(-moveDirection.X) * 15, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(0,0,1).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {math.rad(-moveDirection.Z) * 10, 0, 0},
+            Neck = {math.rad(moveDirection.Z) * 10, 0, 0},
+            RightShoulder = {0, 0, 0},
+            LeftShoulder = {0, 0, 0},
+            RightHip = {0, 0, 0},
+            LeftHip = {0, 0, 0}
+            })
+        elseif moveDirection:Dot(Vector3.new(-1,0,0).Unit) > dotThreshold then
+            LerpJoints(moveDirection, {
+            RootJoint = {0, 0, math.rad(-moveDirection.X) * 35},
+            Neck = {0, 0, math.rad(moveDirection.X) * 35},
+            RightShoulder = {0, math.rad(-moveDirection.X) * 15, 0},
+            LeftShoulder = {0, math.rad(-moveDirection.X) * 15, 0},
+            RightHip = {0, math.rad(-moveDirection.X) * 15, 0},
+            LeftHip = {0, math.rad(-moveDirection.X) * 15, 0}
+            })
+        else
+            LerpJoints(moveDirection, {
+            RootJoint = {0, 0, 0},
+            Neck = {0, 0, 0},
+            RightShoulder = {0, 0, 0},
+            LeftShoulder = {0, 0, 0},
+            RightHip = {0, 0, 0},
+            LeftHip = {0, 0, 0}
+            })
+        end
+    end
+end
+
+local function InitDirectionalMovement()
+    Joints = {
+        RootJoint = HRP:WaitForChild("RootJoint"),
+        Neck = Character.Torso:WaitForChild("Neck"),
+        RightShoulder = Character.Torso:WaitForChild("Right Shoulder"),
+        LeftShoulder = Character.Torso:WaitForChild("Left Shoulder"),
+        RightHip = Character.Torso:WaitForChild("Right Hip"),
+        LeftHip = Character.Torso:WaitForChild("Left Hip")
+    }
+
+    JointsC0 = {
+        RootJointC0 = Joints.RootJoint.C0,
+        NeckC0 = Joints.Neck.C0,
+        RightShoulderC0 = Joints.RightShoulder.C0,
+        LeftShoulderC0 = Joints.LeftShoulder.C0,
+        RightHipC0 = Joints.RightHip.C0,
+        LeftHipC0 = Joints.LeftHip.C0
+    }
+
+    JointTilts = {
+        RootJointTilt = CFrame.new(),
+        NeckTilt = CFrame.new(),
+        RightShoulderTilt = CFrame.new(),
+        LeftShoulderTilt = CFrame.new(),
+        RightHipTilt = CFrame.new(),
+        LeftHipTilt = CFrame.new()
+    }
+
+    RunService.Heartbeat:Connect(UpdateDirectionalMovement)
+end
+
+--// MAIN LOOP
+RunService.Heartbeat:Connect(function(dt)
+    if not HRP or not Humanoid then return end
+    if Humanoid.Health < State.LastHealth then
+        local dmgDealt = State.LastHealth - Humanoid.Health
+        if dmgDealt > 1 and os.clock() >= State.Cooldowns.DODGE then
+            local ca = nil
+            local ld = 25
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if obj:IsA("Humanoid") and obj.Parent ~= Character then
+                    local r = obj.Parent:FindFirstChild("HumanoidRootPart")
+                    if r and (HRP.Position - r.Position).Magnitude < ld then 
+                        ld = (HRP.Position - r.Position).Magnitude
+                        ca = r 
+                    end
+                end
+            end
+            ExecDodge(ca)
+        end
+        if isInvincible then
+            Humanoid.Health = State.LastHealth  -- Prevent health loss during invincibility
+        end
+    end
+    State.LastHealth = Humanoid.Health
+    State.LastVelocityY = HRP.Velocity.Y
+    local isMoving = HRP.Velocity.Magnitude > Constants.MOVING_THRESHOLD
+    if State.IsSandiActive then
+        State.Energy -= Constants.ENERGY_COSTS.SANDI_DRAIN * dt
+        Humanoid.WalkSpeed = Constants.SANDI_SPEED
+        
+        if isMoving then
+            idleTime = 0
+            if idleSound and idleSound.Playing then
+                idleSound:Stop()
+            end
+            if os.clock() - lastSandiClone > Constants.HOLOGRAM_CLONE.SANDI.DELAY then
+                CreateHologramClone(Constants.HOLOGRAM_CLONE.SANDI.DELAY, Constants.HOLOGRAM_CLONE.SANDI.DURATION, Constants.HOLOGRAM_CLONE.SANDI.END_TRANSPARENCY, Constants.HOLOGRAM_CLONE.SANDI.OFFSET_X, Constants.HOLOGRAM_CLONE.SANDI.OFFSET_Y, Constants.HOLOGRAM_CLONE.SANDI.OFFSET_Z, "sandi")
+                lastSandiClone = os.clock()
+            end
+            if sandiLoopSound and not sandiLoopSound.Playing then
+                sandiLoopSound:Play()
+            elseif not sandiLoopSound then
+                sandiLoopSound = Create("Sound", {
+                    SoundId = Configurations.ASSETS.SOUNDS.SANDI_LOOP,
+                    Volume = 1,
+                    Looped = true,
+                    Parent = HRP
+                })
+                sandiLoopSound:Play()
+            end
+        else
+            idleTime += dt
+            if idleTime >= 60 then
+                if not idleSound or not idleSound.Playing then
+                    idleSound = Create("Sound", {
+                        SoundId = Configurations.ASSETS.SOUNDS.IDLE_MUSIC,
+                        Volume = 5,
+                        Looped = true,
+                        Parent = HRP
+                    })
+                    idleSound:Play()
+                end
+            end
+            if sandiLoopSound and sandiLoopSound.Playing then
+                sandiLoopSound:Stop()
+            end
+        end
+        
+        if State.Energy <= 0 then
+            State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_ZERO
+            local luck = math.random(1, 100)
+            if luck <= 30 then
+                ExecCyberpsychosis()
+            end
+            ResetSandi()
+        end
+    else
+        if os.clock() > State.NoRegenUntil then
+            State.Energy = math.min(Constants.MAX_ENERGY, State.Energy + (Constants.REGEN_RATE * dt))
+        end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.D then ExecDash() end
+    if input.KeyCode == Enum.KeyCode.S then ExecSandi() end
+    if input.KeyCode == Enum.KeyCode.K then ExecKiroshi() end
+    if input.KeyCode == Enum.KeyCode.O then ExecOptical() end
+end)
+
+local function Init()
+    ResetSandi()
+    
+    local bloom = Create("BloomEffect", {Intensity = 0.5, Size = 20, Threshold = 1, Parent = Lighting})
+    local sunRays = Create("SunRaysEffect", {Intensity = 0.2, Spread = 0.5, Parent = Lighting})
+    local blur = Create("BlurEffect", {Size = 2, Parent = Lighting})
+    local globalCC = Create("ColorCorrectionEffect", {Contrast = 0.1, Saturation = 0.2, Parent = Lighting})
+
+    Character = Player.Character or Player.CharacterAdded:Wait()
+    HRP = Character:WaitForChild("HumanoidRootPart")
+    Humanoid = Character:WaitForChild("Humanoid")
+    State.LastHealth = Humanoid.Health
+    BuildUI()
+    InitWalkEffect()
+    InitDirectionalMovement()
+    Player.CharacterAdded:Connect(function(newChar)
+        ResetSandi()
+        ResetOptical()
+        Character = newChar
+        HRP = newChar:WaitForChild("HumanoidRootPart")
+        Humanoid = newChar:WaitForChild("Humanoid")
+        State.LastHealth = Humanoid.Health
+        CleanupSandiSounds()
+        BuildUI()
+        InitWalkEffect()
+        InitDirectionalMovement()
+    end)
+end
+Init()
+
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+
+-- ================= CONFIGURAÇÃO =================
+local IDS_CATALOGO = {
+    18358624045,
+    18358533023,
+    18358615215,
+    89883990361521,
+}
+-- ================================================
+
+local function AnexarTudo()
+    local character = lp.Character or lp.CharacterAdded:Wait()
+    
+    for _, id in pairs(IDS_CATALOGO) do
+        task.spawn(function()
+            local sucesso, objects = pcall(function()
+                return game:GetObjects("rbxassetid://" .. id)
+            end)
+
+            if sucesso and objects and objects[1] then
+                -- Clona para evitar o erro de "already worn"
+                local asset = objects[1]:Clone()
+                local handle = asset:IsA("BasePart") and asset or asset:FindFirstChild("Handle", true)
+
+                if handle then
+                    -- Limpeza de scripts
+                    for _, v in pairs(asset:GetDescendants()) do
+                        if v:IsA("LuaSourceContainer") then v:Destroy() end
+                    end
+
+                    handle.CanCollide = false
+                    handle.Massless = true
+                    asset.Parent = character
+
+                    -- IDENTIFICAÇÃO AUTOMÁTICA
+                    -- Procura o Attachment dentro do item (ex: HatAttachment, BackAttachment)
+                    local attachmentItem = handle:FindFirstChildWhichIsA("Attachment")
+                    local partAlvo = nil
+                    local attachmentCorpo = nil
+
+                    if attachmentItem then
+                        -- Procura o Attachment correspondente no seu corpo
+                        for _, parte in pairs(character:GetChildren()) do
+                            if parte:IsA("BasePart") then
+                                local found = parte:FindFirstChild(attachmentItem.Name)
+                                if found then
+                                    partAlvo = parte
+                                    attachmentCorpo = found
+                                    break
+                                end
+                            end
+                        end
+                    end
+
+                    -- Se não identificou o lugar, manda para o Torso como padrão
+                    if not partAlvo then
+                        partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+                    end
+
+                    if partAlvo then
+                        local weld = Instance.new("Weld")
+                        weld.Name = "AutoWeld_" .. id
+                        weld.Part0 = partAlvo
+                        weld.Part1 = handle
+                        
+                        -- Se achou os pontos de encaixe, alinha eles perfeitamente
+                        if attachmentItem and attachmentCorpo then
+                            weld.C0 = attachmentCorpo.CFrame
+                            weld.C1 = attachmentItem.CFrame
+                        else
+                            -- Se for um modelo sem configuração, coloca nas costas por padrão
+                            weld.C0 = CFrame.new(0, 0, 0.6) * CFrame.Angles(0, math.rad(180), 0)
+                        end
+                        
+                        weld.Parent = handle
+                        print("✅ Item " .. id .. " identificado e preso em: " .. partAlvo.Name)
+                    end
+                end
+                -- Limpa o objeto original baixado da memória
+                objects[1]:Destroy()
+            end
+        end)
+    end
+end
+
+-- --- EXECUÇÃO ---
+AnexarTudo()
+
+lp.CharacterAdded:Connect(function()
+    task.wait(2) 
+    AnexarTudo()
+end)
+
+print("🚀 Identificação de Categoria Ativa!")
