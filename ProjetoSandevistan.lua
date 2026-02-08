@@ -90,7 +90,7 @@ local Constants = {
     REGEN_RATE = 15,  -- per second
     REGEN_DELAY_ZERO = 10,
     REGEN_DELAY_USE = 5,
-    DODGE_INVINCIBILITY_DURATION = 0.5,  -- seconds (aumentado para evitar overlap de tweens e permitir fade correto)
+    DODGE_INVINCIBILITY_DURATION = 0,  -- seconds (aumentado para evitar overlap de tweens e permitir fade correto)
     KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"},  -- Example weaknesses
     DODGE_CONFIG = {
         VARIANT_THRESHOLD = 6,
@@ -105,7 +105,7 @@ local Constants = {
 --// CONFIGURATIONS (Valores configuráveis pelo usuário, como cores, materiais, assets)
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Adjust this independently if you want custom gravity during slow motion (default is SLOW_FACTOR ^ 2 for realistic physics)
-    HOLOGRAM_MATERIAL = Enum.Material.SmoothPlastic,
+    HOLOGRAM_MATERIAL = Enum.Material.Neon,
     COLORS = {
         SANDI_TINT = Color3.fromRGB(200, 255, 200),
         RAINBOW_SEQUENCE = {
@@ -246,7 +246,7 @@ local function activateInvisibility()
     setTransparency(Player.Character, 0.5, 0.5)  -- Fade to semi-transparent
     game.StarterGui:SetCore("SendNotification", {
         Title = "Optical Camo (on)",
-        Duration = 3,
+        Duration = 0,
         Text = "STATUS:"
     })
 end
@@ -260,7 +260,7 @@ local function deactivateInvisibility()
     setTransparency(Player.Character, 0, 0.5)  -- Fade to visible
     game.StarterGui:SetCore("SendNotification", {
         Title = "Optical Camo (off)",
-        Duration = 3,
+        Duration = 0,
         Text = "STATUS:"
     })
 end
