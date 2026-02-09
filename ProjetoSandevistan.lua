@@ -30,6 +30,7 @@ type SystemState = {
     IsSandiActive: boolean,
     IsKiroshiActive: boolean,
     IsOpticalActive: boolean,
+    IsDodgeReady: boolean,
     Cooldowns: Cooldowns,
     EditMode: boolean,
     LastVelocityY: number,
@@ -48,9 +49,9 @@ local Constants = {
     OPTICAL_DURATION = 5,
     SLOW_FACTOR = 0.8,
     COOLDOWNS = {
-        SANDI = 8,
+        SANDI = 10,
         DASH = 3.5,
-        DODGE = 4.5,
+        DODGE = 5,
         KIROSHI = 3.5,
         OPTICAL = 6.5
     },
@@ -94,8 +95,8 @@ local Constants = {
     DODGE_INVINCIBILITY_DURATION = 0,  -- segundos (aumentado para cobrir a duração da variante)
     KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"},  -- Fraquezas de exemplo
     DODGE_CONFIG = {
-        VARIANT_THRESHOLD = 6,
-        VARIANT_DURATION = 0.3,
+        VARIANT_THRESHOLD = 5.5,
+        VARIANT_DURATION = 0.2,
         VARIANT_CLONE_INTERVAL = 0.05,
         NORMAL_CLONE_SPACING = 2,
         NORMAL_DISTANCE_NO_ENEMY = 12,
@@ -184,6 +185,7 @@ local State: SystemState = {
     IsSandiActive = false,
     IsKiroshiActive = false,
     IsOpticalActive = false,
+    IsDodgeReady = false,
     Cooldowns = {SANDI = 0, DASH = 0, DODGE = 0, KIROSHI = 0, OPTICAL = 0},
     EditMode = false,
     LastVelocityY = 0,
@@ -715,12 +717,6 @@ local function ApplyGlitchEffect()
 end
 
 local function ExecDodge(enemyPart: BasePart?)
-    if State.Energy < Constants.ENERGY_COSTS.DODGE or os.clock() < State.Cooldowns.DODGE then return end
-    State.Energy -= Constants.ENERGY_COSTS.DODGE
-    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
-    State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
-    ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
-    
     -- Fade in verde limão
     local cc = Create("ColorCorrectionEffect", {Name = "DodgeEffect", TintColor = Color3.new(1,1,1), Saturation = 0.5, Parent = Lighting})
     TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Colors.LIGHT_GREEN, Saturation = -0.2}):Play()
@@ -798,6 +794,22 @@ local function ExecDodge(enemyPart: BasePart?)
         local t = TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0})
         t:Play()
         t.Completed:Connect(function() cc:Destroy() end)
+    end)
+end
+
+local function ActivateDodgeReady()
+    if State.Energy < Constants.ENERGY_COSTS.DODGE or os.clock() < State.Cooldowns.DODGE then return end
+    State.Energy -= Constants.ENERGY_COSTS.DODGE
+    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+    State.IsDodgeReady = true
+    -- Opcional: adicionar efeito visual durante os 2s, como uma borda ou tint
+    task.spawn(function()
+        task.wait(2)
+        if State.IsDodgeReady then
+            State.IsDodgeReady = false
+            State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
+            ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
+        end
     end)
 end
 
@@ -1375,6 +1387,7 @@ local function BuildUI()
     CreateSkillBtn("S", Color3.new(1,1,1), UDim2.new(0.8, 0, 0.85, 0), "SandiBtn", ExecSandi)
     CreateSkillBtn("Ko", Colors.KIROSHI, UDim2.new(0.85, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
     CreateSkillBtn("Oc", Colors.OPTICAL, UDim2.new(0.9, 0, 0.85, 0), "OpticalBtn", ExecOptical)
+    CreateSkillBtn("N", Colors.DODGE_START, UDim2.new(0.95, 0, 0.85, 0), "DodgeBtn", ActivateDodgeReady)
     
     MakeDraggable(energyContainer)
     MakeDraggable(lockBtn)
@@ -1391,6 +1404,7 @@ local function BuildUI()
             savedPositions["SandiBtn"] = gui:FindFirstChild("SandiBtn").Position
             savedPositions["KiroshiBtn"] = gui:FindFirstChild("KiroshiBtn").Position
             savedPositions["OpticalBtn"] = gui:FindFirstChild("OpticalBtn").Position
+            savedPositions["DodgeBtn"] = gui:FindFirstChild("DodgeBtn").Position
         end
     end)
     
@@ -1597,7 +1611,7 @@ RunService.Heartbeat:Connect(function(dt)
     if not HRP or not Humanoid then return end
     if Humanoid.Health < State.LastHealth then
         local dmgDealt = State.LastHealth - Humanoid.Health
-        if dmgDealt > 1 and os.clock() >= State.Cooldowns.DODGE then
+        if dmgDealt > 1 and State.IsDodgeReady then
             local ca = nil
             local ld = 25
             for _, obj in ipairs(Workspace:GetDescendants()) do
@@ -1610,6 +1624,9 @@ RunService.Heartbeat:Connect(function(dt)
                 end
             end
             ExecDodge(ca)
+            State.IsDodgeReady = false
+            State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
+            ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
         end
         if isInvincible then
             Humanoid.Health = State.LastHealth
@@ -1683,6 +1700,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.S then ExecSandi() end
     if input.KeyCode == Enum.KeyCode.K then ExecKiroshi() end
     if input.KeyCode == Enum.KeyCode.O then ExecOptical() end
+    if input.KeyCode == Enum.KeyCode.N then ActivateDodgeReady() end
 end)
 
 local function Init()
