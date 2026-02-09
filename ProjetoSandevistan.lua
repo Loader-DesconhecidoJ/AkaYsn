@@ -3,7 +3,7 @@
     ╔═════════════════════════════════════════════════════════════════════════════╗
     ║               PREMIUM CYBERPUNK SANDEVISTAN - EDGERUNNERS STYLE V4.3        ║
     ║              INSPIRED BY DAVID MARTINEZ'S SANDEVISTAN FROM CYBERPUNK 2077   ║
-    ║        UPDATES: FIXED INIT ANIMATION, REMOVED OBJECT SCAN IN KIROSHI        ║
+    ║        UPDATES: Automatic Dodge removed. Registered as a Counter.        ║
     ╚═════════════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -40,7 +40,7 @@ type SystemState = {
     NoRegenUntil: number
 }
 
---// CONSTANTES (Valores fixos que não mudam durante a execução)
+--// CONSTANTES 
 local Constants = {
     MAX_ENERGY = 100,
     SANDI_SPEED = 75,
@@ -83,17 +83,17 @@ local Constants = {
     },
     ENERGY_COSTS = {
         SANDI_ACTIVATE = 30,
-        SANDI_DRAIN = 2.5,  -- por segundo
+        SANDI_DRAIN = 2.5,  
         DASH = 8,
         DODGE = 5,
         KIROSHI = 10,
         OPTICAL = 15
     },
-    REGEN_RATE = 15,  -- por segundo
+    REGEN_RATE = 15,  
     REGEN_DELAY_ZERO = 10,
     REGEN_DELAY_USE = 5,
-    DODGE_INVINCIBILITY_DURATION = 0,  -- segundos (aumentado para cobrir a duração da variante)
-    KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"},  -- Fraquezas de exemplo
+    DODGE_INVINCIBILITY_DURATION = 0,  
+    KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"},  
     DODGE_CONFIG = {
         VARIANT_THRESHOLD = 5.5,
         VARIANT_DURATION = 0.2,
@@ -102,11 +102,11 @@ local Constants = {
         NORMAL_DISTANCE_NO_ENEMY = 12,
         NORMAL_DISTANCE_ENEMY = 6
     },
-    SANDEVISTAN_FAILURE_CHANCE = 0.3,  -- 20% de falha
-    GLITCH_DURATION = 3  -- Duração do efeito de glitch
+    SANDEVISTAN_FAILURE_CHANCE = 0.3,  
+    GLITCH_DURATION = 3
 }
 
---// CONFIGURAÇÕES GERAIS (Valores configuráveis como gravidade lenta, material de hologramas, etc.)
+--// CONFIGURAÇÕES GERAIS 
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Ajuste para gravidade personalizada durante slow motion
     HOLOGRAM_MATERIAL = Enum.Material.Plastic,
@@ -127,9 +127,7 @@ local Configurations = {
     }
 }
 
---// CORES (Todas as cores do script, configure aqui para mudar as cores de efeitos, UI, etc.)
--- Para configurar as cores: Edite os valores Color3.fromRGB ou Color3.new conforme necessário.
--- Exemplo: Para mudar a cor do Sandevistan e Dodge para verde (0,128,0), altere LIGHT_GREEN.
+--// CORES 
 local Colors = {
     SANDI_TINT = Color3.fromRGB(200, 255, 200),
     RAINBOW_SEQUENCE = {
@@ -157,15 +155,15 @@ local Colors = {
     KIROSHI_TINT = Color3.fromRGB(255, 100, 100),
     KIROSHI = Color3.fromRGB(255, 0, 0),
     OPTICAL = Color3.fromRGB(0, 255, 255),
-    ENERGY_FULL = Color3.fromRGB(50, 205, 50),  -- Verde limão
-    ENERGY_MEDIUM = Color3.fromRGB(255, 255, 0),  -- Amarelo
-    ENERGY_LOW = Color3.fromRGB(255, 0, 0),  -- Vermelho
-    LIGHT_GREEN = Color3.fromRGB(100, 200, 100),  -- Verde limão menos intenso para melhor visibilidade dos clones
-    ERROR_TEXT = Color3.fromRGB(169, 169, 169),  -- Cinza para texto de erro
-    ERROR_BORDER = Color3.fromRGB(105, 105, 105)  -- Cinza escuro para bordas
+    ENERGY_FULL = Color3.fromRGB(50, 205, 50),  
+    ENERGY_MEDIUM = Color3.fromRGB(255, 255, 0), 
+    ENERGY_LOW = Color3.fromRGB(255, 0, 0),  
+    LIGHT_GREEN = Color3.fromRGB(100, 200, 100),  
+    ERROR_TEXT = Color3.fromRGB(169, 169, 169),  
+    ERROR_BORDER = Color3.fromRGB(105, 105, 105)  
 }
 
---// SONS (Todos os sons com volume, pitch e looped configuráveis)
+--// SONS 
 local Sounds = {
     DODGE_NORMAL = {id = "rbxassetid://120416852427789", volume = 1.5, pitch = 1, looped = false},
     DODGE_VARIANT = {id = "rbxassetid://80429302872625", volume = 1.5, pitch = 1, looped = false},
@@ -813,6 +811,45 @@ local function ActivateDodgeReady()
     end)
 end
 
+local function UpdateDashButton()
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if not gui then return end
+    local dashBtn = gui:FindFirstChild("DashBtn")
+    if not dashBtn then return end
+    
+    if State.IsSandiActive then
+        dashBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
+    else
+        dashBtn.TextColor3 = Colors.DASH_CYAN
+    end
+end
+
+local function UpdateKiroshiButton()
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if not gui then return end
+    local kiroshiBtn = gui:FindFirstChild("KiroshiBtn")
+    if not kiroshiBtn then return end
+    
+    if State.IsSandiActive then
+        kiroshiBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
+    else
+        kiroshiBtn.TextColor3 = Colors.KIROSHI
+    end
+end
+
+local function UpdateOpticalButton()
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if not gui then return end
+    local opticalBtn = gui:FindFirstChild("OpticalBtn")
+    if not opticalBtn then return end
+    
+    if State.IsSandiActive then
+        opticalBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
+    else
+        opticalBtn.TextColor3 = Colors.OPTICAL
+    end
+end
+
 local function ResetSandi()
     if not State.IsSandiActive then return end
     State.IsSandiActive = false
@@ -925,45 +962,6 @@ local function PlayActivationSequence()
         task.wait(0.2)
         overlay:Destroy()
     end)
-end
-
-local function UpdateDashButton()
-    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
-    if not gui then return end
-    local dashBtn = gui:FindFirstChild("DashBtn")
-    if not dashBtn then return end
-    
-    if State.IsSandiActive then
-        dashBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
-    else
-        dashBtn.TextColor3 = Colors.DASH_CYAN
-    end
-end
-
-local function UpdateKiroshiButton()
-    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
-    if not gui then return end
-    local kiroshiBtn = gui:FindFirstChild("KiroshiBtn")
-    if not kiroshiBtn then return end
-    
-    if State.IsSandiActive then
-        kiroshiBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
-    else
-        kiroshiBtn.TextColor3 = Colors.KIROSHI
-    end
-end
-
-local function UpdateOpticalButton()
-    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
-    if not gui then return end
-    local opticalBtn = gui:FindFirstChild("OpticalBtn")
-    if not opticalBtn then return end
-    
-    if State.IsSandiActive then
-        opticalBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
-    else
-        opticalBtn.TextColor3 = Colors.OPTICAL
-    end
 end
 
 local function ExecSandi()
@@ -1168,7 +1166,7 @@ local function ExecKiroshi()
         Saturation = -0.1
     }):Play()
 
-    for _, p in ipairs(Players:GetPlayers()) do
+    for _, p in Players:GetPlayers() do
         if p ~= Player then
             local char = p.Character
             if char then
@@ -1323,8 +1321,8 @@ local function MakeDraggable(frame: Frame)
     end)
     UserInputService.InputEnded:Connect(function(input) 
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
-            dragging = false 
-        end 
+            dragging = false
+        end
     end)
 end
 
@@ -1356,7 +1354,7 @@ local function BuildUI()
         btn.MouseButton1Down:Connect(function()
             TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = Colors.UI_BG}):Play()
             TweenService:Create(stroke, TweenInfo.new(0.1), {Transparency = 0}):Play()
-            if not State.EditMode then 
+            if not State.EditMode then
                 func()
             end
         end)
@@ -1415,27 +1413,28 @@ local function BuildUI()
     local rsConn
     rsConn = RunService.RenderStepped:Connect(function()
         local percent = State.Energy / Constants.MAX_ENERGY
+
         fill.Size = fill.Size:Lerp(UDim2.new(percent, 0, 1, 0), 0.1)
+
         local energyColor
+
         if percent > 0.5 then
             energyColor = Colors.ENERGY_MEDIUM:Lerp(Colors.ENERGY_FULL, (percent - 0.5) * 2)
         else
             energyColor = Colors.ENERGY_LOW:Lerp(Colors.ENERGY_MEDIUM, percent * 2)
         end
+
         fill.BackgroundColor3 = energyColor
         energyLabel.TextColor3 = energyColor
-        energyLabel.Text = string.format("SYSTEM ENERGY: %d%%", math.floor(State.Energy))
-        
-        if percent < 0.3 then
-            TweenService:Create(energyContainer, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0}):Play()
-            TweenService:Create(energyContainer, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.2}):Wait()
-        end
+        energyLabel.Text = string.format("SYSTEM ENERGY: %d%%", math.clamp(math.floor(State.Energy), 0, 100))
     end)
+
     gui.AncestryChanged:Connect(function()
         if not gui.Parent then
             rsConn:Disconnect()
         end
     end)
+
 end
 
 --// EFEITO DE CAMINHADA
@@ -1694,43 +1693,86 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
+local KeyActions = {
+    [Enum.KeyCode.D] = ExecDash,
+    [Enum.KeyCode.S] = ExecSandi,
+    [Enum.KeyCode.K] = ExecKiroshi,
+    [Enum.KeyCode.O] = ExecOptical,
+    [Enum.KeyCode.N] = ActivateDodgeReady,
+}
+
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-    if input.KeyCode == Enum.KeyCode.D then ExecDash() end
-    if input.KeyCode == Enum.KeyCode.S then ExecSandi() end
-    if input.KeyCode == Enum.KeyCode.K then ExecKiroshi() end
-    if input.KeyCode == Enum.KeyCode.O then ExecOptical() end
-    if input.KeyCode == Enum.KeyCode.N then ActivateDodgeReady() end
+    
+    local action = KeyActions[input.KeyCode]
+    
+    if action then
+        action()
+    end
 end)
 
-local function Init()
-    ResetSandi()
-    
-    local bloom = Create("BloomEffect", {Intensity = 0.5, Size = 20, Threshold = 1, Parent = Lighting})
-    local sunRays = Create("SunRaysEffect", {Intensity = 0.2, Spread = 0.5, Parent = Lighting})
-    local blur = Create("BlurEffect", {Size = 2, Parent = Lighting})
-    local globalCC = Create("ColorCorrectionEffect", {Contrast = 0.1, Saturation = 0.2, Parent = Lighting})
+local function GetOrCreateEffect(className, props)
+    local effect = Lighting:FindFirstChild(className)
+    if not effect then
+        effect = Instance.new(className)
+        effect.Parent = Lighting
+    end
 
-    Character = Player.Character or Player.CharacterAdded:Wait()
-    HRP = Character:WaitForChild("HumanoidRootPart")
-    Humanoid = Character:WaitForChild("Humanoid")
+    for k, v in pairs(props) do
+        effect[k] = v
+    end
+
+    return effect
+end
+
+local function InitVisualEffects()
+    GetOrCreateEffect("BloomEffect", {
+        Intensity = 0.5,
+        Size = 20,
+        Threshold = 1
+    })
+
+    GetOrCreateEffect("SunRaysEffect", {
+        Intensity = 0.2,
+        Spread = 0.5
+    })
+
+    GetOrCreateEffect("BlurEffect", {
+        Size = 2
+    })
+
+    GetOrCreateEffect("ColorCorrectionEffect", {
+        Contrast = 0.1,
+        Saturation = 0.2
+    })
+end
+
+local function SetupCharacter(character)
+    ResetSandi()
+    ResetOptical()
+    CleanupSandiSounds()
+
+    Character = character
+    HRP = character:WaitForChild("HumanoidRootPart")
+    Humanoid = character:WaitForChild("Humanoid")
+
     State.LastHealth = Humanoid.Health
+
     BuildUI()
     InitWalkEffect()
     InitDirectionalMovement()
-    Player.CharacterAdded:Connect(function(newChar)
-        ResetSandi()
-        ResetOptical()
-        Character = newChar
-        HRP = newChar:WaitForChild("HumanoidRootPart")
-        Humanoid = newChar:WaitForChild("Humanoid")
-        State.LastHealth = Humanoid.Health
-        CleanupSandiSounds()
-        BuildUI()
-        InitWalkEffect()
-        InitDirectionalMovement()
-    end)
 end
+
+local function Init()
+    InitVisualEffects()
+
+    if Player.Character then
+        SetupCharacter(Player.Character)
+    end
+
+    Player.CharacterAdded:Connect(SetupCharacter)
+end
+
 Init()
 
 -- Roupinhas da mother
@@ -1784,8 +1826,6 @@ local function attachAsset(character: Model, id: number)
         local bodyAttachment = character:FindFirstChild(itemAttachment.Name, true)
 
         if bodyAttachment and bodyAttachment:IsA("Attachment") then
-            
-            -- monta constraint ANTES de parentear
             local rc = Instance.new("RigidConstraint")
             rc.Attachment0 = bodyAttachment
             rc.Attachment1 = itemAttachment
@@ -1795,8 +1835,7 @@ local function attachAsset(character: Model, id: number)
             return
         end
     end
-
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    
     local root = character:FindFirstChild("HumanoidRootPart")
 
     local targetPart =
