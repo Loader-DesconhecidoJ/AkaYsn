@@ -14,6 +14,7 @@ local UserInputService = game:GetService("UserInputService")
 local Debris = game:GetService("Debris")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
+local ContentProvider = game:GetService("ContentProvider")
 
 --// TIPOS
 type Cooldowns = {
@@ -49,9 +50,9 @@ local Constants = {
     COOLDOWNS = {
         SANDI = 8,
         DASH = 3.5,
-        DODGE = 5,
+        DODGE = 4.5,
         KIROSHI = 3.5,
-        OPTICAL = 5
+        OPTICAL = 6.5
     },
     HOLOGRAM_CLONE = {
         SANDI = {
@@ -83,9 +84,9 @@ local Constants = {
         SANDI_ACTIVATE = 30,
         SANDI_DRAIN = 2.5,  -- por segundo
         DASH = 8,
-        DODGE = 10,
+        DODGE = 5,
         KIROSHI = 10,
-        OPTICAL = 20
+        OPTICAL = 15
     },
     REGEN_RATE = 15,  -- por segundo
     REGEN_DELAY_ZERO = 10,
@@ -101,7 +102,7 @@ local Constants = {
         NORMAL_DISTANCE_ENEMY = 6
     },
     SANDEVISTAN_FAILURE_CHANCE = 0.3,  -- 20% de falha
-    GLITCH_DURATION = 1.5  -- Duração do efeito de glitch
+    GLITCH_DURATION = 3  -- Duração do efeito de glitch
 }
 
 --// CONFIGURAÇÕES GERAIS (Valores configuráveis como gravidade lenta, material de hologramas, etc.)
@@ -166,7 +167,7 @@ local Colors = {
 --// SONS (Todos os sons com volume, pitch e looped configuráveis)
 local Sounds = {
     DODGE_NORMAL = {id = "rbxassetid://120416852427789", volume = 1.5, pitch = 1, looped = false},
-    DODGE_VARIANT = {id = "rbxassetid://126105499913504", volume = 1.5, pitch = 1, looped = false},
+    DODGE_VARIANT = {id = "rbxassetid://80429302872625", volume = 1.5, pitch = 1, looped = false},
     DASH = {id = "rbxassetid://103247005619946", volume = 1.2, pitch = 1, looped = false},
     SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1, pitch = 1, looped = false},
     SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1, pitch = 1, looped = false},
@@ -213,6 +214,7 @@ local originalSoundSpeeds: {[Sound]: number} = {}
 local originalVelocityInstances: {Instance: Vector3} = {}
 local animationConnections: {RBXScriptConnection} = {}
 local isInvincible = false
+local opticalToken = 0
 
 -- Variáveis e funções de invisibilidade
 local invisSound = Instance.new("Sound", Player:WaitForChild("PlayerGui"))
@@ -230,6 +232,9 @@ local function setTransparency(character, targetTransparency, duration)
     local tweenInfo = TweenInfo.new(duration or 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") or part:IsA("Decal") then
+            if part.Name == "HumanoidRootPart" then
+                continue
+            end
             TweenService:Create(part, tweenInfo, {Transparency = targetTransparency}):Play()
         end
     end
@@ -238,11 +243,11 @@ end
 local function activateInvisibility()
     invisSound:Play()
     local savedpos = Player.Character.HumanoidRootPart.CFrame
-    wait()
+    task.wait()
     local invisPos = getSafeInvisPosition()
     Player.Character:MoveTo(invisPos)
-    wait(.15)
-    local Seat = Instance.new('Seat', game.Workspace)
+    task.wait(0.15)
+    local Seat = Instance.new('Seat', Workspace)
     Seat.Anchored = false
     Seat.CanCollide = false
     Seat.Name = 'invischair'
@@ -251,14 +256,14 @@ local function activateInvisibility()
     local Weld = Instance.new("Weld", Seat)
     Weld.Part0 = Seat
     Weld.Part1 = Player.Character:FindFirstChild("Torso") or Player.Character.UpperTorso
-    wait()
+    task.wait()
     Seat.CFrame = savedpos
     setTransparency(Player.Character, 0.5, 0.5)  -- Fade para semi-transparente
 end
 
 local function deactivateInvisibility()
     invisSound:Play()
-    local invisChair = workspace:FindFirstChild('invischair')
+    local invisChair = Workspace:FindFirstChild('invischair')
     if invisChair then
         invisChair:Destroy()
     end
@@ -774,8 +779,8 @@ local function ExecDodge(enemyPart: BasePart?)
             endCFrame = HRP.CFrame * CFrame.new(0, 0, -Constants.DODGE_CONFIG.NORMAL_DISTANCE_NO_ENEMY) 
         end
         
-        -- Adiciona um clone na posição inicial, dura 1s e fade out
-        CreateHologramClone(0, 1, 1, 0, 0, 0, "dodge")
+        -- Clone único no local inicial, dura 1s e some em fade out
+        CreateHologramClone(0, 1, 1, 0, 0, 0, "dodge", startCFrame)
         
         HRP.CFrame = endCFrame
     end
@@ -816,6 +821,7 @@ local function ResetSandi()
     if Humanoid then
         Humanoid.WalkSpeed = 16
         if originalPlayerJumpPower then
+            Humanoid.UseJumpPower = true
             Humanoid.JumpPower = originalPlayerJumpPower
             originalPlayerJumpPower = nil
         end
@@ -914,14 +920,11 @@ local function UpdateDashButton()
     if not gui then return end
     local dashBtn = gui:FindFirstChild("DashBtn")
     if not dashBtn then return end
-    local lockLabel = dashBtn:FindFirstChild("LockLabel")
     
     if State.IsSandiActive then
         dashBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
-        if lockLabel then lockLabel.Visible = true end
     else
         dashBtn.TextColor3 = Colors.DASH_CYAN
-        if lockLabel then lockLabel.Visible = false end
     end
 end
 
@@ -930,14 +933,11 @@ local function UpdateKiroshiButton()
     if not gui then return end
     local kiroshiBtn = gui:FindFirstChild("KiroshiBtn")
     if not kiroshiBtn then return end
-    local lockLabel = kiroshiBtn:FindFirstChild("LockLabel")
     
     if State.IsSandiActive then
         kiroshiBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
-        if lockLabel then lockLabel.Visible = true end
     else
         kiroshiBtn.TextColor3 = Colors.KIROSHI
-        if lockLabel then lockLabel.Visible = false end
     end
 end
 
@@ -946,14 +946,11 @@ local function UpdateOpticalButton()
     if not gui then return end
     local opticalBtn = gui:FindFirstChild("OpticalBtn")
     if not opticalBtn then return end
-    local lockLabel = opticalBtn:FindFirstChild("LockLabel")
     
     if State.IsSandiActive then
         opticalBtn.TextColor3 = Color3.new(0.5, 0.5, 0.5)
-        if lockLabel then lockLabel.Visible = true end
     else
         opticalBtn.TextColor3 = Colors.OPTICAL
-        if lockLabel then lockLabel.Visible = false end
     end
 end
 
@@ -1240,35 +1237,47 @@ local function ExecKiroshi()
     end)
 end
 
-local opticalTimer: thread? = nil
-
 local function ResetOptical()
     if not State.IsOpticalActive then return end
+    
+    opticalToken += 1
+    
     State.IsOpticalActive = false
     deactivateInvisibility()
     State.Cooldowns.OPTICAL = os.clock() + Constants.COOLDOWNS.OPTICAL
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+    
     ShowCooldownText("Optical Camouflage", Constants.COOLDOWNS.OPTICAL, Colors.OPTICAL)
-    if opticalTimer then
-        task.cancel(opticalTimer)
-        opticalTimer = nil
-    end
 end
 
 local function ExecOptical()
     if State.IsSandiActive then return end
-    if os.clock() < State.Cooldowns.OPTICAL or State.IsOpticalActive then
-        if State.IsOpticalActive then
-            ResetOptical()
-        end
+    
+    if State.IsOpticalActive then
+        ResetOptical()
         return
     end
+
+    if os.clock() < State.Cooldowns.OPTICAL then
+        return
+    end
+    
     if State.Energy < Constants.ENERGY_COSTS.OPTICAL then return end
+    
     State.Energy -= Constants.ENERGY_COSTS.OPTICAL
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.IsOpticalActive = true
+    
     activateInvisibility()
-    opticalTimer = task.delay(Constants.OPTICAL_DURATION, ResetOptical)
+
+    opticalToken += 1
+    local myToken = opticalToken
+    
+    task.delay(Constants.OPTICAL_DURATION, function()
+        if myToken == opticalToken then
+            ResetOptical()
+        end
+    end)
 end
 
 --// SISTEMA DE UI
@@ -1332,19 +1341,6 @@ local function BuildUI()
         Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = btn})
         local gradient = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_BG, color), Rotation = 45, Parent = btn})
         
-        local lockLabel = Create("TextLabel", {
-            Name = "LockLabel",
-            Size = UDim2.new(0.5, 0, 0.5, 0),
-            Position = UDim2.new(0.25, 0, 0.25, 0),
-            BackgroundTransparency = 1,
-            Text = "🔒",
-            TextColor3 = Color3.fromRGB(255, 0, 0),
-            Font = Enum.Font.SciFi,
-            TextSize = 24,
-            Visible = false,
-            Parent = btn
-        })
-        
         btn.MouseButton1Down:Connect(function()
             TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), {Size = UDim2.new(0, 45, 0, 45), BackgroundColor3 = color, TextColor3 = Colors.UI_BG}):Play()
             TweenService:Create(stroke, TweenInfo.new(0.1), {Transparency = 0}):Play()
@@ -1357,12 +1353,7 @@ local function BuildUI()
             TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0.5}):Play()
         end)
         
-        task.spawn(function()
-            while btn.Parent do
-                TweenService:Create(btn, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation = 2}):Play()
-                TweenService:Create(btn, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation = -2}):Wait()
-            end
-        end)
+        TweenService:Create(btn, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Rotation = 2}):Play()
         
         MakeDraggable(btn)
         if name == "SandiBtn" then
@@ -1425,11 +1416,6 @@ local function BuildUI()
             TweenService:Create(energyContainer, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0}):Play()
             TweenService:Create(energyContainer, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.2}):Wait()
         end
-        
-        -- Atualização adicional dos botões para garantir que os cadeados sejam atualizados
-        UpdateDashButton()
-        UpdateKiroshiButton()
-        UpdateOpticalButton()
     end)
     gui.AncestryChanged:Connect(function()
         if not gui.Parent then
@@ -1729,89 +1715,114 @@ local function Init()
 end
 Init()
 
-local Players = game:GetService("Players")
-local lp = Players.LocalPlayer
-
--- ================= CONFIGURAÇÃO =================
+-- Roupinhas da mother
 local IDS_CATALOGO = {
     18358624045,
     18358533023,
     18358615215,
     89883990361521,
 }
--- ================================================
+
+local function attachAsset(character: Model, id: number)
+
+    local success, objects = pcall(function()
+        return game:GetObjects(("rbxassetid://%d"):format(id))
+    end)
+
+    if not success or not objects or not objects[1] then
+        warn("Failed to load asset:", id)
+        return
+    end
+
+    local asset = objects[1]
+
+    for _, obj in ipairs(asset:GetDescendants()) do
+        if obj:IsA("LuaSourceContainer")
+        or obj:IsA("Weld")
+        or obj:IsA("WeldConstraint")
+        or obj:IsA("Motor6D") then
+            obj:Destroy()
+        end
+    end
+
+    local handle = asset:IsA("BasePart")
+        and asset
+        or asset:FindFirstChildWhichIsA("BasePart", true)
+
+    if not handle then
+        warn("Asset has no BasePart:", id)
+        asset:Destroy()
+        return
+    end
+
+    handle.CanCollide = false
+    handle.Massless = true
+    handle.Anchored = false
+
+    local itemAttachment = handle:FindFirstChildWhichIsA("Attachment", true)
+
+    if itemAttachment then
+        
+        local bodyAttachment = character:FindFirstChild(itemAttachment.Name, true)
+
+        if bodyAttachment and bodyAttachment:IsA("Attachment") then
+            
+            -- monta constraint ANTES de parentear
+            local rc = Instance.new("RigidConstraint")
+            rc.Attachment0 = bodyAttachment
+            rc.Attachment1 = itemAttachment
+            rc.Parent = handle
+
+            asset.Parent = character
+            return
+        end
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local root = character:FindFirstChild("HumanoidRootPart")
+
+    local targetPart =
+        character:FindFirstChild("UpperTorso")
+        or character:FindFirstChild("Torso")
+        or root
+
+    if not targetPart then
+        warn("No valid body part:", id)
+        asset:Destroy()
+        return
+    end
+
+    handle.CFrame = targetPart.CFrame
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = targetPart
+    weld.Part1 = handle
+    weld.Parent = handle
+
+    asset.Parent = character
+end
+
 
 local function AnexarTudo()
-    local character = lp.Character or lp.CharacterAdded:Wait()
-    
-    for _, id in pairs(IDS_CATALOGO) do
-        task.spawn(function()
-            local sucesso, objects = pcall(function()
-                return game:GetObjects("rbxassetid://" .. id)
-            end)
+    local character = Player.Character or Player.CharacterAdded:Wait()
 
-            if sucesso and objects and objects[1] then
-                local asset = objects[1]:Clone()
-                local handle = asset:IsA("BasePart") and asset or asset:FindFirstChild("Handle", true)
+    local assetsToLoad = {}
 
-                if handle then
-                    for _, v in pairs(asset:GetDescendants()) do
-                        if v:IsA("LuaSourceContainer") then v:Destroy() end
-                    end
+    for _, id in ipairs(IDS_CATALOGO) do
+        table.insert(assetsToLoad, "rbxassetid://"..id)
+    end
 
-                    handle.CanCollide = false
-                    handle.Massless = true
-                    asset.Parent = character
+    ContentProvider:PreloadAsync(assetsToLoad)
 
-                    local attachmentItem = handle:FindFirstChildWhichIsA("Attachment")
-                    local partAlvo = nil
-                    local attachmentCorpo = nil
-
-                    if attachmentItem then
-                        for _, parte in pairs(character:GetChildren()) do
-                            if parte:IsA("BasePart") then
-                                local found = parte:FindFirstChild(attachmentItem.Name)
-                                if found then
-                                    partAlvo = parte
-                                    attachmentCorpo = found
-                                    break
-                                end
-                            end
-                        end
-                    end
-
-                    if not partAlvo then
-                        partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
-                    end
-
-                    if partAlvo then
-                        local weld = Instance.new("Weld")
-                        weld.Name = "AutoWeld_" .. id
-                        weld.Part0 = partAlvo
-                        weld.Part1 = handle
-                        
-                        if attachmentItem and attachmentCorpo then
-                            weld.C0 = attachmentCorpo.CFrame
-                            weld.C1 = attachmentItem.CFrame
-                        else
-                            weld.C0 = CFrame.new(0, 0, 0.6) * CFrame.Angles(0, math.rad(180), 0)
-                        end
-                        
-                        weld.Parent = handle
-                        print("✅ Item " .. id .. " identificado e preso em: " .. partAlvo.Name)
-                    end
-                end
-                objects[1]:Destroy()
-            end
-        end)
+    for _, id in ipairs(IDS_CATALOGO) do
+        attachAsset(character, id)
     end
 end
 
 AnexarTudo()
 
-lp.CharacterAdded:Connect(function()
-    task.wait(2) 
+Player.CharacterAdded:Connect(function(char)
+    char:WaitForChild("HumanoidRootPart")
+    task.wait(0.5)
     AnexarTudo()
 end)
-
-print("🚀 Identificação de Categoria Ativa!")
