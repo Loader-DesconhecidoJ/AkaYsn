@@ -42,7 +42,7 @@ type SystemState = {
 --// CONSTANTES 
 local Constants = {
     MAX_ENERGY = 100,
-    SANDI_SPEED = 60,
+    SANDI_SPEED = 75,
     DASH_FORCE = 100,
     MOVING_THRESHOLD = 1,
     OPTICAL_DURATION = 5,
@@ -108,7 +108,7 @@ local Constants = {
 --// CONFIGURAÇÕES GERAIS 
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Ajuste para gravidade personalizada durante slow motion
-    HOLOGRAM_MATERIAL = Enum.Material.Neon,
+    HOLOGRAM_MATERIAL = Enum.Material.Highlight,
     ASSETS = {
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
@@ -526,9 +526,9 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
             if not Configurations.HOLOGRAM_PRESERVE.ORIGINAL_COLOR then
                 part.Color = Colors.RAINBOW_SEQUENCE[1]
             end
-            part.Transparency = 0.1
+            part.Transparency = 0.3
         elseif part:IsA("Decal") or part:IsA("Texture") then
-            part.Transparency = 0.1
+            part.Transparency = 0.3
         end
     end
 
@@ -1001,7 +1001,7 @@ local function PlayActivationSequence()
         Size = UDim2.new(1, 0, 1, 0),
         Position = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1,
-        ImageTransparency = 0.1,
+        ImageTransparency = 0.3,
         ZIndex = 100,
         Parent = gui
     })
@@ -1853,6 +1853,7 @@ local SET_2 = {
     18358624045,
     18358533023,
     18358615215,
+    15717334499
 }
 
 local currentSet = 1
@@ -1895,7 +1896,7 @@ local gradient = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_BG, C
 local function LimparAcessorios()
     local char = lp.Character
     if char then
-        for _, v in pairs(char:GetChildren()) do
+        for _, v in pairs(char:GetDescendants()) do
             if v:IsA("Accessory") and (v.Name:find("SetItem_") or v:FindFirstChild("AutoWeldTag")) then
                 v:Destroy()
             end
