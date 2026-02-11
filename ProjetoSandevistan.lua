@@ -1001,7 +1001,7 @@ local function PlayActivationSequence()
         Size = UDim2.new(1, 0, 1, 0),
         Position = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1,
-        ImageTransparency = 0.3,
+        ImageTransparency = 0.12,
         ZIndex = 100,
         Parent = gui
     })
