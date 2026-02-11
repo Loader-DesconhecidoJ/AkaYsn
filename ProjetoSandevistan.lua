@@ -42,7 +42,7 @@ type SystemState = {
 --// CONSTANTES 
 local Constants = {
     MAX_ENERGY = 100,
-    SANDI_SPEED = 75,
+    SANDI_SPEED = 60,
     DASH_FORCE = 100,
     MOVING_THRESHOLD = 1,
     OPTICAL_DURATION = 5,
