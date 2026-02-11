@@ -108,7 +108,7 @@ local Constants = {
 --// CONFIGURAÇÕES GERAIS 
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Ajuste para gravidade personalizada durante slow motion
-    HOLOGRAM_MATERIAL = Enum.Material.Plastic,
+    HOLOGRAM_MATERIAL = Enum.Material.Neon,
     ASSETS = {
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
