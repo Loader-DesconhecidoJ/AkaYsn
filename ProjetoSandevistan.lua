@@ -1,4 +1,3 @@
---!strict
 --[[
     ╔═════════════════════════════════════════════════════════════════════════════╗
     ║               PREMIUM CYBERPUNK SANDEVISTAN - EDGERUNNERS STYLE V4.3        ║
@@ -161,6 +160,59 @@ local Colors = {
     LIGHT_GREEN = Color3.fromRGB(100, 200, 100),  
     ERROR_TEXT = Color3.fromRGB(169, 169, 169),  
     ERROR_BORDER = Color3.fromRGB(105, 105, 105)  
+}
+
+--// CONFIGURAÇÕES DE BOTÕES
+local ButtonConfigs = {
+    LockBtn = {
+        Size = UDim2.new(0, 35, 0, 35),
+        Position = UDim2.new(1, -50, 0, 50),
+        BackgroundColor3 = Colors.UI_BG,
+        TextColor3 = Colors.TEXT_DEFAULT,
+        Font = Enum.Font.SciFi,
+        TextSize = 20,
+        Text = "⚙️"
+    },
+    EnergyContainer = {
+        Size = UDim2.new(0, 300, 0, 15),
+        Position = UDim2.new(0.5, -150, 0.92, 0),
+        BackgroundColor3 = Colors.UI_BG,
+        BorderSizePixel = 0
+    },
+    DashBtn = {
+        Key = "D",
+        Color = Colors.DASH_CYAN,
+        Position = UDim2.new(0.75, 0, 0.85, 0)
+    },
+    SandiBtn = {
+        Key = "S",
+        Color = Color3.new(1,1,1),
+        Position = UDim2.new(0.8, 0, 0.85, 0)
+    },
+    KiroshiBtn = {
+        Key = "Ko",
+        Color = Colors.KIROSHI,
+        Position = UDim2.new(0.85, 0, 0.85, 0)
+    },
+    OpticalBtn = {
+        Key = "Oc",
+        Color = Colors.OPTICAL,
+        Position = UDim2.new(0.9, 0, 0.85, 0)
+    },
+    DodgeBtn = {
+        Key = "N",
+        Color = Colors.DODGE_START,
+        Position = UDim2.new(0.95, 0, 0.85, 0)
+    },
+    TrocarSetBtn = {
+        Size = UDim2.new(0, 35, 0, 35),
+        Position = UDim2.new(1, -50, 0, 30),
+        BackgroundColor3 = Colors.UI_BG,
+        TextColor3 = Colors.TEXT_DEFAULT,
+        Font = Enum.Font.SciFi,
+        TextSize = 20,
+        Text = "🔄"
+    }
 }
 
 --// SONS 
@@ -1330,12 +1382,29 @@ local function BuildUI()
     if Player.PlayerGui:FindFirstChild("CyberRebuilt") then Player.PlayerGui.CyberRebuilt:Destroy() end
     local gui = Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
     
-    local lockBtn = Create("TextButton", {Name = "LockBtn", Size = UDim2.new(0, 35, 0, 35), Position = savedPositions["LockBtn"] or UDim2.new(1, -50, 0, 50), Text = "⚙️", BackgroundColor3 = Colors.UI_BG, TextColor3 = Colors.TEXT_DEFAULT, Font = Enum.Font.SciFi, TextSize = 20, Parent = gui})
+    local lockBtn = Create("TextButton", {
+        Name = "LockBtn",
+        Size = ButtonConfigs.LockBtn.Size,
+        Position = savedPositions["LockBtn"] or ButtonConfigs.LockBtn.Position,
+        Text = ButtonConfigs.LockBtn.Text,
+        BackgroundColor3 = ButtonConfigs.LockBtn.BackgroundColor3,
+        TextColor3 = ButtonConfigs.LockBtn.TextColor3,
+        Font = ButtonConfigs.LockBtn.Font,
+        TextSize = ButtonConfigs.LockBtn.TextSize,
+        Parent = gui
+    })
     Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = lockBtn})
     Create("UIStroke", {Color = Colors.TEXT_DEFAULT, Thickness = 2, Parent = lockBtn})
     local gradientLock = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_BG, Colors.UI_ACCENT), Rotation = 45, Parent = lockBtn})
     
-    local energyContainer = Create("Frame", {Name = "EnergyContainer", Size = UDim2.new(0, 300, 0, 15), Position = savedPositions["EnergyContainer"] or UDim2.new(0.5, -150, 0.92, 0), BackgroundColor3 = Colors.UI_BG, BorderSizePixel = 0, Parent = gui})
+    local energyContainer = Create("Frame", {
+        Name = "EnergyContainer",
+        Size = ButtonConfigs.EnergyContainer.Size,
+        Position = savedPositions["EnergyContainer"] or ButtonConfigs.EnergyContainer.Position,
+        BackgroundColor3 = ButtonConfigs.EnergyContainer.BackgroundColor3,
+        BorderSizePixel = ButtonConfigs.EnergyContainer.BorderSizePixel,
+        Parent = gui
+    })
     Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = energyContainer})
     Create("UIStroke", {Color = Colors.UI_ACCENT, Thickness = 1, Parent = energyContainer})
     
@@ -1381,11 +1450,11 @@ local function BuildUI()
         return btn
     end
     
-    CreateSkillBtn("D", Colors.DASH_CYAN, UDim2.new(0.75, 0, 0.85, 0), "DashBtn", ExecDash)
-    CreateSkillBtn("S", Color3.new(1,1,1), UDim2.new(0.8, 0, 0.85, 0), "SandiBtn", ExecSandi)
-    CreateSkillBtn("Ko", Colors.KIROSHI, UDim2.new(0.85, 0, 0.85, 0), "KiroshiBtn", ExecKiroshi)
-    CreateSkillBtn("Oc", Colors.OPTICAL, UDim2.new(0.9, 0, 0.85, 0), "OpticalBtn", ExecOptical)
-    CreateSkillBtn("N", Colors.DODGE_START, UDim2.new(0.95, 0, 0.85, 0), "DodgeBtn", ActivateDodgeReady)
+    CreateSkillBtn(ButtonConfigs.DashBtn.Key, ButtonConfigs.DashBtn.Color, ButtonConfigs.DashBtn.Position, "DashBtn", ExecDash)
+    CreateSkillBtn(ButtonConfigs.SandiBtn.Key, ButtonConfigs.SandiBtn.Color, ButtonConfigs.SandiBtn.Position, "SandiBtn", ExecSandi)
+    CreateSkillBtn(ButtonConfigs.KiroshiBtn.Key, ButtonConfigs.KiroshiBtn.Color, ButtonConfigs.KiroshiBtn.Position, "KiroshiBtn", ExecKiroshi)
+    CreateSkillBtn(ButtonConfigs.OpticalBtn.Key, ButtonConfigs.OpticalBtn.Color, ButtonConfigs.OpticalBtn.Position, "OpticalBtn", ExecOptical)
+    CreateSkillBtn(ButtonConfigs.DodgeBtn.Key, ButtonConfigs.DodgeBtn.Color, ButtonConfigs.DodgeBtn.Position, "DodgeBtn", ActivateDodgeReady)
     
     MakeDraggable(energyContainer)
     MakeDraggable(lockBtn)
@@ -1775,111 +1844,168 @@ end
 
 Init()
 
--- Roupinhas da mother
-local IDS_CATALOGO = {
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+
+-- ================= CONFIGURAÇÃO DE SETS =================
+local SET_1 = {120005268911290}
+local SET_2 = {
     18358624045,
     18358533023,
     18358615215,
-    89883990361521,
+    15717334499
 }
 
-local function attachAsset(character: Model, id: number)
+local currentSet = 1
+local setColors = {
+    [1] = Color3.fromRGB(45, 45, 45),
+    [2] = Color3.fromRGB(0, 120, 215)
+}
+-- ========================================================
 
-    local success, objects = pcall(function()
-        return game:GetObjects(("rbxassetid://%d"):format(id))
-    end)
+-- Criando a Interface (Botão no Canto Superior Direito)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AlternadorSets"
+screenGui.Parent = lp:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
 
-    if not success or not objects or not objects[1] then
-        warn("Failed to load asset:", id)
-        return
-    end
+local button = Instance.new("TextButton")
+button.Name = "TrocarSetBtn"
+button.Size = ButtonConfigs.TrocarSetBtn.Size
+button.Position = ButtonConfigs.TrocarSetBtn.Position
+button.BackgroundColor3 = setColors[1]
+button.TextColor3 = ButtonConfigs.TrocarSetBtn.TextColor3
+button.Text = ButtonConfigs.TrocarSetBtn.Text
+button.Font = ButtonConfigs.TrocarSetBtn.Font
+button.TextSize = ButtonConfigs.TrocarSetBtn.TextSize
+button.Parent = screenGui
 
-    local asset = objects[1]
+-- Estilo do Botão (igual ao lockBtn)
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = button
 
-    for _, obj in ipairs(asset:GetDescendants()) do
-        if obj:IsA("LuaSourceContainer")
-        or obj:IsA("Weld")
-        or obj:IsA("WeldConstraint")
-        or obj:IsA("Motor6D") then
-            obj:Destroy()
+local stroke = Instance.new("UIStroke")
+stroke.Color = Colors.TEXT_DEFAULT
+stroke.Thickness = 2
+stroke.Parent = button
+
+local gradient = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_BG, Colors.UI_ACCENT), Rotation = 45, Parent = button})
+
+-- Função para limpar acessórios criados pelo script
+local function LimparAcessorios()
+    local char = lp.Character
+    if char then
+        for _, v in pairs(char:GetDescendants()) do
+            if v:IsA("Accessory") and (v.Name:find("SetItem_") or v:FindFirstChild("AutoWeldTag")) then
+                v:Destroy()
+            end
         end
-    end
-
-    local handle = asset:IsA("BasePart")
-        and asset
-        or asset:FindFirstChildWhichIsA("BasePart", true)
-
-    if not handle then
-        warn("Asset has no BasePart:", id)
-        asset:Destroy()
-        return
-    end
-
-    handle.CanCollide = false
-    handle.Massless = true
-    handle.Anchored = false
-
-    local itemAttachment = handle:FindFirstChildWhichIsA("Attachment", true)
-
-    if itemAttachment then
-        
-        local bodyAttachment = character:FindFirstChild(itemAttachment.Name, true)
-
-        if bodyAttachment and bodyAttachment:IsA("Attachment") then
-            local rc = Instance.new("RigidConstraint")
-            rc.Attachment0 = bodyAttachment
-            rc.Attachment1 = itemAttachment
-            rc.Parent = handle
-
-            asset.Parent = character
-            return
-        end
-    end
-    
-    local root = character:FindFirstChild("HumanoidRootPart")
-
-    local targetPart =
-        character:FindFirstChild("UpperTorso")
-        or character:FindFirstChild("Torso")
-        or root
-
-    if not targetPart then
-        warn("No valid body part:", id)
-        asset:Destroy()
-        return
-    end
-
-    handle.CFrame = targetPart.CFrame
-
-    local weld = Instance.new("WeldConstraint")
-    weld.Part0 = targetPart
-    weld.Part1 = handle
-    weld.Parent = handle
-
-    asset.Parent = character
-end
-
-
-local function AnexarTudo()
-    local character = Player.Character or Player.CharacterAdded:Wait()
-
-    local assetsToLoad = {}
-
-    for _, id in ipairs(IDS_CATALOGO) do
-        table.insert(assetsToLoad, "rbxassetid://"..id)
-    end
-
-    ContentProvider:PreloadAsync(assetsToLoad)
-
-    for _, id in ipairs(IDS_CATALOGO) do
-        attachAsset(character, id)
     end
 end
 
-AnexarTudo()
+-- Função para aplicar o Set
+local function AplicarSet(listaIds)
+    local character = lp.Character or lp.CharacterAdded:Wait()
+    LimparAcessorios()
 
-Player.CharacterAdded:Connect(function(char)
-    char:WaitForChild("HumanoidRootPart")
-    task.wait(0.5)
-    AnexarTudo()
+    for _, id in pairs(listaIds) do
+        task.spawn(function()
+            local sucesso, objects = pcall(function()
+                return game:GetObjects("rbxassetid://" .. id)
+            end)
+
+            if sucesso and objects and objects[1] then
+                local asset = objects[1]:Clone()
+                asset.Name = "SetItem_" .. id
+                
+                -- Tag para facilitar a limpeza depois
+                local tag = Instance.new("BoolValue")
+                tag.Name = "AutoWeldTag"
+                tag.Parent = asset
+
+                local handle = asset:IsA("BasePart") and asset or asset:FindFirstChild("Handle", true)
+
+                if handle then
+                    for _, v in pairs(asset:GetDescendants()) do
+                        if v:IsA("LuaSourceContainer") then v:Destroy() end
+                    end
+
+                    handle.CanCollide = false
+                    handle.Massless = true
+                    asset.Parent = character
+
+                    local attachmentItem = handle:FindFirstChildWhichIsA("Attachment")
+                    local partAlvo = nil
+                    local attachmentCorpo = nil
+
+                    if attachmentItem then
+                        for _, parte in pairs(character:GetChildren()) do
+                            if parte:IsA("BasePart") then
+                                local found = parte:FindFirstChild(attachmentItem.Name)
+                                if found then
+                                    partAlvo = parte
+                                    attachmentCorpo = found
+                                    break
+                                end
+                            end
+                        end
+                    end
+
+                    if not partAlvo then
+                        partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+                    end
+
+                    if partAlvo then
+                        local weld = Instance.new("Weld")
+                        weld.Part0 = partAlvo
+                        weld.Part1 = handle
+                        
+                        if attachmentItem and attachmentCorpo then
+                            weld.C0 = attachmentCorpo.CFrame
+                            weld.C1 = attachmentItem.CFrame
+                        else
+                            -- Fallback para costas caso não tenha anexo
+                            weld.C0 = CFrame.new(0, 0, 0.6) * CFrame.Angles(0, math.rad(180), 0)
+                        end
+                        weld.Parent = handle
+                    end
+                end
+                objects[1]:Destroy()
+            end
+        end)
+    end
+end
+
+-- Animação ao clicar
+button.MouseButton1Down:Connect(function()
+    TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), {Size = UDim2.new(0, 30, 0, 30), BackgroundColor3 = Colors.UI_ACCENT, TextColor3 = Colors.UI_BG}):Play()
+    TweenService:Create(stroke, TweenInfo.new(0.1), {Transparency = 0}):Play()
 end)
+
+button.MouseButton1Up:Connect(function()
+    TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Bounce, Enum.EasingDirection.In), {Size = UDim2.new(0, 35, 0, 35), BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.TEXT_DEFAULT}):Play()
+    TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0}):Play()
+end)
+
+-- Lógica do Clique (Alternar)
+button.MouseButton1Click:Connect(function()
+    if currentSet == 1 then
+        currentSet = 2
+        button.BackgroundColor3 = setColors[2]
+        AplicarSet(SET_2)
+    else
+        currentSet = 1
+        button.BackgroundColor3 = setColors[1]
+        AplicarSet(SET_1)
+    end
+end)
+
+-- Mantém o set escolhido ao renascer
+lp.CharacterAdded:Connect(function()
+    task.wait(2)
+    if currentSet == 1 then AplicarSet(SET_1) else AplicarSet(SET_2) end
+end)
+
+-- Iniciar com o Set 1
+AplicarSet(SET_1)
