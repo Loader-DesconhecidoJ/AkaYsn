@@ -56,16 +56,16 @@ local Constants = {
     },
     HOLOGRAM_CLONE = {
         SANDI = {
-            DELAY = 0.055,
-            DURATION = 0.5,
-            END_TRANSPARENCY = 0.9,
+            DELAY = 0.07,
+            DURATION = 0.7,
+            END_TRANSPARENCY = 1,
             OFFSET_X = 0,
             OFFSET_Y = 0,
             OFFSET_Z = 0
         },
         DASH = {
-            DELAY = 0.45,
-            DURATION = 0.4,
+            DELAY = 0.07,
+            DURATION = 0.3,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
             OFFSET_Y = 0,
