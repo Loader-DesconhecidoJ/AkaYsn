@@ -138,10 +138,6 @@ local Colors = {
         Color3.fromRGB(75, 0, 130),
         Color3.fromRGB(238, 130, 238)
     },
-    DODGE_SEQUENCE = {
-        Color3.fromRGB(160, 0, 255),  -- Roxo
-        Color3.fromRGB(255, 0, 130)   -- Rosa
-    },
     DASH_CYAN = Color3.fromRGB(0, 255, 255),
     DASH_CYAN_LIGHT = Color3.fromRGB(100, 255, 255),
     DASH_CYAN_DARK = Color3.fromRGB(0, 200, 200),
