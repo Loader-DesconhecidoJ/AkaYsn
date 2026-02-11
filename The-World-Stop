@@ -1637,14 +1637,25 @@ local function UpdateDirectionalMovement(deltaTime)
 end
 
 local function InitDirectionalMovement()
-    Joints = {
-        RootJoint = HRP:WaitForChild("RootJoint"),
-        Neck = Character.Torso:WaitForChild("Neck"),
-        RightShoulder = Character.Torso:WaitForChild("Right Shoulder"),
-        LeftShoulder = Character.Torso:WaitForChild("Left Shoulder"),
-        RightHip = Character.Torso:WaitForChild("Right Hip"),
-        LeftHip = Character.Torso:WaitForChild("Left Hip")
-    }
+    if Humanoid.RigType == Enum.HumanoidRigType.R6 then
+        Joints = {
+            RootJoint = HRP:WaitForChild("RootJoint"),
+            Neck = Character:WaitForChild("Torso"):WaitForChild("Neck"),
+            RightShoulder = Character:WaitForChild("Torso"):WaitForChild("Right Shoulder"),
+            LeftShoulder = Character:WaitForChild("Torso"):WaitForChild("Left Shoulder"),
+            RightHip = Character:WaitForChild("Torso"):WaitForChild("Right Hip"),
+            LeftHip = Character:WaitForChild("Torso"):WaitForChild("Left Hip")
+        }
+    else  -- R15
+        Joints = {
+            RootJoint = Character:WaitForChild("LowerTorso"):WaitForChild("Root"),
+            Neck = Character:WaitForChild("Head"):WaitForChild("Neck"),
+            RightShoulder = Character:WaitForChild("RightUpperArm"):WaitForChild("RightShoulder"),
+            LeftShoulder = Character:WaitForChild("LeftUpperArm"):WaitForChild("LeftShoulder"),
+            RightHip = Character:WaitForChild("RightUpperLeg"):WaitForChild("RightHip"),
+            LeftHip = Character:WaitForChild("LeftUpperLeg"):WaitForChild("LeftHip")
+        }
+    end
 
     JointsC0 = {
         RootJointC0 = Joints.RootJoint.C0,
