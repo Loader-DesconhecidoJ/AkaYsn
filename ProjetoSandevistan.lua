@@ -108,7 +108,7 @@ local Constants = {
 --// CONFIGURAÇÕES GERAIS 
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Ajuste para gravidade personalizada durante slow motion
-    HOLOGRAM_MATERIAL = Enum.Material.Neon,
+    HOLOGRAM_MATERIAL = Enum.Material.SmoothPlastic,
     ASSETS = {
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
@@ -1001,7 +1001,7 @@ local function PlayActivationSequence()
         Size = UDim2.new(1, 0, 1, 0),
         Position = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1,
-        ImageTransparency = 0.12,
+        ImageTransparency = 0.20,
         ZIndex = 100,
         Parent = gui
     })
