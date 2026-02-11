@@ -526,9 +526,9 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
             if not Configurations.HOLOGRAM_PRESERVE.ORIGINAL_COLOR then
                 part.Color = Colors.RAINBOW_SEQUENCE[1]
             end
-            part.Transparency = 0.3
+            part.Transparency = 0.1
         elseif part:IsA("Decal") or part:IsA("Texture") then
-            part.Transparency = 0.3
+            part.Transparency = 0.1
         end
     end
 
@@ -1853,7 +1853,6 @@ local SET_2 = {
     18358624045,
     18358533023,
     18358615215,
-    15717334499
 }
 
 local currentSet = 1
@@ -1896,7 +1895,7 @@ local gradient = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_BG, C
 local function LimparAcessorios()
     local char = lp.Character
     if char then
-        for _, v in pairs(char:GetDescendants()) do
+        for _, v in pairs(char:GetChildren()) do
             if v:IsA("Accessory") and (v.Name:find("SetItem_") or v:FindFirstChild("AutoWeldTag")) then
                 v:Destroy()
             end
