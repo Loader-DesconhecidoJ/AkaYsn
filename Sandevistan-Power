@@ -1679,8 +1679,8 @@ end)
 
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-    if input.KeyCode == Enum.KeyCode.D then ExecDash() end
-    if input.KeyCode == Enum.KeyCode.S then ExecSandi() end
+    if input.KeyCode == Enum.KeyCode.Q then ExecDash() end
+    if input.KeyCode == Enum.KeyCode.E then ExecSandi() end
     if input.KeyCode == Enum.KeyCode.K then ExecKiroshi() end
     if input.KeyCode == Enum.KeyCode.O then ExecOptical() end
 end)
