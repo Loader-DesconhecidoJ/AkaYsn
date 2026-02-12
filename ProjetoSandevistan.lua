@@ -1759,8 +1759,8 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 local KeyActions = {
-    [Enum.KeyCode.D] = ExecDash,
-    [Enum.KeyCode.S] = ExecSandi,
+    [Enum.KeyCode.Q] = ExecDash,
+    [Enum.KeyCode.E] = ExecSandi,
     [Enum.KeyCode.K] = ExecKiroshi,
     [Enum.KeyCode.O] = ExecOptical,
     [Enum.KeyCode.N] = ActivateDodgeReady,
