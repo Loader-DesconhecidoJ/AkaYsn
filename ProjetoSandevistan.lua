@@ -1,11 +1,3 @@
---[[
-    ╔═════════════════════════════════════════════════════════════════════════════╗
-    ║               PREMIUM CYBERPUNK SANDEVISTAN - EDGERUNNERS STYLE V4.3        ║
-    ║              INSPIRED BY DAVID MARTINEZ'S SANDEVISTAN FROM CYBERPUNK 2077   ║
-    ║        UPDATES: Automatic Dodge removed. Registered as a Counter.        ║
-    ╚═════════════════════════════════════════════════════════════════════════════╝
-]]
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -57,7 +49,7 @@ local Constants = {
     HOLOGRAM_CLONE = {
         SANDI = {
             DELAY = 0.07,
-            DURATION = 0.7,
+            DURATION = 1,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
             OFFSET_Y = 0,
@@ -95,8 +87,8 @@ local Constants = {
     KIROSHI_WEAKNESSES = {"Fogo", "Gelo", "Eletricidade", "Veneno"},  
     DODGE_CONFIG = {
         VARIANT_THRESHOLD = 5.5,
-        VARIANT_DURATION = 0.2,
-        VARIANT_CLONE_INTERVAL = 0.05,
+        VARIANT_DURATION = 0.35,
+        VARIANT_CLONE_INTERVAL = 0.03,
         NORMAL_CLONE_SPACING = 2,
         NORMAL_DISTANCE_NO_ENEMY = 12,
         NORMAL_DISTANCE_ENEMY = 6
@@ -107,8 +99,8 @@ local Constants = {
 
 --// CONFIGURAÇÕES GERAIS 
 local Configurations = {
-    SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Ajuste para gravidade personalizada durante slow motion
-    HOLOGRAM_MATERIAL = Enum.Material.SmoothPlastic,
+    SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 1.5,  -- Ajuste para gravidade personalizada durante slow motion
+    HOLOGRAM_MATERIAL = Enum.Material.Neon,
     ASSETS = {
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
@@ -120,7 +112,7 @@ local Configurations = {
         ACCESSORIES = true,
         HAIR = true,
         FACE = false,
-        CLOTHES = false,
+        CLOTHES = true,
         ORIGINAL_MATERIAL = false,
         ORIGINAL_COLOR = false
     }
@@ -997,7 +989,7 @@ local function PlayActivationSequence()
         Size = UDim2.new(1, 0, 1, 0),
         Position = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1,
-        ImageTransparency = 0.20,
+        ImageTransparency = 1,
         ZIndex = 100,
         Parent = gui
     })
