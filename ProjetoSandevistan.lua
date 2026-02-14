@@ -1,11 +1,3 @@
---[[
-    ╔═════════════════════════════════════════════════════════════════════════════╗
-    ║               PREMIUM CYBERPUNK SANDEVISTAN - EDGERUNNERS STYLE V4.3        ║
-    ║              INSPIRED BY DAVID MARTINEZ'S SANDEVISTAN FROM CYBERPUNK 2077   ║
-    ║        UPDATES: Automatic Dodge removed. Registered as a Counter.        ║
-    ╚═════════════════════════════════════════════════════════════════════════════╝
-]]
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -96,7 +88,7 @@ local Constants = {
     DODGE_CONFIG = {
         VARIANT_THRESHOLD = 5.5,
         VARIANT_DURATION = 0.35,
-        VARIANT_CLONE_INTERVAL = 0.045,
+        VARIANT_CLONE_INTERVAL = 0.05,
         NORMAL_CLONE_SPACING = 2,
         NORMAL_DISTANCE_NO_ENEMY = 12,
         NORMAL_DISTANCE_ENEMY = 6
@@ -129,6 +121,7 @@ local Configurations = {
 --// CORES 
 local Colors = {
     SANDI_TINT = Color3.fromRGB(200, 255, 200),
+    DODGE_LIME = Color3.fromRGB(200, 255, 200),
     RAINBOW_SEQUENCE = {
         Color3.fromRGB(255, 0, 0),
         Color3.fromRGB(255, 165, 0),
@@ -521,9 +514,9 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
             if not Configurations.HOLOGRAM_PRESERVE.ORIGINAL_COLOR then
                 part.Color = Colors.RAINBOW_SEQUENCE[1]
             end
-            part.Transparency = 0.3
+            part.Transparency = 0.1
         elseif part:IsA("Decal") or part:IsA("Texture") then
-            part.Transparency = 0.3
+            part.Transparency = 0.1
         end
     end
 
@@ -550,10 +543,11 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
                         tween:Play()
                         tween.Completed:Wait()
                     end
+                    
+                    -- Fade after color cycle completes
+                    local fadeTween = TweenService:Create(part, TweenInfo.new(duration * 0.7), {Transparency = endTransparency})
+                    fadeTween:Play()
                 end
-                
-                local fadeTween = TweenService:Create(part, TweenInfo.new(duration * 0.7), {Transparency = endTransparency})
-                fadeTween:Play()
             end)
         end
     end
@@ -569,7 +563,7 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
     end
     
     hologramChar.Parent = Workspace
-    Debris:AddItem(hologramChar, delay + duration + 0.5)
+    Debris:AddItem(hologramChar, delay + duration + 1)
 end
 
 --// CYBERPSYCHOSIS
@@ -762,9 +756,9 @@ local function ApplyGlitchEffect()
 end
 
 local function ExecDodge(enemyPart: BasePart?)
-    -- Fade in verde limão
-    local cc = Create("ColorCorrectionEffect", {Name = "DodgeEffect", TintColor = Color3.new(1,1,1), Saturation = 0.5, Parent = Lighting})
-    TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Colors.LIGHT_GREEN, Saturation = -0.2}):Play()
+    -- Fade in verde limão com tween
+    local cc = Create("ColorCorrectionEffect", {Name = "DodgeEffect", TintColor = Color3.new(1,1,1), Saturation = 0, Parent = Lighting})
+    TweenService:Create(cc, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TintColor = Colors.DODGE_LIME, Saturation = 0.3}):Play()
     
     local startCFrame = HRP.CFrame
     local distance = if enemyPart then (HRP.Position - enemyPart.Position).Magnitude else 0
@@ -835,8 +829,8 @@ local function ExecDodge(enemyPart: BasePart?)
     task.delay(Constants.DODGE_INVINCIBILITY_DURATION, function()
         isInvincible = false
         if forceField then forceField:Destroy() end
-        -- Fade out do verde limão
-        local t = TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0})
+        -- Fade out do verde limão com tween
+        local t = TweenService:Create(cc, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TintColor = Color3.new(1,1,1), Saturation = 0})
         t:Play()
         t.Completed:Connect(function() cc:Destroy() end)
     end)
@@ -1041,7 +1035,7 @@ local function ExecSandi()
     TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         TintColor = Colors.LIGHT_GREEN,
         Contrast = 0.15,
-        Saturation = -0.2
+        Saturation = 0.3
     }):Play()
     
     PlayActivationSequence()
