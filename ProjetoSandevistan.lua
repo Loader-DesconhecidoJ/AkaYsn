@@ -108,7 +108,7 @@ local Constants = {
 --// CONFIGURAÇÕES GERAIS 
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Ajuste para gravidade personalizada durante slow motion
-    HOLOGRAM_MATERIAL = Enum.Material.SmoothPlastic,
+    HOLOGRAM_MATERIAL = Enum.Material.Neon,
     ASSETS = {
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
@@ -776,7 +776,7 @@ local function ExecDodge(enemyPart: BasePart?)
         -- Flash branco rápido
         local flashGui = Create("ScreenGui", {Parent = Player.PlayerGui})
         local flashFrame = Create("Frame", {Size = UDim2.new(1,0,1,0), BackgroundColor3 = Color3.new(1,1,1), Transparency = 1, Parent = flashGui})
-        TweenService:Create(flashFrame, TweenInfo.new(0.1), {Transparency = 0}):Play()
+        TweenService:Create(flashFrame, TweenInfo.new(0.1), {Transparency = 0.50}):Play()
         task.delay(0.1, function()
             TweenService:Create(flashFrame, TweenInfo.new(0.1), {Transparency = 1}):Play()
             task.delay(0.1, function() flashGui:Destroy() end)
