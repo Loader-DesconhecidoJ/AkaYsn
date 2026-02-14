@@ -96,7 +96,7 @@ local Constants = {
     DODGE_CONFIG = {
         VARIANT_THRESHOLD = 5.5,
         VARIANT_DURATION = 0.35,
-        VARIANT_CLONE_INTERVAL = 0.04,
+        VARIANT_CLONE_INTERVAL = 0.045,
         NORMAL_CLONE_SPACING = 2,
         NORMAL_DISTANCE_NO_ENEMY = 12,
         NORMAL_DISTANCE_ENEMY = 6
@@ -153,11 +153,10 @@ local Colors = {
     ENERGY_FULL = Color3.fromRGB(50, 205, 50),  
     ENERGY_MEDIUM = Color3.fromRGB(255, 255, 0), 
     ENERGY_LOW = Color3.fromRGB(255, 0, 0),  
-    LIGHT_GREEN = Color3.fromRGB(100, 200, 100),  
+    LIGHT_GREEN = Color3.fromRGB(50, 205, 50),  
     ERROR_TEXT = Color3.fromRGB(169, 169, 169),  
     ERROR_BORDER = Color3.fromRGB(105, 105, 105)  
 }
-
 --// CONFIGURAÇÕES DE BOTÕES
 local ButtonConfigs = {
     LockBtn = {
