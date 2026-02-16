@@ -34,7 +34,7 @@ type SystemState = {
 --// CONSTANTES 
 local Constants = {
     MAX_ENERGY = 100,
-    SANDI_SPEED = 60,
+    SANDI_SPEED = 65,
     DASH_FORCE = 100,
     MOVING_THRESHOLD = 1,
     OPTICAL_DURATION = 5,
@@ -49,7 +49,7 @@ local Constants = {
     HOLOGRAM_CLONE = {
         SANDI = {
             DELAY = 0.07,
-            DURATION = 0.7,
+            DURATION = 1,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
             OFFSET_Y = 0,
@@ -121,13 +121,28 @@ local Colors = {
     SANDI_TINT = Color3.fromRGB(200, 255, 200),
     DODGE_LIME = Color3.fromRGB(200, 255, 200),
     RAINBOW_SEQUENCE = {
-        Color3.fromRGB(255, 0, 0),      -- Vermelho
-        Color3.fromRGB(211, 0, 197),    -- Roxo
-        Color3.fromRGB(0, 98, 255),     -- Azul
-        Color3.fromRGB(0, 247, 255),    -- Ciano
-        Color3.fromRGB(121, 255, 178),  -- Verde Menta
-        Color3.fromRGB(0, 255, 0)       -- Verde Limão (termina)
-    },
+Color3.fromRGB(255, 255, 0),      -- Amarelo claro
+Color3.fromRGB(255, 188, 0),      -- Amarelo alaranjado intermediário
+Color3.fromRGB(255, 121, 0),      -- Laranja claro
+Color3.fromRGB(255, 54, 0),       -- Laranja avermelhado
+Color3.fromRGB(255, 0, 13),       -- Vermelho alaranjado
+Color3.fromRGB(255, 0, 81),       -- Vermelho magenta intermediário
+Color3.fromRGB(255, 0, 148),      -- Magenta escuro
+Color3.fromRGB(255, 0, 215),      -- Magenta claro
+Color3.fromRGB(228, 0, 255),      -- Roxo magenta
+Color3.fromRGB(161, 0, 255),      -- Roxo intermediário
+Color3.fromRGB(94, 0, 255),       -- Roxo azulado
+Color3.fromRGB(27, 0, 255),       -- Azul violeta
+Color3.fromRGB(0, 40, 255),       -- Azul escuro
+Color3.fromRGB(0, 107, 255),      -- Azul médio
+Color3.fromRGB(0, 174, 255),      -- Azul claro
+Color3.fromRGB(0, 242, 255),      -- Ciano azulado
+Color3.fromRGB(0, 255, 201),      -- Ciano verde
+Color3.fromRGB(0, 255, 134),      -- Verde ciano
+Color3.fromRGB(0, 255, 67),       -- Verde claro
+Color3.fromRGB(0, 255, 0)         -- Verde limão (termina)
+},
+
     DASH_CYAN = Color3.fromRGB(0, 255, 255),
     DASH_CYAN_LIGHT = Color3.fromRGB(100, 255, 255),
     DASH_CYAN_DARK = Color3.fromRGB(0, 200, 200),
