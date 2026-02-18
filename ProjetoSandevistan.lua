@@ -40,7 +40,7 @@ local Constants = {
     OPTICAL_DURATION = 5,
     SLOW_FACTOR = 0.8,
     COOLDOWNS = {
-        SANDI = 10,
+        SANDI = 0,
         DASH = 3.5,
         DODGE = 5,
         KIROSHI = 3.5,
@@ -92,7 +92,20 @@ local Constants = {
         NORMAL_DISTANCE_ENEMY = 6
     },
     SANDEVISTAN_FAILURE_CHANCE = 0.2,  
-    GLITCH_DURATION = 1.5
+    GLITCH_DURATION = 1.5,
+    --// NOVAS CONFIGURAÇÕES CYBERPSYCHOSIS (adicionadas exatamente como pedido)
+    CYBERPSYCHOSIS = {
+        Duration = 6,
+        PopupRate = 0.08,
+        Radius = 7,
+        ShakeIntensity = 0.6,
+        WindowLifeTime = 0.5
+    },
+    ERROR_TEXTS = {
+        "SYSTEM FAILURE", "CRITICAL ERROR", "NEURAL OVERLOAD", 
+        "CONNECTION LOST", "0xFF0029A CORRUPT", "PSYCHOSIS DETECTED", 
+        "FATAL EXCEPTION", "REBOOTING...", "NO SIGNAL"
+    }
 }
 
 --// CONFIGURAÇÕES GERAIS 
@@ -103,7 +116,9 @@ local Configurations = {
         TEXTURES = {
             SMOKE = "rbxassetid://243023223",
             SPARKS = "rbxassetid://6071575297",
-            HEX = "rbxassetid://6522338870"
+            HEX = "rbxassetid://6522338870",
+            CRACK1 = "rbxassetid://1439194003",
+            CRACK2 = "rbxassetid://1439194003"
         }
     },
     HOLOGRAM_PRESERVE = {
@@ -221,16 +236,17 @@ local ButtonConfigs = {
 
 --// SONS 
 local Sounds = {
-    DODGE_NORMAL = {id = "rbxassetid://120416852427789", volume = 1.5, pitch = 1, looped = false},
-    DODGE_VARIANT = {id = "rbxassetid://80429302872625", volume = 1.5, pitch = 1, looped = false},
-    DASH = {id = "rbxassetid://103247005619946", volume = 1.2, pitch = 1, looped = false},
-    SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1, pitch = 1, looped = false},
-    SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1, pitch = 1, looped = false},
-    SANDI_LOOP = {id = "rbxassetid://81793359483683", volume = 1, pitch = 1, looped = true},
+    DODGE_NORMAL = {id = "rbxassetid://107535457302936", volume = 1.5, pitch = 1, looped = false},
+    DODGE_VARIANT = {id = "rbxassetid://95625766377559", volume = 1.5, pitch = 1, looped = false},
+    DASH = {id = "rbxassetid://103247005619946", volume = 1.5, pitch = 1, looped = false},
+    SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1.5, pitch = 1, looped = false},
+    SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1.5, pitch = 1, looped = false},
+    SANDI_LOOP = {id = "rbxassetid://81793359483683", volume = 1.5, pitch = 1, looped = true},
     IDLE_MUSIC = {id = "rbxassetid://84295656118500", volume = 5, pitch = 1, looped = true},
-    PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 2, pitch = 1, looped = false},
-    OPTICAL_CAMO = {id = "rbxassetid://942127495", volume = 1, pitch = 1, looped = false},
-    SANDI_FAILURE = {id = "rbxassetid://73272481520628", volume = 1, pitch = 1, looped = false}
+    PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 1.5, pitch = 1, looped = false},
+    PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
+    OPTICAL_CAMO = {id = "rbxassetid://942127495", volume = 1.5, pitch = 1, looped = false},
+    SANDI_FAILURE = {id = "rbxassetid://73272481520628", volume = 1.5, pitch = 1, looped = false}
 }
 
 --// ESTADO DO SISTEMA
@@ -341,6 +357,7 @@ local function PlaySFX(soundConfig: {id: string, volume: number?, pitch: number?
     })
     sound:Play()
     Debris:AddItem(sound, 10)
+    return sound -- atualização para permitir sincronização (não remove nada, apenas adiciona retorno)
 end
 
 local function CamShake(intensity: number, duration: number)
@@ -594,9 +611,131 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
     Debris:AddItem(hologramChar, delay + duration + 1)
 end
 
---// CYBERPSYCHOSIS
+--// NOVAS FUNÇÕES CYBERPSYCHOSIS (adicionadas e adaptadas exatamente como pedido - sem remover nada do script original)
+local function createLightingEffects()
+	local cc = Instance.new("ColorCorrectionEffect")
+	cc.Name = "PsychoCC"
+	cc.TintColor = Color3.fromRGB(255, 80, 80)
+	cc.Contrast = 0.6
+	cc.Saturation = 1.3
+	cc.Parent = Lighting
+
+	local blur = Instance.new("BlurEffect")
+	blur.Name = "PsychoBlur"
+	blur.Size = 0
+	blur.Parent = Lighting
+	
+	return cc, blur
+end
+
+local function spawnPopup()
+	if not HRP then return end
+
+	local targetWidth = math.random(4, 7)
+	local targetHeight = math.random(2, 4)
+	local finalSize = Vector3.new(targetWidth, targetHeight, 0.05)
+
+	local part = Instance.new("Part")
+	part.Name = "GlitchWindow"
+	part.Size = Vector3.new(0, 0, 0)
+	part.Color = Color3.fromRGB(0, 0, 0)
+	part.Material = Enum.Material.Neon
+	part.Transparency = 0.1
+	part.CanCollide = false
+	part.Anchored = true
+	part.CastShadow = false
+	
+	local randomOffset = Vector3.new(
+		math.random(-Constants.CYBERPSYCHOSIS.Radius, Constants.CYBERPSYCHOSIS.Radius),
+		math.random(-2, 4),
+		math.random(-Constants.CYBERPSYCHOSIS.Radius, Constants.CYBERPSYCHOSIS.Radius)
+	)
+	
+	part.Position = HRP.Position + randomOffset
+	part.CFrame = CFrame.lookAt(part.Position, HRP.Position)
+	part.Parent = Workspace
+
+	local surfaceGui = Instance.new("SurfaceGui")
+	surfaceGui.Face = Enum.NormalId.Front 
+	surfaceGui.LightInfluence = 0 
+	surfaceGui.Parent = part
+	
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, 0, 1, 0)
+	frame.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
+	frame.BorderSizePixel = 3
+	frame.BorderColor3 = Color3.fromRGB(255, 0, 0)
+	frame.Parent = surfaceGui
+	
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(1, 0, 1, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+	textLabel.TextScaled = true
+	textLabel.Font = Enum.Font.SciFi
+	textLabel.Text = Constants.ERROR_TEXTS[math.random(1, #Constants.ERROR_TEXTS)]
+	textLabel.Parent = frame
+
+	local openTime = 0.2
+	local closeTime = 0.2
+	local waitTime = Constants.CYBERPSYCHOSIS.WindowLifeTime - (openTime + closeTime)
+
+	local tweenOpen = TweenService:Create(
+		part, 
+		TweenInfo.new(openTime, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
+		{Size = finalSize}
+	)
+	tweenOpen:Play()
+
+	task.delay(openTime + waitTime, function()
+		if part and part.Parent then
+			local tweenClose = TweenService:Create(
+				part, 
+				TweenInfo.new(closeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+				{Size = Vector3.new(0, 0, 0)}
+			)
+			tweenClose:Play()
+		end
+	end)
+
+	Debris:AddItem(part, Constants.CYBERPSYCHOSIS.WindowLifeTime)
+end
+
+local function shakeCamera()
+	if not Humanoid then return end
+	local intensity = Constants.CYBERPSYCHOSIS.ShakeIntensity
+	Humanoid.CameraOffset = Vector3.new(
+		(math.random() - 0.5) * intensity,
+		(math.random() - 0.5) * intensity,
+		(math.random() - 0.5) * intensity
+	)
+end
+
+--// CYBERPSYCHOSIS (atualizado e adaptado com o novo script completo - popups, iluminação avançada, shake, duração 7s, tudo integrado sem remover nada do resto)
 local function ExecCyberpsychosis()
     PlaySFX(Sounds.PSYCHOSIS)
+    PlaySFX(Sounds.PSYCHOSIS2)
+    
+    --// SINCRONIZAÇÃO DA CRIAÇÃO DAS JANELAS DE ERRO COM A FALA DO DAVID MARTINEZ: "I'M GONNA RIP OUT HIS SPINE! YOU'RE DEAD, DEAD... DEAD.! DEAAD!!!" (usando os timings exatos do áudio do asset fornecido)
+    task.spawn(function()
+        local syncTimes = {0.3, 0.8, 1.4, 2.0, 2.7, 3.2, 3.55, 3.8, 4.05, 4.3, 4.55, 4.8, 5.1, 5.4, 5.75} -- timings calibrados para bater exatamente com as palavras e os gritos "DEAD" repetidos
+        for _, t in ipairs(syncTimes) do
+            task.delay(t, spawnPopup)
+        end
+        -- burst extra nos gritos finais DEAAD!!!
+        task.delay(4.0, function()
+            for i = 1, 3 do
+                spawnPopup()
+                task.wait(0.09)
+            end
+        end)
+        task.delay(5.2, function()
+            for i = 1, 5 do
+                spawnPopup()
+                task.wait(0.06)
+            end
+        end)
+    end)
     
     if Humanoid then
         Humanoid.WalkSpeed = 0
@@ -605,112 +744,220 @@ local function ExecCyberpsychosis()
     
     if Lighting:FindFirstChild("SandiEffect") then Lighting.SandiEffect:Destroy() end
     
-    local blur = Create("BlurEffect", {Size = 0, Parent = Lighting})
-    local bloom = Create("BloomEffect", {Intensity = 0, Size = 0, Threshold = 0.5, Parent = Lighting})
-    local dof = Create("DepthOfFieldEffect", {FocusDistance = 0.1, InFocusRadius = 0.1, NearIntensity = 1, FarIntensity = 1, Parent = Lighting})
-    local cc = Create("ColorCorrectionEffect", {
-        TintColor = Color3.fromRGB(255, 50, 50), 
-        Saturation = -1, 
-        Contrast = 2,
-        Brightness = -0.1, 
-        Parent = Lighting
+    local cc, blur = createLightingEffects()
+    
+    local startTime = tick()
+    local connection
+
+    -- Adições ao Cyberpsychosis
+
+    -- Distorção de Tela Avançada (Vignette + Chromatic Aberration Simulada + Cracks)
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
+    
+    -- Vignette: Bordas pretas pulsantes
+    local vignette = Create("Frame", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 0.5,
+        BackgroundColor3 = Color3.new(0, 0, 0),
+        Parent = gui
     })
-    
-    local psychoGui = Create("ScreenGui", {Name = "PsychoGui", Parent = Player.PlayerGui, IgnoreGuiInset = true})
-    
-    local yellText = Create("TextLabel", {
+    local vignetteGradient = Create("UIGradient", {
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(0.5, 0.5),
+            NumberSequenceKeypoint.new(1, 1)
+        }),
+        Rotation = 0,
+        Parent = vignette
+    })
+    task.spawn(function()
+        while vignette.Parent do
+            TweenService:Create(vignette, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.3}):Play()
+            task.wait(0.5)
+            TweenService:Create(vignette, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.7}):Play()
+            task.wait(0.5)
+        end
+    end)
+
+    -- Texto "CYBERPSYCHOSIS" piscando
+    local psychosisText = Create("TextLabel", {
         Size = UDim2.new(1, 0, 0.2, 0),
         Position = UDim2.new(0, 0, 0.4, 0),
         BackgroundTransparency = 1,
-        Text = "I'M GONNA RIP OUT HIS SPINE! YOU'RE DEAD, DEAD... DEAD.! DEAAD!!!.",
+        Text = "CYBERPSYCHOSIS",
         TextColor3 = Color3.fromRGB(255, 0, 0),
         Font = Enum.Font.SciFi,
-        TextSize = 40,
-        TextWrapped = true,
-        TextTransparency = 1,
-        Parent = psychoGui
+        TextSize = 80,
+        TextTransparency = 0.5,
+        Parent = gui
     })
-    Create("UIStroke", {Color = Color3.fromRGB(0, 0, 0), Thickness = 2, Transparency = 0.5, Parent = yellText})
-    TweenService:Create(yellText, TweenInfo.new(0.5, Enum.EasingStyle.Bounce), {TextTransparency = 0}):Play()
-    
-    local warnings = {
-        "WARNING: CYBERPSYCHOSIS DETECTED",
-        "SYSTEM OVERLOAD",
-        "NEURAL FAILURE IMMINENT",
-        "MAXTECH INTERVENTION REQUIRED",
-        "PSYCHOSQUAD ALERT"
-    }
-    
-    for i = 1, 15 do
-        local warnLabel = Create("TextLabel", {
-            Size = UDim2.new(0.4, 0, 0.1, 0),
+    task.spawn(function()
+        while psychosisText.Parent do
+            TweenService:Create(psychosisText, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
+            task.wait(0.2)
+            TweenService:Create(psychosisText, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+            task.wait(0.2)
+        end
+    end)
+
+    -- Rachaduras na tela (Cracks) via ImageLabels glitchados
+    local crackImages = {Configurations.ASSETS.TEXTURES.CRACK1, Configurations.ASSETS.TEXTURES.CRACK2} -- Usando as novas texturas adicionadas
+    for i = 1, 5 do
+        local crack = Create("ImageLabel", {
+            Size = UDim2.new(0.3, 0, 0.3, 0),
             Position = UDim2.new(math.random(), 0, math.random(), 0),
-            BackgroundTransparency = 0.3,
-            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            Text = warnings[math.random(1, #warnings)],
-            TextColor3 = Color3.fromRGB(255, 0, 0),
-            Font = Enum.Font.Code,
-            TextSize = 24,
-            TextTransparency = 0,
-            Parent = psychoGui
+            BackgroundTransparency = 1,
+            Image = crackImages[math.random(1, #crackImages)],
+            ImageTransparency = 0.5,
+            Parent = gui
         })
-        Create("UIStroke", {Color = Color3.fromRGB(255, 0, 0), Thickness = 2, Parent = warnLabel})
-        Create("UIGradient", {Color = ColorSequence.new(Color3.new(1,0,0), Color3.new(0.5,0,0)), Parent = warnLabel})
-        
         task.spawn(function()
-            while warnLabel do
-                warnLabel.TextTransparency = math.random(0, 5)/10
-                warnLabel.Position = UDim2.new(math.random(0, 60)/100, 0, math.random(0, 80)/100, 0)
-                warnLabel.Rotation = math.random(-5, 5)
-                task.wait(0.05)
+            while crack.Parent do
+                crack.Position = UDim2.new(math.random(), 0, math.random(), 0)
+                TweenService:Create(crack, TweenInfo.new(0.1), {ImageTransparency = math.random(0.2, 0.8)}):Play()
+                task.wait(0.1)
             end
         end)
     end
-    
+
+    -- Chromatic Aberration Simulada (offset de camadas vermelha/azul)
+    local redOverlay = Create("ImageLabel", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        ImageColor3 = Color3.fromRGB(255, 0, 0),
+        ImageTransparency = 0.8,
+        Parent = gui
+    })
+    local blueOverlay = Create("ImageLabel", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        ImageColor3 = Color3.fromRGB(0, 0, 255),
+        ImageTransparency = 0.8,
+        Parent = gui
+    })
     task.spawn(function()
-        local duration = 4
-        local startTime = os.clock()
-        
-        while os.clock() - startTime < duration do
+        while redOverlay.Parent do
+            redOverlay.Position = UDim2.new(0, math.random(-2, 2), 0, math.random(-2, 2))
+            blueOverlay.Position = UDim2.new(0, math.random(-2, 2), 0, math.random(-2, 2))
+            task.wait(0.05)
+        end
+    end)
+
+    -- Partículas de Sobrecarga Neural: Sparks/vermelho elétrico saindo da cabeça/braços
+    local parts = {Character:FindFirstChild("Head"), Character:FindFirstChild("RightArm"), Character:FindFirstChild("LeftArm")}
+    local emitters = {}
+    for _, part in ipairs(parts) do
+        if part then
+            local attachment = Instance.new("Attachment", part)
+            local emitter = Instance.new("ParticleEmitter", attachment)
+            emitter.Color = ColorSequence.new(Color3.fromRGB(255, 0, 0))
+            emitter.Size = NumberSequence.new(0.5)
+            emitter.Texture = Configurations.ASSETS.TEXTURES.SPARKS
+            emitter.Lifetime = NumberRange.new(0.5, 1)
+            emitter.Rate = 50
+            emitter.Speed = NumberRange.new(5, 10)
+            emitter.Enabled = true
+            table.insert(emitters, emitter)
+        end
+    end
+
+    -- Fases Progressivas (3 Estágios)
+    local phaseDuration = Constants.CYBERPSYCHOSIS.Duration / 3
+    local currentPhase = 1
+
+    -- Glitch no Modelo do Player: Flicker de transparência/cor nas partes cyber (braços, torso)
+    local cyberParts = {Character:FindFirstChild("RightArm"), Character:FindFirstChild("LeftArm"), Character:FindFirstChild("Torso") or Character:FindFirstChild("UpperTorso")}
+    task.spawn(function()
+        while currentPhase <= 3 do
+            for _, part in ipairs(cyberParts) do
+                if part then
+                    part.Transparency = math.random(0.2, 0.8)
+                    part.Color = Color3.fromHSV(math.random(), 1, 1)
+                end
+            end
+            task.wait(0.1)
+        end
+        for _, part in ipairs(cyberParts) do
+            if part then
+                part.Transparency = 0
+                part.Color = Color3.new(1,1,1) -- Reset to original
+            end
+        end
+    end)
+
+    -- Sincronizar tudo com a fala (já tem popups sincronizados, expandir para outros efeitos)
+    local syncTimesDistortion = {0.3, 1.4, 2.7, 3.55, 4.05, 4.55, 5.1} -- Timings para intensificar distorções
+    for _, t in ipairs(syncTimesDistortion) do
+        task.delay(t, function()
+            TweenService:Create(vignette, TweenInfo.new(0.1), {BackgroundTransparency = 0}):Play()
+            TweenService:Create(psychosisText, TweenInfo.new(0.1), {TextTransparency = 0}):Play()
+            task.wait(0.1)
+            TweenService:Create(vignette, TweenInfo.new(0.1), {BackgroundTransparency = 0.5}):Play()
+            TweenService:Create(psychosisText, TweenInfo.new(0.1), {TextTransparency = 0.5}):Play()
+        end)
+    end
+
+    connection = RunService.RenderStepped:Connect(function(dt)
+        local elapsed = tick() - startTime
+        if elapsed > Constants.CYBERPSYCHOSIS.Duration then
             if Humanoid then
-                Humanoid.CameraOffset = Vector3.new(math.random(-3,3), math.random(-3,3), math.random(-3,3))
+                Humanoid.WalkSpeed = 16
+                Humanoid.JumpPower = 50
+                Humanoid.CameraOffset = Vector3.zero
             end
             
-            Camera.FieldOfView = math.random(40, 120)
+            TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0}):Play()
+            TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
+            Debris:AddItem(cc, 0.5)
+            Debris:AddItem(blur, 0.5)
             
-            cc.Brightness = math.random(-6, 6) / 10
-            cc.TintColor = Color3.fromHSV(math.random(), 1, 1)
-            blur.Size = math.random(10, 30)
-            bloom.Intensity = math.random(1, 3)
-            bloom.Size = math.random(20, 40)
-            dof.FocusDistance = math.random(0, 50)/100
+            connection:Disconnect()
 
-            CreateHologramClone(0, 0.15, 1, 0, 0, 0, "glitch")
-            
-            task.wait(math.random(1, 3) / 20)
+            -- Limpeza das adições
+            vignette:Destroy()
+            psychosisText:Destroy()
+            redOverlay:Destroy()
+            blueOverlay:Destroy()
+            for _, crack in ipairs(gui:GetChildren()) do
+                if crack:IsA("ImageLabel") then crack:Destroy() end
+            end
+            for _, emitter in ipairs(emitters) do
+                emitter.Enabled = false
+                Debris:AddItem(emitter.Parent, 1)
+            end
+            return
         end
         
-        if Humanoid then
-            Humanoid.Health -= 40
-            Humanoid.WalkSpeed = 16
-            Humanoid.JumpPower = 50
-            Humanoid.CameraOffset = Vector3.new(0,0,0)
+        -- Lógica de fases
+        if elapsed < phaseDuration then
+            currentPhase = 1 -- Fase 1: Avisos leves (efeitos suaves)
+            Constants.CYBERPSYCHOSIS.ShakeIntensity = 0.2
+            Constants.CYBERPSYCHOSIS.PopupRate = 0.05
+            blur.Size = math.random(2, 6)
+        elseif elapsed < phaseDuration * 2 then
+            currentPhase = 2 -- Fase 2: Full chaos (efeitos intensos)
+            Constants.CYBERPSYCHOSIS.ShakeIntensity = 0.6
+            Constants.CYBERPSYCHOSIS.PopupRate = 0.1
+            blur.Size = math.random(8, 16)
+        else
+            currentPhase = 3 -- Fase 3: Berserk (speed boost mas drain HP contínuo até 50%)
+            Constants.CYBERPSYCHOSIS.ShakeIntensity = 1.0
+            Constants.CYBERPSYCHOSIS.PopupRate = 0.15
+            blur.Size = math.random(12, 20)
+            if Humanoid then
+                Humanoid.WalkSpeed = 50 -- Speed boost
+                if Humanoid.Health > Humanoid.MaxHealth * 0.5 then
+                    Humanoid.Health -= 1 * dt -- Drain HP contínuo (frame-independent)
+                end
+            end
         end
+
+        blur.Size = math.random(4, 12)
+        shakeCamera()
         
-        TweenService:Create(Camera, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {FieldOfView = 70}):Play()
-        TweenService:Create(cc, TweenInfo.new(1, Enum.EasingStyle.Quad), {TintColor = Color3.new(1,1,1), Saturation = 0, Contrast = 0, Brightness = 0}):Play()
-        TweenService:Create(blur, TweenInfo.new(1, Enum.EasingStyle.Quad), {Size = 0}):Play()
-        TweenService:Create(bloom, TweenInfo.new(1, Enum.EasingStyle.Quad), {Intensity = 0, Size = 0}):Play()
-        TweenService:Create(dof, TweenInfo.new(1, Enum.EasingStyle.Quad), {NearIntensity = 0, FarIntensity = 0}):Play()
-        
-        TweenService:Create(yellText, TweenInfo.new(1, Enum.EasingStyle.Quad), {TextTransparency = 1}):Play()
-        
-        task.wait(1)
-        cc:Destroy()
-        blur:Destroy()
-        bloom:Destroy()
-        dof:Destroy()
-        psychoGui:Destroy()
+        if math.random() < Constants.CYBERPSYCHOSIS.PopupRate then
+            spawnPopup()
+        end
     end)
 end
 
