@@ -6,6 +6,7 @@ local Debris = game:GetService("Debris")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local ContentProvider = game:GetService("ContentProvider")
+local SoundService = game:GetService("SoundService")
 
 --// TIPOS
 type Cooldowns = {
@@ -28,7 +29,8 @@ type SystemState = {
     ActiveLabels: number,
     LastHealth: number,
     LastDeactivationTime: number,
-    NoRegenUntil: number
+    NoRegenUntil: number,
+    MusicSound: Sound?  
 }
 
 --// CONSTANTES 
@@ -48,15 +50,15 @@ local Constants = {
     },
     HOLOGRAM_CLONE = {
         SANDI = {
-            DELAY = 0.09,
+            DELAY = 0.085,
             DURATION = 1,
-            END_TRANSPARENCY = 1,
+            END_TRANSPARENCY = 0.8,
             OFFSET_X = 0,
             OFFSET_Y = 0,
             OFFSET_Z = 0
         },
         DASH = {
-            DELAY = 0.09,
+            DELAY = 0.08,
             DURATION = 0.3,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
@@ -64,7 +66,7 @@ local Constants = {
             OFFSET_Z = 0
         },
         DODGE = {
-            DELAY = 0.25,
+            DELAY = 0.2,
             DURATION = 0.5,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
@@ -74,7 +76,7 @@ local Constants = {
     },
     ENERGY_COSTS = {
         SANDI_ACTIVATE = 30,
-        SANDI_DRAIN = 3,  
+        SANDI_DRAIN = 2.5,  
         DASH = 8,
         DODGE = 5,
         KIROSHI = 10,
@@ -93,7 +95,6 @@ local Constants = {
     },
     SANDEVISTAN_FAILURE_CHANCE = 0.2,  
     GLITCH_DURATION = 1.5,
-    --// NOVAS CONFIGURAÇÕES CYBERPSYCHOSIS (adicionadas exatamente como pedido)
     CYBERPSYCHOSIS = {
         Duration = 6,
         PopupRate = 0.08,
@@ -110,7 +111,7 @@ local Constants = {
 
 --// CONFIGURAÇÕES GERAIS 
 local Configurations = {
-    SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,  -- Ajuste para gravidade personalizada durante slow motion
+    SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,
     HOLOGRAM_MATERIAL = Enum.Material.SmoothPlastic,
     ASSETS = {
         TEXTURES = {
@@ -131,31 +132,31 @@ local Configurations = {
     }
 }
 
---// CORES ATUALIZADAS (clones Dash, Sandevistan e Dodge)
+--// CORES ATUALIZADAS (verde Sandevistan reduzido)
 local Colors = {
-    SANDI_TINT = Color3.fromRGB(200, 255, 200),
+    SANDI_TINT = Color3.fromRGB(175, 255, 190),
     DODGE_LIME = Color3.fromRGB(200, 255, 200),
     RAINBOW_SEQUENCE = {
-Color3.fromRGB(255, 255, 0),      -- Amarelo claro
-Color3.fromRGB(255, 188, 0),      -- Amarelo alaranjado intermediário
-Color3.fromRGB(255, 121, 0),      -- Laranja claro
-Color3.fromRGB(255, 54, 0),       -- Laranja avermelhado
-Color3.fromRGB(255, 0, 13),       -- Vermelho alaranjado
-Color3.fromRGB(255, 0, 81),       -- Vermelho magenta intermediário
-Color3.fromRGB(255, 0, 148),      -- Magenta escuro
-Color3.fromRGB(255, 0, 215),      -- Magenta claro
-Color3.fromRGB(228, 0, 255),      -- Roxo magenta
-Color3.fromRGB(161, 0, 255),      -- Roxo intermediário
-Color3.fromRGB(94, 0, 255),       -- Roxo azulado
-Color3.fromRGB(27, 0, 255),       -- Azul violeta
-Color3.fromRGB(0, 40, 255),       -- Azul escuro
-Color3.fromRGB(0, 107, 255),      -- Azul médio
-Color3.fromRGB(0, 174, 255),      -- Azul claro
-Color3.fromRGB(0, 242, 255),      -- Ciano azulado
-Color3.fromRGB(0, 255, 201),      -- Ciano verde
-Color3.fromRGB(0, 255, 134),      -- Verde ciano
-Color3.fromRGB(0, 255, 67),       -- Verde claro
-Color3.fromRGB(0, 255, 0)         -- Verde limão (termina)
+Color3.fromRGB(255, 255, 0),
+Color3.fromRGB(255, 188, 0),
+Color3.fromRGB(255, 121, 0),
+Color3.fromRGB(255, 54, 0),
+Color3.fromRGB(255, 0, 13),
+Color3.fromRGB(255, 0, 81),
+Color3.fromRGB(255, 0, 148),
+Color3.fromRGB(255, 0, 215),
+Color3.fromRGB(228, 0, 255),
+Color3.fromRGB(161, 0, 255),
+Color3.fromRGB(94, 0, 255),
+Color3.fromRGB(27, 0, 255),
+Color3.fromRGB(0, 40, 255),
+Color3.fromRGB(0, 107, 255),
+Color3.fromRGB(0, 174, 255),
+Color3.fromRGB(0, 242, 255),
+Color3.fromRGB(0, 255, 201),
+Color3.fromRGB(0, 255, 134),
+Color3.fromRGB(0, 255, 67),
+Color3.fromRGB(0, 255, 0)
 },
 
     DASH_CYAN = Color3.fromRGB(0, 255, 255),
@@ -167,16 +168,16 @@ Color3.fromRGB(0, 255, 0)         -- Verde limão (termina)
     TEXT_DEFAULT = Color3.new(1, 1, 1),
     UI_BG = Color3.fromRGB(10, 10, 12),
     UI_ACCENT = Color3.fromRGB(40, 40, 45),
-    UI_NEON = Color3.fromRGB(0, 255, 255),  -- Neon cyan for accents
-    UI_GLOW = Color3.fromRGB(255, 255, 255),  -- White for glow
-    UI_DARK = Color3.fromRGB(5, 5, 7),  -- Darker background
+    UI_NEON = Color3.fromRGB(0, 255, 255),
+    UI_GLOW = Color3.fromRGB(255, 255, 255),
+    UI_DARK = Color3.fromRGB(5, 5, 7),
     KIROSHI_TINT = Color3.fromRGB(255, 100, 100),
     KIROSHI = Color3.fromRGB(255, 0, 0),
     OPTICAL = Color3.fromRGB(0, 255, 255),
     ENERGY_FULL = Color3.fromRGB(50, 205, 50),  
     ENERGY_MEDIUM = Color3.fromRGB(255, 255, 0), 
     ENERGY_LOW = Color3.fromRGB(255, 0, 0),  
-    LIGHT_GREEN = Color3.fromRGB(50, 205, 50),  
+    LIGHT_GREEN = Color3.fromRGB(72, 225, 148),  
     ERROR_TEXT = Color3.fromRGB(169, 169, 169),  
     ERROR_BORDER = Color3.fromRGB(105, 105, 105)  
 }
@@ -193,7 +194,7 @@ local ButtonConfigs = {
         Text = "⚙️"
     },
     EnergyContainer = {
-        Size = UDim2.new(0, 250, 0, 20),  -- Reduzido para não ficar grande
+        Size = UDim2.new(0, 250, 0, 20),
         Position = UDim2.new(0.5, -125, 0.95, -10),
         BackgroundColor3 = Colors.UI_DARK,
         BorderSizePixel = 0
@@ -241,13 +242,150 @@ local Sounds = {
     DASH = {id = "rbxassetid://103247005619946", volume = 1.5, pitch = 1, looped = false},
     SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1.5, pitch = 1, looped = false},
     SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1.5, pitch = 1, looped = false},
-    SANDI_LOOP = {id = "rbxassetid://81793359483683", volume = 1.5, pitch = 1, looped = true},
+    SANDI_LOOP = {id = "rbxassetid://...", volume = 1.5, pitch = 1, looped = true},
     IDLE_MUSIC = {id = "rbxassetid://84295656118500", volume = 5, pitch = 1, looped = true},
     PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 1.5, pitch = 1, looped = false},
     PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
     OPTICAL_CAMO = {id = "rbxassetid://942127495", volume = 1.5, pitch = 1, looped = false},
     SANDI_FAILURE = {id = "rbxassetid://73272481520628", volume = 1.5, pitch = 1, looped = false}
 }
+
+--// ADIÇÃO DA MÚSICA
+local NOME_ARQUIVO = "I Really Want to Stay at Your House.mp3"
+local VOLUME = 1
+local LOOP = false
+local AUTO_PLAY = true
+
+local function detectarExecutor()
+    if KRNL_LOADED then
+        return "KRNL", getcustomasset
+    elseif syn then
+        return "Synapse X", syn.getcustomasset
+    elseif fluxus then
+        return "Fluxus", fluxus.getcustomasset
+    elseif getcustomasset then
+        return "Executor Genérico", getcustomasset
+    else
+        return nil, nil
+    end
+end
+
+local function encontrarMusica()
+    local executor, getasset = detectarExecutor()
+    
+    if not executor then
+        return nil
+    end
+    
+    local possibilidades = {
+        NOME_ARQUIVO,
+        "musica.mp3",
+        "musica.ogg", 
+        "musica.wav",
+        "music.mp3",
+        "music.ogg",
+        "audio.mp3",
+        "audio.ogg"
+    }
+    
+    if getasset then
+        for _, nome in ipairs(possibilidades) do
+            local sucesso, resultado = pcall(function()
+                return getasset(nome)
+            end)
+            
+            if sucesso and resultado then
+                return resultado
+            end
+        end
+    end
+    
+    return NOME_ARQUIVO
+end
+
+local function tocarMusica()
+    local musicaId = encontrarMusica()
+    
+    if not musicaId then
+        return
+    end
+    
+    local somAntigo = SoundService:FindFirstChild("MinhaMusicaLocal")
+    if somAntigo then
+        somAntigo:Destroy()
+    end
+    
+    local som = Instance.new("Sound")
+    som.Name = "MinhaMusicaLocal"
+    som.SoundId = musicaId
+    som.Volume = VOLUME
+    som.Looped = LOOP
+    som.RollOffMode = Enum.RollOffMode.Linear
+    som.RollOffMaxDistance = 1000
+    som.Parent = SoundService
+    
+    som.Loaded:Connect(function()
+        som:Play()
+    end)
+    
+    task.delay(2, function()
+        if not som.IsLoaded then
+            som:Play()
+        end
+    end)
+    
+    return som
+end
+
+local function criarGUI()
+    pcall(function()
+        local ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "MusicaGUI"
+        ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+        
+        local Frame = Instance.new("Frame")
+        Frame.Size = UDim2.new(0, 200, 0, 100)
+        Frame.Position = UDim2.new(0.5, -100, 0.9, -50)
+        Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        Frame.BorderSizePixel = 0
+        Frame.Parent = ScreenGui
+        
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 10)
+        Corner.Parent = Frame
+        
+        local Titulo = Instance.new("TextLabel")
+        Titulo.Size = UDim2.new(1, 0, 0.4, 0)
+        Titulo.Text = "🎵 Tocando Agora"
+        Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Titulo.BackgroundTransparency = 1
+        Titulo.Font = Enum.Font.GothamBold
+        Titulo.TextSize = 16
+        Titulo.Parent = Frame
+        
+        local BotaoParar = Instance.new("TextButton")
+        BotaoParar.Size = UDim2.new(0.8, 0, 0.4, 0)
+        BotaoParar.Position = UDim2.new(0.1, 0, 0.5, 0)
+        BotaoParar.Text = "⏹️ PARAR MÚSICA"
+        BotaoParar.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BotaoParar.TextColor3 = Color3.fromRGB(255, 255, 255)
+        BotaoParar.Font = Enum.Font.GothamBold
+        BotaoParar.TextSize = 14
+        BotaoParar.Parent = Frame
+        
+        local CornerBtn = Instance.new("UICorner")
+        CornerBtn.CornerRadius = UDim.new(0, 8)
+        CornerBtn.Parent = BotaoParar
+        
+        BotaoParar.MouseButton1Click:Connect(function()
+            if State.MusicSound then
+                State.MusicSound:Destroy()
+                State.MusicSound = nil
+                ScreenGui:Destroy()
+            end
+        end)
+    end)
+end
 
 --// ESTADO DO SISTEMA
 local State: SystemState = {
@@ -262,7 +400,8 @@ local State: SystemState = {
     ActiveLabels = 0,
     LastHealth = 100,
     LastDeactivationTime = 0,
-    NoRegenUntil = 0
+    NoRegenUntil = 0,
+    MusicSound = nil
 }
 
 local Player = Players.LocalPlayer
@@ -309,36 +448,6 @@ local function setTransparency(character, targetTransparency, duration)
     end
 end
 
-local function activateInvisibility()
-    invisSound:Play()
-    local savedpos = Player.Character.HumanoidRootPart.CFrame
-    task.wait()
-    local invisPos = getSafeInvisPosition()
-    Player.Character:MoveTo(invisPos)
-    task.wait(0.15)
-    local Seat = Instance.new('Seat', Workspace)
-    Seat.Anchored = false
-    Seat.CanCollide = false
-    Seat.Name = 'invischair'
-    Seat.Transparency = 1
-    Seat.Position = invisPos
-    local Weld = Instance.new("Weld", Seat)
-    Weld.Part0 = Seat
-    Weld.Part1 = Player.Character:FindFirstChild("Torso") or Player.Character.UpperTorso
-    task.wait()
-    Seat.CFrame = savedpos
-    setTransparency(Player.Character, 0.5, 0.5)
-end
-
-local function deactivateInvisibility()
-    invisSound:Play()
-    local invisChair = Workspace:FindFirstChild('invischair')
-    if invisChair then
-        invisChair:Destroy()
-    end
-    setTransparency(Player.Character, 0, 0.5)
-end
-
 --// FUNÇÕES UTILITÁRIAS
 local function Create(className: string, properties: {[string]: any})
     local instance = Instance.new(className)
@@ -357,7 +466,7 @@ local function PlaySFX(soundConfig: {id: string, volume: number?, pitch: number?
     })
     sound:Play()
     Debris:AddItem(sound, 10)
-    return sound -- atualização para permitir sincronização (não remove nada, apenas adiciona retorno)
+    return sound
 end
 
 local function CamShake(intensity: number, duration: number)
@@ -376,14 +485,14 @@ local function CamShake(intensity: number, duration: number)
     end)
 end
 
---// UI DE COOLDOWN (Melhorada com barra de progresso e glow)
+--// UI DE COOLDOWN
 local function ShowCooldownText(name: string, duration: number, color: Color3)
     task.spawn(function()
         local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
         if not gui then return end
         
         local container = Create("Frame", {
-            Size = UDim2.new(0, 180, 0, 30),  -- Reduzido para não ficar grande
+            Size = UDim2.new(0, 180, 0, 30),
             Position = UDim2.new(0.5, -90, 0.7, 0),
             BackgroundColor3 = Colors.UI_DARK,
             BackgroundTransparency = 0.1,
@@ -399,7 +508,7 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
             BackgroundTransparency = 1,
             TextColor3 = color,
             Font = Enum.Font.SciFi,
-            TextSize = 14,  -- Reduzido
+            TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
             Text = name:upper(),
             Parent = container
@@ -428,7 +537,7 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
             BackgroundTransparency = 1,
             TextColor3 = Colors.UI_NEON,
             Font = Enum.Font.Code,
-            TextSize = 14,  -- Reduzido
+            TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Right,
             Parent = container
         })
@@ -463,7 +572,7 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
             fillBar.Size = UDim2.new(1 - progress, 0, 1, 0)
             local myIndex = GetMyIndex()
             if myIndex then
-                local targetPos = UDim2.new(0.5, -90, 0.7, -(myIndex - 1) * 35)  -- Ajustado para o novo tamanho
+                local targetPos = UDim2.new(0.5, -90, 0.7, -(myIndex - 1) * 35)
                 container.Position = container.Position:Lerp(targetPos, 0.15)
             end
             RunService.RenderStepped:Wait()
@@ -482,7 +591,7 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
     end)
 end
 
---// EFEITOS VISUAIS (ATUALIZADA COM TRANSIÇÃO PERFEITA DE CORES)
+--// EFEITOS VISUAIS
 local function CreateHologramClone(delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, cloneType: string, customCFrame: CFrame?)
     if not Character then return end
     Character.Archivable = true
@@ -563,7 +672,6 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
 
     if hologramHRP then hologramHRP.Transparency = 1 end
     
-    -- TRANSIÇÃO DE CORES SUAVE (o que você pediu)
     for _, part in ipairs(hologramChar:GetDescendants()) do
         if part:IsA("BasePart") then
             task.spawn(function()
@@ -586,7 +694,6 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
                         RunService.Heartbeat:Wait()
                     end
                     
-                    -- Fade final
                     local fadeTween = TweenService:Create(part, TweenInfo.new(duration * 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
                         Transparency = endTransparency
                     })
@@ -596,7 +703,6 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         end
     end
     
-    -- Fade das decals/texturas
     for _, surf in ipairs(hologramChar:GetDescendants()) do
         if surf:IsA("Decal") or surf:IsA("Texture") then
             task.spawn(function()
@@ -611,7 +717,105 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
     Debris:AddItem(hologramChar, delay + duration + 1)
 end
 
---// NOVAS FUNÇÕES CYBERPSYCHOSIS (adicionadas e adaptadas exatamente como pedido - sem remover nada do script original)
+--// NOVO SISTEMA DE FALHA SANDEVISTAN
+local function TriggerSandevistanFailure()
+    PlaySFX(Sounds.SANDI_FAILURE)
+    
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Instance.new("ScreenGui", Player.PlayerGui)
+    gui.Name = "CyberRebuilt"
+    
+    local errorFrame = Instance.new("Frame")
+    errorFrame.Size = UDim2.new(0.65, 0, 0.25, 0)
+    errorFrame.Position = UDim2.new(0.5, 0, 0.4, 0)
+    errorFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    errorFrame.BackgroundColor3 = Color3.fromRGB(8, 0, 2)
+    errorFrame.BorderSizePixel = 0
+    errorFrame.Parent = gui
+    
+    Instance.new("UICorner", errorFrame).CornerRadius = UDim.new(0, 12)
+    local stroke = Instance.new("UIStroke", errorFrame)
+    stroke.Color = Color3.fromRGB(255, 30, 60)
+    stroke.Thickness = 4
+    stroke.Transparency = 0.2
+    
+    local title = Instance.new("TextLabel", errorFrame)
+    title.Size = UDim2.new(1, 0, 0.45, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "NEURAL OVERLOAD"
+    title.TextColor3 = Color3.fromRGB(255, 40, 80)
+    title.Font = Enum.Font.SciFi
+    title.TextSize = 42
+    title.TextStrokeTransparency = 0.3
+    
+    local desc = Instance.new("TextLabel", errorFrame)
+    desc.Size = UDim2.new(1, 0, 0.55, 0)
+    desc.Position = UDim2.new(0, 0, 0.45, 0)
+    desc.BackgroundTransparency = 1
+    desc.Text = "SANDEVISTAN CORE UNSTABLE\n0xFF0029A • PSYCHOSIS DETECTED"
+    desc.TextColor3 = Color3.fromRGB(180, 180, 180)
+    desc.Font = Enum.Font.Code
+    desc.TextSize = 18
+    desc.TextStrokeTransparency = 0.7
+    
+    task.spawn(function()
+        for i = 1, 12 do
+            title.TextTransparency = i % 2 == 0 and 0.9 or 0
+            desc.TextTransparency = i % 2 == 0 and 0.8 or 0.2
+            task.wait(0.045)
+        end
+        title.TextTransparency = 0
+        desc.TextTransparency = 0
+    end)
+    
+    task.delay(2.8, function()
+        TweenService:Create(errorFrame, TweenInfo.new(0.6), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(title, TweenInfo.new(0.6), {TextTransparency = 1}):Play()
+        TweenService:Create(desc, TweenInfo.new(0.6), {TextTransparency = 1}):Play()
+        task.wait(0.7)
+        errorFrame:Destroy()
+    end)
+    
+    ApplyGlitchEffect()
+    
+    if math.random() < 0.3 then
+        task.wait(0.4)
+        ExecCyberpsychosis()
+    end
+    
+    State.Cooldowns.SANDI = os.clock() + 7.5
+    State.NoRegenUntil = os.clock() + 8
+    ShowCooldownText("SANDEVISTAN FAILURE", 7.5, Color3.fromRGB(255, 40, 80))
+end
+
+local function ApplyGlitchEffect()
+    task.spawn(function()
+        local start = os.clock()
+        local cc = Instance.new("ColorCorrectionEffect", Lighting)
+        local blur = Instance.new("BlurEffect", Lighting)
+        blur.Size = 0
+        
+        while os.clock() - start < 2.2 do
+            CreateHologramClone(0, 0.08, 0.95, math.random(-3,3), math.random(-1,1), math.random(-3,3), "glitch")
+            CamShake(0.65, 0.1)
+            
+            cc.Saturation = math.random(-2, 0.8)
+            cc.Contrast = math.random(-1.5, 2)
+            cc.TintColor = Color3.fromHSV(math.random(), 0.9, 1)
+            blur.Size = math.random(12, 24)
+            
+            task.wait(0.055)
+        end
+        
+        TweenService:Create(cc, TweenInfo.new(0.6), {Saturation = 0, Contrast = 0}):Play()
+        TweenService:Create(blur, TweenInfo.new(0.6), {Size = 0}):Play()
+        task.delay(0.7, function()
+            cc:Destroy()
+            blur:Destroy()
+        end)
+    end)
+end
+
+--// CYBERPSYCHOSIS ANTIGO (restaurado)
 local function createLightingEffects()
 	local cc = Instance.new("ColorCorrectionEffect")
 	cc.Name = "PsychoCC"
@@ -631,74 +835,96 @@ end
 local function spawnPopup()
 	if not HRP then return end
 
-	local targetWidth = math.random(4, 7)
-	local targetHeight = math.random(2, 4)
-	local finalSize = Vector3.new(targetWidth, targetHeight, 0.05)
+	local targetWidth = math.random(3.8, 8.2)
+	local targetHeight = math.random(2.3, 5.4)
+	local finalSize = Vector3.new(targetWidth, targetHeight, 0.07)
 
 	local part = Instance.new("Part")
 	part.Name = "GlitchWindow"
 	part.Size = Vector3.new(0, 0, 0)
-	part.Color = Color3.fromRGB(0, 0, 0)
+	part.Color = Color3.fromRGB(9, 0, 2)
 	part.Material = Enum.Material.Neon
-	part.Transparency = 0.1
+	part.Transparency = 0.02
 	part.CanCollide = false
 	part.Anchored = true
 	part.CastShadow = false
 	
 	local randomOffset = Vector3.new(
 		math.random(-Constants.CYBERPSYCHOSIS.Radius, Constants.CYBERPSYCHOSIS.Radius),
-		math.random(-2, 4),
+		math.random(1.1, 6.8),
 		math.random(-Constants.CYBERPSYCHOSIS.Radius, Constants.CYBERPSYCHOSIS.Radius)
 	)
 	
 	part.Position = HRP.Position + randomOffset
-	part.CFrame = CFrame.lookAt(part.Position, HRP.Position)
+	
+	local look = CFrame.lookAt(part.Position, HRP.Position)
+	part.CFrame = look * CFrame.Angles(
+		math.rad(math.random(-25,25)), 
+		math.rad(math.random(-40,40)), 
+		math.rad(math.random(-15,15))
+	)
+
 	part.Parent = Workspace
 
-	local surfaceGui = Instance.new("SurfaceGui")
-	surfaceGui.Face = Enum.NormalId.Front 
-	surfaceGui.LightInfluence = 0 
-	surfaceGui.Parent = part
-	
+	local sgui = Instance.new("SurfaceGui")
+	sgui.Face = Enum.NormalId.Front
+	sgui.LightInfluence = 0
+	sgui.PixelsPerStud = 50
+	sgui.Parent = part
+
 	local frame = Instance.new("Frame")
-	frame.Size = UDim2.new(1, 0, 1, 0)
-	frame.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
-	frame.BorderSizePixel = 3
-	frame.BorderColor3 = Color3.fromRGB(255, 0, 0)
-	frame.Parent = surfaceGui
-	
-	local textLabel = Instance.new("TextLabel")
-	textLabel.Size = UDim2.new(1, 0, 1, 0)
-	textLabel.BackgroundTransparency = 1
-	textLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-	textLabel.TextScaled = true
-	textLabel.Font = Enum.Font.SciFi
-	textLabel.Text = Constants.ERROR_TEXTS[math.random(1, #Constants.ERROR_TEXTS)]
-	textLabel.Parent = frame
+	frame.Size = UDim2.new(1,0,1,0)
+	frame.BackgroundColor3 = Color3.fromRGB(6,0,1)
+	frame.Parent = sgui
 
-	local openTime = 0.2
-	local closeTime = 0.2
-	local waitTime = Constants.CYBERPSYCHOSIS.WindowLifeTime - (openTime + closeTime)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255, 25, 60)
+	stroke.Thickness = 4
+	stroke.Parent = frame
 
-	local tweenOpen = TweenService:Create(
-		part, 
-		TweenInfo.new(openTime, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
-		{Size = finalSize}
-	)
-	tweenOpen:Play()
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 5)
+	corner.Parent = frame
 
-	task.delay(openTime + waitTime, function()
-		if part and part.Parent then
-			local tweenClose = TweenService:Create(
-				part, 
-				TweenInfo.new(closeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
-				{Size = Vector3.new(0, 0, 0)}
-			)
-			tweenClose:Play()
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1,-16,0.72,0)
+	label.Position = UDim2.new(0,8,0,5)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.fromRGB(255, 50, 80)
+	label.TextScaled = true
+	label.Font = Enum.Font.SciFi
+	label.Text = Constants.ERROR_TEXTS[math.random(1, #Constants.ERROR_TEXTS)]
+	label.TextStrokeTransparency = 0.4
+	label.TextStrokeColor3 = Color3.fromRGB(255,0,25)
+	label.Parent = frame
+
+	local sublabel = Instance.new("TextLabel")
+	sublabel.Size = UDim2.new(1,-16,0.28,-8)
+	sublabel.Position = UDim2.new(0,8,0.72,4)
+	sublabel.BackgroundTransparency = 1
+	sublabel.TextColor3 = Color3.fromRGB(255, 125, 140)
+	sublabel.Font = Enum.Font.Code
+	sublabel.TextScaled = true
+	sublabel.Text = "0x"..string.format("%X", math.random(0x8000,0xFFFF)) .. "_NEURAL_CRITICAL"
+	sublabel.Parent = frame
+
+	task.spawn(function()
+		for i = 1,8 do
+			label.TextTransparency = i%2 == 0 and 0.85 or 0
+			task.wait(0.032)
+		end
+		label.TextTransparency = 0
+	end)
+
+	TweenService:Create(part, TweenInfo.new(0.14, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = finalSize}):Play()
+
+	task.delay(Constants.CYBERPSYCHOSIS.WindowLifeTime - 0.25, function()
+		if part.Parent then 
+			TweenService:Create(part, TweenInfo.new(0.25), {Size = Vector3.new(0,0,0)}):Play() 
 		end
 	end)
 
-	Debris:AddItem(part, Constants.CYBERPSYCHOSIS.WindowLifeTime)
+	Debris:AddItem(part, Constants.CYBERPSYCHOSIS.WindowLifeTime + 0.5)
 end
 
 local function shakeCamera()
@@ -711,18 +937,15 @@ local function shakeCamera()
 	)
 end
 
---// CYBERPSYCHOSIS (atualizado e adaptado com o novo script completo - popups, iluminação avançada, shake, duração 7s, tudo integrado sem remover nada do resto)
 local function ExecCyberpsychosis()
     PlaySFX(Sounds.PSYCHOSIS)
     PlaySFX(Sounds.PSYCHOSIS2)
     
-    --// SINCRONIZAÇÃO DA CRIAÇÃO DAS JANELAS DE ERRO COM A FALA DO DAVID MARTINEZ: "I'M GONNA RIP OUT HIS SPINE! YOU'RE DEAD, DEAD... DEAD.! DEAAD!!!" (usando os timings exatos do áudio do asset fornecido)
     task.spawn(function()
-        local syncTimes = {0.3, 0.8, 1.4, 2.0, 2.7, 3.2, 3.55, 3.8, 4.05, 4.3, 4.55, 4.8, 5.1, 5.4, 5.75} -- timings calibrados para bater exatamente com as palavras e os gritos "DEAD" repetidos
+        local syncTimes = {0.3, 0.8, 1.4, 2.0, 2.7, 3.2, 3.55, 3.8, 4.05, 4.3, 4.55, 4.8, 5.1, 5.4, 5.75}
         for _, t in ipairs(syncTimes) do
             task.delay(t, spawnPopup)
         end
-        -- burst extra nos gritos finais DEAAD!!!
         task.delay(4.0, function()
             for i = 1, 3 do
                 spawnPopup()
@@ -749,12 +972,8 @@ local function ExecCyberpsychosis()
     local startTime = tick()
     local connection
 
-    -- Adições ao Cyberpsychosis
-
-    -- Distorção de Tela Avançada (Vignette + Chromatic Aberration Simulada + Cracks)
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
     
-    -- Vignette: Bordas pretas pulsantes
     local vignette = Create("Frame", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 0.5,
@@ -779,7 +998,6 @@ local function ExecCyberpsychosis()
         end
     end)
 
-    -- Texto "CYBERPSYCHOSIS" piscando
     local psychosisText = Create("TextLabel", {
         Size = UDim2.new(1, 0, 0.2, 0),
         Position = UDim2.new(0, 0, 0.4, 0),
@@ -800,8 +1018,7 @@ local function ExecCyberpsychosis()
         end
     end)
 
-    -- Rachaduras na tela (Cracks) via ImageLabels glitchados
-    local crackImages = {Configurations.ASSETS.TEXTURES.CRACK1, Configurations.ASSETS.TEXTURES.CRACK2} -- Usando as novas texturas adicionadas
+    local crackImages = {Configurations.ASSETS.TEXTURES.CRACK1, Configurations.ASSETS.TEXTURES.CRACK2}
     for i = 1, 5 do
         local crack = Create("ImageLabel", {
             Size = UDim2.new(0.3, 0, 0.3, 0),
@@ -820,7 +1037,6 @@ local function ExecCyberpsychosis()
         end)
     end
 
-    -- Chromatic Aberration Simulada (offset de camadas vermelha/azul)
     local redOverlay = Create("ImageLabel", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
@@ -843,7 +1059,6 @@ local function ExecCyberpsychosis()
         end
     end)
 
-    -- Partículas de Sobrecarga Neural: Sparks/vermelho elétrico saindo da cabeça/braços
     local parts = {Character:FindFirstChild("Head"), Character:FindFirstChild("RightArm"), Character:FindFirstChild("LeftArm")}
     local emitters = {}
     for _, part in ipairs(parts) do
@@ -861,11 +1076,9 @@ local function ExecCyberpsychosis()
         end
     end
 
-    -- Fases Progressivas (3 Estágios)
     local phaseDuration = Constants.CYBERPSYCHOSIS.Duration / 3
     local currentPhase = 1
 
-    -- Glitch no Modelo do Player: Flicker de transparência/cor nas partes cyber (braços, torso)
     local cyberParts = {Character:FindFirstChild("RightArm"), Character:FindFirstChild("LeftArm"), Character:FindFirstChild("Torso") or Character:FindFirstChild("UpperTorso")}
     task.spawn(function()
         while currentPhase <= 3 do
@@ -880,13 +1093,12 @@ local function ExecCyberpsychosis()
         for _, part in ipairs(cyberParts) do
             if part then
                 part.Transparency = 0
-                part.Color = Color3.new(1,1,1) -- Reset to original
+                part.Color = Color3.new(1,1,1)
             end
         end
     end)
 
-    -- Sincronizar tudo com a fala (já tem popups sincronizados, expandir para outros efeitos)
-    local syncTimesDistortion = {0.3, 1.4, 2.7, 3.55, 4.05, 4.55, 5.1} -- Timings para intensificar distorções
+    local syncTimesDistortion = {0.3, 1.4, 2.7, 3.55, 4.05, 4.55, 5.1}
     for _, t in ipairs(syncTimesDistortion) do
         task.delay(t, function()
             TweenService:Create(vignette, TweenInfo.new(0.1), {BackgroundTransparency = 0}):Play()
@@ -913,7 +1125,6 @@ local function ExecCyberpsychosis()
             
             connection:Disconnect()
 
-            -- Limpeza das adições
             vignette:Destroy()
             psychosisText:Destroy()
             redOverlay:Destroy()
@@ -928,26 +1139,25 @@ local function ExecCyberpsychosis()
             return
         end
         
-        -- Lógica de fases
         if elapsed < phaseDuration then
-            currentPhase = 1 -- Fase 1: Avisos leves (efeitos suaves)
+            currentPhase = 1
             Constants.CYBERPSYCHOSIS.ShakeIntensity = 0.2
             Constants.CYBERPSYCHOSIS.PopupRate = 0.05
             blur.Size = math.random(2, 6)
         elseif elapsed < phaseDuration * 2 then
-            currentPhase = 2 -- Fase 2: Full chaos (efeitos intensos)
+            currentPhase = 2
             Constants.CYBERPSYCHOSIS.ShakeIntensity = 0.6
             Constants.CYBERPSYCHOSIS.PopupRate = 0.1
             blur.Size = math.random(8, 16)
         else
-            currentPhase = 3 -- Fase 3: Berserk (speed boost mas drain HP contínuo até 50%)
+            currentPhase = 3
             Constants.CYBERPSYCHOSIS.ShakeIntensity = 1.0
             Constants.CYBERPSYCHOSIS.PopupRate = 0.15
             blur.Size = math.random(12, 20)
             if Humanoid then
-                Humanoid.WalkSpeed = 50 -- Speed boost
+                Humanoid.WalkSpeed = 50
                 if Humanoid.Health > Humanoid.MaxHealth * 0.5 then
-                    Humanoid.Health -= 1 * dt -- Drain HP contínuo (frame-independent)
+                    Humanoid.Health -= 1 * dt
                 end
             end
         end
@@ -1021,31 +1231,7 @@ local function ShowErrorText()
     end)
 end
 
-local function ApplyGlitchEffect()
-    task.spawn(function()
-        local startTime = os.clock()
-        local glitchCC = Create("ColorCorrectionEffect", {TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
-        local glitchBlur = Create("BlurEffect", {Size = 0, Parent = Lighting})
-        
-        while os.clock() - startTime < Constants.GLITCH_DURATION do
-            CreateHologramClone(0, 0.1, 1, 0, 0, 0, "glitch")
-            CamShake(0.3, 0.1)
-            
-            glitchCC.TintColor = Color3.fromHSV(math.random(), 1, 1)
-            glitchCC.Contrast = math.random(-2, 2)
-            glitchBlur.Size = math.random(5, 15)
-            
-            task.wait(0.1)
-        end
-        
-        glitchCC:Destroy()
-        glitchBlur:Destroy()
-    end)
-end
-
--- DODGE ATUALIZADO (Variant 180° com mundo verde + fade in/out)
 local function ExecDodge(enemyPart: BasePart?)
-    -- Cria o efeito de cor do mundo
     local dodgeCC = Create("ColorCorrectionEffect", {
         Name = "DodgeEffect",
         TintColor = Color3.new(1, 1, 1),
@@ -1054,9 +1240,8 @@ local function ExecDodge(enemyPart: BasePart?)
         Parent = Lighting
     })
 
-    -- FADE IN (verde limão forte)
     TweenService:Create(dodgeCC, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        TintColor = Colors.DODGE_LIME,   -- 200, 255, 200
+        TintColor = Colors.DODGE_LIME,
         Saturation = 0.45,
         Contrast = 0.25
     }):Play()
@@ -1064,10 +1249,9 @@ local function ExecDodge(enemyPart: BasePart?)
     local startCFrame = HRP.CFrame
     local distance = if enemyPart then (HRP.Position - enemyPart.Position).Magnitude else 0
 
-    local dodgeDuration = 0.35  -- duração do variant
+    local dodgeDuration = 0.35
 
     if enemyPart and distance <= Constants.DODGE_CONFIG.VARIANT_THRESHOLD then
-        -- === VARIANT 180° ===
         PlaySFX(Sounds.DODGE_VARIANT)
 
         task.spawn(function()
@@ -1091,14 +1275,12 @@ local function ExecDodge(enemyPart: BasePart?)
                 RunService.Heartbeat:Wait()
             end
 
-            -- Finaliza o giro
             local finalRelative = relative * CFrame.Angles(0, math.pi, 0)
             local finalPos = enemyPart.Position + finalRelative
             HRP.CFrame = CFrame.lookAt(finalPos, enemyPart.Position)
         end)
 
     else
-        -- === Dodge normal ===
         PlaySFX(Sounds.DODGE_NORMAL)
         local endCFrame = enemyPart and 
             CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, Constants.DODGE_CONFIG.NORMAL_DISTANCE_ENEMY)).Position, enemyPart.Position) or
@@ -1107,15 +1289,12 @@ local function ExecDodge(enemyPart: BasePart?)
         CreateHologramClone(0, 1, 1, 0, 0, 0, "dodge", startCFrame)
         HRP.CFrame = endCFrame
 
-        dodgeDuration = 0.22  -- mais curto no normal
+        dodgeDuration = 0.22
     end
 
     CamShake(0.5, 0.2)
 
-    -- FADE OUT + limpeza após o dodge terminar
     task.delay(dodgeDuration, function()
-
-        -- Fade out suave
         local fadeOut = TweenService:Create(dodgeCC, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             TintColor = Color3.new(1, 1, 1),
             Saturation = 0,
@@ -1241,6 +1420,15 @@ local function ResetSandi()
     UpdateDashButton()
     UpdateKiroshiButton()
     UpdateOpticalButton()
+    
+    if State.MusicSound then
+        State.MusicSound:Destroy()
+        State.MusicSound = nil
+    end
+    local musicaGui = Player.PlayerGui:FindFirstChild("MusicaGUI")
+    if musicaGui then
+        musicaGui:Destroy()
+    end
 end
 
 local function PlayActivationSequence()
@@ -1286,12 +1474,7 @@ local function ExecSandi()
     if State.Energy < Constants.ENERGY_COSTS.SANDI_ACTIVATE then return end
     
     if math.random() < Constants.SANDEVISTAN_FAILURE_CHANCE then
-        PlaySFX(Sounds.SANDI_FAILURE)
-        ShowErrorText()
-        ApplyGlitchEffect()
-        State.Cooldowns.SANDI = os.clock() + Constants.COOLDOWNS.SANDI
-        State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
-        ShowCooldownText("Sandevistan", Constants.COOLDOWNS.SANDI, Colors.RAINBOW_SEQUENCE[1])
+        TriggerSandevistanFailure()
         return
     end
     
@@ -1420,8 +1603,12 @@ local function ExecSandi()
     UpdateDashButton()
     UpdateKiroshiButton()
     UpdateOpticalButton()
+    
+    State.MusicSound = tocarMusica()
+    criarGUI()
 end
 
+--// DASH ANTIGO (restaurado exatamente como estava no original)
 local function ExecDash()
     if State.IsSandiActive then return end
     if State.Energy < Constants.ENERGY_COSTS.DASH or os.clock() < State.Cooldowns.DASH then return end
@@ -1564,7 +1751,11 @@ local function ResetOptical()
     opticalToken += 1
     
     State.IsOpticalActive = false
-    deactivateInvisibility()
+    for _, part in Character:GetDescendants() do
+        if part:IsA("BasePart") or part:IsA("Decal") then
+            part.Transparency = 0
+        end
+    end
     State.Cooldowns.OPTICAL = os.clock() + Constants.COOLDOWNS.OPTICAL
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     
@@ -1587,19 +1778,29 @@ local function ExecOptical()
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.IsOpticalActive = true
     
-    activateInvisibility()
-
-    opticalToken += 1
-    local myToken = opticalToken
+    invisSound:Play()
     
-    task.delay(Constants.OPTICAL_DURATION, function()
-        if myToken == opticalToken then
-            ResetOptical()
+    for _, part in Character:GetDescendants() do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Transparency = 0.92
+        elseif part:IsA("Decal") then
+            part.Transparency = 0.92
+        end
+    end
+    
+    task.spawn(function()
+        while State.IsOpticalActive do
+            if HRP.Velocity.Magnitude > 12 then
+                CreateHologramClone(0, 0.15, 0.4, 0,0,0, "optical")
+            end
+            task.wait(0.1)
         end
     end)
+    
+    task.delay(Constants.OPTICAL_DURATION, ResetOptical)
 end
 
---// SISTEMA DE UI (Refeita com design premium cyberpunk: neon, glow, animações suaves)
+--// SISTEMA DE UI
 local function MakeDraggable(movable: Frame, hit: GuiObject)
     hit = hit or movable
     local dragging = false
@@ -1671,13 +1872,12 @@ local function BuildUI()
     local energyLabel = Create("TextLabel", {Size = UDim2.new(1, 0, 0, 25), Position = UDim2.new(0, 0, -1.5, 0), BackgroundTransparency = 1, Text = "SYSTEM ENERGY: 100%", TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Parent = energyContainer})
     
     local function CreateSkillBtn(key, color, pos, name, func)
-        local btnContainer = Create("Frame", {Name = name .. "Container", Size = UDim2.new(0, 45, 0, 45), Position = savedPositions[name] or pos, BackgroundTransparency = 1, Parent = gui})  -- Reduzido para não ficar grande
-        local btn = Create("TextButton", {Name = name, Size = UDim2.new(1, 0, 1, 0), Text = key, BackgroundColor3 = Colors.UI_DARK, TextColor3 = color, Font = Enum.Font.SciFi, TextSize = 16, AutoButtonColor = false, Parent = btnContainer})  -- TextSize reduzido
+        local btnContainer = Create("Frame", {Name = name .. "Container", Size = UDim2.new(0, 45, 0, 45), Position = savedPositions[name] or pos, BackgroundTransparency = 1, Parent = gui})
+        local btn = Create("TextButton", {Name = name, Size = UDim2.new(1, 0, 1, 0), Text = key, BackgroundColor3 = Colors.UI_DARK, TextColor3 = color, Font = Enum.Font.SciFi, TextSize = 16, AutoButtonColor = false, Parent = btnContainer})
         local stroke = Create("UIStroke", {Color = color, Thickness = 2.5, Transparency = 0.4, Parent = btn})
-        Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = btn})  -- Corner reduzido para combinar
+        Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = btn})
         local gradient = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_DARK, color:Lerp(Colors.UI_NEON, 0.3)), Rotation = 45, Parent = btn})
         
-        -- Glow effect
         local glow = Create("UIStroke", {Color = Colors.UI_GLOW, Thickness = 3, Transparency = 0.8, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = btn})
         
         btn.MouseEnter:Connect(function()
@@ -1915,7 +2115,7 @@ local function UpdateDirectionalMovement(deltaTime)
 end
 
 local function InitDirectionalMovement()
-    local torso = Character:FindFirstChild("Torso") or Character:FindFirstChild("UpperTorso")  -- Compatibilidade R6/R15
+    local torso = Character:FindFirstChild("Torso") or Character:FindFirstChild("UpperTorso")
 
     Joints = {
         RootJoint = HRP:WaitForChild("RootJoint"),
@@ -2128,7 +2328,6 @@ local setColors = {
     [2] = Color3.fromRGB(0, 120, 215)
 }
 
--- Criando a Interface (Botão no Canto Superior Direito, com design premium)
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AlternadorSets"
 screenGui.Parent = Player:WaitForChild("PlayerGui")
@@ -2157,7 +2356,7 @@ stroke.Parent = button
 
 local gradient = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_DARK, Colors.UI_NEON), Rotation = 45, Parent = button})
 
-MakeDraggable(button, button)  -- Agora é arrastável no Edit Mode
+MakeDraggable(button, button)
 
 local function LimparAcessorios()
     local char = Player.Character
