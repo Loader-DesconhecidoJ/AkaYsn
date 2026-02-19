@@ -40,7 +40,7 @@ local Constants = {
     OPTICAL_DURATION = 5,
     SLOW_FACTOR = 0.8,
     COOLDOWNS = {
-        SANDI = 0,
+        SANDI = 10,
         DASH = 3.5,
         DODGE = 5,
         KIROSHI = 3.5,
@@ -74,7 +74,7 @@ local Constants = {
     },
     ENERGY_COSTS = {
         SANDI_ACTIVATE = 30,
-        SANDI_DRAIN = 2.5,  
+        SANDI_DRAIN = 3,  
         DASH = 8,
         DODGE = 5,
         KIROSHI = 10,
