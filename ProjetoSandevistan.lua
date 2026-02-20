@@ -50,15 +50,15 @@ local Constants = {
     },
     HOLOGRAM_CLONE = {
         SANDI = {
-            DELAY = 0.085,
+            DELAY = 0.07,
             DURATION = 1,
-            END_TRANSPARENCY = 0.8,
+            END_TRANSPARENCY = 1,
             OFFSET_X = 0,
             OFFSET_Y = 0,
             OFFSET_Z = 0
         },
         DASH = {
-            DELAY = 0.08,
+            DELAY = 0.07,
             DURATION = 0.3,
             END_TRANSPARENCY = 1,
             OFFSET_X = 0,
@@ -448,6 +448,37 @@ local function setTransparency(character, targetTransparency, duration)
     end
 end
 
+-- NOVO MÉTODO DE CAMUFLAGEM (igual ao script que você enviou)
+local function activateInvisibility()
+    invisSound:Play()
+    local savedpos = Player.Character.HumanoidRootPart.CFrame
+    task.wait()
+    local invisPos = getSafeInvisPosition()
+    Player.Character:MoveTo(invisPos)
+    task.wait(0.15)
+    local Seat = Instance.new('Seat', Workspace)
+    Seat.Anchored = false
+    Seat.CanCollide = false
+    Seat.Name = 'invischair'
+    Seat.Transparency = 1
+    Seat.Position = invisPos
+    local Weld = Instance.new("Weld", Seat)
+    Weld.Part0 = Seat
+    Weld.Part1 = Player.Character:FindFirstChild("Torso") or Player.Character.UpperTorso
+    task.wait()
+    Seat.CFrame = savedpos
+    setTransparency(Player.Character, 0.5, 0.5)
+end
+
+local function deactivateInvisibility()
+    invisSound:Play()
+    local invisChair = Workspace:FindFirstChild('invischair')
+    if invisChair then
+        invisChair:Destroy()
+    end
+    setTransparency(Player.Character, 0, 0.5)
+end
+
 --// FUNÇÕES UTILITÁRIAS
 local function Create(className: string, properties: {[string]: any})
     local instance = Instance.new(className)
@@ -609,6 +640,12 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         else
             hologramHRP.CFrame = HRP.CFrame + Vector3.new(offsetX, offsetY, offsetZ)
         end
+    end
+    
+    -- Remove HumanoidRootPart dos clones de Optical Camouflage para evitar duplicatas indesejadas
+    if cloneType == "optical" and hologramHRP then
+        hologramHRP:Destroy()
+        hologramHRP = nil
     end
     
     local humanoid = hologramChar:FindFirstChildOfClass("Humanoid")
@@ -1745,17 +1782,14 @@ local function ExecKiroshi()
     end)
 end
 
+-- OPTICAL CAMUFLAGEM ATUALIZADO (exatamente como no script que você enviou - resto do código intacto)
 local function ResetOptical()
     if not State.IsOpticalActive then return end
     
     opticalToken += 1
     
     State.IsOpticalActive = false
-    for _, part in Character:GetDescendants() do
-        if part:IsA("BasePart") or part:IsA("Decal") then
-            part.Transparency = 0
-        end
-    end
+    deactivateInvisibility()
     State.Cooldowns.OPTICAL = os.clock() + Constants.COOLDOWNS.OPTICAL
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     
@@ -1778,26 +1812,16 @@ local function ExecOptical()
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.IsOpticalActive = true
     
-    invisSound:Play()
+    activateInvisibility()
+
+    opticalToken += 1
+    local myToken = opticalToken
     
-    for _, part in Character:GetDescendants() do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            part.Transparency = 0.92
-        elseif part:IsA("Decal") then
-            part.Transparency = 0.92
-        end
-    end
-    
-    task.spawn(function()
-        while State.IsOpticalActive do
-            if HRP.Velocity.Magnitude > 12 then
-                CreateHologramClone(0, 0.15, 0.4, 0,0,0, "optical")
-            end
-            task.wait(0.1)
+    task.delay(Constants.OPTICAL_DURATION, function()
+        if myToken == opticalToken then
+            ResetOptical()
         end
     end)
-    
-    task.delay(Constants.OPTICAL_DURATION, ResetOptical)
 end
 
 --// SISTEMA DE UI
