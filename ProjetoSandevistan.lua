@@ -5,8 +5,8 @@ local UserInputService = game:GetService("UserInputService")
 local Debris = game:GetService("Debris")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
-local ContentProvider = game:GetService("ContentProvider")
 local SoundService = game:GetService("SoundService")
+local ContextActionService = game:GetService("ContextActionService")
 
 --// TIPOS
 type Cooldowns = {
@@ -132,7 +132,7 @@ local Configurations = {
     }
 }
 
---// CORES ATUALIZADAS (verde Sandevistan reduzido)
+--// CORES ATUALIZADAS
 local Colors = {
     SANDI_TINT = Color3.fromRGB(175, 255, 190),
     DODGE_LIME = Color3.fromRGB(200, 255, 200),
@@ -160,8 +160,6 @@ Color3.fromRGB(0, 255, 0)
 },
 
     DASH_CYAN = Color3.fromRGB(0, 255, 255),
-    DASH_CYAN_LIGHT = Color3.fromRGB(100, 255, 255),
-    DASH_CYAN_DARK = Color3.fromRGB(0, 200, 200),
     DODGE_START = Color3.fromRGB(160, 0, 255),
     DODGE_END = Color3.fromRGB(255, 0, 130),
     EDIT_MODE = Color3.fromRGB(0, 255, 255),
@@ -223,19 +221,10 @@ local ButtonConfigs = {
         Key = "N",
         Color = Colors.DODGE_START,
         Position = UDim2.new(0.9, 0, 0.85, 0)
-    },
-    TrocarSetBtn = {
-        Size = UDim2.new(0, 40, 0, 40),
-        Position = UDim2.new(1, -60, 0, 45),
-        BackgroundColor3 = Colors.UI_DARK,
-        TextColor3 = Colors.UI_NEON,
-        Font = Enum.Font.SciFi,
-        TextSize = 22,
-        Text = "⇌"
     }
 }
 
---// NOVO: CONTROLE DE HABILIDADES (toggles do menu)
+--// CONTROLE DE HABILIDADES
 local EnabledAbilities = {
     Dash = true,
     Sandi = true,
@@ -254,7 +243,7 @@ local AbilityMap = {
 
 local SkillContainers = {}
 
---// ================= CONFIGURAÇÃO DE SETS (movido para cima conforme pedido para funcionar no menu) =================
+--// SETS
 local SET_1 = {120005268911290}
 local SET_2 = {
     18358624045,
@@ -268,8 +257,28 @@ local setColors = {
     [2] = Color3.fromRGB(0, 120, 215)
 }
 
---// NOVO: DODGE MODE (Modo 1 = Counter / Modo 2 = Automático)
+--// DODGE MODE
 local DodgeMode = "Counter"
+
+--// CUSTOM KEYBINDS
+local AbilityActions = {
+    Dash = "CyberDash",
+    Sandi = "CyberSandi",
+    Kiroshi = "CyberKiroshi",
+    Optical = "CyberOptical",
+    Dodge = "CyberDodge",
+}
+
+local CurrentKeybinds = {
+    Dash = Enum.KeyCode.Q,
+    Sandi = Enum.KeyCode.E,
+    Kiroshi = Enum.KeyCode.K,
+    Optical = Enum.KeyCode.O,
+    Dodge = Enum.KeyCode.N,
+}
+
+local RebindingAbility = nil
+local KeybindCurrentTexts = {}
 
 --// SONS 
 local Sounds = {
@@ -286,11 +295,10 @@ local Sounds = {
     SANDI_FAILURE = {id = "rbxassetid://73272481520628", volume = 1.5, pitch = 1, looped = false}
 }
 
---// ADIÇÃO DA MÚSICA
+--// MÚSICA
 local NOME_ARQUIVO = "I Really Want to Stay at Your House.mp3"
 local VOLUME = 1
 local LOOP = false
-local AUTO_PLAY = true
 
 local function detectarExecutor()
     if KRNL_LOADED then
@@ -484,7 +492,6 @@ local function setTransparency(character, targetTransparency, duration)
     end
 end
 
--- NOVO MÉTODO DE CAMUFLAGEM (igual ao script que você enviou)
 local function activateInvisibility()
     invisSound:Play()
     local savedpos = Player.Character.HumanoidRootPart.CFrame
@@ -596,7 +603,6 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
             Parent = progressBar
         })
         Create("UICorner", {CornerRadius = UDim.new(0, 3), Parent = fillBar})
-        local barGradient = Create("UIGradient", {Color = ColorSequence.new(color, color:Lerp(Colors.UI_NEON, 0.5)), Rotation = 90, Parent = fillBar})
         
         local timer = Create("TextLabel", {
             Size = UDim2.new(1, -15, 0.5, 0),
@@ -678,7 +684,6 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         end
     end
     
-    -- Remove HumanoidRootPart dos clones de Optical Camouflage para evitar duplicatas indesejadas
     if cloneType == "optical" and hologramHRP then
         hologramHRP:Destroy()
         hologramHRP = nil
@@ -888,7 +893,7 @@ local function ApplyGlitchEffect()
     end)
 end
 
---// CYBERPSYCHOSIS ANTIGO (restaurado)
+--// CYBERPSYCHOSIS
 local function createLightingEffects()
 	local cc = Instance.new("ColorCorrectionEffect")
 	cc.Name = "PsychoCC"
@@ -1259,51 +1264,6 @@ local function CleanupSandiSounds()
     idleTime = 0
 end
 
-local function ShowErrorText()
-    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
-    
-    local errorContainer = Create("Frame", {
-        Size = UDim2.new(0.6, 0, 0.15, 0),
-        Position = UDim2.new(0.2, 0, 0.4, 0),
-        BackgroundColor3 = Colors.UI_DARK,
-        BackgroundTransparency = 0.2,
-        BorderSizePixel = 0,
-        Parent = gui
-    })
-    Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = errorContainer})
-    local stroke = Create("UIStroke", {Color = Colors.ERROR_BORDER, Thickness = 2, Transparency = 0, Parent = errorContainer})
-    
-    local errorLabel = Create("TextLabel", {
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        Text = "Error : Sandevistan Contains Errors",
-        TextColor3 = Colors.ERROR_TEXT,
-        Font = Enum.Font.SciFi,
-        TextSize = 32,
-        TextTransparency = 1,
-        Parent = errorContainer
-    })
-    
-    local fadeIn = TweenService:Create(errorContainer, TweenInfo.new(0.5), {BackgroundTransparency = 0.1})
-    local fadeInLabel = TweenService:Create(errorLabel, TweenInfo.new(0.5), {TextTransparency = 0})
-    local fadeInStroke = TweenService:Create(stroke, TweenInfo.new(0.5), {Transparency = 0})
-    fadeIn:Play()
-    fadeInLabel:Play()
-    fadeInStroke:Play()
-    
-    task.delay(3, function()
-        local fadeOut = TweenService:Create(errorContainer, TweenInfo.new(0.5), {BackgroundTransparency = 1})
-        local fadeOutLabel = TweenService:Create(errorLabel, TweenInfo.new(0.5), {TextTransparency = 1})
-        local fadeOutStroke = TweenService:Create(stroke, TweenInfo.new(0.5), {Transparency = 1})
-        fadeOut:Play()
-        fadeOutLabel:Play()
-        fadeOutStroke:Play()
-        fadeOut.Completed:Connect(function()
-            errorContainer:Destroy()
-        end)
-    end)
-end
-
 local function ExecDodge(enemyPart: BasePart?)
     local dodgeCC = Create("ColorCorrectionEffect", {
         Name = "DodgeEffect",
@@ -1385,7 +1345,6 @@ local function ActivateDodgeReady()
     if os.clock() < State.Cooldowns.DODGE then return end
     
     if DodgeMode == "Counter" then
-        -- Modo Counter (comportamento antigo)
         if State.Energy < Constants.ENERGY_COSTS.DODGE then return end
         State.Energy -= Constants.ENERGY_COSTS.DODGE
         State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
@@ -1400,7 +1359,6 @@ local function ActivateDodgeReady()
             end
         end)
     else
-        -- Modo Automático: fica pronto infinitamente até ser usado
         State.IsDodgeReady = true
     end
 end
@@ -1691,7 +1649,7 @@ local function ExecSandi()
     criarGUI()
 end
 
---// DASH ANTIGO (restaurado exatamente como estava no original)
+--// DASH 
 local function ExecDash()
     if State.IsSandiActive then return end
     if State.Energy < Constants.ENERGY_COSTS.DASH or os.clock() < State.Cooldowns.DASH then return end
@@ -1828,7 +1786,6 @@ local function ExecKiroshi()
     end)
 end
 
--- OPTICAL CAMUFLAGEM ATUALIZADO (exatamente como no script que você enviou - resto do código intacto)
 local function ResetOptical()
     if not State.IsOpticalActive then return end
     
@@ -1870,7 +1827,28 @@ local function ExecOptical()
     end)
 end
 
---// FUNÇÕES DE SET (mantidas intactas)
+--// CUSTOM KEYBINDS FUNCTIONS
+local function UpdateKeybind(ability)
+    ContextActionService:UnbindAction(AbilityActions[ability])
+    ContextActionService:BindAction(AbilityActions[ability], function(_, inputState)
+        if inputState == Enum.UserInputState.Begin then
+            if ability == "Dash" then ExecDash()
+            elseif ability == "Sandi" then ExecSandi()
+            elseif ability == "Kiroshi" then ExecKiroshi()
+            elseif ability == "Optical" then ExecOptical()
+            elseif ability == "Dodge" then ActivateDodgeReady() end
+        end
+        return Enum.ContextActionResult.Sink
+    end, false, CurrentKeybinds[ability])
+end
+
+local function BindAllKeybinds()
+    for ab in pairs(CurrentKeybinds) do
+        UpdateKeybind(ab)
+    end
+end
+
+--// FUNÇÕES DE SET
 local function LimparAcessorios()
     local char = Player.Character
     if char then
@@ -1991,6 +1969,8 @@ local function BuildUI()
     if Player.PlayerGui:FindFirstChild("CyberRebuilt") then Player.PlayerGui.CyberRebuilt:Destroy() end
     local gui = Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
     
+    KeybindCurrentTexts = {}
+    
     local lockBtn = Create("TextButton", {
         Name = "LockBtn",
         Size = ButtonConfigs.LockBtn.Size,
@@ -2080,7 +2060,7 @@ local function BuildUI()
     CreateSkillBtn(ButtonConfigs.OpticalBtn.Key, ButtonConfigs.OpticalBtn.Color, ButtonConfigs.OpticalBtn.Position, "OpticalBtn", ExecOptical)
     CreateSkillBtn(ButtonConfigs.DodgeBtn.Key, ButtonConfigs.DodgeBtn.Color, ButtonConfigs.DodgeBtn.Position, "DodgeBtn", ActivateDodgeReady)
     
-    -- NOVO: Botão Settings fixo + Menu com Scroll (exatamente como pedido)
+    -- SETTINGS BUTTON
     local settingsBtn = Create("TextButton", {
         Name = "SettingsBtn",
         Size = UDim2.new(0, 40, 0, 40),
@@ -2190,7 +2170,7 @@ local function BuildUI()
         end)
     end
 
-    --// NOVO: DODGE MODE SELECTOR (Modo 1 Counter / Modo 2 Auto)
+    -- DODGE MODE SELECTOR
     local modeRow = Create("Frame", {
         Size = UDim2.new(1, 0, 0, 52),
         BackgroundColor3 = Colors.UI_BG,
@@ -2232,13 +2212,81 @@ local function BuildUI()
             modeToggle.Text = "COUNTER"
             modeToggle.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
         end
-        -- Atualiza visibilidade do botão Dodge
         if SkillContainers["DodgeBtn"] then
             SkillContainers["DodgeBtn"].Visible = (EnabledAbilities.Dodge and DodgeMode == "Counter")
         end
     end)
 
-    -- Sets movido para dentro do menu (exatamente como pedido)
+    -- CUSTOM KEYBINDS SECTION
+    local keybindsHeader = Create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 35),
+        BackgroundTransparency = 1,
+        Text = "  CUSTOM KEYBINDS",
+        TextColor3 = Colors.UI_NEON,
+        Font = Enum.Font.SciFi,
+        TextSize = 22,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = scroll
+    })
+
+    local keybindList = {
+        {name = "DASH IMPULSE", ab = "Dash", color = Colors.DASH_CYAN},
+        {name = "SANDEVISTAN", ab = "Sandi", color = Colors.SANDI_TINT},
+        {name = "KIROSHI OPTICS", ab = "Kiroshi", color = Colors.KIROSHI},
+        {name = "OPTICAL CAMO", ab = "Optical", color = Colors.OPTICAL},
+        {name = "NEURAL DODGE", ab = "Dodge", color = Colors.DODGE_START},
+    }
+
+    for _, kb in ipairs(keybindList) do
+        local row = Create("Frame", {
+            Size = UDim2.new(1, 0, 0, 52),
+            BackgroundColor3 = Colors.UI_BG,
+            BorderSizePixel = 0,
+            Parent = scroll
+        })
+        Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = row})
+
+        Create("TextLabel", {
+            Size = UDim2.new(0.5, 0, 1, 0),
+            BackgroundTransparency = 1,
+            Text = "  " .. kb.name,
+            TextColor3 = kb.color,
+            Font = Enum.Font.SciFi,
+            TextSize = 19,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = row
+        })
+
+        local currentKeyText = Create("TextLabel", {
+            Size = UDim2.new(0.25, 0, 1, 0),
+            Position = UDim2.new(0.5, 0, 0, 0),
+            BackgroundTransparency = 1,
+            Text = CurrentKeybinds[kb.ab].Name,
+            TextColor3 = Colors.UI_NEON,
+            Font = Enum.Font.Code,
+            TextSize = 20,
+            Parent = row
+        })
+        KeybindCurrentTexts[kb.ab] = currentKeyText
+
+        local rebindButton = Create("TextButton", {
+            Size = UDim2.new(0.22, 0, 0.75, 0),
+            Position = UDim2.new(0.76, 0, 0.125, 0),
+            Text = "REBIND",
+            BackgroundColor3 = Colors.UI_ACCENT,
+            TextColor3 = Colors.UI_NEON,
+            Font = Enum.Font.SciFi,
+            TextSize = 16,
+            Parent = row
+        })
+        Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = rebindButton})
+
+        rebindButton.MouseButton1Click:Connect(function()
+            RebindingAbility = kb.ab
+        end)
+    end
+
+    -- SETS
     local setsRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 60), BackgroundTransparency = 1, Parent = scroll})
     local setsBtn = Create("TextButton", {
         Size = UDim2.new(0.9, 0, 0, 48),
@@ -2272,7 +2320,6 @@ local function BuildUI()
     end)
 
     MakeDraggable(energyContainer, energyContainer)
-    -- LockBtn e SettingsBtn fixos (sem draggable para ficarem fixos na esquerda)
     lockBtn.MouseButton1Click:Connect(function()
         State.EditMode = not State.EditMode
         lockBtn.BackgroundColor3 = State.EditMode and Colors.EDIT_MODE or Colors.UI_DARK
@@ -2292,7 +2339,6 @@ local function BuildUI()
     UpdateKiroshiButton()
     UpdateOpticalButton()
     
-    -- Inicializa visibilidade do botão Dodge conforme modo atual
     if SkillContainers["DodgeBtn"] then
         SkillContainers["DodgeBtn"].Visible = (EnabledAbilities.Dodge and DodgeMode == "Counter")
     end
@@ -2369,7 +2415,7 @@ local function LerpJoints(moveDirection, angles)
     Joints.LeftHip.C0 = JointsC0.LeftHipC0 * JointTilts.LeftHipTilt
 end
 
-local function UpdateDirectionalMovement(deltaTime)
+local function UpdateDirectionalMovement()
     local now = workspace:GetServerTimeNow()
     if now - lastTime >= tickRate then
         lastTime = now
@@ -2514,7 +2560,6 @@ RunService.Heartbeat:Connect(function(dt)
             
             ExecDodge(ca)
             
-            -- Nova lógica: energia só é gasta no uso real
             if DodgeMode == "Auto" then
                 if State.Energy >= Constants.ENERGY_COSTS.DODGE then
                     State.Energy -= Constants.ENERGY_COSTS.DODGE
@@ -2588,7 +2633,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    --// AUTO DODGE MODE (Modo Automático - agora permanente até uso)
     if DodgeMode == "Auto" 
        and os.clock() >= State.Cooldowns.DODGE 
        and not State.IsDodgeReady 
@@ -2598,27 +2642,21 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
-local KeyActions = {
-    [Enum.KeyCode.Q] = ExecDash,
-    [Enum.KeyCode.E] = ExecSandi,
-    [Enum.KeyCode.K] = ExecKiroshi,
-    [Enum.KeyCode.O] = ExecOptical,
-}
-
+-- CUSTOM KEYBINDS HANDLER
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-    
-    if input.KeyCode == Enum.KeyCode.N then
-        if DodgeMode == "Counter" and EnabledAbilities.Dodge then
-            ActivateDodgeReady()
+    if RebindingAbility then
+        if input.KeyCode ~= Enum.KeyCode.Unknown then
+            CurrentKeybinds[RebindingAbility] = input.KeyCode
+            UpdateKeybind(RebindingAbility)
+            
+            if KeybindCurrentTexts[RebindingAbility] then
+                KeybindCurrentTexts[RebindingAbility].Text = input.KeyCode.Name
+            end
+            
+            RebindingAbility = nil
         end
         return
-    end
-    
-    local action = KeyActions[input.KeyCode]
-    
-    if action then
-        action()
     end
 end)
 
@@ -2670,6 +2708,7 @@ local function SetupCharacter(character)
     State.LastHealth = Humanoid.Health
 
     BuildUI()
+    BindAllKeybinds()
     InitWalkEffect()
     InitDirectionalMovement()
 end
@@ -2686,7 +2725,6 @@ end
 
 Init()
 
---// FUNÇÕES DE SET (mantidas intactas - defs movidas para cima para o botão funcionar, aqui só os connects)
 Player.CharacterAdded:Connect(function()
     task.wait(2)
     if currentSet == 1 then AplicarSet(SET_1) else AplicarSet(SET_2) end
