@@ -186,7 +186,7 @@ Color3.fromRGB(0, 255, 0)
 local ButtonConfigs = {
     LockBtn = {
         Size = UDim2.new(0, 40, 0, 40),
-        Position = UDim2.new(1, -60, 0, 60),
+        Position = UDim2.new(0, 20, 0, 60),
         BackgroundColor3 = Colors.UI_DARK,
         TextColor3 = Colors.UI_NEON,
         Font = Enum.Font.SciFi,
@@ -234,6 +234,42 @@ local ButtonConfigs = {
         Text = "⇌"
     }
 }
+
+--// NOVO: CONTROLE DE HABILIDADES (toggles do menu)
+local EnabledAbilities = {
+    Dash = true,
+    Sandi = true,
+    Kiroshi = true,
+    Optical = true,
+    Dodge = true
+}
+
+local AbilityMap = {
+    Dash = "DashBtn",
+    Sandi = "SandiBtn",
+    Kiroshi = "KiroshiBtn",
+    Optical = "OpticalBtn",
+    Dodge = "DodgeBtn"
+}
+
+local SkillContainers = {}
+
+--// ================= CONFIGURAÇÃO DE SETS (movido para cima conforme pedido para funcionar no menu) =================
+local SET_1 = {120005268911290}
+local SET_2 = {
+    18358624045,
+    18358533023,
+    18358615215
+}
+
+local currentSet = 1
+local setColors = {
+    [1] = Color3.fromRGB(45, 45, 45),
+    [2] = Color3.fromRGB(0, 120, 215)
+}
+
+--// NOVO: DODGE MODE (Modo 1 = Counter / Modo 2 = Automático)
+local DodgeMode = "Counter"
 
 --// SONS 
 local Sounds = {
@@ -1345,18 +1381,28 @@ local function ExecDodge(enemyPart: BasePart?)
 end
 
 local function ActivateDodgeReady()
-    if State.Energy < Constants.ENERGY_COSTS.DODGE or os.clock() < State.Cooldowns.DODGE then return end
-    State.Energy -= Constants.ENERGY_COSTS.DODGE
-    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
-    State.IsDodgeReady = true
-    task.spawn(function()
-        task.wait(2)
-        if State.IsDodgeReady then
-            State.IsDodgeReady = false
-            State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
-            ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
-        end
-    end)
+    if not EnabledAbilities.Dodge then return end
+    if os.clock() < State.Cooldowns.DODGE then return end
+    
+    if DodgeMode == "Counter" then
+        -- Modo Counter (comportamento antigo)
+        if State.Energy < Constants.ENERGY_COSTS.DODGE then return end
+        State.Energy -= Constants.ENERGY_COSTS.DODGE
+        State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+        State.IsDodgeReady = true
+        
+        task.spawn(function()
+            task.wait(2)
+            if State.IsDodgeReady and DodgeMode == "Counter" then
+                State.IsDodgeReady = false
+                State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
+                ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
+            end
+        end)
+    else
+        -- Modo Automático: fica pronto infinitamente até ser usado
+        State.IsDodgeReady = true
+    end
 end
 
 local function UpdateDashButton()
@@ -1824,6 +1870,88 @@ local function ExecOptical()
     end)
 end
 
+--// FUNÇÕES DE SET (mantidas intactas)
+local function LimparAcessorios()
+    local char = Player.Character
+    if char then
+        for _, v in pairs(char:GetDescendants()) do
+            if v:IsA("Accessory") and (v.Name:find("SetItem_") or v:FindFirstChild("AutoWeldTag")) then
+                v:Destroy()
+            end
+        end
+    end
+end
+
+local function AplicarSet(listaIds)
+    local character = Player.Character or Player.CharacterAdded:Wait()
+    LimparAcessorios()
+
+    for _, id in pairs(listaIds) do
+        task.spawn(function()
+            local sucesso, objects = pcall(function()
+                return game:GetObjects("rbxassetid://" .. id)
+            end)
+
+            if sucesso and objects and objects[1] then
+                local asset = objects[1]:Clone()
+                asset.Name = "SetItem_" .. id
+                
+                local tag = Instance.new("BoolValue")
+                tag.Name = "AutoWeldTag"
+                tag.Parent = asset
+
+                local handle = asset:IsA("BasePart") and asset or asset:FindFirstChild("Handle", true)
+
+                if handle then
+                    for _, v in pairs(asset:GetDescendants()) do
+                        if v:IsA("LuaSourceContainer") then v:Destroy() end
+                    end
+
+                    handle.CanCollide = false
+                    handle.Massless = true
+                    asset.Parent = character
+
+                    local attachmentItem = handle:FindFirstChildWhichIsA("Attachment")
+                    local partAlvo = nil
+                    local attachmentCorpo = nil
+
+                    if attachmentItem then
+                        for _, parte in pairs(character:GetChildren()) do
+                            if parte:IsA("BasePart") then
+                                local found = parte:FindFirstChild(attachmentItem.Name)
+                                if found then
+                                    partAlvo = parte
+                                    attachmentCorpo = found
+                                    break
+                                end
+                            end
+                        end
+                    end
+
+                    if not partAlvo then
+                        partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+                    end
+
+                    if partAlvo then
+                        local weld = Instance.new("Weld")
+                        weld.Part0 = partAlvo
+                        weld.Part1 = handle
+                        
+                        if attachmentItem and attachmentCorpo then
+                            weld.C0 = attachmentCorpo.CFrame
+                            weld.C1 = attachmentItem.CFrame
+                        else
+                            weld.C0 = CFrame.new(0, 0, 0.6) * CFrame.Angles(0, math.rad(180), 0)
+                        end
+                        weld.Parent = handle
+                    end
+                end
+                objects[1]:Destroy()
+            end
+        end)
+    end
+end
+
 --// SISTEMA DE UI
 local function MakeDraggable(movable: Frame, hit: GuiObject)
     hit = hit or movable
@@ -1866,7 +1994,7 @@ local function BuildUI()
     local lockBtn = Create("TextButton", {
         Name = "LockBtn",
         Size = ButtonConfigs.LockBtn.Size,
-        Position = savedPositions["LockBtn"] or ButtonConfigs.LockBtn.Position,
+        Position = ButtonConfigs.LockBtn.Position,
         Text = ButtonConfigs.LockBtn.Text,
         BackgroundColor3 = ButtonConfigs.LockBtn.BackgroundColor3,
         TextColor3 = ButtonConfigs.LockBtn.TextColor3,
@@ -1930,6 +2058,7 @@ local function BuildUI()
         TweenService:Create(btn, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Rotation = 3}):Play()
         
         MakeDraggable(btnContainer, btn)
+        SkillContainers[name] = btnContainer
         if name == "SandiBtn" then
             task.spawn(function()
                 while btn.Parent do
@@ -1951,16 +2080,205 @@ local function BuildUI()
     CreateSkillBtn(ButtonConfigs.OpticalBtn.Key, ButtonConfigs.OpticalBtn.Color, ButtonConfigs.OpticalBtn.Position, "OpticalBtn", ExecOptical)
     CreateSkillBtn(ButtonConfigs.DodgeBtn.Key, ButtonConfigs.DodgeBtn.Color, ButtonConfigs.DodgeBtn.Position, "DodgeBtn", ActivateDodgeReady)
     
+    -- NOVO: Botão Settings fixo + Menu com Scroll (exatamente como pedido)
+    local settingsBtn = Create("TextButton", {
+        Name = "SettingsBtn",
+        Size = UDim2.new(0, 40, 0, 40),
+        Position = UDim2.new(0, 20, 0, 100),
+        BackgroundColor3 = Colors.UI_DARK,
+        TextColor3 = Colors.UI_NEON,
+        Font = Enum.Font.SciFi,
+        TextSize = 26,
+        Text = "⚒︎",
+        Parent = gui
+    })
+    Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = settingsBtn})
+    Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2, Transparency = 0.4, Parent = settingsBtn})
+    local gradientSettings = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_DARK, Colors.UI_NEON), Rotation = 45, Parent = settingsBtn})
+
+    local settingsMenu = Create("Frame", {
+        Name = "SettingsMenu",
+        Size = UDim2.new(0, 320, 0, 460),
+        Position = UDim2.new(0, 75, 0, 30),
+        BackgroundColor3 = Colors.UI_DARK,
+        Visible = false,
+        BorderSizePixel = 0,
+        Parent = gui
+    })
+    Create("UICorner", {CornerRadius = UDim.new(0, 14), Parent = settingsMenu})
+    Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 3, Parent = settingsMenu})
+
+    local title = Create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 50),
+        BackgroundTransparency = 1,
+        Text = "SETTINGS",
+        TextColor3 = Colors.UI_NEON,
+        Font = Enum.Font.SciFi,
+        TextSize = 28,
+        Parent = settingsMenu
+    })
+
+    local scroll = Create("ScrollingFrame", {
+        Name = "AbilitiesScroll",
+        Size = UDim2.new(1, -20, 1, -130),
+        Position = UDim2.new(0, 10, 0, 60),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ScrollBarThickness = 8,
+        ScrollBarImageColor3 = Colors.UI_NEON,
+        Parent = settingsMenu
+    })
+    Create("UIListLayout", {Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder, Parent = scroll})
+
+    local abilitiesList = {
+        {display = "DASH IMPULSE", key = "Dash", color = Colors.DASH_CYAN},
+        {display = "SANDEVISTAN", key = "Sandi", color = Colors.SANDI_TINT},
+        {display = "KIROSHI OPTICS", key = "Kiroshi", color = Colors.KIROSHI},
+        {display = "OPTICAL CAMO", key = "Optical", color = Colors.OPTICAL},
+        {display = "NEURAL DODGE", key = "Dodge", color = Colors.DODGE_START}
+    }
+
+    for _, ab in ipairs(abilitiesList) do
+        local row = Create("Frame", {
+            Size = UDim2.new(1, 0, 0, 52),
+            BackgroundColor3 = Colors.UI_BG,
+            BorderSizePixel = 0,
+            Parent = scroll
+        })
+        Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = row})
+
+        Create("TextLabel", {
+            Size = UDim2.new(0.65, 0, 1, 0),
+            BackgroundTransparency = 1,
+            Text = "  " .. ab.display,
+            TextColor3 = ab.color,
+            Font = Enum.Font.SciFi,
+            TextSize = 19,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = row
+        })
+
+        local tog = Create("TextButton", {
+            Size = UDim2.new(0.28, 0, 0.75, 0),
+            Position = UDim2.new(0.69, 0, 0.125, 0),
+            Text = EnabledAbilities[ab.key] and "ON" or "OFF",
+            BackgroundColor3 = EnabledAbilities[ab.key] and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40),
+            TextColor3 = Color3.new(1,1,1),
+            Font = Enum.Font.SciFi,
+            TextSize = 17,
+            Parent = row
+        })
+        Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = tog})
+
+        tog.MouseButton1Click:Connect(function()
+            EnabledAbilities[ab.key] = not EnabledAbilities[ab.key]
+            tog.Text = EnabledAbilities[ab.key] and "ON" or "OFF"
+            tog.BackgroundColor3 = EnabledAbilities[ab.key] and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
+            
+            if ab.key == "Dodge" and not EnabledAbilities.Dodge then
+                State.IsDodgeReady = false
+            end
+            
+            local btnName = AbilityMap[ab.key]
+            if btnName and SkillContainers[btnName] then
+                local visible = EnabledAbilities[ab.key]
+                if btnName == "DodgeBtn" then
+                    visible = visible and DodgeMode == "Counter"
+                end
+                SkillContainers[btnName].Visible = visible
+            end
+        end)
+    end
+
+    --// NOVO: DODGE MODE SELECTOR (Modo 1 Counter / Modo 2 Auto)
+    local modeRow = Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 52),
+        BackgroundColor3 = Colors.UI_BG,
+        BorderSizePixel = 0,
+        Parent = scroll
+    })
+    Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = modeRow})
+
+    Create("TextLabel", {
+        Size = UDim2.new(0.65, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "  DODGE MODE",
+        TextColor3 = Colors.DODGE_START,
+        Font = Enum.Font.SciFi,
+        TextSize = 19,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = modeRow
+    })
+
+    local modeToggle = Create("TextButton", {
+        Size = UDim2.new(0.28, 0, 0.75, 0),
+        Position = UDim2.new(0.69, 0, 0.125, 0),
+        Text = DodgeMode == "Counter" and "COUNTER" or "AUTO",
+        BackgroundColor3 = DodgeMode == "Counter" and Color3.fromRGB(255, 165, 0) or Color3.fromRGB(0, 255, 255),
+        TextColor3 = Color3.new(1,1,1),
+        Font = Enum.Font.SciFi,
+        TextSize = 17,
+        Parent = modeRow
+    })
+    Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = modeToggle})
+
+    modeToggle.MouseButton1Click:Connect(function()
+        if DodgeMode == "Counter" then
+            DodgeMode = "Auto"
+            modeToggle.Text = "AUTO"
+            modeToggle.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+        else
+            DodgeMode = "Counter"
+            modeToggle.Text = "COUNTER"
+            modeToggle.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+        end
+        -- Atualiza visibilidade do botão Dodge
+        if SkillContainers["DodgeBtn"] then
+            SkillContainers["DodgeBtn"].Visible = (EnabledAbilities.Dodge and DodgeMode == "Counter")
+        end
+    end)
+
+    -- Sets movido para dentro do menu (exatamente como pedido)
+    local setsRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 60), BackgroundTransparency = 1, Parent = scroll})
+    local setsBtn = Create("TextButton", {
+        Size = UDim2.new(0.9, 0, 0, 48),
+        Position = UDim2.new(0.05, 0, 0, 6),
+        Text = "⇌ TROCA SET",
+        BackgroundColor3 = setColors[currentSet],
+        TextColor3 = Colors.UI_NEON,
+        Font = Enum.Font.SciFi,
+        TextSize = 20,
+        Parent = setsRow
+    })
+    Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = setsBtn})
+    Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2, Parent = setsBtn})
+
+    setsBtn.MouseButton1Click:Connect(function()
+        if currentSet == 1 then
+            currentSet = 2
+            setsBtn.BackgroundColor3 = setColors[2]
+            AplicarSet(SET_2)
+        else
+            currentSet = 1
+            setsBtn.BackgroundColor3 = setColors[1]
+            AplicarSet(SET_1)
+        end
+    end)
+
+    scroll.CanvasSize = UDim2.new(0, 0, 0, scroll.UIListLayout.AbsoluteContentSize.Y + 150)
+
+    settingsBtn.MouseButton1Click:Connect(function()
+        settingsMenu.Visible = not settingsMenu.Visible
+    end)
+
     MakeDraggable(energyContainer, energyContainer)
-    MakeDraggable(lockBtn, lockBtn)
-    
+    -- LockBtn e SettingsBtn fixos (sem draggable para ficarem fixos na esquerda)
     lockBtn.MouseButton1Click:Connect(function()
         State.EditMode = not State.EditMode
         lockBtn.BackgroundColor3 = State.EditMode and Colors.EDIT_MODE or Colors.UI_DARK
         lockBtn.TextColor3 = State.EditMode and Colors.UI_DARK or Colors.UI_NEON
         for _, item in ipairs(UI_Elements) do item.Stroke.Enabled = State.EditMode end
         if not State.EditMode then
-            savedPositions["LockBtn"] = lockBtn.Position
             savedPositions["EnergyContainer"] = energyContainer.Position
             savedPositions["DashBtn"] = gui:FindFirstChild("DashBtnContainer").Position
             savedPositions["SandiBtn"] = gui:FindFirstChild("SandiBtnContainer").Position
@@ -1973,6 +2291,11 @@ local function BuildUI()
     UpdateDashButton()
     UpdateKiroshiButton()
     UpdateOpticalButton()
+    
+    -- Inicializa visibilidade do botão Dodge conforme modo atual
+    if SkillContainers["DodgeBtn"] then
+        SkillContainers["DodgeBtn"].Visible = (EnabledAbilities.Dodge and DodgeMode == "Counter")
+    end
     
     local rsConn
     rsConn = RunService.RenderStepped:Connect(function()
@@ -2176,7 +2499,7 @@ RunService.Heartbeat:Connect(function(dt)
     if not HRP or not Humanoid then return end
     if Humanoid.Health < State.LastHealth then
         local dmgDealt = State.LastHealth - Humanoid.Health
-        if dmgDealt > 1 and State.IsDodgeReady then
+        if dmgDealt > 1 and State.IsDodgeReady and EnabledAbilities.Dodge then
             local ca = nil
             local ld = 25
             for _, obj in ipairs(Workspace:GetDescendants()) do
@@ -2188,7 +2511,17 @@ RunService.Heartbeat:Connect(function(dt)
                     end
                 end
             end
+            
             ExecDodge(ca)
+            
+            -- Nova lógica: energia só é gasta no uso real
+            if DodgeMode == "Auto" then
+                if State.Energy >= Constants.ENERGY_COSTS.DODGE then
+                    State.Energy -= Constants.ENERGY_COSTS.DODGE
+                    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+                end
+            end
+            
             State.IsDodgeReady = false
             State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
             ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
@@ -2254,6 +2587,15 @@ RunService.Heartbeat:Connect(function(dt)
             State.Energy = math.min(Constants.MAX_ENERGY, State.Energy + (Constants.REGEN_RATE * dt))
         end
     end
+
+    --// AUTO DODGE MODE (Modo Automático - agora permanente até uso)
+    if DodgeMode == "Auto" 
+       and os.clock() >= State.Cooldowns.DODGE 
+       and not State.IsDodgeReady 
+       and State.Energy >= Constants.ENERGY_COSTS.DODGE
+       and EnabledAbilities.Dodge then
+        ActivateDodgeReady()
+    end
 end)
 
 local KeyActions = {
@@ -2261,11 +2603,17 @@ local KeyActions = {
     [Enum.KeyCode.E] = ExecSandi,
     [Enum.KeyCode.K] = ExecKiroshi,
     [Enum.KeyCode.O] = ExecOptical,
-    [Enum.KeyCode.N] = ActivateDodgeReady,
 }
 
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
+    
+    if input.KeyCode == Enum.KeyCode.N then
+        if DodgeMode == "Counter" and EnabledAbilities.Dodge then
+            ActivateDodgeReady()
+        end
+        return
+    end
     
     local action = KeyActions[input.KeyCode]
     
@@ -2338,161 +2686,7 @@ end
 
 Init()
 
--- ================= CONFIGURAÇÃO DE SETS =================
-local SET_1 = {120005268911290}
-local SET_2 = {
-    18358624045,
-    18358533023,
-    18358615215
-}
-
-local currentSet = 1
-local setColors = {
-    [1] = Color3.fromRGB(45, 45, 45),
-    [2] = Color3.fromRGB(0, 120, 215)
-}
-
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AlternadorSets"
-screenGui.Parent = Player:WaitForChild("PlayerGui")
-screenGui.ResetOnSpawn = false
-
-local button = Instance.new("TextButton")
-button.Name = "TrocarSetBtn"
-button.Size = ButtonConfigs.TrocarSetBtn.Size
-button.Position = ButtonConfigs.TrocarSetBtn.Position
-button.BackgroundColor3 = setColors[1]
-button.TextColor3 = ButtonConfigs.TrocarSetBtn.TextColor3
-button.Text = ButtonConfigs.TrocarSetBtn.Text
-button.Font = ButtonConfigs.TrocarSetBtn.Font
-button.TextSize = ButtonConfigs.TrocarSetBtn.TextSize
-button.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
-corner.Parent = button
-
-local stroke = Instance.new("UIStroke")
-stroke.Color = Colors.UI_NEON
-stroke.Thickness = 2
-stroke.Transparency = 0.4
-stroke.Parent = button
-
-local gradient = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_DARK, Colors.UI_NEON), Rotation = 45, Parent = button})
-
-MakeDraggable(button, button)
-
-local function LimparAcessorios()
-    local char = Player.Character
-    if char then
-        for _, v in pairs(char:GetDescendants()) do
-            if v:IsA("Accessory") and (v.Name:find("SetItem_") or v:FindFirstChild("AutoWeldTag")) then
-                v:Destroy()
-            end
-        end
-    end
-end
-
-local function AplicarSet(listaIds)
-    local character = Player.Character or Player.CharacterAdded:Wait()
-    LimparAcessorios()
-
-    for _, id in pairs(listaIds) do
-        task.spawn(function()
-            local sucesso, objects = pcall(function()
-                return game:GetObjects("rbxassetid://" .. id)
-            end)
-
-            if sucesso and objects and objects[1] then
-                local asset = objects[1]:Clone()
-                asset.Name = "SetItem_" .. id
-                
-                local tag = Instance.new("BoolValue")
-                tag.Name = "AutoWeldTag"
-                tag.Parent = asset
-
-                local handle = asset:IsA("BasePart") and asset or asset:FindFirstChild("Handle", true)
-
-                if handle then
-                    for _, v in pairs(asset:GetDescendants()) do
-                        if v:IsA("LuaSourceContainer") then v:Destroy() end
-                    end
-
-                    handle.CanCollide = false
-                    handle.Massless = true
-                    asset.Parent = character
-
-                    local attachmentItem = handle:FindFirstChildWhichIsA("Attachment")
-                    local partAlvo = nil
-                    local attachmentCorpo = nil
-
-                    if attachmentItem then
-                        for _, parte in pairs(character:GetChildren()) do
-                            if parte:IsA("BasePart") then
-                                local found = parte:FindFirstChild(attachmentItem.Name)
-                                if found then
-                                    partAlvo = parte
-                                    attachmentCorpo = found
-                                    break
-                                end
-                            end
-                        end
-                    end
-
-                    if not partAlvo then
-                        partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
-                    end
-
-                    if partAlvo then
-                        local weld = Instance.new("Weld")
-                        weld.Part0 = partAlvo
-                        weld.Part1 = handle
-                        
-                        if attachmentItem and attachmentCorpo then
-                            weld.C0 = attachmentCorpo.CFrame
-                            weld.C1 = attachmentItem.CFrame
-                        else
-                            weld.C0 = CFrame.new(0, 0, 0.6) * CFrame.Angles(0, math.rad(180), 0)
-                        end
-                        weld.Parent = handle
-                    end
-                end
-                objects[1]:Destroy()
-            end
-        end)
-    end
-end
-
-button.MouseEnter:Connect(function()
-    TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = setColors[currentSet]:Lerp(Colors.UI_NEON, 0.2)}):Play()
-    TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0}):Play()
-end)
-
-button.MouseLeave:Connect(function()
-    TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = setColors[currentSet]}):Play()
-    TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0.4}):Play()
-end)
-
-button.MouseButton1Down:Connect(function()
-    TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), {Size = UDim2.new(0, 35, 0, 35), BackgroundColor3 = Colors.UI_NEON, TextColor3 = Colors.UI_DARK}):Play()
-end)
-
-button.MouseButton1Up:Connect(function()
-    TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Bounce, Enum.EasingDirection.In), {Size = UDim2.new(0, 40, 0, 40), BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON}):Play()
-end)
-
-button.MouseButton1Click:Connect(function()
-    if currentSet == 1 then
-        currentSet = 2
-        button.BackgroundColor3 = setColors[2]
-        AplicarSet(SET_2)
-    else
-        currentSet = 1
-        button.BackgroundColor3 = setColors[1]
-        AplicarSet(SET_1)
-    end
-end)
-
+--// FUNÇÕES DE SET (mantidas intactas - defs movidas para cima para o botão funcionar, aqui só os connects)
 Player.CharacterAdded:Connect(function()
     task.wait(2)
     if currentSet == 1 then AplicarSet(SET_1) else AplicarSet(SET_2) end
