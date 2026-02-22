@@ -14,9 +14,8 @@ local LocalPlayer   = Players.LocalPlayer
 local Enabled       = false
 local TargetType    = "PLAYERS"   -- "PLAYERS" ou "NPCS"
 local Mode          = "CAMLOCK"   -- "CAMLOCK", "AIMLOCK", "ASSIST", "Mistu"
-local BodyPart      = "Head"      -- "Head" ou "Torso"
+local BodyPart      = "CABEÇA"    -- "CABEÇA", "PESCOÇO", "TORSO", "PÉ"
 local LockedTarget  = nil
-local Hue           = 0
 local LineboxEnabled    = false
 local lineboxDrawings   = {}
 
@@ -24,16 +23,10 @@ local lineboxDrawings   = {}
 local FOVMax        = 110
 local FOVMin        = 50
 local FOV           = FOVMax
-local CamSmooth     = 0.95      -- Quanto menor, mais suave (0~1)
+local CamSmooth     = 0.95      -- Quanto menor, mais suave (0\\~1)
 local MistuSmooth   = 0.98
 local AimSmooth     = 0.92
 local AssistStrength= 0.95
-
---// Função RGB para cor dinâmica no toggle
-local function getRainbowColor()
-    Hue = (Hue + 0.004) % 1
-    return Color3.fromHSV(Hue, 1, 1)
-end
 
 --// FOV Circle
 local fovCircle = Drawing.new("Circle")
@@ -44,6 +37,7 @@ fovCircle.Filled      = false
 fovCircle.Visible     = false
 fovCircle.Color       = Color3.fromRGB(255, 255, 255)
 fovCircle.Transparency = 1
+fovCircle.ZIndex = 999
 
 --// Indicadores CAMLOCK
 local camLockLines = {}
@@ -53,6 +47,7 @@ for _ = 1, 4 do
     line.Color     = Color3.fromRGB(0, 255, 255)
     line.Transparency = 1
     line.Visible   = false
+    line.ZIndex = 1000
     table.insert(camLockLines, line)
 end
 
@@ -63,6 +58,7 @@ camLockDot.Filled       = true
 camLockDot.Color        = Color3.fromRGB(0, 255, 255)
 camLockDot.Transparency = 1
 camLockDot.Visible      = false
+camLockDot.ZIndex = 1001
 
 local function updateCamLockIndicator(part)
     if not Enabled or not LockedTarget or not part then
@@ -95,12 +91,14 @@ local function updateCamLockIndicator(part)
     camLockDot.Visible = true
 end
 
---// Indicador AIMLOCK (seta)
+--// Indicador AIMLOCK (triângulo vermelho acima da cabeça)
 local aimLockArrow = Drawing.new("Triangle")
 aimLockArrow.Color        = Color3.fromRGB(255, 0, 0)
-aimLockArrow.Thickness    = 1
+aimLockArrow.Thickness    = 2
 aimLockArrow.Transparency = 1
 aimLockArrow.Visible      = false
+aimLockArrow.Filled = false
+aimLockArrow.ZIndex = 1002
 
 local function updateAimLockIndicator(part)
     if not Enabled or not LockedTarget or not part then
@@ -109,13 +107,13 @@ local function updateAimLockIndicator(part)
     end
 
     local head = part.Parent and part.Parent:FindFirstChild("Head") or part
-    local screenPos, visible = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 2, 0))
+    local screenPos, visible = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 3, 0))
     if not visible then
         aimLockArrow.Visible = false
         return
     end
 
-    local size = 12
+    local size = 15
     aimLockArrow.PointA = Vector2.new(screenPos.X, screenPos.Y)
     aimLockArrow.PointB = Vector2.new(screenPos.X - size, screenPos.Y + size)
     aimLockArrow.PointC = Vector2.new(screenPos.X + size, screenPos.Y + size)
@@ -124,10 +122,14 @@ end
 
 --// Utilitários
 local function getTargetPart(character)
-    if BodyPart == "Head" then
+    if BodyPart == "CABEÇA" then
         return character:FindFirstChild("Head")
-    elseif BodyPart == "Torso" then
+    elseif BodyPart == "PESCOÇO" then
+        return character:FindFirstChild("Neck") or character:FindFirstChild("UpperTorso") or character:FindFirstChild("Head")
+    elseif BodyPart == "TORSO" then
         return character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso") or character:FindFirstChild("HumanoidRootPart")
+    elseif BodyPart == "PÉ" then
+        return character:FindFirstChild("LeftFoot") or character:FindFirstChild("RightFoot") or character:FindFirstChild("LowerTorso") or character:FindFirstChild("HumanoidRootPart")
     end
     return nil
 end
@@ -185,6 +187,19 @@ local function findClosestTarget()
     return closest
 end
 
+--// Validação de alvo (fix para NPCs e Players)
+local function isValidLockedTarget(part)
+    if not part then return false end
+    local model = part.Parent
+    if not model then return false end
+    if TargetType == "PLAYERS" then
+        local plr = Players:GetPlayerFromCharacter(model)
+        return plr and plr ~= LocalPlayer and model:FindFirstChildOfClass("Humanoid") and model:FindFirstChildOfClass("Humanoid").Health > 0
+    else
+        return isValidNPC(model) and model:FindFirstChildOfClass("Humanoid") and model:FindFirstChildOfClass("Humanoid").Health > 0
+    end
+end
+
 --// Função para adicionar Linebox a um player
 local function addLinebox(player)
     if player == LocalPlayer or lineboxDrawings[player] then return end
@@ -195,6 +210,7 @@ local function addLinebox(player)
         line.Thickness = 2
         line.Color = Color3.fromRGB(255, 255, 255)
         line.Visible = false
+        line.ZIndex = 998
         table.insert(boxLines, line)
     end
 
@@ -202,6 +218,7 @@ local function addLinebox(player)
     tracer.Thickness = 2
     tracer.Color = Color3.fromRGB(255, 255, 255)
     tracer.Visible = false
+    tracer.ZIndex = 998
 
     lineboxDrawings[player] = {boxLines = boxLines, tracer = tracer}
 end
@@ -211,15 +228,22 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Frame principal
+-- Frame principal (Cyberpunk Holográfica)
 local mainFrame = Instance.new("Frame", screenGui)
 mainFrame.Size = UDim2.new(0, 180, 0, 52)
 mainFrame.Position = UDim2.new(0.5, -90, 0.65, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+mainFrame.BackgroundColor3 = Color3.fromRGB(8, 3, 28)
+mainFrame.BackgroundTransparency = 0.25
 mainFrame.BorderSizePixel = 0
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 14)
 
--- Botões laterais
+local mainStroke = Instance.new("UIStroke", mainFrame)
+mainStroke.Color = Color3.fromRGB(0, 255, 255)
+mainStroke.Thickness = 3
+mainStroke.Transparency = 0.05
+mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- Botões laterais (Cyberpunk Holográfica)
 local function createSideButton(text, yOffset)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 38, 0, 14)
@@ -227,11 +251,17 @@ local function createSideButton(text, yOffset)
     btn.Text = text
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 11
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.BackgroundColor3 = Color3.fromRGB(32, 32, 32)
+    btn.TextColor3 = Color3.fromRGB(0, 255, 255)
+    btn.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
+    btn.BackgroundTransparency = 0.3
     btn.BorderSizePixel = 0
     btn.Parent = mainFrame
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(0, 255, 255)
+    stroke.Thickness = 1.5
+    stroke.Transparency = 0.2
     return btn
 end
 
@@ -239,48 +269,72 @@ local playerBtn   = createSideButton("P", 4)
 local modeBtn     = createSideButton("CAM", 18)
 local partBtn     = createSideButton("PART", 32)
 
--- Botão Toggle principal
+-- Botão Toggle principal (Cyberpunk Holográfica - sem RGB)
 local toggleBtn = Instance.new("TextButton", mainFrame)
 toggleBtn.Size = UDim2.new(0, 110, 0, 34)
 toggleBtn.Position = UDim2.new(0.5, -35, 0.5, -17)
 toggleBtn.Text = "TOGGLE OFF"
 toggleBtn.Font = Enum.Font.GothamMedium
 toggleBtn.TextSize = 14
-toggleBtn.TextColor3 = Color3.new(1,1,1)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 50)
+toggleBtn.BackgroundTransparency = 0.2
 toggleBtn.BorderSizePixel = 0
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 12)
 
--- Botão de arrastar
+local toggleStroke = Instance.new("UIStroke", toggleBtn)
+toggleStroke.Color = Color3.fromRGB(0, 255, 255)
+toggleStroke.Thickness = 2.5
+toggleStroke.Transparency = 0.1
+
+-- Botão de arrastar (Cyberpunk Holográfica)
 local dragButton = Instance.new("TextButton", screenGui)
 dragButton.Size = UDim2.new(0, 32, 0, 20)
 dragButton.Text = "🔄"
 dragButton.Font = Enum.Font.GothamBold
 dragButton.TextSize = 14
-dragButton.TextColor3 = Color3.new(1,1,1)
-dragButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+dragButton.TextColor3 = Color3.fromRGB(0, 255, 255)
+dragButton.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
+dragButton.BackgroundTransparency = 0.4
 dragButton.BorderSizePixel = 0
 Instance.new("UICorner", dragButton).CornerRadius = UDim.new(0, 8)
 
--- Botão Linebox (à esquerda do drag)
+local dragStroke = Instance.new("UIStroke", dragButton)
+dragStroke.Color = Color3.fromRGB(0, 255, 255)
+dragStroke.Thickness = 2
+dragStroke.Transparency = 0.1
+
+-- Botão Linebox (à esquerda do drag) (Cyberpunk Holográfica)
 local lineboxBtn = Instance.new("TextButton", screenGui)
 lineboxBtn.Size = UDim2.new(0, 32, 0, 20)
 lineboxBtn.Text = "LB"
 lineboxBtn.Font = Enum.Font.GothamBold
 lineboxBtn.TextSize = 14
-lineboxBtn.TextColor3 = Color3.new(1,1,1)
-lineboxBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+lineboxBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
+lineboxBtn.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
+lineboxBtn.BackgroundTransparency = 0.4
 lineboxBtn.BorderSizePixel = 0
 Instance.new("UICorner", lineboxBtn).CornerRadius = UDim.new(0, 8)
 lineboxBtn.Visible = false
 
--- Menu de partes do corpo
+local lbStroke = Instance.new("UIStroke", lineboxBtn)
+lbStroke.Color = Color3.fromRGB(0, 255, 255)
+lbStroke.Thickness = 2
+lbStroke.Transparency = 0.1
+
+-- Menu de partes do corpo (Cyberpunk Holográfica) - AGORA COM CABEÇA, PESCOÇO, TORSO, PÉ
 local partMenu = Instance.new("Frame", screenGui)
-partMenu.Size = UDim2.new(0, 110, 0, 44)
-partMenu.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+partMenu.Size = UDim2.new(0, 110, 0, 88)   -- altura para 4 opções
+partMenu.BackgroundColor3 = Color3.fromRGB(8, 3, 28)
+partMenu.BackgroundTransparency = 0.25
 partMenu.BorderSizePixel = 0
 partMenu.Visible = false
 Instance.new("UICorner", partMenu).CornerRadius = UDim.new(0, 8)
+
+local pmStroke = Instance.new("UIStroke", partMenu)
+pmStroke.Color = Color3.fromRGB(0, 255, 255)
+pmStroke.Thickness = 3
+pmStroke.Transparency = 0.05
 
 local function createPartOption(text, y)
     local btn = Instance.new("TextButton", partMenu)
@@ -289,15 +343,23 @@ local function createPartOption(text, y)
     btn.Text = text
     btn.Font = Enum.Font.Gotham
     btn.TextSize = 11
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.BackgroundColor3 = Color3.fromRGB(32, 32, 32)
+    btn.TextColor3 = Color3.fromRGB(0, 255, 255)
+    btn.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
+    btn.BackgroundTransparency = 0.3
     btn.BorderSizePixel = 0
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(0, 255, 255)
+    stroke.Thickness = 1.5
+    stroke.Transparency = 0.2
     return btn
 end
 
-local headOption = createPartOption("HEAD", 4)
-local torsoOption = createPartOption("TORSO", 24)
+local headOption  = createPartOption("CABEÇA", 4)
+local neckOption  = createPartOption("PESCOÇO", 24)
+local torsoOption = createPartOption("TORSO", 44)
+local peOption    = createPartOption("PÉ", 64)
 
 --// Inicializa Linebox para players existentes
 for _, player in ipairs(Players:GetPlayers()) do
@@ -351,12 +413,22 @@ partBtn.MouseButton1Click:Connect(function()
 end)
 
 headOption.MouseButton1Click:Connect(function()
-    BodyPart = "Head"
+    BodyPart = "CABEÇA"
+    partMenu.Visible = false
+end)
+
+neckOption.MouseButton1Click:Connect(function()
+    BodyPart = "PESCOÇO"
     partMenu.Visible = false
 end)
 
 torsoOption.MouseButton1Click:Connect(function()
-    BodyPart = "Torso"
+    BodyPart = "TORSO"
+    partMenu.Visible = false
+end)
+
+peOption.MouseButton1Click:Connect(function()
+    BodyPart = "PÉ"
     partMenu.Visible = false
 end)
 
@@ -373,9 +445,11 @@ dragButton.InputBegan:Connect(function(input)
         dragStart = input.Position
         startPos = mainFrame.Position
         
-        input.Changed:Connect(function()
+        local conn
+        conn = input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
+                conn:Disconnect()
             end
         end)
     end
@@ -395,7 +469,9 @@ end)
 
 --// Loop principal
 RunService.RenderStepped:Connect(function()
-    toggleBtn.BackgroundColor3 = getRainbowColor()
+    -- Tema Cyberpunk Holográfica no toggle (sem RGB)
+    toggleBtn.BackgroundColor3 = Enabled and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(20, 20, 50)
+    toggleBtn.TextColor3 = Enabled and Color3.fromRGB(5, 5, 15) or Color3.fromRGB(0, 255, 255)
 
     -- Posiciona o botão de drag, linebox e menu de partes
     dragButton.Position = UDim2.fromOffset(
@@ -506,9 +582,9 @@ RunService.RenderStepped:Connect(function()
         return
     end
 
-    -- Atualiza alvo
+    -- Atualiza alvo (fix para validação de NPCs/Players)
     if Mode ~= "ASSIST" then
-        if not LockedTarget or not LockedTarget.Parent or not LockedTarget.Parent.Parent then
+        if not isValidLockedTarget(LockedTarget) then
             LockedTarget = findClosestTarget()
         end
     end
