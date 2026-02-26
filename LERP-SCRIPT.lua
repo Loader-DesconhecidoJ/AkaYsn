@@ -532,7 +532,7 @@ function RoClothes(Player)
 
 	-- these settings are saved and loaded --
 	local loadupBundle = ""
-	local loadupExecute = false
+	local loadupExecute = true
 	local loadupClosed = false
 	local loadupFPerson = 0
 	local KEYBIND = Enum.KeyCode.Insert
@@ -642,7 +642,7 @@ function RoClothes(Player)
 			CurrentBundle = "nil",
 			AutoExecute = true,
 			DelayTime = 0.045,
-			Tone = "Base",
+			Tone = "Dark",
 			BundleBodyColor = true,
 			Face = true,
 			MeshSizeLock = true,
