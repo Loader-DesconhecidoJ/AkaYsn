@@ -36,7 +36,7 @@ type SystemState = {
 --// CONSTANTES 
 local Constants = {
     MAX_ENERGY = 100,
-    SANDI_SPEED = 65,
+    SANDI_SPEED = 67,
     DASH_FORCE = 100,
     MOVING_THRESHOLD = 1,
     OPTICAL_DURATION = 5,
@@ -49,7 +49,7 @@ local Constants = {
         OPTICAL = 6.5
     },
     HOLOGRAM_CLONE = {
-        SANDI = {DELAY = 0.07, DURATION = 1, END_TRANSPARENCY = 1, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0},
+        SANDI = {DELAY = 0.075, DURATION = 1, END_TRANSPARENCY = 0.8, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0},
         DASH = {DELAY = 0.07, DURATION = 0.3, END_TRANSPARENCY = 1, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0},
         DODGE = {DELAY = 0.2, DURATION = 0.5, END_TRANSPARENCY = 1, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0}
     },
@@ -72,7 +72,7 @@ local Constants = {
         NORMAL_DISTANCE_NO_ENEMY = 12,
         NORMAL_DISTANCE_ENEMY = 6
     },
-    SANDEVISTAN_FAILURE_CHANCE = 0.2,  
+    SANDEVISTAN_FAILURE_CHANCE = 0.3,  
     GLITCH_DURATION = 1.5,
     CYBERPSYCHOSIS = {
         Duration = 6,
@@ -185,13 +185,16 @@ local setColors = {[1] = Color3.fromRGB(45, 45, 45), [2] = Color3.fromRGB(0, 120
 --// DODGE MODE
 local DodgeMode = "Counter"
 
+--// LITE MODE (NOVO - deixa o script mais leve)
+local LiteMode = false
+
 --// CUSTOM KEYBINDS
 local AbilityActions = {Dash = "CyberDash", Sandi = "CyberSandi", Kiroshi = "CyberKiroshi", Optical = "CyberOptical", Dodge = "CyberDodge"}
 local CurrentKeybinds = {Dash = Enum.KeyCode.Q, Sandi = Enum.KeyCode.E, Kiroshi = Enum.KeyCode.K, Optical = Enum.KeyCode.O, Dodge = Enum.KeyCode.N}
 local RebindingAbility = nil
 local KeybindCurrentTexts = {}
 
---// SONS 
+--// SONS (NOVO SOM ADICIONADO)
 local Sounds = {
     DODGE_NORMAL = {id = "rbxassetid://136915991425056", volume = 1.5, pitch = 1, looped = false},
     DODGE_VARIANT = {id = "rbxassetid://95625766377559", volume = 1.5, pitch = 1, looped = false},
@@ -203,12 +206,13 @@ local Sounds = {
     PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 1.5, pitch = 1, looped = false},
     PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
     OPTICAL_CAMO = {id = "rbxassetid://76731635249906", volume = 1.5, pitch = 1, looped = false},
-    SANDI_FAILURE = {id = "rbxassetid://73270553392655", volume = 1.5, pitch = 1, looped = false}
+    SANDI_FAILURE = {id = "rbxassetid://73270553392655", volume = 1.5, pitch = 1, looped = false},
+    COLLISION_IMPACT = {id = "rbxassetid://82219914671445", volume = 1.7, pitch = 1, looped = false} -- NOVO SOM DE COLISÃO
 }
 
 --// MÚSICA
 local NOME_ARQUIVO = "I Really Want to Stay at Your House.mp3"
-local VOLUME = 1
+local VOLUME = 0.9
 local LOOP = false
 
 local function detectarExecutor()
@@ -266,7 +270,7 @@ local function criarGUI()
         Corner.Parent = Frame
         local Titulo = Instance.new("TextLabel")
         Titulo.Size = UDim2.new(1, 0, 0.4, 0)
-        Titulo.Text = "� Tocando Agora"
+        Titulo.Text = "▶ Tocando Agora"
         Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
         Titulo.BackgroundTransparency = 1
         Titulo.Font = Enum.Font.GothamBold
@@ -275,7 +279,7 @@ local function criarGUI()
         local BotaoParar = Instance.new("TextButton")
         BotaoParar.Size = UDim2.new(0.8, 0, 0.4, 0)
         BotaoParar.Position = UDim2.new(0.1, 0, 0.5, 0)
-        BotaoParar.Text = "�� PARAR MÚSICA"
+        BotaoParar.Text = "⏹ PARAR MÚSICA"
         BotaoParar.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
         BotaoParar.TextColor3 = Color3.fromRGB(255, 255, 255)
         BotaoParar.Font = Enum.Font.GothamBold
@@ -396,6 +400,7 @@ local function PlaySFX(soundConfig: {id: string, volume: number?, pitch: number?
 end
 
 local function CamShake(intensity: number, duration: number)
+    if LiteMode then return end -- LITE MODE: desativa shake (economia de performance)
     task.spawn(function()
         local startTime = os.clock()
         while os.clock() - startTime < duration do
@@ -466,6 +471,7 @@ end
 
 --// EFEITOS VISUAIS (CyberSync removido - agora só local)
 local function CreateHologramClone(delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, cloneType: string, customCFrame: CFrame?)
+    if LiteMode then return end -- LITE MODE: desativa TODOS os clones (maior ganho de performance)
     local sourceChar = Character
     if not sourceChar then return end
     sourceChar.Archivable = true
@@ -617,6 +623,7 @@ local function TriggerSandevistanFailure()
 end
 
 local function ApplyGlitchEffect()
+    if LiteMode then return end
     task.spawn(function()
         local start = os.clock()
         local cc = Instance.new("ColorCorrectionEffect", Lighting)
@@ -1167,7 +1174,7 @@ local function ExecSandi()
     criarGUI()
 end
 
---// DASH 
+--// DASH (MODIFICADO - agora para instantaneamente em colisão com player/NPC)
 local function ExecDash()
     if State.IsSandiActive then return end
     if State.Energy < Constants.ENERGY_COSTS.DASH or os.clock() < State.Cooldowns.DASH then return end
@@ -1188,13 +1195,35 @@ local function ExecDash()
         direction = Camera.CFrame.LookVector
     end
     local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e6, 1e6, 1e6), Velocity = direction * Constants.DASH_FORCE, Parent = HRP})
+
+    -- NOVO: DETECÇÃO DE COLISÃO (para instantaneamente + som)
+    local collisionConn
+    collisionConn = HRP.Touched:Connect(function(hit)
+        local hitParent = hit.Parent
+        if hitParent then
+            local otherHum = hitParent:FindFirstChildOfClass("Humanoid")
+            if otherHum and otherHum ~= Humanoid and otherHum.Health > 0 then
+                if bv and bv.Parent then bv:Destroy() end
+                HRP.Velocity = Vector3.new(0, HRP.Velocity.Y, 0) -- mantém gravidade
+                PlaySFX(Sounds.COLLISION_IMPACT)
+                if collisionConn then 
+                    collisionConn:Disconnect()
+                    collisionConn = nil
+                end
+            end
+        end
+    end)
+
     Debris:AddItem(bv, 0.25)
     task.spawn(function()
         local start = os.clock()
         while os.clock() - start < 0.25 do
-            CreateHologramClone(Constants.HOLOGRAM_CLONE.DASH.DELAY, Constants.HOLOGRAM_CLONE.DASH.DURATION, Constants.HOLOGRAM_CLONE.DASH.END_TRANSPARENCY, Constants.HOLOGRAM_CLONE.DASH.OFFSET_X, Constants.HOLOGRAM_CLONE.DASH.OFFSET_Y, Constants.HOLOGRAM_CLONE.DASH.OFFSET_Z, "dash")
+            if not LiteMode then
+                CreateHologramClone(Constants.HOLOGRAM_CLONE.DASH.DELAY, Constants.HOLOGRAM_CLONE.DASH.DURATION, Constants.HOLOGRAM_CLONE.DASH.END_TRANSPARENCY, Constants.HOLOGRAM_CLONE.DASH.OFFSET_X, Constants.HOLOGRAM_CLONE.DASH.OFFSET_Y, Constants.HOLOGRAM_CLONE.DASH.OFFSET_Z, "dash")
+            end
             RunService.Heartbeat:Wait()
         end
+        if collisionConn then collisionConn:Disconnect() end
         TweenService:Create(dashEffect, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0}):Play()
         TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 70}):Play()
         Debris:AddItem(dashEffect, 0.45)
@@ -1514,6 +1543,19 @@ local function BuildUI()
         end
         if SkillContainers["DodgeBtn"] then SkillContainers["DodgeBtn"].Visible = (EnabledAbilities.Dodge and DodgeMode == "Counter") end
     end)
+
+    -- NOVO: MODO LITE TOGGLE
+    local liteRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 52), BackgroundColor3 = Colors.UI_BG, BorderSizePixel = 0, Parent = scroll})
+    Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = liteRow})
+    Create("TextLabel", {Size = UDim2.new(0.65, 0, 1, 0), BackgroundTransparency = 1, Text = "  MODO LITE", TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left, Parent = liteRow})
+    local liteToggle = Create("TextButton", {Size = UDim2.new(0.28, 0, 0.75, 0), Position = UDim2.new(0.69, 0, 0.125, 0), Text = LiteMode and "ON" or "OFF", BackgroundColor3 = LiteMode and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40), TextColor3 = Color3.new(1,1,1), Font = Enum.Font.SciFi, TextSize = 17, Parent = liteRow})
+    Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = liteToggle})
+    liteToggle.MouseButton1Click:Connect(function()
+        LiteMode = not LiteMode
+        liteToggle.Text = LiteMode and "ON" or "OFF"
+        liteToggle.BackgroundColor3 = LiteMode and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
+    end)
+
     local keybindsHeader = Create("TextLabel", {Size = UDim2.new(1, 0, 0, 35), BackgroundTransparency = 1, Text = "  CUSTOM KEYBINDS", TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Left, Parent = scroll})
     local keybindList = {
         {name = "DASH IMPULSE", ab = "Dash", color = Colors.DASH_CYAN},
@@ -1533,7 +1575,7 @@ local function BuildUI()
         rebindButton.MouseButton1Click:Connect(function() RebindingAbility = kb.ab end)
     end
     local setsRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 60), BackgroundTransparency = 1, Parent = scroll})
-    local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 48), Position = UDim2.new(0.05, 0, 0, 6), Text = "� TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 20, Parent = setsRow})
+    local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 48), Position = UDim2.new(0.05, 0, 0, 6), Text = "🔄 TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 20, Parent = setsRow})
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = setsBtn})
     Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2, Parent = setsBtn})
     setsBtn.MouseButton1Click:Connect(function()
@@ -1589,6 +1631,7 @@ end
 
 --// EFEITO DE CAMINHADA
 local function InitWalkEffect()
+    if LiteMode then return end -- LITE MODE: desativa bobble
     RunService.RenderStepped:Connect(function()
         local CT = tick()
         if Humanoid.MoveDirection.Magnitude > 0 then
@@ -1654,6 +1697,7 @@ local function UpdateDirectionalMovement()
 end
 
 local function InitDirectionalMovement()
+    if LiteMode then return end -- LITE MODE: desativa movimento direcional (economia de performance)
     local torso = Character:FindFirstChild("Torso") or Character:FindFirstChild("UpperTorso")
     Joints = {
         RootJoint = HRP:WaitForChild("RootJoint"),
