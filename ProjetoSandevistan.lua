@@ -88,35 +88,6 @@ local Constants = {
     }
 }
 
---// ==================== CYBER SYNC SYSTEM (PRIVADO) ====================
-local CyberSync = {
-    MarkerName = "CYBER_V2_248",
-    CloneDelay = {SANDI = 0.07, DASH = 0.07, DODGE = 0.2},
-    LastClones = {}
-}
-
-local function RegisterAsCyberUser()
-    if Character and Character:FindFirstChild("HumanoidRootPart") then
-        local marker = Instance.new("StringValue")
-        marker.Name = CyberSync.MarkerName
-        marker.Value = "ACTIVE"
-        marker.Parent = Character
-    end
-end
-
-local function GetCyberCharacters()
-    local list = {}
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= Player then
-            local char = plr.Character
-            if char and char:FindFirstChild(CyberSync.MarkerName) then
-                table.insert(list, char)
-            end
-        end
-    end
-    return list
-end
-
 --// CONFIGURAÇÕES GERAIS 
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,
@@ -222,7 +193,7 @@ local KeybindCurrentTexts = {}
 
 --// SONS 
 local Sounds = {
-    DODGE_NORMAL = {id = "rbxassetid://107535457302936", volume = 1.5, pitch = 1, looped = false},
+    DODGE_NORMAL = {id = "rbxassetid://136915991425056", volume = 1.5, pitch = 1, looped = false},
     DODGE_VARIANT = {id = "rbxassetid://95625766377559", volume = 1.5, pitch = 1, looped = false},
     DASH = {id = "rbxassetid://103247005619946", volume = 1.5, pitch = 1, looped = false},
     SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1.5, pitch = 1, looped = false},
@@ -231,8 +202,8 @@ local Sounds = {
     IDLE_MUSIC = {id = "rbxassetid://84295656118500", volume = 5, pitch = 1, looped = true},
     PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 1.5, pitch = 1, looped = false},
     PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
-    OPTICAL_CAMO = {id = "rbxassetid://942127495", volume = 1.5, pitch = 1, looped = false},
-    SANDI_FAILURE = {id = "rbxassetid://73272481520628", volume = 1.5, pitch = 1, looped = false}
+    OPTICAL_CAMO = {id = "rbxassetid://76731635249906", volume = 1.5, pitch = 1, looped = false},
+    SANDI_FAILURE = {id = "rbxassetid://73270553392655", volume = 1.5, pitch = 1, looped = false}
 }
 
 --// MÚSICA
@@ -295,7 +266,7 @@ local function criarGUI()
         Corner.Parent = Frame
         local Titulo = Instance.new("TextLabel")
         Titulo.Size = UDim2.new(1, 0, 0.4, 0)
-        Titulo.Text = "🎵 Tocando Agora"
+        Titulo.Text = "� Tocando Agora"
         Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
         Titulo.BackgroundTransparency = 1
         Titulo.Font = Enum.Font.GothamBold
@@ -304,7 +275,7 @@ local function criarGUI()
         local BotaoParar = Instance.new("TextButton")
         BotaoParar.Size = UDim2.new(0.8, 0, 0.4, 0)
         BotaoParar.Position = UDim2.new(0.1, 0, 0.5, 0)
-        BotaoParar.Text = "⏹️ PARAR MÚSICA"
+        BotaoParar.Text = "�� PARAR MÚSICA"
         BotaoParar.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
         BotaoParar.TextColor3 = Color3.fromRGB(255, 255, 255)
         BotaoParar.Font = Enum.Font.GothamBold
@@ -405,7 +376,6 @@ local function activateInvisibility()
 end
 
 local function deactivateInvisibility()
-    invisSound:Play()
     local invisChair = Workspace:FindFirstChild('invischair')
     if invisChair then invisChair:Destroy() end
     setTransparency(Player.Character, 0, 0.5)
@@ -494,9 +464,9 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
     end)
 end
 
---// EFEITOS VISUAIS
-local function CreateHologramClone(delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, cloneType: string, customCFrame: CFrame?, targetCharacter: Model?)
-    local sourceChar = targetCharacter or Character
+--// EFEITOS VISUAIS (CyberSync removido - agora só local)
+local function CreateHologramClone(delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, cloneType: string, customCFrame: CFrame?)
+    local sourceChar = Character
     if not sourceChar then return end
     sourceChar.Archivable = true
     local hologramChar = sourceChar:Clone()
@@ -509,8 +479,7 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         if customCFrame then
             hologramHRP.CFrame = customCFrame
         else
-            local root = (targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart")) or HRP
-            if root then hologramHRP.CFrame = root.CFrame + Vector3.new(offsetX, offsetY, offsetZ) end
+            if HRP then hologramHRP.CFrame = HRP.CFrame + Vector3.new(offsetX, offsetY, offsetZ) end
         end
     end
     if cloneType == "optical" and hologramHRP then hologramHRP:Destroy() end
@@ -587,7 +556,7 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
     Debris:AddItem(hologramChar, delay + duration + 1)
 end
 
---// NOVO SISTEMA DE FALHA SANDEVISTAN
+--// NOVO SISTEMA DE FALHA SANDEVISTAN (mantido)
 local function TriggerSandevistanFailure()
     PlaySFX(Sounds.SANDI_FAILURE)
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Instance.new("ScreenGui", Player.PlayerGui)
@@ -668,7 +637,7 @@ local function ApplyGlitchEffect()
     end)
 end
 
---// CYBERPSYCHOSIS
+--// CYBERPSYCHOSIS (mantido)
 local function createLightingEffects()
 	local cc = Instance.new("ColorCorrectionEffect")
 	cc.Name = "PsychoCC"
@@ -898,7 +867,7 @@ local function ExecCyberpsychosis()
     end)
 end
 
---// FUNÇÕES DE HABILIDADES
+--// FUNÇÕES DE HABILIDADES (mantidas)
 local function CleanupSandiSounds()
     if sandiLoopSound then sandiLoopSound:Stop() sandiLoopSound:Destroy() sandiLoopSound = nil end
     if idleSound then idleSound:Stop() idleSound:Destroy() idleSound = nil end
@@ -1483,7 +1452,6 @@ local function BuildUI()
     CreateSkillBtn(ButtonConfigs.OpticalBtn.Key, ButtonConfigs.OpticalBtn.Color, ButtonConfigs.OpticalBtn.Position, "OpticalBtn", ExecOptical)
     CreateSkillBtn(ButtonConfigs.DodgeBtn.Key, ButtonConfigs.DodgeBtn.Color, ButtonConfigs.DodgeBtn.Position, "DodgeBtn", ActivateDodgeReady)
 
-    -- APLICA VISIBILIDADE CORRETA DAS HABILIDADES (FIX DO BUG DE RESPAWN)
     for abilityKey, isEnabled in pairs(EnabledAbilities) do
         local btnName = AbilityMap[abilityKey]
         if btnName and SkillContainers[btnName] then
@@ -1493,8 +1461,7 @@ local function BuildUI()
         end
     end
 
-    -- SETTINGS BUTTON
-    local settingsBtn = Create("TextButton", {Name = "SettingsBtn", Size = UDim2.new(0, 40, 0, 40), Position = UDim2.new(0, 20, 0, 100), BackgroundColor3 = Colors.UI_DARK, TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 26, Text = "⚒︎", Parent = gui})
+    local settingsBtn = Create("TextButton", {Name = "SettingsBtn", Size = UDim2.new(0, 40, 0, 40), Position = UDim2.new(0, 20, 0, 100), BackgroundColor3 = Colors.UI_DARK, TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 26, Text = "☰", Parent = gui})
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = settingsBtn})
     Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2, Transparency = 0.4, Parent = settingsBtn})
     local gradientSettings = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_DARK, Colors.UI_NEON), Rotation = 45, Parent = settingsBtn})
@@ -1566,7 +1533,7 @@ local function BuildUI()
         rebindButton.MouseButton1Click:Connect(function() RebindingAbility = kb.ab end)
     end
     local setsRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 60), BackgroundTransparency = 1, Parent = scroll})
-    local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 48), Position = UDim2.new(0.05, 0, 0, 6), Text = "⇌ TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 20, Parent = setsRow})
+    local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 48), Position = UDim2.new(0.05, 0, 0, 6), Text = "� TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 20, Parent = setsRow})
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = setsBtn})
     Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2, Parent = setsBtn})
     setsBtn.MouseButton1Click:Connect(function()
@@ -1824,7 +1791,6 @@ local function SetupCharacter(character)
     BindAllKeybinds()
     InitWalkEffect()
     InitDirectionalMovement()
-    RegisterAsCyberUser()
 end
 
 local function Init()
@@ -1832,34 +1798,6 @@ local function Init()
     if Player.Character then SetupCharacter(Player.Character) end
     Player.CharacterAdded:Connect(SetupCharacter)
 end
-
--- ==================== LOOP DE SINCRONIZAÇÃO PRIVADA ====================
-RunService.Heartbeat:Connect(function()
-    local cyberChars = GetCyberCharacters()
-    for _, char in ipairs(cyberChars) do
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then continue end
-        local now = os.clock()
-        if char:FindFirstChild("CYBER_SANDI_ACTIVE") then
-            if (CyberSync.LastClones[char] or 0) + CyberSync.CloneDelay.SANDI < now then
-                CreateHologramClone(CyberSync.CloneDelay.SANDI, 1, 1, 0, 0, 0, "sandi", nil, char)
-                CyberSync.LastClones[char] = now
-            end
-        end
-        local dashSignal = char:FindFirstChild("CYBER_DASH")
-        if dashSignal then
-            local cfStr = dashSignal.Value
-            local success, cf = pcall(function() return CFrame.new(loadstring("return " .. cfStr)()) end)
-            if success then CreateHologramClone(0, 0.3, 1, 0, 0, 0, "dash", cf, char) end
-        end
-        local dodgeSignal = char:FindFirstChild("CYBER_DODGE")
-        if dodgeSignal then
-            local cfStr = dodgeSignal.Value
-            local success, cf = pcall(function() return CFrame.new(loadstring("return " .. cfStr)()) end)
-            if success then CreateHologramClone(0, 0.5, 1, 0, 0, 0, "dodge", cf, char) end
-        end
-    end
-end)
 
 Init()
 
