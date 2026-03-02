@@ -1,4 +1,4 @@
--- FREE CAM DRONE PREMIUM v2.3 - LOOP SOUND 136704576012970 + TWEEN IMAGEM DO DRONE
+-- FREE CAM DRONE PREMIUM v2.4 - LOOP SOUND 136704576012970 + TWEEN IMAGEM DO DRONE + MINI MAP + CHASE MODE (FIX) + HUD REPOSICIONADO + TV ANIMATION ON/OFF + OVERLAY SOMENTE NO FPV
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -17,6 +17,7 @@ local freeCamEnabled = false
 local velocity = Vector3.new()
 local yaw = 0
 local pitch = 0
+local dronePosition = Vector3.new()
 
 local altLock = false
 local targetAltitude = 0
@@ -39,6 +40,8 @@ local droneColors = {
 	Color3.fromRGB(255, 220, 60),
 	Color3.fromRGB(180, 100, 255)
 }
+
+local chaseMode = false
 
 -- ====================== RAGDOLL ======================
 local function NoCollide(char)
@@ -133,7 +136,7 @@ screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 240, 0, 240)
-mainFrame.Position = UDim2.new(0, 18, 0, 18)
+mainFrame.Position = UDim2.new(0, 18, 0, 75)
 mainFrame.BackgroundColor3 = Color3.fromRGB(12,12,28)
 mainFrame.BackgroundTransparency = 0.3
 mainFrame.Parent = screenGui
@@ -168,6 +171,7 @@ local speedDownBtn = newBtn("SPD-")
 local altLockBtn = newBtn("🔒", Color3.fromRGB(255,170,50))
 local colorBtn = newBtn("🎨")
 local resetBtn = newBtn("🔄")
+local chaseBtn = newBtn("👁️", Color3.fromRGB(100,200,255))
 
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(1,-20,0,26)
@@ -181,8 +185,30 @@ speedLabel.Parent = mainFrame
 
 local hudBtn = newBtn("≡")
 hudBtn.Size = UDim2.new(0,45,0,45)
-hudBtn.Position = UDim2.new(0,25,0,270)
+hudBtn.Position = UDim2.new(0, 25, 0, 15)
 hudBtn.Parent = screenGui
+
+-- MINI MAP (Feature 9)
+local miniMapContainer = Instance.new("Frame")
+miniMapContainer.Size = UDim2.new(0, 130, 0, 130)
+miniMapContainer.Position = UDim2.new(1, -150, 0, 20)
+miniMapContainer.BackgroundColor3 = Color3.fromRGB(12,12,28)
+miniMapContainer.BackgroundTransparency = 0.4
+miniMapContainer.Parent = screenGui
+miniMapContainer.Visible = false
+Instance.new("UICorner", miniMapContainer).CornerRadius = UDim.new(0,12)
+Instance.new("UIStroke", miniMapContainer).Thickness = 2
+Instance.new("UIStroke", miniMapContainer).Color = Color3.fromRGB(0,255,220)
+
+local viewport = Instance.new("ViewportFrame")
+viewport.Size = UDim2.new(1,0,1,0)
+viewport.BackgroundTransparency = 1
+viewport.Parent = miniMapContainer
+
+local miniCamera = Instance.new("Camera")
+viewport.CurrentCamera = miniCamera
+
+local miniDrone = nil
 
 -- D-PAD (só aparece no modo drone)
 local dpadFrame = Instance.new("Frame")
@@ -247,8 +273,6 @@ overlay.ResetOnSpawn = false
 overlay.Enabled = false
 overlay.Parent = playerGui
 
--- (vignette, scanlines, crosshair, infoBar - igual ao anterior, mantido completo)
-
 local vignette = Instance.new("ImageLabel", overlay)
 vignette.Size = UDim2.new(1,0,1,0)
 vignette.BackgroundTransparency = 1
@@ -309,12 +333,11 @@ local function showDroneActivationImage()
 	img.Position = UDim2.new(0.5, 0, 0.5, 0)
 	img.AnchorPoint = Vector2.new(0.5, 0.5)
 	img.BackgroundTransparency = 1
-	img.Image = "rbxassetid://PUT_YOUR_DRONE_IMAGE_ID_HERE" -- <<< MUDE AQUI PELO ID DA SUA IMAGEM DO DRONE
+	img.Image = "rbxassetid://PUT_YOUR_DRONE_IMAGE_ID_HERE"
 	img.ImageTransparency = 1
 	img.Parent = screenGui
 	img.ZIndex = 100
 
-	-- Tween IN (efeito premium)
 	local tweenIn = TweenService:Create(img, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		Size = UDim2.new(0, 420, 0, 280),
 		ImageTransparency = 0.12
@@ -329,6 +352,52 @@ local function showDroneActivationImage()
 		tweenOut:Play()
 		tweenOut.Completed:Connect(function() img:Destroy() end)
 	end)
+end
+
+-- ====================== ANIMAÇÃO TV LIGANDO/DESLIGANDO (FPV OVERLAY) ======================
+local function animateOverlay(enable)
+	if enable then
+		overlay.Enabled = true
+		
+		-- Começa desligado
+		vignette.ImageTransparency = 1
+		scanlines.ImageTransparency = 1
+		crosshair.ImageTransparency = 1
+		infoBar.BackgroundTransparency = 1
+		recLabel.TextTransparency = 1
+		altLabel.TextTransparency = 1
+		spdLabel.TextTransparency = 1
+
+		-- Animação de ligar TV
+		TweenService:Create(vignette, TweenInfo.new(0.65, Enum.EasingStyle.Quint), {ImageTransparency = 0.35}):Play()
+		TweenService:Create(scanlines, TweenInfo.new(0.75, Enum.EasingStyle.Quint), {ImageTransparency = 0.8}):Play()
+		TweenService:Create(crosshair, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {ImageTransparency = 0.5}):Play()
+		TweenService:Create(infoBar, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {BackgroundTransparency = 0.65}):Play()
+		TweenService:Create(recLabel, TweenInfo.new(0.7, Enum.EasingStyle.Quint), {TextTransparency = 0}):Play()
+		TweenService:Create(altLabel, TweenInfo.new(0.7, Enum.EasingStyle.Quint), {TextTransparency = 0}):Play()
+		TweenService:Create(spdLabel, TweenInfo.new(0.7, Enum.EasingStyle.Quint), {TextTransparency = 0}):Play()
+	else
+		-- Animação de desligar TV
+		local tweenVig = TweenService:Create(vignette, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {ImageTransparency = 1})
+		local tweenScan = TweenService:Create(scanlines, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {ImageTransparency = 1})
+		local tweenCross = TweenService:Create(crosshair, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {ImageTransparency = 1})
+		local tweenInfo = TweenService:Create(infoBar, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {BackgroundTransparency = 1})
+		local tweenRec = TweenService:Create(recLabel, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {TextTransparency = 1})
+		local tweenAlt = TweenService:Create(altLabel, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {TextTransparency = 1})
+		local tweenSpd = TweenService:Create(spdLabel, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {TextTransparency = 1})
+
+		tweenVig:Play()
+		tweenScan:Play()
+		tweenCross:Play()
+		tweenInfo:Play()
+		tweenRec:Play()
+		tweenAlt:Play()
+		tweenSpd:Play()
+
+		tweenVig.Completed:Connect(function()
+			overlay.Enabled = false
+		end)
+	end
 end
 
 -- ====================== DRONE MODEL + LOOP SOUND ======================
@@ -351,7 +420,6 @@ local function createDroneModel()
 	light.Brightness = 2.8
 	light.Range = 12
 
-	-- braços, hélices e antenas (igual)
 	local armPos = {Vector3.new(2.2,0,2.2), Vector3.new(2.2,0,-2.2), Vector3.new(-2.2,0,2.2), Vector3.new(-2.2,0,-2.2)}
 	for i = 1,4 do
 		local arm = Instance.new("Part")
@@ -394,12 +462,15 @@ local function createDroneModel()
 	droneModel.PrimaryPart = body
 	droneModel.Parent = workspace
 
-	-- LOOP SOUND QUE VOCÊ PEDIU
 	propellerSound = Instance.new("Sound")
-	propellerSound.SoundId = "rbxassetid://136704576012970"   -- ID do loop que você mandou
+	propellerSound.SoundId = "rbxassetid://136704576012970"
 	propellerSound.Volume = 0.65
 	propellerSound.Looped = true
 	propellerSound.Parent = body
+
+	if miniDrone then miniDrone:Destroy() end
+	miniDrone = droneModel:Clone()
+	miniDrone.Parent = viewport
 end
 
 local function updateDroneColor()
@@ -418,32 +489,37 @@ local function toggleFreeCam()
 		local y,p = camera.CFrame:ToEulerAnglesYXZ()
 		yaw = math.deg(y)
 		pitch = math.deg(p)
+		dronePosition = camera.CFrame.Position
 
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(0,255,120)
 		createDroneModel()
 		SetRagdoll(true)
-		overlay.Enabled = true
 		dpadFrame.Visible = true
+		miniMapContainer.Visible = true
 		propellerSound:Play()
 
-		-- ANIMAÇÃO DA IMAGEM DO DRONE
 		showDroneActivationImage()
+		animateOverlay(true) -- TV LIGANDO
 
+		chaseMode = false
+		chaseBtn.BackgroundColor3 = Color3.fromRGB(100,200,255)
 	else
 		camera.CameraType = Enum.CameraType.Custom
 		velocity = Vector3.new()
+		dronePosition = Vector3.new()
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(0,200,255)
 		if droneModel then droneModel:Destroy(); droneModel = nil end
+		if miniDrone then miniDrone:Destroy(); miniDrone = nil end
 		if propellerSound then propellerSound:Stop() end
-		overlay.Enabled = false
 		dpadFrame.Visible = false
+		miniMapContainer.Visible = false
 		SetRagdoll(false)
 		altLock = false
+		chaseMode = false
+		animateOverlay(false) -- TV DESLIGANDO
 	end
 end
 toggleBtn.Activated:Connect(toggleFreeCam)
-
--- Velocidade, Altitude Lock, Cor, Reset, HUD Toggle (mantidos iguais)
 
 speedUpBtn.Activated:Connect(function()
 	MOVE_SPEED = math.min(MOVE_SPEED + 30, MAX_SPEED)
@@ -458,7 +534,7 @@ altLockBtn.Activated:Connect(function()
 	altLock = not altLock
 	altLockBtn.Text = altLock and "🔓" or "🔒"
 	altLockBtn.BackgroundColor3 = altLock and Color3.fromRGB(80,255,140) or Color3.fromRGB(255,170,50)
-	if altLock then targetAltitude = camera.CFrame.Position.Y end
+	if altLock then targetAltitude = dronePosition.Y end
 end)
 
 colorBtn.Activated:Connect(function()
@@ -477,10 +553,17 @@ local function resetCamera()
 end
 resetBtn.Activated:Connect(resetCamera)
 
+chaseBtn.Activated:Connect(function()
+	if not freeCamEnabled then return end
+	chaseMode = not chaseMode
+	chaseBtn.BackgroundColor3 = chaseMode and Color3.fromRGB(255,100,100) or Color3.fromRGB(100,200,255)
+	animateOverlay(not chaseMode) -- TV liga/desliga conforme o modo
+end)
+
 local hudVisible = true
 hudBtn.Activated:Connect(function()
 	hudVisible = not hudVisible
-	local pos = hudVisible and UDim2.new(0,18,0,18) or UDim2.new(0,-300,0,18)
+	local pos = hudVisible and UDim2.new(0, 18, 0, 75) or UDim2.new(0, -300, 0, 75)
 	TweenService:Create(mainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quint), {Position = pos}):Play()
 end)
 
@@ -489,31 +572,35 @@ local function update(dt)
 	if not freeCamEnabled then return end
 
 	local dir = Vector3.new()
+	local controlRotation = CFrame.fromEulerAnglesYXZ(math.rad(pitch), math.rad(yaw), 0)
+	local controlLook = controlRotation.LookVector
+	local controlRight = controlRotation.RightVector
 
-	if moveFlags.Forward then dir += camera.CFrame.LookVector end
-	if moveFlags.Back    then dir -= camera.CFrame.LookVector end
-	if moveFlags.Left    then dir -= camera.CFrame.RightVector end
-	if moveFlags.Right   then dir += camera.CFrame.RightVector end
+	if moveFlags.Forward then dir += controlLook end
+	if moveFlags.Back    then dir -= controlLook end
+	if moveFlags.Left    then dir -= controlRight end
+	if moveFlags.Right   then dir += controlRight end
 	if moveFlags.FlyUp   then dir += Vector3.new(0,1,0) end
 	if moveFlags.FlyDown then dir -= Vector3.new(0,1,0) end
 
-	if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += camera.CFrame.LookVector end
-	if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= camera.CFrame.LookVector end
-	if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= camera.CFrame.RightVector end
-	if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += camera.CFrame.RightVector end
+	if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += controlLook end
+	if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= controlLook end
+	if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= controlRight end
+	if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += controlRight end
 	if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
 	if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.new(0,1,0) end
 
 	if dir.Magnitude > 0 then dir = dir.Unit end
 
 	velocity = velocity:Lerp(dir * MOVE_SPEED, 17 * dt)
-	local newPos = camera.CFrame.Position + velocity * dt
+	local newPos = dronePosition + velocity * dt
 	if altLock then newPos = Vector3.new(newPos.X, targetAltitude, newPos.Z) end
 
-	camera.CFrame = CFrame.new(newPos) * CFrame.fromEulerAnglesYXZ(math.rad(pitch), math.rad(yaw), 0)
+	local virtualCFrame = CFrame.new(newPos) * controlRotation
+	dronePosition = newPos
 
 	if droneModel then
-		local droneCF = camera.CFrame * CFrame.new(0, -2.7, 0)
+		local droneCF = virtualCFrame * CFrame.new(0, -2.7, 0)
 		droneModel:SetPrimaryPartCFrame(droneCF)
 
 		for i, r in ipairs(rotors) do
@@ -521,10 +608,23 @@ local function update(dt)
 			local offZ = (i==1 or i==2) and 2.15 or -2.15
 			r.CFrame = droneCF * CFrame.new(offX, 0.85, offZ) * CFrame.Angles(0, tick()*48*(i%2==0 and 1 or -1), 0)
 		end
+	end
 
-		if propellerSound then
-			propellerSound.PlaybackSpeed = 0.85 + (velocity.Magnitude / MOVE_SPEED) * 1.65
-		end
+	if chaseMode and droneModel then
+		local droneCF = virtualCFrame * CFrame.new(0, -2.7, 0)
+		camera.CFrame = droneCF * CFrame.new(0, 8, 20) * CFrame.Angles(math.rad(-18), 0, 0)
+	else
+		camera.CFrame = virtualCFrame
+	end
+
+	if droneModel and propellerSound then
+		propellerSound.PlaybackSpeed = 0.85 + (velocity.Magnitude / MOVE_SPEED) * 1.65
+	end
+
+	if miniDrone and droneModel then
+		local topCF = CFrame.new(droneModel.PrimaryPart.Position.X, droneModel.PrimaryPart.Position.Y + 80, droneModel.PrimaryPart.Position.Z) * CFrame.Angles(math.rad(-90), math.rad(yaw), 0)
+		miniCamera.CFrame = topCF
+		miniDrone:SetPrimaryPartCFrame(CFrame.new(droneModel.PrimaryPart.Position.X, 0, droneModel.PrimaryPart.Position.Z) * CFrame.Angles(0, math.rad(yaw), 0))
 	end
 
 	if overlay.Enabled then
@@ -544,4 +644,4 @@ UserInputService.InputChanged:Connect(function(i, proc)
 	end
 end)
 
-print("✅ ELITE DRONE v2.3 CARREGADO! Loop sound + Animação Tween da imagem do drone ativados!")
+print("✅ ELITE DRONE v2.4 CARREGADO! Loop sound + Animação Tween + Mini Map + Chase Mode (corrigido) + HUD reposicionado + TV Animation + Overlay só no FPV!")
