@@ -73,7 +73,7 @@ local Constants = {
         NORMAL_DISTANCE_ENEMY = 6
     },
     SANDEVISTAN_FAILURE_CHANCE = 0.3,  
-    GLITCH_DURATION = 1.5,
+    GLITCH_DURATION = 1,
     CYBERPSYCHOSIS = {
         Duration = 6,
         PopupRate = 0.08,
@@ -217,7 +217,7 @@ local Sounds = {
     SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1.5, pitch = 1, looped = false},
     SANDI_LOOP = {id = "rbxassetid://...", volume = 1.5, pitch = 1, looped = true},
     IDLE_MUSIC = {id = "rbxassetid://84295656118500", volume = 5, pitch = 1, looped = true},
-    PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 1.5, pitch = 1, looped = false},
+    PSYCHOSIS = {id = "rbxassetid://116261614561232", volume = 2, pitch = 1, looped = false},
     PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
     OPTICAL_CAMO = {id = "rbxassetid://76731635249906", volume = 1.5, pitch = 1, looped = false},
     SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 5, pitch = 1, looped = false},
