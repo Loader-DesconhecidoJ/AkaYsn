@@ -1,4 +1,4 @@
--- FREE CAM DRONE PREMIUM v2.7 + ZOOM (SÓ ZOOM - FUNCIONA SÓ NO DRONE ATIVO)
+-- FREE CAM DRONE PREMIUM v2.8 + ZOOM (Spawn separado de Controle)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -9,12 +9,13 @@ local camera = workspace.CurrentCamera
 local playerGui = player:WaitForChild("PlayerGui")
 
 local MOVE_SPEED = 130
-local MAX_SPEED = 400
-local MIN_SPEED = 60
-local SENSITIVITY = 0.6
-local FOV = 70  -- ZOOM PADRÃO
+local MAX_SPEED = 420
+local MIN_SPEED = 55
+local SENSITIVITY = 0.65
+local FOV = 72
 
-local freeCamEnabled = false
+local droneSpawned = false
+local inControl = false
 local velocity = Vector3.new()
 local yaw = 0
 local pitch = 0
@@ -35,112 +36,146 @@ local thrustEmitters = {}
 local propellerSound = nil
 local colorIndex = 1
 local droneColors = {
-	Color3.fromRGB(0, 255, 220),
-	Color3.fromRGB(255, 80, 200),
-	Color3.fromRGB(100, 255, 100),
-	Color3.fromRGB(255, 220, 60),
-	Color3.fromRGB(180, 100, 255)
+	Color3.fromRGB(0, 255, 240),
+	Color3.fromRGB(255, 60, 180),
+	Color3.fromRGB(80, 255, 120),
+	Color3.fromRGB(255, 200, 40),
+	Color3.fromRGB(160, 80, 255)
 }
 
 local chaseMode = false
-local miniDrone = nil
 
--- ====================== GUI + MINI MAP + D-PAD + OVERLAY ======================
+-- ====================== PREMIUM HUD (Menor e compacto) ======================
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "EliteDroneUI"
+screenGui.Name = "EliteDronePremiumUI_v2.8"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 240, 0, 240)
-mainFrame.Position = UDim2.new(0, 18, 0, 75)
-mainFrame.BackgroundColor3 = Color3.fromRGB(12,12,28)
-mainFrame.BackgroundTransparency = 0.3
+mainFrame.Size = UDim2.new(0, 245, 0, 325)
+mainFrame.Position = UDim2.new(0, 18, 0, 70)
+mainFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 18)
+mainFrame.BackgroundTransparency = 0.35
 mainFrame.Parent = screenGui
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0,18)
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 20)
+
+local mainStroke = Instance.new("UIStroke", mainFrame)
+mainStroke.Thickness = 2
+mainStroke.Color = Color3.fromRGB(0, 255, 200)
+
+local titleBar = Instance.new("Frame", mainFrame)
+titleBar.Size = UDim2.new(1, 0, 0, 46)
+titleBar.BackgroundColor3 = Color3.fromRGB(12, 12, 26)
+titleBar.Parent = mainFrame
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 20)
+
+local titleGradient = Instance.new("UIGradient", titleBar)
+titleGradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(0,255,200)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(200,60,255))
+}
+
+local titleLabel = Instance.new("TextLabel", titleBar)
+titleLabel.Size = UDim2.new(1,0,1,0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "ELITE DRONE"
+titleLabel.TextColor3 = Color3.new(1,1,1)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBlack
+
+local versionLabel = Instance.new("TextLabel", titleBar)
+versionLabel.Size = UDim2.new(0,90,0,16)
+versionLabel.Position = UDim2.new(1,-98,0.5,-8)
+versionLabel.BackgroundTransparency = 1
+versionLabel.Text = "v2.8 PREMIUM"
+versionLabel.TextColor3 = Color3.fromRGB(0,255,200)
+versionLabel.TextScaled = true
+versionLabel.Font = Enum.Font.GothamBold
 
 local grid = Instance.new("UIGridLayout")
-grid.CellSize = UDim2.new(0,40,0,40)
-grid.CellPadding = UDim2.new(0,10,0,10)
+grid.CellSize = UDim2.new(0, 52, 0, 52)
+grid.CellPadding = UDim2.new(0, 12, 0, 12)
 grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
+grid.VerticalAlignment = Enum.VerticalAlignment.Top
 grid.Parent = mainFrame
 
-local function newBtn(txt, col)
+local function createPremiumButton(icon, col)
 	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(0,40,0,40)
-	b.BackgroundColor3 = col or Color3.fromRGB(28,28,48)
-	b.Text = txt
+	b.Size = UDim2.new(0,52,0,52)
+	b.BackgroundColor3 = col or Color3.fromRGB(18,18,38)
+	b.Text = icon
 	b.TextColor3 = Color3.new(1,1,1)
 	b.TextScaled = true
 	b.Font = Enum.Font.GothamBold
-	b.BackgroundTransparency = 0.25
+	b.BackgroundTransparency = 0.3
 	b.Parent = mainFrame
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
-	Instance.new("UIStroke", b).Thickness = 1.8
-	Instance.new("UIStroke", b).Color = Color3.fromRGB(0,255,220)
+	
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0,16)
+	local s = Instance.new("UIStroke", b)
+	s.Thickness = 1.8
+	s.Color = Color3.fromRGB(0,255,220)
+	
+	-- Animações corrigidas (hover + press sem conflito)
+	b.MouseEnter:Connect(function()
+		TweenService:Create(b, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = UDim2.new(0,57,0,57), BackgroundTransparency = 0.2}):Play()
+	end)
+	b.MouseLeave:Connect(function()
+		TweenService:Create(b, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = UDim2.new(0,52,0,52), BackgroundTransparency = 0.3}):Play()
+	end)
+	b.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			TweenService:Create(b, TweenInfo.new(0.09, Enum.EasingStyle.Quad), {Size = UDim2.new(0,46,0,46)}):Play()
+		end
+	end)
+	b.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			TweenService:Create(b, TweenInfo.new(0.18, Enum.EasingStyle.Back), {Size = UDim2.new(0,52,0,52)}):Play()
+		end
+	end)
 	return b
 end
 
-local toggleBtn = newBtn("🚁", Color3.fromRGB(0,200,255))
-local speedUpBtn = newBtn("SPD+")
-local speedDownBtn = newBtn("SPD-")
-local altLockBtn = newBtn("🔒", Color3.fromRGB(255,170,50))
-local colorBtn = newBtn("🎨")
-local resetBtn = newBtn("🔄")
-local chaseBtn = newBtn("👁️", Color3.fromRGB(100,200,255))
-local zoomInBtn  = newBtn("🔎+", Color3.fromRGB(0,255,180))   -- NOVO BOTÃO ZOOM +
-local zoomOutBtn = newBtn("🔎-", Color3.fromRGB(0,255,180))   -- NOVO BOTÃO ZOOM -
+local spawnBtn     = createPremiumButton("🚁", Color3.fromRGB(0,220,255))
+local controlBtn   = createPremiumButton("🕹️", Color3.fromRGB(255,70,100))
+local speedUpBtn   = createPremiumButton("SPD+", Color3.fromRGB(50,50,80))
+local speedDownBtn = createPremiumButton("SPD-", Color3.fromRGB(50,50,80))
+local altLockBtn   = createPremiumButton("🔒", Color3.fromRGB(255,160,40))
+local colorBtn     = createPremiumButton("🎨")
+local resetBtn     = createPremiumButton("🔄")
+local chaseBtn     = createPremiumButton("👁️", Color3.fromRGB(140,80,255))
+local zoomInBtn    = createPremiumButton("🔎+", Color3.fromRGB(0,255,180))
+local zoomOutBtn   = createPremiumButton("🔎-", Color3.fromRGB(0,255,180))
 
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1,-20,0,26)
-speedLabel.Position = UDim2.new(0,10,1,-34)
+speedLabel.Size = UDim2.new(1,-24,0,30)
+speedLabel.Position = UDim2.new(0,12,1,-42)
 speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "SPD: 130"
-speedLabel.TextColor3 = Color3.new(1,1,1)
+speedLabel.Text = "SPEED: 130"
+speedLabel.TextColor3 = Color3.fromRGB(0,255,200)
 speedLabel.TextScaled = true
-speedLabel.Font = Enum.Font.GothamBold
+speedLabel.Font = Enum.Font.GothamBlack
 speedLabel.Parent = mainFrame
 
-local hudBtn = newBtn("≡")
-hudBtn.Size = UDim2.new(0,45,0,45)
-hudBtn.Position = UDim2.new(0, 25, 0, 15)
+local hudBtn = createPremiumButton("≡", Color3.fromRGB(30,30,55))
+hudBtn.Size = UDim2.new(0,48,0,48)
+hudBtn.Position = UDim2.new(0, 24, 0, 14)
 hudBtn.Parent = screenGui
 
--- MINI MAP (mantido igual)
-local miniMapContainer = Instance.new("Frame")
-miniMapContainer.Size = UDim2.new(0, 130, 0, 130)
-miniMapContainer.Position = UDim2.new(1, -150, 0, 20)
-miniMapContainer.BackgroundColor3 = Color3.fromRGB(12,12,28)
-miniMapContainer.BackgroundTransparency = 0.4
-miniMapContainer.Parent = screenGui
-miniMapContainer.Visible = false
-Instance.new("UICorner", miniMapContainer).CornerRadius = UDim.new(0,12)
-Instance.new("UIStroke", miniMapContainer).Thickness = 2
-Instance.new("UIStroke", miniMapContainer).Color = Color3.fromRGB(0,255,220)
-
-local viewport = Instance.new("ViewportFrame")
-viewport.Size = UDim2.new(1,0,1,0)
-viewport.BackgroundTransparency = 1
-viewport.Parent = miniMapContainer
-
-local miniCamera = Instance.new("Camera")
-viewport.CurrentCamera = miniCamera
-
--- D-PAD (mantido igual)
+-- D-PAD (mantido proporcional)
 local dpadFrame = Instance.new("Frame")
-dpadFrame.Size = UDim2.new(0, 260, 0, 200)
-dpadFrame.Position = UDim2.new(0, 30, 1, -240)
-dpadFrame.BackgroundTransparency = 0.8
+dpadFrame.Size = UDim2.new(0, 255, 0, 195)
+dpadFrame.Position = UDim2.new(0, 22, 1, -230)
 dpadFrame.BackgroundColor3 = Color3.fromRGB(10,10,25)
+dpadFrame.BackgroundTransparency = 0.65
 dpadFrame.Visible = false
 dpadFrame.Parent = screenGui
 Instance.new("UICorner", dpadFrame).CornerRadius = UDim.new(0,20)
-Instance.new("UIStroke", dpadFrame).Thickness = 3
+Instance.new("UIStroke", dpadFrame).Thickness = 2.2
 Instance.new("UIStroke", dpadFrame).Color = Color3.fromRGB(0,255,220)
 
 local function createDPadButton(txt, pos, size)
 	local btn = Instance.new("TextButton")
-	btn.Size = size or UDim2.new(0,55,0,55)
+	btn.Size = size or UDim2.new(0,52,0,52)
 	btn.Position = pos
 	btn.BackgroundColor3 = Color3.fromRGB(0,200,255)
 	btn.Text = txt
@@ -155,12 +190,12 @@ local function createDPadButton(txt, pos, size)
 	return btn
 end
 
-local fwdBtn    = createDPadButton("↑",   UDim2.new(0.5, -27, 0, 10))
-local backBtn   = createDPadButton("↓",   UDim2.new(0.5, -27, 1, -65))
-local leftBtn   = createDPadButton("←",   UDim2.new(0, 10, 0.5, -27))
-local rightBtn  = createDPadButton("→",   UDim2.new(1, -65, 0.5, -27))
-local flyUpBtn  = createDPadButton("🡅",   UDim2.new(1, 10, 0, 30), UDim2.new(0,48,0,48))
-local flyDownBtn= createDPadButton("🡇",   UDim2.new(1, 10, 1, -78), UDim2.new(0,48,0,48))
+local fwdBtn    = createDPadButton("↑",   UDim2.new(0.5, -26, 0, 8))
+local backBtn   = createDPadButton("↓",   UDim2.new(0.5, -26, 1, -62))
+local leftBtn   = createDPadButton("←",   UDim2.new(0, 8, 0.5, -26))
+local rightBtn  = createDPadButton("→",   UDim2.new(1, -62, 0.5, -26))
+local flyUpBtn  = createDPadButton("🡅",   UDim2.new(1, 8, 0, 26), UDim2.new(0,46,0,46))
+local flyDownBtn= createDPadButton("🡇",   UDim2.new(1, 8, 1, -74), UDim2.new(0,46,0,46))
 
 local function holdButton(btn, flag)
 	btn.InputBegan:Connect(function(i)
@@ -174,7 +209,6 @@ local function holdButton(btn, flag)
 		end
 	end)
 end
-
 holdButton(fwdBtn, "Forward")
 holdButton(backBtn, "Back")
 holdButton(leftBtn, "Left")
@@ -182,7 +216,7 @@ holdButton(rightBtn, "Right")
 holdButton(flyUpBtn, "FlyUp")
 holdButton(flyDownBtn, "FlyDown")
 
--- FPV OVERLAY + ANIMAÇÕES (igual)
+-- FPV OVERLAY (mantido)
 local overlay = Instance.new("ScreenGui")
 overlay.Name = "DroneFPV"
 overlay.ResetOnSpawn = false
@@ -295,160 +329,116 @@ local function animateOverlay(enable)
 	end
 end
 
--- ====================== DRONE MODEL PREMIUM v2.7 ======================
+-- ====================== DRONE MODEL PREMIUM ======================
 local function createDroneModel()
 	if droneModel then droneModel:Destroy() end
 	droneModel = Instance.new("Model")
-	droneModel.Name = "EliteDronePremium_v2.7"
+	droneModel.Name = "EliteFPV_Premium_v2.8"
 
 	local body = Instance.new("Part")
 	body.Name = "Body"
-	body.Size = Vector3.new(4.2, 1.35, 4.2)
-	body.Color = Color3.fromRGB(18, 20, 28)
+	body.Size = Vector3.new(3.85, 1.15, 3.85)
+	body.Color = Color3.fromRGB(14,16,22)
 	body.Material = Enum.Material.SmoothPlastic
 	body.Anchored = true
 	body.CanCollide = false
 	body.Parent = droneModel
 
 	local topPlate = Instance.new("Part")
-	topPlate.Size = Vector3.new(3.8, 0.25, 3.8)
+	topPlate.Size = Vector3.new(3.5, 0.25, 3.5)
 	topPlate.Color = droneColors[colorIndex]
 	topPlate.Material = Enum.Material.Neon
 	topPlate.Anchored = true
-	topPlate.CanCollide = false
-	topPlate.CFrame = body.CFrame * CFrame.new(0, 0.85, 0)
+	topPlate.CFrame = body.CFrame * CFrame.new(0, 0.75, 0)
 	topPlate.Parent = droneModel
 
 	rotors = {}
 	thrustEmitters = {}
-	local armOffsets = {Vector3.new(2.4,0,2.4), Vector3.new(2.4,0,-2.4), Vector3.new(-2.4,0,2.4), Vector3.new(-2.4,0,-2.4)}
+	local armAngles = {45, 135, 225, 315}
 
-	for i = 1,4 do
-		local offset = armOffsets[i]
-		local angle = (i-1)*90
-
+	for i, ang in ipairs(armAngles) do
 		local arm = Instance.new("Part")
-		arm.Size = Vector3.new(5.2, 0.55, 1.15)
-		arm.Color = Color3.fromRGB(22,24,32)
+		arm.Size = Vector3.new(7.2, 0.68, 1.55)
+		arm.Color = Color3.fromRGB(18,20,26)
 		arm.Material = Enum.Material.SmoothPlastic
 		arm.Anchored = true
-		arm.CanCollide = false
-		arm.CFrame = body.CFrame * CFrame.new(offset) * CFrame.Angles(0, math.rad(angle + 45), 0) * CFrame.new(2.6, 0, 0)
+		arm.CFrame = body.CFrame * CFrame.Angles(0, math.rad(ang), 0) * CFrame.new(3.4, 0.15, 0)
 		arm.Parent = droneModel
 
-		local ledStrip = Instance.new("Part")
-		ledStrip.Size = Vector3.new(4.8, 0.12, 0.12)
-		ledStrip.Color = droneColors[colorIndex]
-		ledStrip.Material = Enum.Material.Neon
-		ledStrip.Anchored = true
-		ledStrip.CanCollide = false
-		ledStrip.CFrame = arm.CFrame * CFrame.new(0, 0.4, 0)
-		ledStrip.Parent = droneModel
-
 		local motor = Instance.new("Part")
-		motor.Size = Vector3.new(1.35, 0.95, 1.35)
-		motor.Color = Color3.fromRGB(30,32,40)
+		motor.Size = Vector3.new(1.75, 1.35, 1.75)
+		motor.Color = Color3.fromRGB(26,28,36)
 		motor.Material = Enum.Material.Metal
 		motor.Anchored = true
-		motor.CanCollide = false
-		motor.CFrame = arm.CFrame * CFrame.new(3.1, 0.45, 0)
+		motor.CFrame = arm.CFrame * CFrame.new(3.6, 0.5, 0)
 		motor.Parent = droneModel
 
-		for a = -1,1 do
-			local fin = Instance.new("Part")
-			fin.Size = Vector3.new(0.1, 0.7, 1.4)
-			fin.Color = Color3.fromRGB(45,45,55)
-			fin.Material = Enum.Material.Metal
-			fin.Anchored = true
-			fin.CanCollide = false
-			fin.CFrame = motor.CFrame * CFrame.new(0, 0.3, a*0.45)
-			fin.Parent = droneModel
-		end
+		local guard = Instance.new("Part")
+		guard.Shape = Enum.PartType.Cylinder
+		guard.Size = Vector3.new(8.8, 0.5, 8.8)
+		guard.Color = Color3.fromRGB(32,34,42)
+		guard.Material = Enum.Material.Metal
+		guard.Anchored = true
+		guard.CFrame = motor.CFrame * CFrame.new(0,0.85,0) * CFrame.Angles(math.rad(90),0,0)
+		guard.Parent = droneModel
 
 		local blades = {}
 		for b = 1,3 do
 			local blade = Instance.new("Part")
-			blade.Size = Vector3.new(0.22, 0.09, 6.8)
-			blade.Color = Color3.fromRGB(235, 245, 255)
+			blade.Size = Vector3.new(0.32, 0.11, 8.1)
+			blade.Color = Color3.fromRGB(225,240,255)
 			blade.Material = Enum.Material.Neon
 			blade.Anchored = true
-			blade.CanCollide = false
 			blade.Parent = droneModel
 			table.insert(blades, blade)
 		end
 
-		local guard = Instance.new("Part")
-		guard.Shape = Enum.PartType.Cylinder
-		guard.Size = Vector3.new(7.8, 0.35, 7.8)
-		guard.Color = Color3.fromRGB(40,42,50)
-		guard.Material = Enum.Material.Metal
-		guard.Anchored = true
-		guard.CanCollide = false
-		guard.CFrame = motor.CFrame * CFrame.new(0,0.6,0) * CFrame.Angles(math.rad(90),0,0)
-		guard.Parent = droneModel
-
 		local attach = Instance.new("Attachment", motor)
-		attach.Position = Vector3.new(0, -0.8, 0)
+		attach.Position = Vector3.new(0,-0.95,0)
 
 		local thrust = Instance.new("ParticleEmitter", attach)
 		thrust.Texture = "rbxassetid://243660364"
-		thrust.Color = ColorSequence.new(Color3.fromRGB(180,230,255))
-		thrust.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,0.8), NumberSequenceKeypoint.new(1,0.1)})
-		thrust.Transparency = NumberSequence.new(0.4,1)
-		thrust.Lifetime = NumberRange.new(0.2,0.4)
+		thrust.Color = ColorSequence.new(Color3.fromRGB(120,255,255))
+		thrust.Size = NumberSequence.new(1.4, 0.25)
+		thrust.Transparency = NumberSequence.new(0.2,1)
+		thrust.Lifetime = NumberRange.new(0.3,0.55)
 		thrust.Rate = 0
-		thrust.Speed = NumberRange.new(20,40)
-		thrust.SpreadAngle = Vector2.new(30,30)
-		thrust.Acceleration = Vector3.new(0,-25,0)
+		thrust.Speed = NumberRange.new(28,62)
+		thrust.Acceleration = Vector3.new(0,-32,0)
 		thrust.Enabled = true
-
 		table.insert(thrustEmitters, thrust)
+
 		rotors[i] = {blades = blades, motor = motor}
 	end
 
-	local gimbalBase = Instance.new("Part")
-	gimbalBase.Size = Vector3.new(1.6, 1.1, 1.8)
-	gimbalBase.Color = Color3.fromRGB(22,22,28)
-	gimbalBase.Material = Enum.Material.Metal
-	gimbalBase.Anchored = true
-	gimbalBase.CanCollide = false
-	gimbalBase.CFrame = body.CFrame * CFrame.new(0, -1.3, 0)
-	gimbalBase.Parent = droneModel
-
-	local cameraMount = Instance.new("Part")
-	cameraMount.Size = Vector3.new(1.1, 0.95, 1.3)
-	cameraMount.Color = Color3.fromRGB(15,15,22)
-	cameraMount.Material = Enum.Material.Metal
-	cameraMount.Anchored = true
-	cameraMount.CanCollide = false
-	cameraMount.CFrame = gimbalBase.CFrame * CFrame.new(0, -0.85, 0)
-	cameraMount.Parent = droneModel
+	local gimbal = Instance.new("Part")
+	gimbal.Size = Vector3.new(1.95, 1.55, 2.3)
+	gimbal.Color = Color3.fromRGB(22,22,29)
+	gimbal.Material = Enum.Material.Metal
+	gimbal.Anchored = true
+	gimbal.CFrame = body.CFrame * CFrame.new(0, -1.45, 0)
+	gimbal.Parent = droneModel
 
 	local lens = Instance.new("Part")
-	lens.Size = Vector3.new(0.85, 0.85, 0.4)
-	lens.Color = Color3.fromRGB(8,8,12)
+	lens.Size = Vector3.new(1.25, 1.25, 0.75)
+	lens.Color = Color3.fromRGB(6,6,10)
 	lens.Material = Enum.Material.Glass
-	lens.Transparency = 0.25
+	lens.Transparency = 0.18
 	lens.Anchored = true
-	lens.CanCollide = false
-	lens.CFrame = cameraMount.CFrame * CFrame.new(0, 0, -0.95)
+	lens.CFrame = gimbal.CFrame * CFrame.new(0, -0.95, -1.25)
 	lens.Parent = droneModel
 
-	for side = -1,1,2 do
-		local skid = Instance.new("Part")
-		skid.Size = Vector3.new(0.5, 0.35, 5.5)
-		skid.Color = Color3.fromRGB(28,30,38)
-		skid.Material = Enum.Material.Metal
-		skid.Anchored = true
-		skid.CanCollide = false
-		skid.CFrame = body.CFrame * CFrame.new(side*1.85, -1.85, 0) * CFrame.Angles(math.rad(6),0,0)
-		skid.Parent = droneModel
-	end
+	local antenna = Instance.new("Part")
+	antenna.Size = Vector3.new(0.18, 3.1, 0.18)
+	antenna.Color = Color3.fromRGB(210,210,210)
+	antenna.Material = Enum.Material.Metal
+	antenna.CFrame = body.CFrame * CFrame.new(0, 2.1, 0)
+	antenna.Parent = droneModel
 
 	local mainLight = Instance.new("PointLight", body)
 	mainLight.Color = droneColors[colorIndex]
-	mainLight.Brightness = 4.8
-	mainLight.Range = 24
+	mainLight.Brightness = 6
+	mainLight.Range = 32
 
 	droneModel.PrimaryPart = body
 	droneModel.Parent = workspace
@@ -456,7 +446,7 @@ local function createDroneModel()
 	if propellerSound then propellerSound:Destroy() end
 	propellerSound = Instance.new("Sound")
 	propellerSound.SoundId = "rbxassetid://136704576012970"
-	propellerSound.Volume = 0.88
+	propellerSound.Volume = 0.93
 	propellerSound.Looped = true
 	propellerSound.Parent = body
 end
@@ -464,118 +454,114 @@ end
 local function updateDroneColor()
 	if not droneModel then return end
 	local c = droneColors[colorIndex]
-	droneModel.Body.PointLight.Color = c
-	for _, desc in pairs(droneModel:GetDescendants()) do
-		if desc:IsA("Part") and (desc.Material == Enum.Material.Neon or desc.Name:find("Neon")) then
-			desc.Color = c
+	for _, p in pairs(droneModel:GetDescendants()) do
+		if p:IsA("PointLight") or (p:IsA("Part") and p.Material == Enum.Material.Neon) then
+			p.Color = c
 		end
 	end
 end
 
--- ====================== CONTROLES ======================
-local function toggleFreeCam()
-	freeCamEnabled = not freeCamEnabled
-	if freeCamEnabled then
-		camera.CameraType = Enum.CameraType.Scriptable
-		local y,p = camera.CFrame:ToEulerAnglesYXZ()
-		yaw = math.deg(y)
-		pitch = math.deg(p)
-		dronePosition = camera.CFrame.Position
-
-		toggleBtn.BackgroundColor3 = Color3.fromRGB(0,255,120)
-		createDroneModel()
-		dpadFrame.Visible = true
-		miniMapContainer.Visible = true
-		propellerSound:Play()
-
-		showDroneActivationImage()
-		animateOverlay(true)
-		chaseMode = false
-		chaseBtn.BackgroundColor3 = Color3.fromRGB(100,200,255)
-	else
-		camera.CameraType = Enum.CameraType.Custom
-		velocity = Vector3.new()
-		dronePosition = Vector3.new()
-		FOV = 70
-		camera.FieldOfView = 70  -- ZOOM VOLTA AO NORMAL
-		toggleBtn.BackgroundColor3 = Color3.fromRGB(0,200,255)
-
-		if droneModel then droneModel:Destroy() droneModel = nil end
-		if miniDrone then miniDrone:Destroy() miniDrone = nil end
-		if propellerSound then propellerSound:Stop() end
-
-		dpadFrame.Visible = false
-		miniMapContainer.Visible = false
-		altLock = false
-		chaseMode = false
-		animateOverlay(false)
+local function resetToPlayerCamera()
+	camera.CameraType = Enum.CameraType.Custom
+	task.wait(0.04)
+	if player.Character and player.Character:FindFirstChild("Humanoid") then
+		camera.CameraSubject = player.Character.Humanoid
 	end
+	camera.FieldOfView = 70
 end
-toggleBtn.Activated:Connect(toggleFreeCam)
-
--- ZOOM SÓ FUNCIONA NO DRONE ATIVO
-zoomInBtn.Activated:Connect(function()
-	if not freeCamEnabled then return end
-	FOV = math.max(20, FOV - 12)
-	camera.FieldOfView = FOV
-end)
-
-zoomOutBtn.Activated:Connect(function()
-	if not freeCamEnabled then return end
-	FOV = math.min(110, FOV + 12)
-	camera.FieldOfView = FOV
-end)
-
-speedUpBtn.Activated:Connect(function()
-	MOVE_SPEED = math.min(MOVE_SPEED + 30, MAX_SPEED)
-	speedLabel.Text = "SPD: "..math.floor(MOVE_SPEED)
-end)
-speedDownBtn.Activated:Connect(function()
-	MOVE_SPEED = math.max(MOVE_SPEED - 30, MIN_SPEED)
-	speedLabel.Text = "SPD: "..math.floor(MOVE_SPEED)
-end)
-
-altLockBtn.Activated:Connect(function()
-	altLock = not altLock
-	altLockBtn.Text = altLock and "🔓" or "🔒"
-	altLockBtn.BackgroundColor3 = altLock and Color3.fromRGB(80,255,140) or Color3.fromRGB(255,170,50)
-	if altLock then targetAltitude = dronePosition.Y end
-end)
-
-colorBtn.Activated:Connect(function()
-	colorIndex = (colorIndex % #droneColors) + 1
-	updateDroneColor()
-end)
 
 local function resetCamera()
-	if not freeCamEnabled or not player.Character then return end
+	if not inControl or not player.Character then return end
 	local hrp = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChild("Head")
 	if hrp then
 		local target = hrp.CFrame * CFrame.new(0,8,-15) * CFrame.Angles(math.rad(-20),0,0)
 		TweenService:Create(camera, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {CFrame = target}):Play()
 	end
 end
-resetBtn.Activated:Connect(resetCamera)
 
-chaseBtn.Activated:Connect(function()
-	if not freeCamEnabled then return end
-	chaseMode = not chaseMode
-	chaseBtn.BackgroundColor3 = chaseMode and Color3.fromRGB(255,100,100) or Color3.fromRGB(100,200,255)
-	animateOverlay(not chaseMode)
+-- ====================== CONTROLES ======================
+local function toggleDroneSpawn()
+	droneSpawned = not droneSpawned
+	if droneSpawned then
+		createDroneModel()
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		dronePosition = (hrp and hrp.Position or camera.CFrame.Position) + Vector3.new(0,9,15)
+		yaw = 0
+		pitch = 0
+		droneModel:SetPrimaryPartCFrame(CFrame.new(dronePosition) * CFrame.Angles(0, math.rad(yaw), 0) * CFrame.new(0,-2.4,0))
+		
+		spawnBtn.BackgroundColor3 = Color3.fromRGB(0,255,140)
+		if propellerSound then propellerSound:Play() end
+		showDroneActivationImage()
+	else
+		if inControl then toggleControl() end
+		if droneModel then droneModel:Destroy() droneModel = nil end
+		if propellerSound then propellerSound:Stop() end
+		resetToPlayerCamera()
+		spawnBtn.BackgroundColor3 = Color3.fromRGB(0,220,255)
+	end
+end
+
+local function toggleControl()
+	if not droneSpawned or not droneModel then return end
+	inControl = not inControl
+	
+	if inControl then
+		camera.CameraType = Enum.CameraType.Scriptable
+		local body = droneModel:FindFirstChild("Body")
+		if body then
+			dronePosition = body.Position + Vector3.new(0, 3, 0)
+		end
+		local yRad, pRad = droneModel.PrimaryPart.CFrame:ToEulerAnglesYXZ()
+		yaw = math.deg(yRad)
+		pitch = math.deg(pRad)
+		
+		dpadFrame.Visible = true
+		animateOverlay(true)
+		controlBtn.BackgroundColor3 = Color3.fromRGB(0,255,140)
+	else
+		resetToPlayerCamera()
+		velocity = Vector3.new()
+		dpadFrame.Visible = false
+		animateOverlay(false)
+		controlBtn.BackgroundColor3 = Color3.fromRGB(255,70,100)
+	end
+end
+
+spawnBtn.Activated:Connect(toggleDroneSpawn)
+controlBtn.Activated:Connect(toggleControl)
+speedUpBtn.Activated:Connect(function() if not inControl then return end MOVE_SPEED = math.min(MOVE_SPEED + 30, MAX_SPEED) speedLabel.Text = "SPEED: "..math.floor(MOVE_SPEED) end)
+speedDownBtn.Activated:Connect(function() if not inControl then return end MOVE_SPEED = math.max(MOVE_SPEED - 30, MIN_SPEED) speedLabel.Text = "SPEED: "..math.floor(MOVE_SPEED) end)
+altLockBtn.Activated:Connect(function() 
+	if not inControl then return end 
+	altLock = not altLock 
+	altLockBtn.Text = altLock and "🔓" or "🔒" 
+	altLockBtn.BackgroundColor3 = altLock and Color3.fromRGB(80,255,140) or Color3.fromRGB(255,160,40)
+	if altLock then targetAltitude = dronePosition.Y end 
 end)
+colorBtn.Activated:Connect(function() if not inControl then return end colorIndex = (colorIndex % #droneColors) + 1 updateDroneColor() end)
+resetBtn.Activated:Connect(resetCamera)
+chaseBtn.Activated:Connect(function() 
+	if not inControl then return end 
+	chaseMode = not chaseMode 
+	chaseBtn.BackgroundColor3 = chaseMode and Color3.fromRGB(255,70,100) or Color3.fromRGB(140,80,255) 
+	animateOverlay(not chaseMode) 
+end)
+zoomInBtn.Activated:Connect(function() if not inControl then return end FOV = math.max(20, FOV - 12) camera.FieldOfView = FOV end)
+zoomOutBtn.Activated:Connect(function() if not inControl then return end FOV = math.min(110, FOV + 12) camera.FieldOfView = FOV end)
 
 local hudVisible = true
 hudBtn.Activated:Connect(function()
 	hudVisible = not hudVisible
-	local pos = hudVisible and UDim2.new(0, 18, 0, 75) or UDim2.new(0, -300, 0, 75)
+	local pos = hudVisible and UDim2.new(0, 18, 0, 70) or UDim2.new(0, -300, 0, 70)
 	TweenService:Create(mainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quint), {Position = pos}):Play()
 end)
 
 -- ====================== UPDATE ======================
 local function update(dt)
-	if not freeCamEnabled then return end
+	if not inControl then return end
 
-	camera.FieldOfView = FOV  -- mantem o zoom enquanto drone ativo
+	camera.FieldOfView = FOV
 
 	local dir = Vector3.new()
 	local controlRotation = CFrame.fromEulerAnglesYXZ(math.rad(pitch), math.rad(yaw), 0)
@@ -606,7 +592,7 @@ local function update(dt)
 	dronePosition = newPos
 
 	if droneModel then
-		local droneCF = virtualCFrame * CFrame.new(0, -2.8, 0)
+		local droneCF = virtualCFrame * CFrame.new(0, -2.4, 0)
 		droneModel:SetPrimaryPartCFrame(droneCF)
 
 		local finalSpeed = MOVE_SPEED
@@ -635,20 +621,13 @@ local function update(dt)
 	end
 
 	if chaseMode and droneModel then
-		local droneCF = virtualCFrame * CFrame.new(0, -2.8, 0)
-		camera.CFrame = droneCF * CFrame.new(0, 9, 22) * CFrame.Angles(math.rad(-18), 0, 0)
+		camera.CFrame = droneModel.PrimaryPart.CFrame * CFrame.new(0, 9, 22) * CFrame.Angles(math.rad(-18), 0, 0)
 	else
 		camera.CFrame = virtualCFrame
 	end
 
-	if droneModel and propellerSound then
+	if propellerSound then
 		propellerSound.PlaybackSpeed = 0.85 + (velocity.Magnitude / MOVE_SPEED) * 1.7
-	end
-
-	if miniDrone and droneModel then
-		local topCF = CFrame.new(droneModel.PrimaryPart.Position.X, droneModel.PrimaryPart.Position.Y + 80, droneModel.PrimaryPart.Position.Z) * CFrame.Angles(math.rad(-90), math.rad(yaw), 0)
-		miniCamera.CFrame = topCF
-		miniDrone:SetPrimaryPartCFrame(CFrame.new(droneModel.PrimaryPart.Position.X, 0, droneModel.PrimaryPart.Position.Z) * CFrame.Angles(0, math.rad(yaw), 0))
 	end
 
 	if overlay.Enabled then
@@ -661,11 +640,11 @@ end
 RunService.RenderStepped:Connect(update)
 
 UserInputService.InputChanged:Connect(function(i, proc)
-	if proc or not freeCamEnabled then return end
+	if proc or not inControl then return end
 	if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
 		yaw = yaw - i.Delta.X * SENSITIVITY
 		pitch = math.clamp(pitch - i.Delta.Y * SENSITIVITY, -89, 89)
 	end
 end)
 
-print("✅ ELITE DRONE v2.7 + ZOOM CARREGADO! (Zoom só no drone + reseta automático)")
+print("✅ ELITE DRONE PREMIUM v2.8 CARREGADO COM SUCESSO!")
