@@ -220,9 +220,9 @@ local Sounds = {
     PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 1.5, pitch = 1, looped = false},
     PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
     OPTICAL_CAMO = {id = "rbxassetid://76731635249906", volume = 1.5, pitch = 1, looped = false},
-    SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 3, pitch = 1, looped = false},
+    SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 5, pitch = 1, looped = false},
     COLLISION_IMPACT = {id = "rbxassetid://82219914671445", volume = 1.7, pitch = 1, looped = false},
-    SPAWN = {id = "rbxassetid://121480304779842", volume = 2.0, pitch = 1, looped = false}
+    SPAWN = {id = "rbxassetid://121480304779842", volume = 1.5, pitch = 1, looped = false}
 }
 
 --// MÚSICA
