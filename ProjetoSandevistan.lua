@@ -222,9 +222,7 @@ local Sounds = {
     OPTICAL_CAMO = {id = "rbxassetid://76731635249906", volume = 1.5, pitch = 1, looped = false},
     SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 3, pitch = 1, looped = false},
     COLLISION_IMPACT = {id = "rbxassetid://82219914671445", volume = 1.7, pitch = 1, looped = false},
-    DEATH = {id = "rbxassetid://91943113147629", volume = 2.5, pitch = 1, looped = false},
-    SPAWN = {id = "rbxassetid://121480304779842", volume = 2.0, pitch = 1, looped = false},
-    REBOOT_FAILURE = {id = "rbxassetid://YOUR_ID_HERE", volume = 2.5, pitch = 1, looped = false}
+    SPAWN = {id = "rbxassetid://121480304779842", volume = 2.0, pitch = 1, looped = false}
 }
 
 --// MÚSICA
