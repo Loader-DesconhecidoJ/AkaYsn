@@ -49,7 +49,7 @@ local Constants = {
         OPTICAL = 6.5
     },
     HOLOGRAM_CLONE = {
-        SANDI = {DELAY = 0.075, DURATION = 0.75, END_TRANSPARENCY = 0.9, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0},
+        SANDI = {DELAY = 0.075, DURATION = 1, END_TRANSPARENCY = 0.9, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0},
         DASH = {DELAY = 0.07, DURATION = 0.3, END_TRANSPARENCY = 1, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0},
         DODGE = {DELAY = 0.2, DURATION = 0.5, END_TRANSPARENCY = 1, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0}
     },
@@ -116,13 +116,27 @@ local Colors = {
     SANDI_TINT = Color3.fromRGB(175, 255, 190),
     DODGE_LIME = Color3.fromRGB(200, 255, 200),
     RAINBOW_SEQUENCE = {
-        Color3.fromRGB(255,255,0), Color3.fromRGB(255,188,0), Color3.fromRGB(255,121,0),
-        Color3.fromRGB(255,54,0), Color3.fromRGB(255,0,13), Color3.fromRGB(255,0,81),
-        Color3.fromRGB(255,0,148), Color3.fromRGB(255,0,215), Color3.fromRGB(228,0,255),
-        Color3.fromRGB(161,0,255), Color3.fromRGB(94,0,255), Color3.fromRGB(27,0,255),
-        Color3.fromRGB(0,40,255), Color3.fromRGB(0,107,255), Color3.fromRGB(0,174,255),
-        Color3.fromRGB(0,242,255), Color3.fromRGB(0,255,201), Color3.fromRGB(0,255,134),
-        Color3.fromRGB(0,255,67), Color3.fromRGB(0,255,0)
+        Color3.fromRGB(255, 255, 0),
+Color3.fromRGB(255, 188, 0),
+Color3.fromRGB(255, 121, 0),
+Color3.fromRGB(255, 54, 0),
+Color3.fromRGB(255, 0, 13),
+Color3.fromRGB(255, 0, 81),
+Color3.fromRGB(255, 0, 148),
+Color3.fromRGB(255, 0, 215),
+Color3.fromRGB(228, 0, 255),
+Color3.fromRGB(161, 0, 255),
+Color3.fromRGB(94, 0, 255),
+Color3.fromRGB(27, 0, 255),
+Color3.fromRGB(0, 40, 255),
+Color3.fromRGB(0, 107, 255),
+Color3.fromRGB(0, 174, 255),
+Color3.fromRGB(0, 242, 255),
+Color3.fromRGB(0, 255, 201),
+Color3.fromRGB(0, 255, 134),
+Color3.fromRGB(0, 255, 67),
+Color3.fromRGB(0, 255, 0)
+
     },
     DASH_CYAN = Color3.fromRGB(0, 255, 255),
     DODGE_START = Color3.fromRGB(160, 0, 255),
@@ -206,7 +220,7 @@ local Sounds = {
     PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 1.5, pitch = 1, looped = false},
     PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
     OPTICAL_CAMO = {id = "rbxassetid://76731635249906", volume = 1.5, pitch = 1, looped = false},
-    SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 1.5, pitch = 1, looped = false},
+    SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 3, pitch = 1, looped = false},
     COLLISION_IMPACT = {id = "rbxassetid://82219914671445", volume = 1.7, pitch = 1, looped = false},
     DEATH = {id = "rbxassetid://91943113147629", volume = 2.5, pitch = 1, looped = false},
     SPAWN = {id = "rbxassetid://121480304779842", volume = 2.0, pitch = 1, looped = false},
@@ -273,7 +287,7 @@ local function criarGUI()
         Corner.Parent = Frame
         local Titulo = Instance.new("TextLabel")
         Titulo.Size = UDim2.new(1, 0, 0.4, 0)
-        Titulo.Text = "� Tocando Agora"
+        Titulo.Text = "♪ Tocando Agora"
         Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
         Titulo.BackgroundTransparency = 1
         Titulo.Font = Enum.Font.GothamBold
@@ -282,7 +296,7 @@ local function criarGUI()
         local BotaoParar = Instance.new("TextButton")
         BotaoParar.Size = UDim2.new(0.8, 0, 0.4, 0)
         BotaoParar.Position = UDim2.new(0.1, 0, 0.5, 0)
-        BotaoParar.Text = "� PARAR MÚSICA"
+        BotaoParar.Text = "⏹ PARAR MÚSICA"
         BotaoParar.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
         BotaoParar.TextColor3 = Color3.fromRGB(255, 255, 255)
         BotaoParar.Font = Enum.Font.GothamBold
@@ -546,7 +560,7 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
                         part.Color = currentColor
                         RunService.Heartbeat:Wait()
                     end
-                    local fadeTween = TweenService:Create(part, TweenInfo.new(duration * 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Transparency = endTransparency})
+                    local fadeTween = TweenService:Create(part, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Transparency = 1})
                     fadeTween:Play()
                 end
             end)
@@ -556,13 +570,13 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         if surf:IsA("Decal") or surf:IsA("Texture") then
             task.spawn(function()
                 task.wait(delay + duration * 0.3)
-                local fadeTween = TweenService:Create(surf, TweenInfo.new(duration * 0.7, Enum.EasingStyle.Quad), {Transparency = endTransparency})
+                local fadeTween = TweenService:Create(surf, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {Transparency = 1})
                 fadeTween:Play()
             end)
         end
     end
     hologramChar.Parent = Workspace
-    Debris:AddItem(hologramChar, delay + duration + 1)
+    Debris:AddItem(hologramChar, delay + duration)
 end
 
 --// NOVO SISTEMA DE FALHA SANDEVISTAN
@@ -1311,7 +1325,7 @@ local function ExecOptical()
     end)
 end
 
---// ANIMAÇÃO DE SPAWN - 4 VARIAÇÕES DE CÂMERA CINEMATOGRÁFICA
+--// ANIMAÇÃO DE SPAWN ANTIGA (mantida exatamente como era)
 local function SpawnRebootWindow()
     if not HRP then return end
     
@@ -1706,7 +1720,7 @@ local function BuildUI()
         rebindButton.MouseButton1Click:Connect(function() RebindingAbility = kb.ab end)
     end
     local setsRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 60), BackgroundTransparency = 1, Parent = scroll})
-    local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 48), Position = UDim2.new(0.05, 0, 0, 6), Text = "� TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 20, Parent = setsRow})
+    local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 48), Position = UDim2.new(0.05, 0, 0, 6), Text = "🔄 TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 20, Parent = setsRow})
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = setsBtn})
     Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2, Parent = setsBtn})
     setsBtn.MouseButton1Click:Connect(function()
