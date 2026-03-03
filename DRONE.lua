@@ -1,4 +1,4 @@
--- FREE CAM DRONE PREMIUM v2.4 - LOOP SOUND 136704576012970 + TWEEN IMAGEM DO DRONE + MINI MAP + CHASE MODE (FIX) + HUD REPOSICIONADO + TV ANIMATION ON/OFF + OVERLAY SOMENTE NO FPV
+-- FREE CAM DRONE PREMIUM v2.7 - UNIVERSAL (SEM RAGDOLL + DRONE PREMIUM ULTRA ESTILOSO)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -30,7 +30,7 @@ local moveFlags = {
 
 local droneModel = nil
 local rotors = {}
-local antennas = {}
+local thrustEmitters = {}
 local propellerSound = nil
 local colorIndex = 1
 local droneColors = {
@@ -42,93 +42,9 @@ local droneColors = {
 }
 
 local chaseMode = false
+local miniDrone = nil
 
--- ====================== RAGDOLL ======================
-local function NoCollide(char)
-	local parts = {}
-	for _, v in pairs(char:GetChildren()) do
-		if v:IsA("BasePart") then table.insert(parts, v) end
-	end
-	for i = 1, #parts do
-		for j = i + 1, #parts do
-			local nocollide = Instance.new("NoCollisionConstraint")
-			nocollide.Name = "RD_NoCollide"
-			nocollide.Part0 = parts[i]
-			nocollide.Part1 = parts[j]
-			nocollide.Parent = parts[i]
-		end
-	end
-end
-
-local function SetRagdoll(state)
-	local char = player.Character
-	if not char then return end
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	local head = char:FindFirstChild("Head")
-	local root = char:FindFirstChild("HumanoidRootPart")
-	
-	if state then
-		hum:ChangeState(Enum.HumanoidStateType.Physics)
-		hum.PlatformStand = true
-		hum.AutoRotate = false
-		NoCollide(char)
-		
-		for _, obj in pairs(char:GetDescendants()) do
-			if obj:IsA("Motor6D") and obj.Name ~= "Neck" then
-				local p0, p1 = obj.Part0, obj.Part1
-				local a0 = Instance.new("Attachment", p0)
-				local a1 = Instance.new("Attachment", p1)
-				a0.Name, a1.Name = "RD_At", "RD_At"
-				a0.CFrame, a1.CFrame = obj.C0, obj.C1
-				
-				local socket = Instance.new("BallSocketConstraint", obj.Parent)
-				socket.Name = "RD_Socket"
-				socket.Attachment0 = a0
-				socket.Attachment1 = a1
-				socket.LimitsEnabled = true
-				socket.UpperAngle = 30
-				socket.TwistLimitsEnabled = true
-				socket.TwistLowerAngle = -40
-				socket.TwistUpperAngle = 40
-				
-				p1.CustomPhysicalProperties = PhysicalProperties.new(4, 0.3, 0.5, 10, 10)
-				p1.CanCollide = true
-				obj.Enabled = false
-			end
-		end
-		
-		if head then head.CanCollide = true; head.Massless = false end
-		if root then root.AssemblyAngularVelocity = Vector3.new(0,0,0) end
-	else
-		hum.PlatformStand = false
-		hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-		hum.AutoRotate = true
-		
-		for _, obj in pairs(char:GetDescendants()) do
-			if obj.Name:match("RD_") then obj:Destroy()
-			elseif obj:IsA("Motor6D") then obj.Enabled = true
-			elseif obj:IsA("BasePart") then obj.CustomPhysicalProperties = nil end
-		end
-	end
-end
-
-RunService.Stepped:Connect(function()
-	if freeCamEnabled and player.Character then
-		local char = player.Character
-		local root = char:FindFirstChild("HumanoidRootPart")
-		for _, v in pairs(char:GetChildren()) do
-			if v:IsA("BasePart") then v.CanCollide = true end
-		end
-		if root then
-			if root.Position.Y < workspace.FallenPartsDestroyHeight + 12 then
-				root.Velocity = Vector3.new(root.Velocity.X, 12, root.Velocity.Z)
-			end
-			root.AssemblyAngularVelocity = Vector3.new(0,0,0)
-		end
-	end
-end)
-
--- ====================== GUI + D-PAD ======================
+-- ====================== GUI + MINI MAP + D-PAD + OVERLAY ======================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "EliteDroneUI"
 screenGui.ResetOnSpawn = false
@@ -159,9 +75,8 @@ local function newBtn(txt, col)
 	b.BackgroundTransparency = 0.25
 	b.Parent = mainFrame
 	Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
-	local s = Instance.new("UIStroke", b)
-	s.Thickness = 1.8
-	s.Color = Color3.fromRGB(0,255,220)
+	Instance.new("UIStroke", b).Thickness = 1.8
+	Instance.new("UIStroke", b).Color = Color3.fromRGB(0,255,220)
 	return b
 end
 
@@ -188,7 +103,7 @@ hudBtn.Size = UDim2.new(0,45,0,45)
 hudBtn.Position = UDim2.new(0, 25, 0, 15)
 hudBtn.Parent = screenGui
 
--- MINI MAP (Feature 9)
+-- MINI MAP
 local miniMapContainer = Instance.new("Frame")
 miniMapContainer.Size = UDim2.new(0, 130, 0, 130)
 miniMapContainer.Position = UDim2.new(1, -150, 0, 20)
@@ -208,9 +123,7 @@ viewport.Parent = miniMapContainer
 local miniCamera = Instance.new("Camera")
 viewport.CurrentCamera = miniCamera
 
-local miniDrone = nil
-
--- D-PAD (só aparece no modo drone)
+-- D-PAD
 local dpadFrame = Instance.new("Frame")
 dpadFrame.Size = UDim2.new(0, 260, 0, 200)
 dpadFrame.Position = UDim2.new(0, 30, 1, -240)
@@ -266,7 +179,7 @@ holdButton(rightBtn, "Right")
 holdButton(flyUpBtn, "FlyUp")
 holdButton(flyDownBtn, "FlyDown")
 
--- ====================== FPV OVERLAY ======================
+-- FPV OVERLAY + ANIMAÇÕES (mantido)
 local overlay = Instance.new("ScreenGui")
 overlay.Name = "DroneFPV"
 overlay.ResetOnSpawn = false
@@ -326,7 +239,7 @@ spdLabel.TextColor3 = Color3.new(1,1,1)
 spdLabel.TextScaled = true
 spdLabel.Font = Enum.Font.Code
 
--- ====================== ANIMAÇÃO TWEEN DA IMAGEM DO DRONE ======================
+-- ANIMAÇÃO TWEEN DRONE
 local function showDroneActivationImage()
 	local img = Instance.new("ImageLabel")
 	img.Size = UDim2.new(0, 0, 0, 0)
@@ -338,28 +251,20 @@ local function showDroneActivationImage()
 	img.Parent = screenGui
 	img.ZIndex = 100
 
-	local tweenIn = TweenService:Create(img, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, 420, 0, 280),
-		ImageTransparency = 0.12
-	})
+	local tweenIn = TweenService:Create(img, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 420, 0, 280), ImageTransparency = 0.12})
 	tweenIn:Play()
 
 	task.delay(1.8, function()
-		local tweenOut = TweenService:Create(img, TweenInfo.new(0.65, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-			Size = UDim2.new(0, 180, 0, 120),
-			ImageTransparency = 1
-		})
+		local tweenOut = TweenService:Create(img, TweenInfo.new(0.65, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {Size = UDim2.new(0, 180, 0, 120), ImageTransparency = 1})
 		tweenOut:Play()
 		tweenOut.Completed:Connect(function() img:Destroy() end)
 	end)
 end
 
--- ====================== ANIMAÇÃO TV LIGANDO/DESLIGANDO (FPV OVERLAY) ======================
+-- ANIMAÇÃO TV ON/OFF
 local function animateOverlay(enable)
 	if enable then
 		overlay.Enabled = true
-		
-		-- Começa desligado
 		vignette.ImageTransparency = 1
 		scanlines.ImageTransparency = 1
 		crosshair.ImageTransparency = 1
@@ -368,7 +273,6 @@ local function animateOverlay(enable)
 		altLabel.TextTransparency = 1
 		spdLabel.TextTransparency = 1
 
-		-- Animação de ligar TV
 		TweenService:Create(vignette, TweenInfo.new(0.65, Enum.EasingStyle.Quint), {ImageTransparency = 0.35}):Play()
 		TweenService:Create(scanlines, TweenInfo.new(0.75, Enum.EasingStyle.Quint), {ImageTransparency = 0.8}):Play()
 		TweenService:Create(crosshair, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {ImageTransparency = 0.5}):Play()
@@ -377,107 +281,206 @@ local function animateOverlay(enable)
 		TweenService:Create(altLabel, TweenInfo.new(0.7, Enum.EasingStyle.Quint), {TextTransparency = 0}):Play()
 		TweenService:Create(spdLabel, TweenInfo.new(0.7, Enum.EasingStyle.Quint), {TextTransparency = 0}):Play()
 	else
-		-- Animação de desligar TV
-		local tweenVig = TweenService:Create(vignette, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {ImageTransparency = 1})
-		local tweenScan = TweenService:Create(scanlines, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {ImageTransparency = 1})
-		local tweenCross = TweenService:Create(crosshair, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {ImageTransparency = 1})
-		local tweenInfo = TweenService:Create(infoBar, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {BackgroundTransparency = 1})
-		local tweenRec = TweenService:Create(recLabel, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {TextTransparency = 1})
-		local tweenAlt = TweenService:Create(altLabel, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {TextTransparency = 1})
-		local tweenSpd = TweenService:Create(spdLabel, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {TextTransparency = 1})
+		local tVig = TweenService:Create(vignette, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {ImageTransparency = 1})
+		local tScan = TweenService:Create(scanlines, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {ImageTransparency = 1})
+		local tCross = TweenService:Create(crosshair, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {ImageTransparency = 1})
+		local tInfo = TweenService:Create(infoBar, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {BackgroundTransparency = 1})
+		local tRec = TweenService:Create(recLabel, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {TextTransparency = 1})
+		local tAlt = TweenService:Create(altLabel, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {TextTransparency = 1})
+		local tSpd = TweenService:Create(spdLabel, TweenInfo.new(0.45, Enum.EasingStyle.Quint), {TextTransparency = 1})
 
-		tweenVig:Play()
-		tweenScan:Play()
-		tweenCross:Play()
-		tweenInfo:Play()
-		tweenRec:Play()
-		tweenAlt:Play()
-		tweenSpd:Play()
-
-		tweenVig.Completed:Connect(function()
-			overlay.Enabled = false
-		end)
+		tVig:Play() tScan:Play() tCross:Play() tInfo:Play() tRec:Play() tAlt:Play() tSpd:Play()
+		tVig.Completed:Connect(function() overlay.Enabled = false end)
 	end
 end
 
--- ====================== DRONE MODEL + LOOP SOUND ======================
+-- ====================== DRONE MODEL PREMIUM v2.7 ======================
 local function createDroneModel()
 	if droneModel then droneModel:Destroy() end
 	droneModel = Instance.new("Model")
-	droneModel.Name = "EliteDrone"
+	droneModel.Name = "EliteDronePremium_v2.7"
 
+	-- CORPO CENTRAL PREMIUM
 	local body = Instance.new("Part")
 	body.Name = "Body"
-	body.Size = Vector3.new(3,1,3)
-	body.Color = droneColors[colorIndex]
-	body.Material = Enum.Material.ForceField
+	body.Size = Vector3.new(4.2, 1.35, 4.2)
+	body.Color = Color3.fromRGB(18, 20, 28)
+	body.Material = Enum.Material.SmoothPlastic
 	body.Anchored = true
 	body.CanCollide = false
 	body.Parent = droneModel
 
-	local light = Instance.new("PointLight", body)
-	light.Color = droneColors[colorIndex]
-	light.Brightness = 2.8
-	light.Range = 12
+	-- Top plate neon hexagonal
+	local topPlate = Instance.new("Part")
+	topPlate.Size = Vector3.new(3.8, 0.25, 3.8)
+	topPlate.Color = droneColors[colorIndex]
+	topPlate.Material = Enum.Material.Neon
+	topPlate.Anchored = true
+	topPlate.CanCollide = false
+	topPlate.CFrame = body.CFrame * CFrame.new(0, 0.85, 0)
+	topPlate.Parent = droneModel
 
-	local armPos = {Vector3.new(2.2,0,2.2), Vector3.new(2.2,0,-2.2), Vector3.new(-2.2,0,2.2), Vector3.new(-2.2,0,-2.2)}
+	-- Braços + Motores + Hélices 3 lâminas + Prop Guard
+	rotors = {}
+	thrustEmitters = {}
+	local armOffsets = {Vector3.new(2.4,0,2.4), Vector3.new(2.4,0,-2.4), Vector3.new(-2.4,0,2.4), Vector3.new(-2.4,0,-2.4)}
+
 	for i = 1,4 do
+		local offset = armOffsets[i]
+		local angle = (i-1)*90
+
+		-- Braço com LED strip
 		local arm = Instance.new("Part")
-		arm.Size = Vector3.new(3.5,0.4,0.4)
-		arm.Color = Color3.fromRGB(25,25,40)
-		arm.Material = Enum.Material.Metal
+		arm.Size = Vector3.new(5.2, 0.55, 1.15)
+		arm.Color = Color3.fromRGB(22,24,32)
+		arm.Material = Enum.Material.SmoothPlastic
 		arm.Anchored = true
 		arm.CanCollide = false
-		arm.CFrame = CFrame.new(armPos[i])
+		arm.CFrame = body.CFrame * CFrame.new(offset) * CFrame.Angles(0, math.rad(angle + 45), 0) * CFrame.new(2.6, 0, 0)
 		arm.Parent = droneModel
+
+		local ledStrip = Instance.new("Part")
+		ledStrip.Size = Vector3.new(4.8, 0.12, 0.12)
+		ledStrip.Color = droneColors[colorIndex]
+		ledStrip.Material = Enum.Material.Neon
+		ledStrip.Anchored = true
+		ledStrip.CanCollide = false
+		ledStrip.CFrame = arm.CFrame * CFrame.new(0, 0.4, 0)
+		ledStrip.Parent = droneModel
+
+		-- Motor detalhado
+		local motor = Instance.new("Part")
+		motor.Size = Vector3.new(1.35, 0.95, 1.35)
+		motor.Color = Color3.fromRGB(30,32,40)
+		motor.Material = Enum.Material.Metal
+		motor.Anchored = true
+		motor.CanCollide = false
+		motor.CFrame = arm.CFrame * CFrame.new(3.1, 0.45, 0)
+		motor.Parent = droneModel
+
+		-- Aletas de resfriamento
+		for a = -1,1 do
+			local fin = Instance.new("Part")
+			fin.Size = Vector3.new(0.1, 0.7, 1.4)
+			fin.Color = Color3.fromRGB(45,45,55)
+			fin.Material = Enum.Material.Metal
+			fin.Anchored = true
+			fin.CanCollide = false
+			fin.CFrame = motor.CFrame * CFrame.new(0, 0.3, a*0.45)
+			fin.Parent = droneModel
+		end
+
+		-- 3 Hélices premium
+		local blades = {}
+		for b = 1,3 do
+			local blade = Instance.new("Part")
+			blade.Size = Vector3.new(0.22, 0.09, 6.8)
+			blade.Color = Color3.fromRGB(235, 245, 255)
+			blade.Material = Enum.Material.Neon
+			blade.Anchored = true
+			blade.CanCollide = false
+			blade.Parent = droneModel
+			table.insert(blades, blade)
+		end
+
+		-- Prop Guard (anel de proteção)
+		local guard = Instance.new("Part")
+		guard.Shape = Enum.PartType.Cylinder
+		guard.Size = Vector3.new(7.8, 0.35, 7.8)
+		guard.Color = Color3.fromRGB(40,42,50)
+		guard.Material = Enum.Material.Metal
+		guard.Anchored = true
+		guard.CanCollide = false
+		guard.CFrame = motor.CFrame * CFrame.new(0,0.6,0) * CFrame.Angles(math.rad(90),0,0)
+		guard.Parent = droneModel
+
+		-- Thrust Particle
+		local attach = Instance.new("Attachment", motor)
+		attach.Position = Vector3.new(0, -0.8, 0)
+
+		local thrust = Instance.new("ParticleEmitter", attach)
+		thrust.Texture = "rbxassetid://243660364"
+		thrust.Color = ColorSequence.new(Color3.fromRGB(180,230,255))
+		thrust.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,0.8), NumberSequenceKeypoint.new(1,0.1)})
+		thrust.Transparency = NumberSequence.new(0.4,1)
+		thrust.Lifetime = NumberRange.new(0.2,0.4)
+		thrust.Rate = 0
+		thrust.Speed = NumberRange.new(20,40)
+		thrust.SpreadAngle = Vector2.new(30,30)
+		thrust.Acceleration = Vector3.new(0,-25,0)
+		thrust.Enabled = true
+
+		table.insert(thrustEmitters, thrust)
+		rotors[i] = {blades = blades, motor = motor}
 	end
 
-	rotors = {}
-	for i = 1,4 do
-		local r = Instance.new("Part")
-		r.Size = Vector3.new(0.25,0.12,2.8)
-		r.Color = Color3.fromRGB(200,220,255)
-		r.Material = Enum.Material.Neon
-		r.Anchored = true
-		r.CanCollide = false
-		r.Parent = droneModel
-		rotors[i] = r
+	-- GIMBAL PREMIUM 2 EIXOS
+	local gimbalBase = Instance.new("Part")
+	gimbalBase.Size = Vector3.new(1.6, 1.1, 1.8)
+	gimbalBase.Color = Color3.fromRGB(22,22,28)
+	gimbalBase.Material = Enum.Material.Metal
+	gimbalBase.Anchored = true
+	gimbalBase.CanCollide = false
+	gimbalBase.CFrame = body.CFrame * CFrame.new(0, -1.3, 0)
+	gimbalBase.Parent = droneModel
+
+	local cameraMount = Instance.new("Part")
+	cameraMount.Size = Vector3.new(1.1, 0.95, 1.3)
+	cameraMount.Color = Color3.fromRGB(15,15,22)
+	cameraMount.Material = Enum.Material.Metal
+	cameraMount.Anchored = true
+	cameraMount.CanCollide = false
+	cameraMount.CFrame = gimbalBase.CFrame * CFrame.new(0, -0.85, 0)
+	cameraMount.Parent = droneModel
+
+	local lens = Instance.new("Part")
+	lens.Size = Vector3.new(0.85, 0.85, 0.4)
+	lens.Color = Color3.fromRGB(8,8,12)
+	lens.Material = Enum.Material.Glass
+	lens.Transparency = 0.25
+	lens.Anchored = true
+	lens.CanCollide = false
+	lens.CFrame = cameraMount.CFrame * CFrame.new(0, 0, -0.95)
+	lens.Parent = droneModel
+
+	-- Skids de pouso premium
+	for side = -1,1,2 do
+		local skid = Instance.new("Part")
+		skid.Size = Vector3.new(0.5, 0.35, 5.5)
+		skid.Color = Color3.fromRGB(28,30,38)
+		skid.Material = Enum.Material.Metal
+		skid.Anchored = true
+		skid.CanCollide = false
+		skid.CFrame = body.CFrame * CFrame.new(side*1.85, -1.85, 0) * CFrame.Angles(math.rad(6),0,0)
+		skid.Parent = droneModel
 	end
 
-	antennas = {}
-	local ant1 = Instance.new("Part", droneModel)
-	ant1.Size = Vector3.new(0.15,0.15,3.5)
-	ant1.Color = Color3.fromRGB(190,190,210)
-	ant1.Material = Enum.Material.Metal
-	ant1.Anchored = true
-	antennas[1] = ant1
-
-	local ant2 = Instance.new("Part", droneModel)
-	ant2.Size = Vector3.new(0.15,2.2,0.15)
-	ant2.Color = Color3.fromRGB(0,255,200)
-	ant2.Material = Enum.Material.Neon
-	ant2.Anchored = true
-	antennas[2] = ant2
+	-- Luz principal
+	local mainLight = Instance.new("PointLight", body)
+	mainLight.Color = droneColors[colorIndex]
+	mainLight.Brightness = 4.8
+	mainLight.Range = 24
 
 	droneModel.PrimaryPart = body
 	droneModel.Parent = workspace
 
+	-- Som melhorado
+	if propellerSound then propellerSound:Destroy() end
 	propellerSound = Instance.new("Sound")
 	propellerSound.SoundId = "rbxassetid://136704576012970"
-	propellerSound.Volume = 0.65
+	propellerSound.Volume = 0.88
 	propellerSound.Looped = true
 	propellerSound.Parent = body
-
-	if miniDrone then miniDrone:Destroy() end
-	miniDrone = droneModel:Clone()
-	miniDrone.Parent = viewport
 end
 
 local function updateDroneColor()
-	if droneModel and droneModel.PrimaryPart then
-		local c = droneColors[colorIndex]
-		droneModel.PrimaryPart.Color = c
-		droneModel.PrimaryPart.PointLight.Color = c
+	if not droneModel then return end
+	local c = droneColors[colorIndex]
+	droneModel.Body.PointLight.Color = c
+	for _, desc in pairs(droneModel:GetDescendants()) do
+		if desc:IsA("Part") and (desc.Material == Enum.Material.Neon or desc.Name:find("Neon")) then
+			desc.Color = c
+		end
 	end
 end
 
@@ -493,14 +496,12 @@ local function toggleFreeCam()
 
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(0,255,120)
 		createDroneModel()
-		SetRagdoll(true)
 		dpadFrame.Visible = true
 		miniMapContainer.Visible = true
 		propellerSound:Play()
 
 		showDroneActivationImage()
-		animateOverlay(true) -- TV LIGANDO
-
+		animateOverlay(true)
 		chaseMode = false
 		chaseBtn.BackgroundColor3 = Color3.fromRGB(100,200,255)
 	else
@@ -508,15 +509,16 @@ local function toggleFreeCam()
 		velocity = Vector3.new()
 		dronePosition = Vector3.new()
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(0,200,255)
-		if droneModel then droneModel:Destroy(); droneModel = nil end
-		if miniDrone then miniDrone:Destroy(); miniDrone = nil end
+
+		if droneModel then droneModel:Destroy() droneModel = nil end
+		if miniDrone then miniDrone:Destroy() miniDrone = nil end
 		if propellerSound then propellerSound:Stop() end
+
 		dpadFrame.Visible = false
 		miniMapContainer.Visible = false
-		SetRagdoll(false)
 		altLock = false
 		chaseMode = false
-		animateOverlay(false) -- TV DESLIGANDO
+		animateOverlay(false)
 	end
 end
 toggleBtn.Activated:Connect(toggleFreeCam)
@@ -547,8 +549,7 @@ local function resetCamera()
 	local hrp = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChild("Head")
 	if hrp then
 		local target = hrp.CFrame * CFrame.new(0,8,-15) * CFrame.Angles(math.rad(-20),0,0)
-		local tween = TweenService:Create(camera, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {CFrame = target})
-		tween:Play()
+		TweenService:Create(camera, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {CFrame = target}):Play()
 	end
 end
 resetBtn.Activated:Connect(resetCamera)
@@ -557,7 +558,7 @@ chaseBtn.Activated:Connect(function()
 	if not freeCamEnabled then return end
 	chaseMode = not chaseMode
 	chaseBtn.BackgroundColor3 = chaseMode and Color3.fromRGB(255,100,100) or Color3.fromRGB(100,200,255)
-	animateOverlay(not chaseMode) -- TV liga/desliga conforme o modo
+	animateOverlay(not chaseMode)
 end)
 
 local hudVisible = true
@@ -600,25 +601,46 @@ local function update(dt)
 	dronePosition = newPos
 
 	if droneModel then
-		local droneCF = virtualCFrame * CFrame.new(0, -2.7, 0)
+		local droneCF = virtualCFrame * CFrame.new(0, -2.8, 0)
 		droneModel:SetPrimaryPartCFrame(droneCF)
 
-		for i, r in ipairs(rotors) do
-			local offX = (i==1 or i==3) and 2.15 or -2.15
-			local offZ = (i==1 or i==2) and 2.15 or -2.15
-			r.CFrame = droneCF * CFrame.new(offX, 0.85, offZ) * CFrame.Angles(0, tick()*48*(i%2==0 and 1 or -1), 0)
+		-- BOOST MODE (Shift)
+		local finalSpeed = MOVE_SPEED
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+			finalSpeed = MOVE_SPEED * 1.85
+		end
+
+		-- Hélices 3 lâminas + spin dinâmico
+		local spinSpeed = 52 + (velocity.Magnitude / finalSpeed) * 92
+		for _, data in ipairs(rotors) do
+			local blades = data.blades
+			local motor = data.motor
+			local rotorCF = motor.CFrame
+			local spin = tick() * spinSpeed * (math.random(1,2) == 1 and 1 or -1)
+
+			for b, blade in ipairs(blades) do
+				local offset = (b-1) * math.rad(120)
+				blade.CFrame = rotorCF * CFrame.Angles(0, spin + offset, math.rad(6))
+			end
+		end
+
+		-- Thrust particles (efeito lindo perto do chão!)
+		local thrustPower = math.clamp(velocity.Magnitude / finalSpeed * 210 + 35, 35, 320)
+		for _, emitter in ipairs(thrustEmitters) do
+			emitter.Rate = thrustPower
+			emitter.Speed = NumberRange.new(thrustPower/9, thrustPower/5.5)
 		end
 	end
 
 	if chaseMode and droneModel then
-		local droneCF = virtualCFrame * CFrame.new(0, -2.7, 0)
-		camera.CFrame = droneCF * CFrame.new(0, 8, 20) * CFrame.Angles(math.rad(-18), 0, 0)
+		local droneCF = virtualCFrame * CFrame.new(0, -2.8, 0)
+		camera.CFrame = droneCF * CFrame.new(0, 9, 22) * CFrame.Angles(math.rad(-18), 0, 0)
 	else
 		camera.CFrame = virtualCFrame
 	end
 
 	if droneModel and propellerSound then
-		propellerSound.PlaybackSpeed = 0.85 + (velocity.Magnitude / MOVE_SPEED) * 1.65
+		propellerSound.PlaybackSpeed = 0.85 + (velocity.Magnitude / MOVE_SPEED) * 1.7
 	end
 
 	if miniDrone and droneModel then
@@ -644,4 +666,4 @@ UserInputService.InputChanged:Connect(function(i, proc)
 	end
 end)
 
-print("✅ ELITE DRONE v2.4 CARREGADO! Loop sound + Animação Tween + Mini Map + Chase Mode (corrigido) + HUD reposicionado + TV Animation + Overlay só no FPV!")
+print("✅ ELITE DRONE v2.7 PREMIUM CARREGADO! (Modelo Ultra Estiloso + Hélices 3 Lâminas + Thrust Effect)")
