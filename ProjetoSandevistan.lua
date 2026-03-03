@@ -49,7 +49,7 @@ local Constants = {
         OPTICAL = 6.5
     },
     HOLOGRAM_CLONE = {
-        SANDI = {DELAY = 0.075, DURATION = 1, END_TRANSPARENCY = 0.8, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0},
+        SANDI = {DELAY = 0.075, DURATION = 0.75, END_TRANSPARENCY = 0.9, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0},
         DASH = {DELAY = 0.07, DURATION = 0.3, END_TRANSPARENCY = 1, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0},
         DODGE = {DELAY = 0.2, DURATION = 0.5, END_TRANSPARENCY = 1, OFFSET_X = 0, OFFSET_Y = 0, OFFSET_Z = 0}
     },
@@ -185,7 +185,7 @@ local setColors = {[1] = Color3.fromRGB(45, 45, 45), [2] = Color3.fromRGB(0, 120
 --// DODGE MODE
 local DodgeMode = "Counter"
 
---// LITE MODE (NOVO - deixa o script mais leve)
+--// LITE MODE
 local LiteMode = false
 
 --// CUSTOM KEYBINDS
@@ -194,7 +194,7 @@ local CurrentKeybinds = {Dash = Enum.KeyCode.Q, Sandi = Enum.KeyCode.E, Kiroshi 
 local RebindingAbility = nil
 local KeybindCurrentTexts = {}
 
---// SONS (NOVO SOM ADICIONADO)
+--// SONS
 local Sounds = {
     DODGE_NORMAL = {id = "rbxassetid://136915991425056", volume = 1.5, pitch = 1, looped = false},
     DODGE_VARIANT = {id = "rbxassetid://95625766377559", volume = 1.5, pitch = 1, looped = false},
@@ -206,8 +206,11 @@ local Sounds = {
     PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 1.5, pitch = 1, looped = false},
     PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
     OPTICAL_CAMO = {id = "rbxassetid://76731635249906", volume = 1.5, pitch = 1, looped = false},
-    SANDI_FAILURE = {id = "rbxassetid://73270553392655", volume = 1.5, pitch = 1, looped = false},
-    COLLISION_IMPACT = {id = "rbxassetid://82219914671445", volume = 1.7, pitch = 1, looped = false} -- NOVO SOM DE COLISÃO
+    SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 1.5, pitch = 1, looped = false},
+    COLLISION_IMPACT = {id = "rbxassetid://82219914671445", volume = 1.7, pitch = 1, looped = false},
+    DEATH = {id = "rbxassetid://91943113147629", volume = 2.5, pitch = 1, looped = false},
+    SPAWN = {id = "rbxassetid://121480304779842", volume = 2.0, pitch = 1, looped = false},
+    REBOOT_FAILURE = {id = "rbxassetid://YOUR_ID_HERE", volume = 2.5, pitch = 1, looped = false}
 }
 
 --// MÚSICA
@@ -270,7 +273,7 @@ local function criarGUI()
         Corner.Parent = Frame
         local Titulo = Instance.new("TextLabel")
         Titulo.Size = UDim2.new(1, 0, 0.4, 0)
-        Titulo.Text = "▶ Tocando Agora"
+        Titulo.Text = "� Tocando Agora"
         Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
         Titulo.BackgroundTransparency = 1
         Titulo.Font = Enum.Font.GothamBold
@@ -279,7 +282,7 @@ local function criarGUI()
         local BotaoParar = Instance.new("TextButton")
         BotaoParar.Size = UDim2.new(0.8, 0, 0.4, 0)
         BotaoParar.Position = UDim2.new(0.1, 0, 0.5, 0)
-        BotaoParar.Text = "⏹ PARAR MÚSICA"
+        BotaoParar.Text = "� PARAR MÚSICA"
         BotaoParar.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
         BotaoParar.TextColor3 = Color3.fromRGB(255, 255, 255)
         BotaoParar.Font = Enum.Font.GothamBold
@@ -400,7 +403,7 @@ local function PlaySFX(soundConfig: {id: string, volume: number?, pitch: number?
 end
 
 local function CamShake(intensity: number, duration: number)
-    if LiteMode then return end -- LITE MODE: desativa shake (economia de performance)
+    if LiteMode then return end
     task.spawn(function()
         local startTime = os.clock()
         while os.clock() - startTime < duration do
@@ -469,9 +472,9 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
     end)
 end
 
---// EFEITOS VISUAIS (CyberSync removido - agora só local)
+--// EFEITOS VISUAIS
 local function CreateHologramClone(delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, cloneType: string, customCFrame: CFrame?)
-    if LiteMode then return end -- LITE MODE: desativa TODOS os clones (maior ganho de performance)
+    if LiteMode then return end
     local sourceChar = Character
     if not sourceChar then return end
     sourceChar.Archivable = true
@@ -562,7 +565,7 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
     Debris:AddItem(hologramChar, delay + duration + 1)
 end
 
---// NOVO SISTEMA DE FALHA SANDEVISTAN (mantido)
+--// NOVO SISTEMA DE FALHA SANDEVISTAN
 local function TriggerSandevistanFailure()
     PlaySFX(Sounds.SANDI_FAILURE)
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Instance.new("ScreenGui", Player.PlayerGui)
@@ -644,7 +647,7 @@ local function ApplyGlitchEffect()
     end)
 end
 
---// CYBERPSYCHOSIS (mantido)
+--// CYBERPSYCHOSIS
 local function createLightingEffects()
 	local cc = Instance.new("ColorCorrectionEffect")
 	cc.Name = "PsychoCC"
@@ -874,7 +877,7 @@ local function ExecCyberpsychosis()
     end)
 end
 
---// FUNÇÕES DE HABILIDADES (mantidas)
+--// FUNÇÕES DE HABILIDADES
 local function CleanupSandiSounds()
     if sandiLoopSound then sandiLoopSound:Stop() sandiLoopSound:Destroy() sandiLoopSound = nil end
     if idleSound then idleSound:Stop() idleSound:Destroy() idleSound = nil end
@@ -1174,7 +1177,7 @@ local function ExecSandi()
     criarGUI()
 end
 
---// DASH (MODIFICADO - agora para instantaneamente em colisão com player/NPC)
+--// DASH
 local function ExecDash()
     if State.IsSandiActive then return end
     if State.Energy < Constants.ENERGY_COSTS.DASH or os.clock() < State.Cooldowns.DASH then return end
@@ -1196,7 +1199,6 @@ local function ExecDash()
     end
     local bv = Create("BodyVelocity", {MaxForce = Vector3.new(1e6, 1e6, 1e6), Velocity = direction * Constants.DASH_FORCE, Parent = HRP})
 
-    -- NOVO: DETECÇÃO DE COLISÃO (para instantaneamente + som)
     local collisionConn
     collisionConn = HRP.Touched:Connect(function(hit)
         local hitParent = hit.Parent
@@ -1204,7 +1206,7 @@ local function ExecDash()
             local otherHum = hitParent:FindFirstChildOfClass("Humanoid")
             if otherHum and otherHum ~= Humanoid and otherHum.Health > 0 then
                 if bv and bv.Parent then bv:Destroy() end
-                HRP.Velocity = Vector3.new(0, HRP.Velocity.Y, 0) -- mantém gravidade
+                HRP.Velocity = Vector3.new(0, HRP.Velocity.Y, 0)
                 PlaySFX(Sounds.COLLISION_IMPACT)
                 if collisionConn then 
                     collisionConn:Disconnect()
@@ -1307,6 +1309,136 @@ local function ExecOptical()
     task.delay(Constants.OPTICAL_DURATION, function()
         if myToken == opticalToken then ResetOptical() end
     end)
+end
+
+--// ANIMAÇÃO DE SPAWN - 4 VARIAÇÕES DE CÂMERA CINEMATOGRÁFICA
+local function SpawnRebootWindow()
+    if not HRP then return end
+    
+    local part = Instance.new("Part")
+    part.Name = "RebootSystemWindow"
+    part.Size = Vector3.new(0, 0, 0.08)
+    part.Color = Color3.fromRGB(0, 195, 255)
+    part.Material = Enum.Material.Neon
+    part.Transparency = 0.03
+    part.CanCollide = false
+    part.Anchored = true
+    part.CastShadow = false
+    part.Parent = Workspace
+    
+    local sgui = Instance.new("SurfaceGui", part)
+    sgui.Face = Enum.NormalId.Front
+    sgui.PixelsPerStud = 65
+    
+    local frame = Instance.new("Frame", sgui)
+    frame.Size = UDim2.new(1,0,1,0)
+    frame.BackgroundColor3 = Color3.fromRGB(0, 12, 28)
+    
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.fromRGB(80, 220, 255)
+    stroke.Thickness = 6
+    
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1,-20,0.65,0)
+    title.Position = UDim2.new(0,10,0,8)
+    title.BackgroundTransparency = 1
+    title.TextColor3 = Color3.fromRGB(80, 255, 220)
+    title.Font = Enum.Font.SciFi
+    title.TextSize = 52
+    title.TextStrokeTransparency = 0.4
+    
+    title.Text = "REBOOT SYSTEM"
+    title.TextColor3 = Color3.fromRGB(80, 255, 220)
+    
+    local subtitle = Instance.new("TextLabel", frame)
+    subtitle.Size = UDim2.new(1,-20,0.28,0)
+    subtitle.Position = UDim2.new(0,10,0.68,0)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "NEURAL INTERFACE RESTORED"
+    subtitle.TextColor3 = Color3.fromRGB(180, 255, 240)
+    subtitle.Font = Enum.Font.Code
+    subtitle.TextSize = 22
+    
+    local function updatePosition()
+        if HRP and part.Parent then
+            local frontOffset = HRP.CFrame.LookVector * 7 + Vector3.new(0, 1.5, 0)
+            part.CFrame = CFrame.lookAt(HRP.Position + frontOffset, HRP.Position)
+        end
+    end
+    updatePosition()
+    
+    TweenService:Create(part, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = Vector3.new(5.2, 3.1, 0.08)
+    }):Play()
+    
+    local followConn = RunService.Heartbeat:Connect(updatePosition)
+    
+    task.delay(3, function()
+        if followConn then followConn:Disconnect() end
+        if part and part.Parent then
+            TweenService:Create(part, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
+                Size = Vector3.new(0.1, 0.1, 0.08)
+            }):Play()
+            task.delay(0.5, function() part:Destroy() end)
+        end
+    end)
+end
+
+local function SpawnAnimation()
+    local spawnSound = Instance.new("Sound")
+    spawnSound.SoundId = "rbxassetid://121480304779842"
+    spawnSound.Volume = 2.0
+    spawnSound.PlaybackSpeed = 1
+    spawnSound.Parent = Camera
+    spawnSound:Play()
+    
+    task.delay(3, function()
+        if spawnSound and spawnSound.Parent then
+            spawnSound:Stop()
+            spawnSound:Destroy()
+        end
+    end)
+
+    if not HRP then return end
+    
+    -- TEXTO REBOOT COM PONTOS (mantido)
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Instance.new("ScreenGui", Player.PlayerGui)
+    local rebootText = Instance.new("TextLabel")
+    rebootText.Size = UDim2.new(1,0,0.14,0)
+    rebootText.Position = UDim2.new(0,0,-0.2,0)
+    rebootText.BackgroundTransparency = 1
+    rebootText.TextColor3 = Color3.fromRGB(0, 255, 220)
+    rebootText.Font = Enum.Font.SciFi
+    rebootText.TextSize = 92
+    rebootText.TextTransparency = 1
+    rebootText.TextStrokeTransparency = 0.6
+    rebootText.Parent = gui
+    
+    TweenService:Create(rebootText, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0,0,0.08,0),
+        TextTransparency = 0
+    }):Play()
+    
+    task.spawn(function()
+        local baseText = "REBOOT SEQUENCE"
+        local dotsCycle = {".", "..", "..."}
+        local idx = 1
+        local startTimeText = os.clock()
+        while os.clock() - startTimeText < 3 do
+            rebootText.Text = baseText .. dotsCycle[idx]
+            idx = idx % 3 + 1
+            task.wait(0.35)
+        end
+    end)
+    
+    task.delay(3, function()
+        TweenService:Create(rebootText, TweenInfo.new(0.8), {TextTransparency = 1, Position = UDim2.new(0,0,-0.1,0)}):Play()
+        task.delay(1, function() rebootText:Destroy() end)
+    end)
+    
+    SpawnRebootWindow()
 end
 
 --// CUSTOM KEYBINDS FUNCTIONS
@@ -1490,7 +1622,7 @@ local function BuildUI()
         end
     end
 
-    local settingsBtn = Create("TextButton", {Name = "SettingsBtn", Size = UDim2.new(0, 40, 0, 40), Position = UDim2.new(0, 20, 0, 100), BackgroundColor3 = Colors.UI_DARK, TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 26, Text = "☰", Parent = gui})
+    local settingsBtn = Create("TextButton", {Name = "SettingsBtn", Size = UDim2.new(0, 40, 0, 40), Position = UDim2.new(0, 20, 0, 100), BackgroundColor3 = Colors.UI_DARK, TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 26, Text = "≡", Parent = gui})
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = settingsBtn})
     Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2, Transparency = 0.4, Parent = settingsBtn})
     local gradientSettings = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_DARK, Colors.UI_NEON), Rotation = 45, Parent = settingsBtn})
@@ -1544,7 +1676,6 @@ local function BuildUI()
         if SkillContainers["DodgeBtn"] then SkillContainers["DodgeBtn"].Visible = (EnabledAbilities.Dodge and DodgeMode == "Counter") end
     end)
 
-    -- NOVO: MODO LITE TOGGLE
     local liteRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 52), BackgroundColor3 = Colors.UI_BG, BorderSizePixel = 0, Parent = scroll})
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = liteRow})
     Create("TextLabel", {Size = UDim2.new(0.65, 0, 1, 0), BackgroundTransparency = 1, Text = "  MODO LITE", TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left, Parent = liteRow})
@@ -1575,7 +1706,7 @@ local function BuildUI()
         rebindButton.MouseButton1Click:Connect(function() RebindingAbility = kb.ab end)
     end
     local setsRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 60), BackgroundTransparency = 1, Parent = scroll})
-    local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 48), Position = UDim2.new(0.05, 0, 0, 6), Text = "🔄 TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 20, Parent = setsRow})
+    local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 48), Position = UDim2.new(0.05, 0, 0, 6), Text = "� TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 20, Parent = setsRow})
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = setsBtn})
     Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2, Parent = setsBtn})
     setsBtn.MouseButton1Click:Connect(function()
@@ -1631,7 +1762,7 @@ end
 
 --// EFEITO DE CAMINHADA
 local function InitWalkEffect()
-    if LiteMode then return end -- LITE MODE: desativa bobble
+    if LiteMode then return end
     RunService.RenderStepped:Connect(function()
         local CT = tick()
         if Humanoid.MoveDirection.Magnitude > 0 then
@@ -1697,7 +1828,7 @@ local function UpdateDirectionalMovement()
 end
 
 local function InitDirectionalMovement()
-    if LiteMode then return end -- LITE MODE: desativa movimento direcional (economia de performance)
+    if LiteMode then return end
     local torso = Character:FindFirstChild("Torso") or Character:FindFirstChild("UpperTorso")
     Joints = {
         RootJoint = HRP:WaitForChild("RootJoint"),
@@ -1839,8 +1970,14 @@ end
 
 local function Init()
     InitVisualEffects()
-    if Player.Character then SetupCharacter(Player.Character) end
-    Player.CharacterAdded:Connect(SetupCharacter)
+    if Player.Character then 
+        SetupCharacter(Player.Character)
+        task.delay(0.3, SpawnAnimation)
+    end
+    Player.CharacterAdded:Connect(function(char)
+        SetupCharacter(char)
+        task.delay(0.3, SpawnAnimation)
+    end)
 end
 
 Init()
