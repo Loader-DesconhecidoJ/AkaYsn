@@ -1,4 +1,4 @@
--- FREE CAM DRONE PREMIUM v2.7 - UNIVERSAL (SEM RAGDOLL + DRONE PREMIUM ULTRA ESTILOSO)
+-- FREE CAM DRONE PREMIUM v2.7 + ZOOM (SÓ ZOOM - FUNCIONA SÓ NO DRONE ATIVO)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -12,6 +12,7 @@ local MOVE_SPEED = 130
 local MAX_SPEED = 400
 local MIN_SPEED = 60
 local SENSITIVITY = 0.6
+local FOV = 70  -- ZOOM PADRÃO
 
 local freeCamEnabled = false
 local velocity = Vector3.new()
@@ -87,6 +88,8 @@ local altLockBtn = newBtn("🔒", Color3.fromRGB(255,170,50))
 local colorBtn = newBtn("🎨")
 local resetBtn = newBtn("🔄")
 local chaseBtn = newBtn("👁️", Color3.fromRGB(100,200,255))
+local zoomInBtn  = newBtn("🔎+", Color3.fromRGB(0,255,180))   -- NOVO BOTÃO ZOOM +
+local zoomOutBtn = newBtn("🔎-", Color3.fromRGB(0,255,180))   -- NOVO BOTÃO ZOOM -
 
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(1,-20,0,26)
@@ -103,7 +106,7 @@ hudBtn.Size = UDim2.new(0,45,0,45)
 hudBtn.Position = UDim2.new(0, 25, 0, 15)
 hudBtn.Parent = screenGui
 
--- MINI MAP
+-- MINI MAP (mantido igual)
 local miniMapContainer = Instance.new("Frame")
 miniMapContainer.Size = UDim2.new(0, 130, 0, 130)
 miniMapContainer.Position = UDim2.new(1, -150, 0, 20)
@@ -123,7 +126,7 @@ viewport.Parent = miniMapContainer
 local miniCamera = Instance.new("Camera")
 viewport.CurrentCamera = miniCamera
 
--- D-PAD
+-- D-PAD (mantido igual)
 local dpadFrame = Instance.new("Frame")
 dpadFrame.Size = UDim2.new(0, 260, 0, 200)
 dpadFrame.Position = UDim2.new(0, 30, 1, -240)
@@ -179,7 +182,7 @@ holdButton(rightBtn, "Right")
 holdButton(flyUpBtn, "FlyUp")
 holdButton(flyDownBtn, "FlyDown")
 
--- FPV OVERLAY + ANIMAÇÕES (mantido)
+-- FPV OVERLAY + ANIMAÇÕES (igual)
 local overlay = Instance.new("ScreenGui")
 overlay.Name = "DroneFPV"
 overlay.ResetOnSpawn = false
@@ -239,7 +242,6 @@ spdLabel.TextColor3 = Color3.new(1,1,1)
 spdLabel.TextScaled = true
 spdLabel.Font = Enum.Font.Code
 
--- ANIMAÇÃO TWEEN DRONE
 local function showDroneActivationImage()
 	local img = Instance.new("ImageLabel")
 	img.Size = UDim2.new(0, 0, 0, 0)
@@ -261,7 +263,6 @@ local function showDroneActivationImage()
 	end)
 end
 
--- ANIMAÇÃO TV ON/OFF
 local function animateOverlay(enable)
 	if enable then
 		overlay.Enabled = true
@@ -300,7 +301,6 @@ local function createDroneModel()
 	droneModel = Instance.new("Model")
 	droneModel.Name = "EliteDronePremium_v2.7"
 
-	-- CORPO CENTRAL PREMIUM
 	local body = Instance.new("Part")
 	body.Name = "Body"
 	body.Size = Vector3.new(4.2, 1.35, 4.2)
@@ -310,7 +310,6 @@ local function createDroneModel()
 	body.CanCollide = false
 	body.Parent = droneModel
 
-	-- Top plate neon hexagonal
 	local topPlate = Instance.new("Part")
 	topPlate.Size = Vector3.new(3.8, 0.25, 3.8)
 	topPlate.Color = droneColors[colorIndex]
@@ -320,7 +319,6 @@ local function createDroneModel()
 	topPlate.CFrame = body.CFrame * CFrame.new(0, 0.85, 0)
 	topPlate.Parent = droneModel
 
-	-- Braços + Motores + Hélices 3 lâminas + Prop Guard
 	rotors = {}
 	thrustEmitters = {}
 	local armOffsets = {Vector3.new(2.4,0,2.4), Vector3.new(2.4,0,-2.4), Vector3.new(-2.4,0,2.4), Vector3.new(-2.4,0,-2.4)}
@@ -329,7 +327,6 @@ local function createDroneModel()
 		local offset = armOffsets[i]
 		local angle = (i-1)*90
 
-		-- Braço com LED strip
 		local arm = Instance.new("Part")
 		arm.Size = Vector3.new(5.2, 0.55, 1.15)
 		arm.Color = Color3.fromRGB(22,24,32)
@@ -348,7 +345,6 @@ local function createDroneModel()
 		ledStrip.CFrame = arm.CFrame * CFrame.new(0, 0.4, 0)
 		ledStrip.Parent = droneModel
 
-		-- Motor detalhado
 		local motor = Instance.new("Part")
 		motor.Size = Vector3.new(1.35, 0.95, 1.35)
 		motor.Color = Color3.fromRGB(30,32,40)
@@ -358,7 +354,6 @@ local function createDroneModel()
 		motor.CFrame = arm.CFrame * CFrame.new(3.1, 0.45, 0)
 		motor.Parent = droneModel
 
-		-- Aletas de resfriamento
 		for a = -1,1 do
 			local fin = Instance.new("Part")
 			fin.Size = Vector3.new(0.1, 0.7, 1.4)
@@ -370,7 +365,6 @@ local function createDroneModel()
 			fin.Parent = droneModel
 		end
 
-		-- 3 Hélices premium
 		local blades = {}
 		for b = 1,3 do
 			local blade = Instance.new("Part")
@@ -383,7 +377,6 @@ local function createDroneModel()
 			table.insert(blades, blade)
 		end
 
-		-- Prop Guard (anel de proteção)
 		local guard = Instance.new("Part")
 		guard.Shape = Enum.PartType.Cylinder
 		guard.Size = Vector3.new(7.8, 0.35, 7.8)
@@ -394,7 +387,6 @@ local function createDroneModel()
 		guard.CFrame = motor.CFrame * CFrame.new(0,0.6,0) * CFrame.Angles(math.rad(90),0,0)
 		guard.Parent = droneModel
 
-		-- Thrust Particle
 		local attach = Instance.new("Attachment", motor)
 		attach.Position = Vector3.new(0, -0.8, 0)
 
@@ -414,7 +406,6 @@ local function createDroneModel()
 		rotors[i] = {blades = blades, motor = motor}
 	end
 
-	-- GIMBAL PREMIUM 2 EIXOS
 	local gimbalBase = Instance.new("Part")
 	gimbalBase.Size = Vector3.new(1.6, 1.1, 1.8)
 	gimbalBase.Color = Color3.fromRGB(22,22,28)
@@ -443,7 +434,6 @@ local function createDroneModel()
 	lens.CFrame = cameraMount.CFrame * CFrame.new(0, 0, -0.95)
 	lens.Parent = droneModel
 
-	-- Skids de pouso premium
 	for side = -1,1,2 do
 		local skid = Instance.new("Part")
 		skid.Size = Vector3.new(0.5, 0.35, 5.5)
@@ -455,7 +445,6 @@ local function createDroneModel()
 		skid.Parent = droneModel
 	end
 
-	-- Luz principal
 	local mainLight = Instance.new("PointLight", body)
 	mainLight.Color = droneColors[colorIndex]
 	mainLight.Brightness = 4.8
@@ -464,7 +453,6 @@ local function createDroneModel()
 	droneModel.PrimaryPart = body
 	droneModel.Parent = workspace
 
-	-- Som melhorado
 	if propellerSound then propellerSound:Destroy() end
 	propellerSound = Instance.new("Sound")
 	propellerSound.SoundId = "rbxassetid://136704576012970"
@@ -508,6 +496,8 @@ local function toggleFreeCam()
 		camera.CameraType = Enum.CameraType.Custom
 		velocity = Vector3.new()
 		dronePosition = Vector3.new()
+		FOV = 70
+		camera.FieldOfView = 70  -- ZOOM VOLTA AO NORMAL
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(0,200,255)
 
 		if droneModel then droneModel:Destroy() droneModel = nil end
@@ -522,6 +512,19 @@ local function toggleFreeCam()
 	end
 end
 toggleBtn.Activated:Connect(toggleFreeCam)
+
+-- ZOOM SÓ FUNCIONA NO DRONE ATIVO
+zoomInBtn.Activated:Connect(function()
+	if not freeCamEnabled then return end
+	FOV = math.max(20, FOV - 12)
+	camera.FieldOfView = FOV
+end)
+
+zoomOutBtn.Activated:Connect(function()
+	if not freeCamEnabled then return end
+	FOV = math.min(110, FOV + 12)
+	camera.FieldOfView = FOV
+end)
 
 speedUpBtn.Activated:Connect(function()
 	MOVE_SPEED = math.min(MOVE_SPEED + 30, MAX_SPEED)
@@ -572,6 +575,8 @@ end)
 local function update(dt)
 	if not freeCamEnabled then return end
 
+	camera.FieldOfView = FOV  -- mantem o zoom enquanto drone ativo
+
 	local dir = Vector3.new()
 	local controlRotation = CFrame.fromEulerAnglesYXZ(math.rad(pitch), math.rad(yaw), 0)
 	local controlLook = controlRotation.LookVector
@@ -604,13 +609,11 @@ local function update(dt)
 		local droneCF = virtualCFrame * CFrame.new(0, -2.8, 0)
 		droneModel:SetPrimaryPartCFrame(droneCF)
 
-		-- BOOST MODE (Shift)
 		local finalSpeed = MOVE_SPEED
 		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
 			finalSpeed = MOVE_SPEED * 1.85
 		end
 
-		-- Hélices 3 lâminas + spin dinâmico
 		local spinSpeed = 52 + (velocity.Magnitude / finalSpeed) * 92
 		for _, data in ipairs(rotors) do
 			local blades = data.blades
@@ -624,7 +627,6 @@ local function update(dt)
 			end
 		end
 
-		-- Thrust particles (efeito lindo perto do chão!)
 		local thrustPower = math.clamp(velocity.Magnitude / finalSpeed * 210 + 35, 35, 320)
 		for _, emitter in ipairs(thrustEmitters) do
 			emitter.Rate = thrustPower
@@ -666,4 +668,4 @@ UserInputService.InputChanged:Connect(function(i, proc)
 	end
 end)
 
-print("✅ ELITE DRONE v2.7 PREMIUM CARREGADO! (Modelo Ultra Estiloso + Hélices 3 Lâminas + Thrust Effect)")
+print("✅ ELITE DRONE v2.7 + ZOOM CARREGADO! (Zoom só no drone + reseta automático)")
