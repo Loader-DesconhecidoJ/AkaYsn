@@ -211,7 +211,7 @@ local KeybindCurrentTexts = {}
 --// SONS
 local Sounds = {
     DODGE_NORMAL = {id = "rbxassetid://136915991425056", volume = 1.5, pitch = 1, looped = false},
-    DODGE_VARIANT = {id = "rbxassetid://95625766377559", volume = 1.5, pitch = 1, looped = false},
+    DODGE_VARIANT = {id = "rbxassetid://136915991425056", volume = 1.5, pitch = 1, looped = false},
     DASH = {id = "rbxassetid://103247005619946", volume = 1.5, pitch = 1, looped = false},
     SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1.5, pitch = 1, looped = false},
     SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1.5, pitch = 1, looped = false},
