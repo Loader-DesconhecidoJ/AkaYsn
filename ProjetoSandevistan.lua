@@ -1044,10 +1044,9 @@ local function ResetSandi()
 end
 
 local function PlayActivationSequence()
-    local textures = {"rbxassetid://84920149837951","rbxassetid://138600197729943","rbxassetid://91101401638106","rbxassetid://136578715529335","rbxassetid://132751511897004","rbxassetid://135370243485541"}
+    local textures = {"rbxassetid://118003464090928","rbxassetid://100849825361179","rbxassetid://96105818070338","rbxassetid://110826337725055","rbxassetid://139215133344337","rbxassetid://98416340638203","rbxassetid://114952882072808","rbxassetid://87959360506687","rbxassetid://99027028936189","rbxassetid://126972351917677"}
     local fullSeq = {}
     for _, tex in ipairs(textures) do table.insert(fullSeq, tex) end
-    for i = #textures - 1, 1, -1 do table.insert(fullSeq, textures[i]) end
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
     if not gui then return end
     local overlay = Create("ImageLabel", {Name = "SandiTextureOverlay", Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1, ImageTransparency = 0.10, ZIndex = 100, Parent = gui})
