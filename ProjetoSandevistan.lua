@@ -84,7 +84,7 @@ local Constants = {
 
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,
-    HOLOGRAM_MATERIAL = Enum.Material.SmoothPlastic,
+    HOLOGRAM_MATERIAL = Enum.Material.Glass,
     ASSETS = {
         TEXTURES = {
             SPARKS = "rbxassetid://6071575297",
