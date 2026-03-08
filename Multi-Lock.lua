@@ -1,34 +1,26 @@
---// Script de Aimbot / Camlock / Assist com GUI simples (Roblox)
---// Baseado no script fornecido - Versão aprimorada
-
---// Serviços
 local Players       = game:GetService("Players")
 local RunService    = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace     = game:GetService("Workspace")
 
 local Camera        = Workspace.CurrentCamera
 local LocalPlayer   = Players.LocalPlayer
 
---// Estados
 local Enabled       = false
-local TargetType    = "PLAYERS"   -- "PLAYERS" ou "NPCS"
-local Mode          = "CAMLOCK"   -- "CAMLOCK", "AIMLOCK", "ASSIST", "Mistu"
-local BodyPart      = "CABEÇA"    -- "CABEÇA", "PESCOÇO", "TORSO", "PÉ"
+local TargetType    = "PLAYERS"
+local Mode          = "CAMLOCK"
+local BodyPart      = "CABEÇA"
 local LockedTarget  = nil
 local LineboxEnabled    = false
 local lineboxDrawings   = {}
 
---// Configurações
 local FOVMax        = 110
 local FOVMin        = 50
 local FOV           = FOVMax
-local CamSmooth     = 0.95      -- Quanto menor, mais suave (0\\~1)
+local CamSmooth     = 0.95
 local MistuSmooth   = 0.98
 local AimSmooth     = 0.92
 local AssistStrength= 0.95
 
---// FOV Circle
 local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness   = 2
 fovCircle.NumSides    = 64
@@ -39,7 +31,6 @@ fovCircle.Color       = Color3.fromRGB(255, 255, 255)
 fovCircle.Transparency = 1
 fovCircle.ZIndex = 999
 
---// Indicadores CAMLOCK
 local camLockLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
@@ -86,12 +77,10 @@ local function updateCamLockIndicator(part)
     camLockLines[4].From = left   camLockLines[4].To = top
 
     for _, line in ipairs(camLockLines) do line.Visible = true end
-    
     camLockDot.Position = Vector2.new(screenPos.X, screenPos.Y)
     camLockDot.Visible = true
 end
 
---// Indicador AIMLOCK (triângulo vermelho acima da cabeça)
 local aimLockArrow = Drawing.new("Triangle")
 aimLockArrow.Color        = Color3.fromRGB(255, 0, 0)
 aimLockArrow.Thickness    = 2
@@ -120,7 +109,6 @@ local function updateAimLockIndicator(part)
     aimLockArrow.Visible = true
 end
 
---// Utilitários
 local function getTargetPart(character)
     if BodyPart == "CABEÇA" then
         return character:FindFirstChild("Head")
@@ -138,7 +126,6 @@ local function isValidNPC(model)
     return model:IsA("Model") and model:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(model)
 end
 
---// Wall Check (Raycast)
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 rayParams.IgnoreWater = true
@@ -151,7 +138,6 @@ local function canSeeTarget(targetPart)
     return not result or result.Instance:IsDescendantOf(targetPart.Parent)
 end
 
---// Encontrar alvo mais próximo no FOV
 local function findClosestTarget()
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local closest, minDist = nil, math.huge
@@ -159,10 +145,8 @@ local function findClosestTarget()
     local function checkTarget(charOrModel)
         local part = getTargetPart(charOrModel)
         if not part then return end
-        
         local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
         if not onScreen then return end
-        
         local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
         if distance < FOV and distance < minDist then
             minDist = distance
@@ -176,7 +160,7 @@ local function findClosestTarget()
                 checkTarget(player.Character)
             end
         end
-    else  -- NPCS
+    else
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if isValidNPC(obj) then
                 checkTarget(obj)
@@ -187,7 +171,6 @@ local function findClosestTarget()
     return closest
 end
 
---// Validação de alvo (fix para NPCs e Players)
 local function isValidLockedTarget(part)
     if not part then return false end
     local model = part.Parent
@@ -200,10 +183,8 @@ local function isValidLockedTarget(part)
     end
 end
 
---// Função para adicionar Linebox a um player
 local function addLinebox(player)
     if player == LocalPlayer or lineboxDrawings[player] then return end
-
     local boxLines = {}
     for i = 1, 4 do
         local line = Drawing.new("Line")
@@ -213,22 +194,33 @@ local function addLinebox(player)
         line.ZIndex = 998
         table.insert(boxLines, line)
     end
-
     local tracer = Drawing.new("Line")
     tracer.Thickness = 2
     tracer.Color = Color3.fromRGB(255, 255, 255)
     tracer.Visible = false
     tracer.ZIndex = 998
-
     lineboxDrawings[player] = {boxLines = boxLines, tracer = tracer}
 end
 
---// Criação da GUI
+local function forceInstantReset()
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("Humanoid") then
+        Camera.CameraType = Enum.CameraType.Fixed
+        Camera.CameraSubject = character.Humanoid
+        Camera.CameraType = Enum.CameraType.Custom
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    local humanoid = newCharacter:WaitForChild("Humanoid")
+    Camera.CameraType = Enum.CameraType.Custom
+    Camera.CameraSubject = humanoid
+end)
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Frame principal (Cyberpunk Holográfica)
 local mainFrame = Instance.new("Frame", screenGui)
 mainFrame.Size = UDim2.new(0, 180, 0, 52)
 mainFrame.Position = UDim2.new(0.5, -90, 0.65, 0)
@@ -243,7 +235,6 @@ mainStroke.Thickness = 3
 mainStroke.Transparency = 0.05
 mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
--- Botões laterais (Cyberpunk Holográfica)
 local function createSideButton(text, yOffset)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 38, 0, 14)
@@ -269,7 +260,6 @@ local playerBtn   = createSideButton("P", 4)
 local modeBtn     = createSideButton("CAM", 18)
 local partBtn     = createSideButton("PART", 32)
 
--- Botão Toggle principal (Cyberpunk Holográfica - sem RGB)
 local toggleBtn = Instance.new("TextButton", mainFrame)
 toggleBtn.Size = UDim2.new(0, 110, 0, 34)
 toggleBtn.Position = UDim2.new(0.5, -35, 0.5, -17)
@@ -287,7 +277,6 @@ toggleStroke.Color = Color3.fromRGB(0, 255, 255)
 toggleStroke.Thickness = 2.5
 toggleStroke.Transparency = 0.1
 
--- Botão de arrastar (Cyberpunk Holográfica)
 local dragButton = Instance.new("TextButton", screenGui)
 dragButton.Size = UDim2.new(0, 32, 0, 20)
 dragButton.Text = "🔄"
@@ -299,12 +288,6 @@ dragButton.BackgroundTransparency = 0.4
 dragButton.BorderSizePixel = 0
 Instance.new("UICorner", dragButton).CornerRadius = UDim.new(0, 8)
 
-local dragStroke = Instance.new("UIStroke", dragButton)
-dragStroke.Color = Color3.fromRGB(0, 255, 255)
-dragStroke.Thickness = 2
-dragStroke.Transparency = 0.1
-
--- Botão Linebox (à esquerda do drag) (Cyberpunk Holográfica)
 local lineboxBtn = Instance.new("TextButton", screenGui)
 lineboxBtn.Size = UDim2.new(0, 32, 0, 20)
 lineboxBtn.Text = "LB"
@@ -317,24 +300,13 @@ lineboxBtn.BorderSizePixel = 0
 Instance.new("UICorner", lineboxBtn).CornerRadius = UDim.new(0, 8)
 lineboxBtn.Visible = false
 
-local lbStroke = Instance.new("UIStroke", lineboxBtn)
-lbStroke.Color = Color3.fromRGB(0, 255, 255)
-lbStroke.Thickness = 2
-lbStroke.Transparency = 0.1
-
--- Menu de partes do corpo (Cyberpunk Holográfica) - AGORA COM CABEÇA, PESCOÇO, TORSO, PÉ
 local partMenu = Instance.new("Frame", screenGui)
-partMenu.Size = UDim2.new(0, 110, 0, 88)   -- altura para 4 opções
+partMenu.Size = UDim2.new(0, 110, 0, 88)
 partMenu.BackgroundColor3 = Color3.fromRGB(8, 3, 28)
 partMenu.BackgroundTransparency = 0.25
 partMenu.BorderSizePixel = 0
 partMenu.Visible = false
 Instance.new("UICorner", partMenu).CornerRadius = UDim.new(0, 8)
-
-local pmStroke = Instance.new("UIStroke", partMenu)
-pmStroke.Color = Color3.fromRGB(0, 255, 255)
-pmStroke.Thickness = 3
-pmStroke.Transparency = 0.05
 
 local function createPartOption(text, y)
     local btn = Instance.new("TextButton", partMenu)
@@ -348,7 +320,6 @@ local function createPartOption(text, y)
     btn.BackgroundTransparency = 0.3
     btn.BorderSizePixel = 0
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-
     local stroke = Instance.new("UIStroke", btn)
     stroke.Color = Color3.fromRGB(0, 255, 255)
     stroke.Thickness = 1.5
@@ -361,31 +332,20 @@ local neckOption  = createPartOption("PESCOÇO", 24)
 local torsoOption = createPartOption("TORSO", 44)
 local peOption    = createPartOption("PÉ", 64)
 
---// Inicializa Linebox para players existentes
-for _, player in ipairs(Players:GetPlayers()) do
-    addLinebox(player)
-end
-
---// Conecta para novos players
+for _, player in ipairs(Players:GetPlayers()) do addLinebox(player) end
 Players.PlayerAdded:Connect(addLinebox)
-
 Players.PlayerRemoving:Connect(function(player)
     if lineboxDrawings[player] then
-        for _, line in ipairs(lineboxDrawings[player].boxLines) do
-            line:Remove()
-        end
+        for _, line in ipairs(lineboxDrawings[player].boxLines) do line:Remove() end
         lineboxDrawings[player].tracer:Remove()
         lineboxDrawings[player] = nil
     end
 end)
 
---// Lógica dos botões
 toggleBtn.MouseButton1Click:Connect(function()
     Enabled = not Enabled
     LockedTarget = nil
-    if not Enabled then
-        LineboxEnabled = false
-    end
+    if not Enabled then LineboxEnabled = false end
     toggleBtn.Text = Enabled and "TOGGLE ON" or "TOGGLE OFF"
 end)
 
@@ -400,51 +360,23 @@ modeBtn.MouseButton1Click:Connect(function()
     elseif Mode == "AIMLOCK" then Mode = "ASSIST"
     elseif Mode == "ASSIST" then Mode = "Mistu"
     else Mode = "CAMLOCK" end
-    
-    modeBtn.Text = Mode == "CAMLOCK" and "CAM"
-                      or Mode == "AIMLOCK" and "AIM"
-                      or Mode == "ASSIST" and "AST"
-                      or "Mst"
+    modeBtn.Text = Mode == "CAMLOCK" and "CAM" or Mode == "AIMLOCK" and "AIM" or Mode == "ASSIST" and "AST" or "Mst"
     LockedTarget = nil
 end)
 
-partBtn.MouseButton1Click:Connect(function()
-    partMenu.Visible = not partMenu.Visible
-end)
+partBtn.MouseButton1Click:Connect(function() partMenu.Visible = not partMenu.Visible end)
+headOption.MouseButton1Click:Connect(function() BodyPart = "CABEÇA" partMenu.Visible = false end)
+neckOption.MouseButton1Click:Connect(function() BodyPart = "PESCOÇO" partMenu.Visible = false end)
+torsoOption.MouseButton1Click:Connect(function() BodyPart = "TORSO" partMenu.Visible = false end)
+peOption.MouseButton1Click:Connect(function() BodyPart = "PÉ" partMenu.Visible = false end)
+lineboxBtn.MouseButton1Click:Connect(function() LineboxEnabled = not LineboxEnabled end)
 
-headOption.MouseButton1Click:Connect(function()
-    BodyPart = "CABEÇA"
-    partMenu.Visible = false
-end)
-
-neckOption.MouseButton1Click:Connect(function()
-    BodyPart = "PESCOÇO"
-    partMenu.Visible = false
-end)
-
-torsoOption.MouseButton1Click:Connect(function()
-    BodyPart = "TORSO"
-    partMenu.Visible = false
-end)
-
-peOption.MouseButton1Click:Connect(function()
-    BodyPart = "PÉ"
-    partMenu.Visible = false
-end)
-
-lineboxBtn.MouseButton1Click:Connect(function()
-    LineboxEnabled = not LineboxEnabled
-end)
-
---// Sistema de Drag
 local dragging, dragStart, startPos = false, nil, nil
-
 dragButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
-        
         local conn
         conn = input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
@@ -454,44 +386,28 @@ dragButton.InputBegan:Connect(function(input)
         end)
     end
 end)
-
 dragButton.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        if dragging then
-            local delta = input.Position - dragStart
-            mainFrame.Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
-            )
-        end
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
---// Loop principal
 RunService.RenderStepped:Connect(function()
-    -- Tema Cyberpunk Holográfica no toggle (sem RGB)
+    if Enabled and (Mode == "CAMLOCK" or Mode == "Mistu") then
+        forceInstantReset()
+    end
+
     toggleBtn.BackgroundColor3 = Enabled and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(20, 20, 50)
     toggleBtn.TextColor3 = Enabled and Color3.fromRGB(5, 5, 15) or Color3.fromRGB(0, 255, 255)
 
-    -- Posiciona o botão de drag, linebox e menu de partes
-    dragButton.Position = UDim2.fromOffset(
-        mainFrame.AbsolutePosition.X + mainFrame.AbsoluteSize.X / 2 - 16,
-        mainFrame.AbsolutePosition.Y + mainFrame.AbsoluteSize.Y + 6
-    )
-    
-    lineboxBtn.Position = UDim2.fromOffset(
-        dragButton.AbsolutePosition.X - 38,
-        dragButton.AbsolutePosition.Y
-    )
+    dragButton.Position = UDim2.fromOffset(mainFrame.AbsolutePosition.X + mainFrame.AbsoluteSize.X / 2 - 16, mainFrame.AbsolutePosition.Y + mainFrame.AbsoluteSize.Y + 6)
+    lineboxBtn.Position = UDim2.fromOffset(dragButton.AbsolutePosition.X - 38, dragButton.AbsolutePosition.Y)
     
     if partMenu.Visible then
-        partMenu.Position = UDim2.fromOffset(
-            mainFrame.AbsolutePosition.X,
-            dragButton.AbsolutePosition.Y + dragButton.AbsoluteSize.Y + 4
-        )
+        partMenu.Position = UDim2.fromOffset(mainFrame.AbsolutePosition.X, dragButton.AbsolutePosition.Y + dragButton.AbsoluteSize.Y + 4)
     end
 
-    -- Limpa indicadores se não estiver no modo correto
     if Mode ~= "CAMLOCK" or not Enabled or not LockedTarget then
         for _, line in ipairs(camLockLines) do line.Visible = false end
         camLockDot.Visible = false
@@ -500,14 +416,10 @@ RunService.RenderStepped:Connect(function()
         aimLockArrow.Visible = false
     end
 
-    -- FOV Circle apenas no modo ASSIST e se linebox não estiver ativo
     fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     fovCircle.Visible = Enabled and Mode == "ASSIST" and not LineboxEnabled
-
-    -- Visibilidade do botão Linebox
     lineboxBtn.Visible = (Mode == "ASSIST")
 
-    -- Atualização do Linebox
     if Enabled and LineboxEnabled and Mode == "ASSIST" then
         local localHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         for player, drawings in pairs(lineboxDrawings) do
@@ -519,14 +431,7 @@ RunService.RenderStepped:Connect(function()
                 if humanoid and humanoid.Health > 0 and root and head and localHrp then
                     local distance = (root.Position - localHrp.Position).Magnitude
                     local ratio = math.clamp(distance / 100, 0, 1)
-                    local dynamicColor
-                    if ratio < 0.33 then
-                        dynamicColor = Color3.fromRGB(255, 0, 0)
-                    elseif ratio < 0.66 then
-                        dynamicColor = Color3.fromRGB(255, 255, 0)
-                    else
-                        dynamicColor = Color3.fromRGB(0, 255, 0)
-                    end
+                    local dynamicColor = ratio < 0.33 and Color3.fromRGB(255,0,0) or ratio < 0.66 and Color3.fromRGB(255,255,0) or Color3.fromRGB(0,255,0)
 
                     local headPos, headOn = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
                     local legPos, legOn = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
@@ -536,25 +441,23 @@ RunService.RenderStepped:Connect(function()
                         local posX = (headPos.X + legPos.X) / 2
                         local posY = (headPos.Y + legPos.Y) / 2
 
-                        local topLeft = Vector2.new(math.floor(posX - sizeX / 2), math.floor(posY - sizeY / 2))
-                        local topRight = Vector2.new(math.floor(posX + sizeX / 2), math.floor(posY - sizeY / 2))
-                        local bottomLeft = Vector2.new(math.floor(posX - sizeX / 2), math.floor(posY + sizeY / 2))
-                        local bottomRight = Vector2.new(math.floor(posX + sizeX / 2), math.floor(posY + sizeY / 2))
+                        local topLeft = Vector2.new(math.floor(posX - sizeX/2), math.floor(posY - sizeY/2))
+                        local topRight = Vector2.new(math.floor(posX + sizeX/2), math.floor(posY - sizeY/2))
+                        local bottomLeft = Vector2.new(math.floor(posX - sizeX/2), math.floor(posY + sizeY/2))
+                        local bottomRight = Vector2.new(math.floor(posX + sizeX/2), math.floor(posY + sizeY/2))
 
-                        drawings.boxLines[1].From = topLeft drawings.boxLines[1].To = topRight
-                        drawings.boxLines[2].From = topRight drawings.boxLines[2].To = bottomRight
-                        drawings.boxLines[3].From = bottomRight drawings.boxLines[3].To = bottomLeft
-                        drawings.boxLines[4].From = bottomLeft drawings.boxLines[4].To = topLeft
+                        drawings.boxLines[1].From = topLeft; drawings.boxLines[1].To = topRight
+                        drawings.boxLines[2].From = topRight; drawings.boxLines[2].To = bottomRight
+                        drawings.boxLines[3].From = bottomRight; drawings.boxLines[3].To = bottomLeft
+                        drawings.boxLines[4].From = bottomLeft; drawings.boxLines[4].To = topLeft
 
                         for _, line in ipairs(drawings.boxLines) do 
                             line.Color = dynamicColor
                             line.Visible = true 
                         end
 
-                        local tracerFrom = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                        local tracerTo = Vector2.new(legPos.X, legPos.Y)
-                        drawings.tracer.From = tracerFrom
-                        drawings.tracer.To = tracerTo
+                        drawings.tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                        drawings.tracer.To = Vector2.new(legPos.X, legPos.Y)
                         drawings.tracer.Color = dynamicColor
                         drawings.tracer.Visible = true
                     else
@@ -582,7 +485,6 @@ RunService.RenderStepped:Connect(function()
         return
     end
 
-    -- Atualiza alvo (fix para validação de NPCs/Players)
     if Mode ~= "ASSIST" then
         if not isValidLockedTarget(LockedTarget) then
             LockedTarget = findClosestTarget()
@@ -591,7 +493,6 @@ RunService.RenderStepped:Connect(function()
 
     local targetPart = LockedTarget and getTargetPart(LockedTarget.Parent or LockedTarget) or nil
 
-    -- Modos de funcionamento
     if Mode == "CAMLOCK" and targetPart then
         local root = LockedTarget.Parent:FindFirstChild("HumanoidRootPart") or targetPart
         local targetCFrame = CFrame.new(Camera.CFrame.Position, root.Position)
@@ -619,14 +520,7 @@ RunService.RenderStepped:Connect(function()
                 local ratio = math.clamp(distance / 100, 0, 1)
                 FOV = FOVMax - (FOVMax - FOVMin) * ratio
                 fovCircle.Radius = FOV
-
-                if ratio < 0.33 then
-                    fovCircle.Color = Color3.fromRGB(255, 0, 0)
-                elseif ratio < 0.66 then
-                    fovCircle.Color = Color3.fromRGB(255, 255, 0)
-                else
-                    fovCircle.Color = Color3.fromRGB(0, 255, 0)
-                end
+                fovCircle.Color = ratio < 0.33 and Color3.fromRGB(255,0,0) or ratio < 0.66 and Color3.fromRGB(255,255,0) or Color3.fromRGB(0,255,0)
             end
         else
             FOV = FOVMax
