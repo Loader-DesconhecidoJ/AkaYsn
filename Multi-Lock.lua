@@ -21,6 +21,9 @@ local MistuSmooth   = 0.98
 local AimSmooth     = 0.92
 local AssistStrength= 0.95
 
+local lastSearchTime = 0
+local SEARCH_RATE    = 0.08
+
 local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness   = 2
 fovCircle.NumSides    = 64
@@ -57,25 +60,21 @@ local function updateCamLockIndicator(part)
         camLockDot.Visible = false
         return
     end
-
     local screenPos, visible = Camera:WorldToViewportPoint(part.Position)
     if not visible then
         for _, line in ipairs(camLockLines) do line.Visible = false end
         camLockDot.Visible = false
         return
     end
-
     local size = 25
     local top    = Vector2.new(screenPos.X, screenPos.Y - size)
     local right  = Vector2.new(screenPos.X + size, screenPos.Y)
     local bottom = Vector2.new(screenPos.X, screenPos.Y + size)
     local left   = Vector2.new(screenPos.X - size, screenPos.Y)
-
     camLockLines[1].From = top    camLockLines[1].To = right
     camLockLines[2].From = right  camLockLines[2].To = bottom
     camLockLines[3].From = bottom camLockLines[3].To = left
     camLockLines[4].From = left   camLockLines[4].To = top
-
     for _, line in ipairs(camLockLines) do line.Visible = true end
     camLockDot.Position = Vector2.new(screenPos.X, screenPos.Y)
     camLockDot.Visible = true
@@ -94,14 +93,12 @@ local function updateAimLockIndicator(part)
         aimLockArrow.Visible = false
         return
     end
-
     local head = part.Parent and part.Parent:FindFirstChild("Head") or part
     local screenPos, visible = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 3, 0))
     if not visible then
         aimLockArrow.Visible = false
         return
     end
-
     local size = 15
     aimLockArrow.PointA = Vector2.new(screenPos.X, screenPos.Y)
     aimLockArrow.PointB = Vector2.new(screenPos.X - size, screenPos.Y + size)
@@ -110,14 +107,10 @@ local function updateAimLockIndicator(part)
 end
 
 local function getTargetPart(character)
-    if BodyPart == "CABEÇA" then
-        return character:FindFirstChild("Head")
-    elseif BodyPart == "PESCOÇO" then
-        return character:FindFirstChild("Neck") or character:FindFirstChild("UpperTorso") or character:FindFirstChild("Head")
-    elseif BodyPart == "TORSO" then
-        return character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso") or character:FindFirstChild("HumanoidRootPart")
-    elseif BodyPart == "PÉ" then
-        return character:FindFirstChild("LeftFoot") or character:FindFirstChild("RightFoot") or character:FindFirstChild("LowerTorso") or character:FindFirstChild("HumanoidRootPart")
+    if BodyPart == "CABEÇA" then return character:FindFirstChild("Head")
+    elseif BodyPart == "PESCOÇO" then return character:FindFirstChild("Neck") or character:FindFirstChild("UpperTorso") or character:FindFirstChild("Head")
+    elseif BodyPart == "TORSO" then return character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso") or character:FindFirstChild("HumanoidRootPart")
+    elseif BodyPart == "PÉ" then return character:FindFirstChild("LeftFoot") or character:FindFirstChild("RightFoot") or character:FindFirstChild("LowerTorso") or character:FindFirstChild("HumanoidRootPart")
     end
     return nil
 end
@@ -167,7 +160,6 @@ local function findClosestTarget()
             end
         end
     end
-
     return closest
 end
 
@@ -248,7 +240,6 @@ local function createSideButton(text, yOffset)
     btn.BorderSizePixel = 0
     btn.Parent = mainFrame
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-
     local stroke = Instance.new("UIStroke", btn)
     stroke.Color = Color3.fromRGB(0, 255, 255)
     stroke.Thickness = 1.5
@@ -485,10 +476,14 @@ RunService.RenderStepped:Connect(function()
         return
     end
 
-    if Mode ~= "ASSIST" then
-        if not isValidLockedTarget(LockedTarget) then
-            LockedTarget = findClosestTarget()
+    local now = tick()
+    if now - lastSearchTime > SEARCH_RATE then
+        if Mode ~= "ASSIST" then
+            if not isValidLockedTarget(LockedTarget) then
+                LockedTarget = findClosestTarget()
+            end
         end
+        lastSearchTime = now
     end
 
     local targetPart = LockedTarget and getTargetPart(LockedTarget.Parent or LockedTarget) or nil
