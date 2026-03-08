@@ -12,6 +12,7 @@ local BodyPart      = "CABEÇA"
 local LockedTarget  = nil
 local LineboxEnabled    = false
 local lineboxDrawings   = {}
+local npcLineboxDrawings = {}
 
 local FOVMax        = 110
 local FOVMin        = 50
@@ -24,93 +25,164 @@ local AssistStrength= 0.95
 local lastSearchTime = 0
 local SEARCH_RATE    = 0.08
 
+local lastNPCUpdate  = 0
+local NPC_UPDATE_RATE = 0.5
+
+local accentColor = Color3.fromRGB(180, 20, 20)
+
+local fovOutline = Drawing.new("Circle")
+fovOutline.Thickness   = 4
+fovOutline.NumSides    = 100
+fovOutline.Radius      = FOV
+fovOutline.Filled      = false
+fovOutline.Visible     = false
+fovOutline.Color       = Color3.fromRGB(0, 0, 0)
+fovOutline.Transparency = 0.75
+fovOutline.ZIndex      = 998
+
 local fovCircle = Drawing.new("Circle")
-fovCircle.Thickness   = 2
-fovCircle.NumSides    = 64
+fovCircle.Thickness   = 2.5
+fovCircle.NumSides    = 100
 fovCircle.Radius      = FOV
 fovCircle.Filled      = false
 fovCircle.Visible     = false
 fovCircle.Color       = Color3.fromRGB(255, 255, 255)
 fovCircle.Transparency = 1
-fovCircle.ZIndex = 999
+fovCircle.ZIndex      = 999
+
+local fovCenterDot = Drawing.new("Circle")
+fovCenterDot.Thickness    = 1
+fovCenterDot.Radius       = 3.5
+fovCenterDot.Filled       = true
+fovCenterDot.Color        = Color3.fromRGB(255, 255, 255)
+fovCenterDot.Transparency = 1
+fovCenterDot.Visible      = false
+fovCenterDot.ZIndex       = 1000
+
+local cuidadoText = Drawing.new("Text")
+cuidadoText.Text          = "CUIDADO"
+cuidadoText.Size          = 15
+cuidadoText.Font          = 2
+cuidadoText.Color         = Color3.fromRGB(255, 0, 0)
+cuidadoText.Transparency  = 1
+cuidadoText.Outline       = true
+cuidadoText.OutlineColor  = Color3.fromRGB(0, 0, 0)
+cuidadoText.Center        = true
+cuidadoText.Visible       = false
+cuidadoText.ZIndex        = 1005
 
 local camLockLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
-    line.Thickness = 2
-    line.Color     = Color3.fromRGB(0, 255, 255)
+    line.Thickness = 2.2
+    line.Color     = accentColor
     line.Transparency = 1
     line.Visible   = false
-    line.ZIndex = 1000
+    line.ZIndex    = 1000
     table.insert(camLockLines, line)
 end
 
-local camLockDot = Drawing.new("Circle")
-camLockDot.Thickness    = 2
-camLockDot.Radius       = 4
-camLockDot.Filled       = true
-camLockDot.Color        = Color3.fromRGB(0, 255, 255)
-camLockDot.Transparency = 1
-camLockDot.Visible      = false
-camLockDot.ZIndex = 1001
+local camLockCenterLines = {}
+for _ = 1, 4 do
+    local line = Drawing.new("Line")
+    line.Thickness = 1.5
+    line.Color     = accentColor
+    line.Transparency = 1
+    line.Visible   = false
+    line.ZIndex    = 1001
+    table.insert(camLockCenterLines, line)
+end
 
 local function updateCamLockIndicator(part)
     if not Enabled or not LockedTarget or not part then
         for _, line in ipairs(camLockLines) do line.Visible = false end
-        camLockDot.Visible = false
+        for _, line in ipairs(camLockCenterLines) do line.Visible = false end
         return
     end
+
     local screenPos, visible = Camera:WorldToViewportPoint(part.Position)
     if not visible then
         for _, line in ipairs(camLockLines) do line.Visible = false end
-        camLockDot.Visible = false
+        for _, line in ipairs(camLockCenterLines) do line.Visible = false end
         return
     end
-    local size = 25
-    local top    = Vector2.new(screenPos.X, screenPos.Y - size)
-    local right  = Vector2.new(screenPos.X + size, screenPos.Y)
-    local bottom = Vector2.new(screenPos.X, screenPos.Y + size)
-    local left   = Vector2.new(screenPos.X - size, screenPos.Y)
-    camLockLines[1].From = top    camLockLines[1].To = right
-    camLockLines[2].From = right  camLockLines[2].To = bottom
-    camLockLines[3].From = bottom camLockLines[3].To = left
-    camLockLines[4].From = left   camLockLines[4].To = top
+
+    local size = 30
+    local gap  = 8
+    local cX = screenPos.X
+    local cY = screenPos.Y
+
+    camLockLines[1].From = Vector2.new(cX - size, cY)          camLockLines[1].To = Vector2.new(cX - gap, cY - size + gap)
+    camLockLines[2].From = Vector2.new(cX + size, cY)          camLockLines[2].To = Vector2.new(cX + gap, cY - size + gap)
+    camLockLines[3].From = Vector2.new(cX - size, cY)          camLockLines[3].To = Vector2.new(cX - gap, cY + size - gap)
+    camLockLines[4].From = Vector2.new(cX + size, cY)          camLockLines[4].To = Vector2.new(cX + gap, cY + size - gap)
+
+    local innerSize = 4
+    camLockCenterLines[1].From = Vector2.new(cX, cY - innerSize)          camLockCenterLines[1].To = Vector2.new(cX + innerSize, cY)
+    camLockCenterLines[2].From = Vector2.new(cX + innerSize, cY)          camLockCenterLines[2].To = Vector2.new(cX, cY + innerSize)
+    camLockCenterLines[3].From = Vector2.new(cX, cY + innerSize)          camLockCenterLines[3].To = Vector2.new(cX - innerSize, cY)
+    camLockCenterLines[4].From = Vector2.new(cX - innerSize, cY)          camLockCenterLines[4].To = Vector2.new(cX, cY - innerSize)
+
     for _, line in ipairs(camLockLines) do line.Visible = true end
-    camLockDot.Position = Vector2.new(screenPos.X, screenPos.Y)
-    camLockDot.Visible = true
+    for _, line in ipairs(camLockCenterLines) do line.Visible = true end
 end
 
-local aimLockArrow = Drawing.new("Triangle")
-aimLockArrow.Color        = Color3.fromRGB(255, 0, 0)
-aimLockArrow.Thickness    = 2
-aimLockArrow.Transparency = 1
-aimLockArrow.Visible      = false
-aimLockArrow.Filled = false
-aimLockArrow.ZIndex = 1002
+local aimLockArrowLines = {}
+for _ = 1, 3 do
+    local line = Drawing.new("Line")
+    line.Thickness = 2.8
+    line.Color     = Color3.fromRGB(255, 0, 0)
+    line.Transparency = 1
+    line.Visible   = false
+    line.ZIndex    = 1004
+    table.insert(aimLockArrowLines, line)
+end
 
 local function updateAimLockIndicator(part)
     if not Enabled or not LockedTarget or not part then
-        aimLockArrow.Visible = false
+        for _, line in ipairs(aimLockArrowLines) do line.Visible = false end
         return
     end
+
     local head = part.Parent and part.Parent:FindFirstChild("Head") or part
-    local screenPos, visible = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 3, 0))
+    local screenPos, visible = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 1.5, 0))
     if not visible then
-        aimLockArrow.Visible = false
+        for _, line in ipairs(aimLockArrowLines) do line.Visible = false end
         return
     end
-    local size = 15
-    aimLockArrow.PointA = Vector2.new(screenPos.X, screenPos.Y)
-    aimLockArrow.PointB = Vector2.new(screenPos.X - size, screenPos.Y + size)
-    aimLockArrow.PointC = Vector2.new(screenPos.X + size, screenPos.Y + size)
-    aimLockArrow.Visible = true
+
+    local cX = screenPos.X
+    local cY = screenPos.Y
+
+    local arrowShaftY = cY - 32
+    local arrowTipY   = cY - 12
+
+    aimLockArrowLines[1].From = Vector2.new(cX, arrowShaftY)
+    aimLockArrowLines[1].To   = Vector2.new(cX, arrowTipY)
+
+    aimLockArrowLines[2].From = Vector2.new(cX, arrowTipY)
+    aimLockArrowLines[2].To   = Vector2.new(cX - 9, arrowTipY - 8)
+
+    aimLockArrowLines[3].From = Vector2.new(cX, arrowTipY)
+    aimLockArrowLines[3].To   = Vector2.new(cX + 9, arrowTipY - 8)
+
+    for _, line in ipairs(aimLockArrowLines) do line.Visible = true end
 end
 
 local function getTargetPart(character)
-    if BodyPart == "CABEÇA" then return character:FindFirstChild("Head")
-    elseif BodyPart == "PESCOÇO" then return character:FindFirstChild("Neck") or character:FindFirstChild("UpperTorso") or character:FindFirstChild("Head")
-    elseif BodyPart == "TORSO" then return character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso") or character:FindFirstChild("HumanoidRootPart")
-    elseif BodyPart == "PÉ" then return character:FindFirstChild("LeftFoot") or character:FindFirstChild("RightFoot") or character:FindFirstChild("LowerTorso") or character:FindFirstChild("HumanoidRootPart")
+    if BodyPart == "CABEÇA" then 
+        return character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+    elseif BodyPart == "TORSO" then 
+        return character:FindFirstChild("UpperTorso") or 
+               character:FindFirstChild("Torso") or 
+               character:FindFirstChild("HumanoidRootPart")
+    elseif BodyPart == "PÉ" then 
+        return character:FindFirstChild("LeftFoot") or 
+               character:FindFirstChild("RightFoot") or 
+               character:FindFirstChild("Left Leg") or 
+               character:FindFirstChild("Right Leg") or 
+               character:FindFirstChild("LowerTorso") or 
+               character:FindFirstChild("HumanoidRootPart")
     end
     return nil
 end
@@ -175,8 +247,7 @@ local function isValidLockedTarget(part)
     end
 end
 
-local function addLinebox(player)
-    if player == LocalPlayer or lineboxDrawings[player] then return end
+local function createDrawings()
     local boxLines = {}
     for i = 1, 4 do
         local line = Drawing.new("Line")
@@ -191,7 +262,12 @@ local function addLinebox(player)
     tracer.Color = Color3.fromRGB(255, 255, 255)
     tracer.Visible = false
     tracer.ZIndex = 998
-    lineboxDrawings[player] = {boxLines = boxLines, tracer = tracer}
+    return {boxLines = boxLines, tracer = tracer}
+end
+
+local function addLinebox(player)
+    if player == LocalPlayer or lineboxDrawings[player] then return end
+    lineboxDrawings[player] = createDrawings()
 end
 
 local function forceInstantReset()
@@ -214,85 +290,78 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 180, 0, 52)
-mainFrame.Position = UDim2.new(0.5, -90, 0.65, 0)
+mainFrame.Size = UDim2.new(0, 195, 0, 72)
+mainFrame.Position = UDim2.new(0.5, -97, 0.65, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(8, 3, 28)
 mainFrame.BackgroundTransparency = 0.25
 mainFrame.BorderSizePixel = 0
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 14)
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
 
 local mainStroke = Instance.new("UIStroke", mainFrame)
-mainStroke.Color = Color3.fromRGB(0, 255, 255)
-mainStroke.Thickness = 3
+mainStroke.Color = accentColor
+mainStroke.Thickness = 2.5
 mainStroke.Transparency = 0.05
 mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
 local function createSideButton(text, yOffset)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 38, 0, 14)
+    btn.Size = UDim2.new(0, 40, 0, 18)
     btn.Position = UDim2.new(0, 6, 0, yOffset)
     btn.Text = text
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 11
-    btn.TextColor3 = Color3.fromRGB(0, 255, 255)
+    btn.TextSize = 12
+    btn.TextColor3 = accentColor
     btn.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
     btn.BackgroundTransparency = 0.3
     btn.BorderSizePixel = 0
     btn.Parent = mainFrame
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    local stroke = Instance.new("UIStroke", btn)
-    stroke.Color = Color3.fromRGB(0, 255, 255)
-    stroke.Thickness = 1.5
-    stroke.Transparency = 0.2
     return btn
 end
 
-local playerBtn   = createSideButton("P", 4)
-local modeBtn     = createSideButton("CAM", 18)
-local partBtn     = createSideButton("PART", 32)
+local playerBtn   = createSideButton("P", 6)
+local modeBtn     = createSideButton("CAM", 26)
+local partBtn     = createSideButton("PART", 46)
 
 local toggleBtn = Instance.new("TextButton", mainFrame)
-toggleBtn.Size = UDim2.new(0, 110, 0, 34)
-toggleBtn.Position = UDim2.new(0.5, -35, 0.5, -17)
+toggleBtn.Size = UDim2.new(0, 96, 0, 34)
+toggleBtn.Position = UDim2.new(0.5, -48, 0.5, -17)
 toggleBtn.Text = "TOGGLE OFF"
 toggleBtn.Font = Enum.Font.GothamMedium
 toggleBtn.TextSize = 14
-toggleBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
+toggleBtn.TextColor3 = accentColor
 toggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 50)
 toggleBtn.BackgroundTransparency = 0.2
 toggleBtn.BorderSizePixel = 0
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 10)
 
-local toggleStroke = Instance.new("UIStroke", toggleBtn)
-toggleStroke.Color = Color3.fromRGB(0, 255, 255)
-toggleStroke.Thickness = 2.5
-toggleStroke.Transparency = 0.1
-
-local dragButton = Instance.new("TextButton", screenGui)
-dragButton.Size = UDim2.new(0, 32, 0, 20)
-dragButton.Text = "🔄"
+local dragButton = Instance.new("TextButton", mainFrame)
+dragButton.Size = UDim2.new(0, 28, 0, 22)
+dragButton.Position = UDim2.new(1, -34, 0, 6)
+dragButton.Text = "⇄"
 dragButton.Font = Enum.Font.GothamBold
-dragButton.TextSize = 14
-dragButton.TextColor3 = Color3.fromRGB(0, 255, 255)
+dragButton.TextSize = 16
+dragButton.TextColor3 = accentColor
 dragButton.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
 dragButton.BackgroundTransparency = 0.4
 dragButton.BorderSizePixel = 0
-Instance.new("UICorner", dragButton).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", dragButton).CornerRadius = UDim.new(0, 6)
 
-local lineboxBtn = Instance.new("TextButton", screenGui)
-lineboxBtn.Size = UDim2.new(0, 32, 0, 20)
+local lineboxBtn = Instance.new("TextButton", mainFrame)
+lineboxBtn.Size = UDim2.new(0, 28, 0, 22)
+lineboxBtn.Position = UDim2.new(1, -34, 0, 32)
 lineboxBtn.Text = "LB"
 lineboxBtn.Font = Enum.Font.GothamBold
 lineboxBtn.TextSize = 14
-lineboxBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
+lineboxBtn.TextColor3 = accentColor
 lineboxBtn.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
 lineboxBtn.BackgroundTransparency = 0.4
 lineboxBtn.BorderSizePixel = 0
-Instance.new("UICorner", lineboxBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", lineboxBtn).CornerRadius = UDim.new(0, 6)
 lineboxBtn.Visible = false
 
 local partMenu = Instance.new("Frame", screenGui)
-partMenu.Size = UDim2.new(0, 110, 0, 88)
+partMenu.Size = UDim2.new(0, 110, 0, 66)
 partMenu.BackgroundColor3 = Color3.fromRGB(8, 3, 28)
 partMenu.BackgroundTransparency = 0.25
 partMenu.BorderSizePixel = 0
@@ -306,22 +375,17 @@ local function createPartOption(text, y)
     btn.Text = text
     btn.Font = Enum.Font.Gotham
     btn.TextSize = 11
-    btn.TextColor3 = Color3.fromRGB(0, 255, 255)
+    btn.TextColor3 = accentColor
     btn.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
     btn.BackgroundTransparency = 0.3
     btn.BorderSizePixel = 0
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    local stroke = Instance.new("UIStroke", btn)
-    stroke.Color = Color3.fromRGB(0, 255, 255)
-    stroke.Thickness = 1.5
-    stroke.Transparency = 0.2
     return btn
 end
 
 local headOption  = createPartOption("CABEÇA", 4)
-local neckOption  = createPartOption("PESCOÇO", 24)
-local torsoOption = createPartOption("TORSO", 44)
-local peOption    = createPartOption("PÉ", 64)
+local torsoOption = createPartOption("TORSO", 24)
+local peOption    = createPartOption("PÉ", 44)
 
 for _, player in ipairs(Players:GetPlayers()) do addLinebox(player) end
 Players.PlayerAdded:Connect(addLinebox)
@@ -357,7 +421,6 @@ end)
 
 partBtn.MouseButton1Click:Connect(function() partMenu.Visible = not partMenu.Visible end)
 headOption.MouseButton1Click:Connect(function() BodyPart = "CABEÇA" partMenu.Visible = false end)
-neckOption.MouseButton1Click:Connect(function() BodyPart = "PESCOÇO" partMenu.Visible = false end)
 torsoOption.MouseButton1Click:Connect(function() BodyPart = "TORSO" partMenu.Visible = false end)
 peOption.MouseButton1Click:Connect(function() BodyPart = "PÉ" partMenu.Visible = false end)
 lineboxBtn.MouseButton1Click:Connect(function() LineboxEnabled = not LineboxEnabled end)
@@ -389,79 +452,183 @@ RunService.RenderStepped:Connect(function()
         forceInstantReset()
     end
 
-    toggleBtn.BackgroundColor3 = Enabled and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(20, 20, 50)
-    toggleBtn.TextColor3 = Enabled and Color3.fromRGB(5, 5, 15) or Color3.fromRGB(0, 255, 255)
+    toggleBtn.BackgroundColor3 = Enabled and accentColor or Color3.fromRGB(20, 20, 50)
+    toggleBtn.TextColor3 = Enabled and Color3.fromRGB(10, 10, 10) or accentColor
 
-    dragButton.Position = UDim2.fromOffset(mainFrame.AbsolutePosition.X + mainFrame.AbsoluteSize.X / 2 - 16, mainFrame.AbsolutePosition.Y + mainFrame.AbsoluteSize.Y + 6)
-    lineboxBtn.Position = UDim2.fromOffset(dragButton.AbsolutePosition.X - 38, dragButton.AbsolutePosition.Y)
-    
     if partMenu.Visible then
-        partMenu.Position = UDim2.fromOffset(mainFrame.AbsolutePosition.X, dragButton.AbsolutePosition.Y + dragButton.AbsoluteSize.Y + 4)
+        partMenu.Position = UDim2.fromOffset(mainFrame.AbsolutePosition.X, mainFrame.AbsolutePosition.Y + mainFrame.AbsoluteSize.Y + 4)
     end
 
     if Mode ~= "CAMLOCK" or not Enabled or not LockedTarget then
         for _, line in ipairs(camLockLines) do line.Visible = false end
-        camLockDot.Visible = false
+        for _, line in ipairs(camLockCenterLines) do line.Visible = false end
     end
     if Mode ~= "AIMLOCK" or not Enabled or not LockedTarget then
-        aimLockArrow.Visible = false
+        for _, line in ipairs(aimLockArrowLines) do line.Visible = false end
     end
 
-    fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    fovCircle.Visible = Enabled and Mode == "ASSIST" and not LineboxEnabled
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    fovCircle.Position = center
+    fovOutline.Position = center
+    fovCenterDot.Position = center
+    fovCircle.Radius = FOV
+    fovOutline.Radius = FOV + 1.8
+
+    fovCircle.Visible   = false
+    fovOutline.Visible  = false
+    fovCenterDot.Visible = Enabled and Mode == "ASSIST"
     lineboxBtn.Visible = (Mode == "ASSIST")
 
     if Enabled and LineboxEnabled and Mode == "ASSIST" then
         local localHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        for player, drawings in pairs(lineboxDrawings) do
-            local char = player.Character
-            if char then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                local root = char:FindFirstChild("HumanoidRootPart")
-                local head = char:FindFirstChild("Head")
-                if humanoid and humanoid.Health > 0 and root and head and localHrp then
-                    local distance = (root.Position - localHrp.Position).Magnitude
-                    local ratio = math.clamp(distance / 100, 0, 1)
-                    local dynamicColor = ratio < 0.33 and Color3.fromRGB(255,0,0) or ratio < 0.66 and Color3.fromRGB(255,255,0) or Color3.fromRGB(0,255,0)
+        if not localHrp then
+            for _, drawings in pairs(lineboxDrawings) do
+                for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                drawings.tracer.Visible = false
+            end
+            for _, drawings in pairs(npcLineboxDrawings) do
+                for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                drawings.tracer.Visible = false
+            end
+        else
+            if TargetType == "PLAYERS" then
+                for player, drawings in pairs(lineboxDrawings) do
+                    local char = player.Character
+                    if char then
+                        local humanoid = char:FindFirstChildOfClass("Humanoid")
+                        local root = char:FindFirstChild("HumanoidRootPart")
+                        local head = char:FindFirstChild("Head")
+                        if humanoid and humanoid.Health > 0 and root and head then
+                            local distance = (root.Position - localHrp.Position).Magnitude
+                            if distance > 500 then
+                                for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                                drawings.tracer.Visible = false
+                            else
+                                local ratio = math.clamp(distance / 200, 0, 1)
+                                local dynamicColor = ratio < 0.25 and Color3.fromRGB(255,0,0) or ratio < 0.75 and Color3.fromRGB(255,255,0) or Color3.fromRGB(0,255,0)
 
-                    local headPos, headOn = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                    local legPos, legOn = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
-                    if headOn and legOn then
-                        local sizeY = (headPos.Y - legPos.Y) * 1.2
-                        local sizeX = sizeY / 2
-                        local posX = (headPos.X + legPos.X) / 2
-                        local posY = (headPos.Y + legPos.Y) / 2
+                                local headPos, headOn = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                                local legPos, legOn = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                                if headOn and legOn then
+                                    local sizeY = (headPos.Y - legPos.Y) * 1.2
+                                    local sizeX = sizeY / 2
+                                    local posX = (headPos.X + legPos.X) / 2
+                                    local posY = (headPos.Y + legPos.Y) / 2
 
-                        local topLeft = Vector2.new(math.floor(posX - sizeX/2), math.floor(posY - sizeY/2))
-                        local topRight = Vector2.new(math.floor(posX + sizeX/2), math.floor(posY - sizeY/2))
-                        local bottomLeft = Vector2.new(math.floor(posX - sizeX/2), math.floor(posY + sizeY/2))
-                        local bottomRight = Vector2.new(math.floor(posX + sizeX/2), math.floor(posY + sizeY/2))
+                                    local topLeft = Vector2.new(math.floor(posX - sizeX/2), math.floor(posY - sizeY/2))
+                                    local topRight = Vector2.new(math.floor(posX + sizeX/2), math.floor(posY - sizeY/2))
+                                    local bottomLeft = Vector2.new(math.floor(posX - sizeX/2), math.floor(posY + sizeY/2))
+                                    local bottomRight = Vector2.new(math.floor(posX + sizeX/2), math.floor(posY + sizeY/2))
 
-                        drawings.boxLines[1].From = topLeft; drawings.boxLines[1].To = topRight
-                        drawings.boxLines[2].From = topRight; drawings.boxLines[2].To = bottomRight
-                        drawings.boxLines[3].From = bottomRight; drawings.boxLines[3].To = bottomLeft
-                        drawings.boxLines[4].From = bottomLeft; drawings.boxLines[4].To = topLeft
+                                    drawings.boxLines[1].From = topLeft; drawings.boxLines[1].To = topRight
+                                    drawings.boxLines[2].From = topRight; drawings.boxLines[2].To = bottomRight
+                                    drawings.boxLines[3].From = bottomRight; drawings.boxLines[3].To = bottomLeft
+                                    drawings.boxLines[4].From = bottomLeft; drawings.boxLines[4].To = topLeft
 
-                        for _, line in ipairs(drawings.boxLines) do 
-                            line.Color = dynamicColor
-                            line.Visible = true 
+                                    for _, line in ipairs(drawings.boxLines) do 
+                                        line.Color = dynamicColor
+                                        line.Visible = true 
+                                    end
+
+                                    drawings.tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                                    drawings.tracer.To = Vector2.new(legPos.X, legPos.Y)
+                                    drawings.tracer.Color = dynamicColor
+                                    drawings.tracer.Visible = true
+                                else
+                                    for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                                    drawings.tracer.Visible = false
+                                end
+                            end
+                        else
+                            for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                            drawings.tracer.Visible = false
                         end
-
-                        drawings.tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                        drawings.tracer.To = Vector2.new(legPos.X, legPos.Y)
-                        drawings.tracer.Color = dynamicColor
-                        drawings.tracer.Visible = true
                     else
                         for _, line in ipairs(drawings.boxLines) do line.Visible = false end
                         drawings.tracer.Visible = false
                     end
-                else
-                    for _, line in ipairs(drawings.boxLines) do line.Visible = false end
-                    drawings.tracer.Visible = false
                 end
             else
-                for _, line in ipairs(drawings.boxLines) do line.Visible = false end
-                drawings.tracer.Visible = false
+                local now = tick()
+                if now - lastNPCUpdate > NPC_UPDATE_RATE then
+                    lastNPCUpdate = now
+
+                    for model, drawings in pairs(npcLineboxDrawings) do
+                        if not model.Parent or not isValidNPC(model) then
+                            for _, line in ipairs(drawings.boxLines) do line:Remove() end
+                            drawings.tracer:Remove()
+                            npcLineboxDrawings[model] = nil
+                        else
+                            local root = model:FindFirstChild("HumanoidRootPart")
+                            if not root or (root.Position - localHrp.Position).Magnitude > 500 then
+                                for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                                drawings.tracer.Visible = false
+                            end
+                        end
+                    end
+
+                    for _, obj in ipairs(Workspace:GetDescendants()) do
+                        if isValidNPC(obj) and not npcLineboxDrawings[obj] then
+                            local root = obj:FindFirstChild("HumanoidRootPart")
+                            if root and (root.Position - localHrp.Position).Magnitude <= 500 then
+                                npcLineboxDrawings[obj] = createDrawings()
+                            end
+                        end
+                    end
+                end
+
+                for model, drawings in pairs(npcLineboxDrawings) do
+                    if model and model.Parent then
+                        local humanoid = model:FindFirstChildOfClass("Humanoid")
+                        local root = model:FindFirstChild("HumanoidRootPart")
+                        local head = model:FindFirstChild("Head")
+                        if humanoid and humanoid.Health > 0 and root and head then
+                            local distance = (root.Position - localHrp.Position).Magnitude
+                            if distance > 500 then
+                                for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                                drawings.tracer.Visible = false
+                            else
+                                local ratio = math.clamp(distance / 200, 0, 1)
+                                local dynamicColor = ratio < 0.25 and Color3.fromRGB(255,0,0) or ratio < 0.75 and Color3.fromRGB(255,255,0) or Color3.fromRGB(0,255,0)
+
+                                local headPos, headOn = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                                local legPos, legOn = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                                if headOn and legOn then
+                                    local sizeY = (headPos.Y - legPos.Y) * 1.2
+                                    local sizeX = sizeY / 2
+                                    local posX = (headPos.X + legPos.X) / 2
+                                    local posY = (headPos.Y + legPos.Y) / 2
+
+                                    local topLeft = Vector2.new(math.floor(posX - sizeX/2), math.floor(posY - sizeY/2))
+                                    local topRight = Vector2.new(math.floor(posX + sizeX/2), math.floor(posY - sizeY/2))
+                                    local bottomLeft = Vector2.new(math.floor(posX - sizeX/2), math.floor(posY + sizeY/2))
+                                    local bottomRight = Vector2.new(math.floor(posX + sizeX/2), math.floor(posY + sizeY/2))
+
+                                    drawings.boxLines[1].From = topLeft; drawings.boxLines[1].To = topRight
+                                    drawings.boxLines[2].From = topRight; drawings.boxLines[2].To = bottomRight
+                                    drawings.boxLines[3].From = bottomRight; drawings.boxLines[3].To = bottomLeft
+                                    drawings.boxLines[4].From = bottomLeft; drawings.boxLines[4].To = topLeft
+
+                                    for _, line in ipairs(drawings.boxLines) do 
+                                        line.Color = dynamicColor
+                                        line.Visible = true 
+                                    end
+
+                                    drawings.tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                                    drawings.tracer.To = Vector2.new(legPos.X, legPos.Y)
+                                    drawings.tracer.Color = dynamicColor
+                                    drawings.tracer.Visible = true
+                                else
+                                    for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                                    drawings.tracer.Visible = false
+                                end
+                            end
+                        else
+                            for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+                            drawings.tracer.Visible = false
+                        end
+                    end
+                end
             end
         end
     else
@@ -469,10 +636,15 @@ RunService.RenderStepped:Connect(function()
             for _, line in ipairs(drawings.boxLines) do line.Visible = false end
             drawings.tracer.Visible = false
         end
+        for _, drawings in pairs(npcLineboxDrawings) do
+            for _, line in ipairs(drawings.boxLines) do line.Visible = false end
+            drawings.tracer.Visible = false
+        end
     end
 
     if not Enabled then
-        fovCircle.Visible = false
+        fovCenterDot.Visible = false
+        cuidadoText.Visible = false
         return
     end
 
@@ -512,15 +684,28 @@ RunService.RenderStepped:Connect(function()
             local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local distance = (closest.Position - hrp.Position).Magnitude
-                local ratio = math.clamp(distance / 100, 0, 1)
+                local ratio = math.clamp(distance / 200, 0, 1)
+
+                local dynamicColor = ratio < 0.25 and Color3.fromRGB(255,0,0) 
+                                   or ratio < 0.75 and Color3.fromRGB(255,255,0) 
+                                   or Color3.fromRGB(0,255,0)
+                fovCenterDot.Color = dynamicColor
+
+                if ratio < 0.25 then
+                    cuidadoText.Position = Vector2.new(center.X, center.Y + 32)
+                    local blinkAlpha = (math.sin(tick() * 8) + 1) / 2
+                    cuidadoText.Transparency = 0.2 + 0.8 * blinkAlpha
+                    cuidadoText.Visible = true
+                else
+                    cuidadoText.Visible = false
+                end
+
                 FOV = FOVMax - (FOVMax - FOVMin) * ratio
-                fovCircle.Radius = FOV
-                fovCircle.Color = ratio < 0.33 and Color3.fromRGB(255,0,0) or ratio < 0.66 and Color3.fromRGB(255,255,0) or Color3.fromRGB(0,255,0)
             end
         else
+            fovCenterDot.Color = Color3.fromRGB(255, 255, 255)
+            cuidadoText.Visible = false
             FOV = FOVMax
-            fovCircle.Radius = FOV
-            fovCircle.Color = Color3.fromRGB(255, 255, 255)
         end
 
     elseif Mode == "Mistu" and targetPart then
