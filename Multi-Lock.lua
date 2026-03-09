@@ -1,6 +1,7 @@
 local Players       = game:GetService("Players")
 local RunService    = game:GetService("RunService")
 local Workspace     = game:GetService("Workspace")
+local TweenService  = game:GetService("TweenService")
 
 local Camera        = Workspace.CurrentCamera
 local LocalPlayer   = Players.LocalPlayer
@@ -29,6 +30,49 @@ local lastNPCUpdate  = 0
 local NPC_UPDATE_RATE = 0.5
 
 local accentColor = Color3.fromRGB(180, 20, 20)
+
+-- ==================== ANIMAÇÕES ====================
+local menuTweenInfo = TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local clickTweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine, Enum.EasingDirection.Out) -- mais rápido
+
+local function addClickAnimation(btn)
+    if not btn then return end
+    
+    -- FIX DO BUG: centraliza o botão para o encolher não tirar o mouse de cima
+    local originalSize = btn.Size
+    local halfW = originalSize.X.Offset / 2
+    local halfH = originalSize.Y.Offset / 2
+    
+    btn.AnchorPoint = Vector2.new(0.5, 0.5)
+    btn.Position = UDim2.new(
+        btn.Position.X.Scale,
+        btn.Position.X.Offset + halfW,
+        btn.Position.Y.Scale,
+        btn.Position.Y.Offset + halfH
+    )
+    
+    local originalPos = btn.Position -- salva posição centralizada
+    
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            TweenService:Create(btn, clickTweenInfo, {
+                Size = UDim2.new(
+                    originalSize.X.Scale,
+                    originalSize.X.Offset * 0.88,
+                    originalSize.Y.Scale,
+                    originalSize.Y.Offset * 0.88
+                )
+            }):Play()
+        end
+    end)
+    
+    btn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            TweenService:Create(btn, clickTweenInfo, {Size = originalSize}):Play()
+        end
+    end)
+end
+-- ===================================================
 
 local fovOutline = Drawing.new("Circle")
 fovOutline.Thickness   = 4
@@ -290,8 +334,8 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 195, 0, 72)
-mainFrame.Position = UDim2.new(0.5, -97, 0.65, 0)
+mainFrame.Size = UDim2.new(0, 165, 0, 62)
+mainFrame.Position = UDim2.new(0.5, -82, 0.65, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(8, 3, 28)
 mainFrame.BackgroundTransparency = 0.25
 mainFrame.BorderSizePixel = 0
@@ -305,11 +349,11 @@ mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
 local function createSideButton(text, yOffset)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 40, 0, 18)
-    btn.Position = UDim2.new(0, 6, 0, yOffset)
+    btn.Size = UDim2.new(0, 35, 0, 16)
+    btn.Position = UDim2.new(0, 5, 0, yOffset)
     btn.Text = text
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 12
+    btn.TextSize = 11
     btn.TextColor3 = accentColor
     btn.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
     btn.BackgroundTransparency = 0.3
@@ -319,16 +363,16 @@ local function createSideButton(text, yOffset)
     return btn
 end
 
-local playerBtn   = createSideButton("P", 6)
-local modeBtn     = createSideButton("CAM", 26)
-local partBtn     = createSideButton("PART", 46)
+local playerBtn   = createSideButton("P", 5)
+local modeBtn     = createSideButton("CAM", 23)
+local partBtn     = createSideButton("PART", 41)
 
 local toggleBtn = Instance.new("TextButton", mainFrame)
-toggleBtn.Size = UDim2.new(0, 96, 0, 34)
-toggleBtn.Position = UDim2.new(0.5, -48, 0.5, -17)
+toggleBtn.Size = UDim2.new(0, 80, 0, 28)
+toggleBtn.Position = UDim2.new(0.5, -40, 0.5, -14)
 toggleBtn.Text = "TOGGLE OFF"
 toggleBtn.Font = Enum.Font.GothamMedium
-toggleBtn.TextSize = 14
+toggleBtn.TextSize = 13
 toggleBtn.TextColor3 = accentColor
 toggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 50)
 toggleBtn.BackgroundTransparency = 0.2
@@ -336,11 +380,11 @@ toggleBtn.BorderSizePixel = 0
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 10)
 
 local dragButton = Instance.new("TextButton", mainFrame)
-dragButton.Size = UDim2.new(0, 28, 0, 22)
-dragButton.Position = UDim2.new(1, -34, 0, 6)
+dragButton.Size = UDim2.new(0, 24, 0, 19)
+dragButton.Position = UDim2.new(1, -29, 0, 5)
 dragButton.Text = "⇄"
 dragButton.Font = Enum.Font.GothamBold
-dragButton.TextSize = 16
+dragButton.TextSize = 15
 dragButton.TextColor3 = accentColor
 dragButton.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
 dragButton.BackgroundTransparency = 0.4
@@ -348,11 +392,11 @@ dragButton.BorderSizePixel = 0
 Instance.new("UICorner", dragButton).CornerRadius = UDim.new(0, 6)
 
 local lineboxBtn = Instance.new("TextButton", mainFrame)
-lineboxBtn.Size = UDim2.new(0, 28, 0, 22)
-lineboxBtn.Position = UDim2.new(1, -34, 0, 32)
+lineboxBtn.Size = UDim2.new(0, 24, 0, 19)
+lineboxBtn.Position = UDim2.new(1, -29, 0, 27)
 lineboxBtn.Text = "LB"
 lineboxBtn.Font = Enum.Font.GothamBold
-lineboxBtn.TextSize = 14
+lineboxBtn.TextSize = 13
 lineboxBtn.TextColor3 = accentColor
 lineboxBtn.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
 lineboxBtn.BackgroundTransparency = 0.4
@@ -361,20 +405,28 @@ Instance.new("UICorner", lineboxBtn).CornerRadius = UDim.new(0, 6)
 lineboxBtn.Visible = false
 
 local partMenu = Instance.new("Frame", screenGui)
-partMenu.Size = UDim2.new(0, 110, 0, 66)
+partMenu.Size = UDim2.new(0, 95, 0, 55)
 partMenu.BackgroundColor3 = Color3.fromRGB(8, 3, 28)
 partMenu.BackgroundTransparency = 0.25
 partMenu.BorderSizePixel = 0
 partMenu.Visible = false
 Instance.new("UICorner", partMenu).CornerRadius = UDim.new(0, 8)
 
+-- ==================== BORDA IGUAL AO MENU PRINCIPAL ====================
+local partStroke = Instance.new("UIStroke", partMenu)
+partStroke.Color = accentColor
+partStroke.Thickness = 2.5
+partStroke.Transparency = 0.05
+partStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+-- ===================================================================
+
 local function createPartOption(text, y)
     local btn = Instance.new("TextButton", partMenu)
-    btn.Size = UDim2.new(1, -10, 0, 18)
-    btn.Position = UDim2.new(0, 5, 0, y)
+    btn.Size = UDim2.new(1, -8, 0, 15)
+    btn.Position = UDim2.new(0, 4, 0, y)
     btn.Text = text
     btn.Font = Enum.Font.Gotham
-    btn.TextSize = 11
+    btn.TextSize = 10
     btn.TextColor3 = accentColor
     btn.BackgroundColor3 = Color3.fromRGB(15, 5, 35)
     btn.BackgroundTransparency = 0.3
@@ -383,9 +435,9 @@ local function createPartOption(text, y)
     return btn
 end
 
-local headOption  = createPartOption("CABEÇA", 4)
-local torsoOption = createPartOption("TORSO", 24)
-local peOption    = createPartOption("PÉ", 44)
+local headOption  = createPartOption("CABEÇA", 3)
+local torsoOption = createPartOption("TORSO", 19)
+local peOption    = createPartOption("PÉ", 35)
 
 for _, player in ipairs(Players:GetPlayers()) do addLinebox(player) end
 Players.PlayerAdded:Connect(addLinebox)
@@ -419,10 +471,49 @@ modeBtn.MouseButton1Click:Connect(function()
     LockedTarget = nil
 end)
 
-partBtn.MouseButton1Click:Connect(function() partMenu.Visible = not partMenu.Visible end)
-headOption.MouseButton1Click:Connect(function() BodyPart = "CABEÇA" partMenu.Visible = false end)
-torsoOption.MouseButton1Click:Connect(function() BodyPart = "TORSO" partMenu.Visible = false end)
-peOption.MouseButton1Click:Connect(function() BodyPart = "PÉ" partMenu.Visible = false end)
+local isPartMenuOpen = false
+partBtn.MouseButton1Click:Connect(function()
+    isPartMenuOpen = not isPartMenuOpen
+    
+    if isPartMenuOpen then
+        partMenu.Visible = true
+        partMenu.Size = UDim2.new(0, 0, 0, 0)
+        TweenService:Create(partMenu, menuTweenInfo, {Size = UDim2.new(0, 95, 0, 55)}):Play()
+    else
+        local tween = TweenService:Create(partMenu, menuTweenInfo, {Size = UDim2.new(0, 0, 0, 0)})
+        tween:Play()
+        tween.Completed:Connect(function(playback)
+            if playback == Enum.PlaybackState.Completed then
+                partMenu.Visible = false
+            end
+        end)
+    end
+end)
+
+headOption.MouseButton1Click:Connect(function() 
+    BodyPart = "CABEÇA" 
+    isPartMenuOpen = false 
+    local tween = TweenService:Create(partMenu, menuTweenInfo, {Size = UDim2.new(0, 0, 0, 0)})
+    tween:Play()
+    tween.Completed:Connect(function() partMenu.Visible = false end)
+end)
+
+torsoOption.MouseButton1Click:Connect(function() 
+    BodyPart = "TORSO" 
+    isPartMenuOpen = false 
+    local tween = TweenService:Create(partMenu, menuTweenInfo, {Size = UDim2.new(0, 0, 0, 0)})
+    tween:Play()
+    tween.Completed:Connect(function() partMenu.Visible = false end)
+end)
+
+peOption.MouseButton1Click:Connect(function() 
+    BodyPart = "PÉ" 
+    isPartMenuOpen = false 
+    local tween = TweenService:Create(partMenu, menuTweenInfo, {Size = UDim2.new(0, 0, 0, 0)})
+    tween:Play()
+    tween.Completed:Connect(function() partMenu.Visible = false end)
+end)
+
 lineboxBtn.MouseButton1Click:Connect(function() LineboxEnabled = not LineboxEnabled end)
 
 local dragging, dragStart, startPos = false, nil, nil
@@ -446,6 +537,18 @@ dragButton.InputChanged:Connect(function(input)
         mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
+
+-- ==================== APLICAR ANIMAÇÃO DE CLIQUE ====================
+addClickAnimation(playerBtn)
+addClickAnimation(modeBtn)
+addClickAnimation(partBtn)
+addClickAnimation(toggleBtn)
+addClickAnimation(dragButton)
+addClickAnimation(lineboxBtn)
+addClickAnimation(headOption)
+addClickAnimation(torsoOption)
+addClickAnimation(peOption)
+-- =================================================================
 
 RunService.RenderStepped:Connect(function()
     if Enabled and (Mode == "CAMLOCK" or Mode == "Mistu") then
