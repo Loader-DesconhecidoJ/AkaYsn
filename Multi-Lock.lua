@@ -368,7 +368,7 @@ local modeBtn     = createSideButton("CAM", 23)
 local partBtn     = createSideButton("PART", 41)
 
 local toggleBtn = Instance.new("TextButton", mainFrame)
-toggleBtn.Size = UDim2.new(0, 110, 0, 52)
+toggleBtn.Size = UDim2.new(0, 85, 0, 52)
 toggleBtn.Position = UDim2.new(0, 48, 0.5, -26)
 toggleBtn.Text = "TOGGLE OFF"
 toggleBtn.Font = Enum.Font.GothamMedium
