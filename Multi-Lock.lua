@@ -18,8 +18,8 @@ local npcLineboxDrawings = {}
 local FOVMax        = 110
 local FOVMin        = 50
 local FOV           = FOVMax
-local CamSmooth     = 0.95
-local MistuSmooth   = 0.98
+local CamSmooth     = 1
+local MistuSmooth   = 1
 local AimSmooth     = 0.92
 local AssistStrength= 0.95
 
