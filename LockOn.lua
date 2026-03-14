@@ -2,6 +2,8 @@ local Players       = game:GetService("Players")
 local RunService    = game:GetService("RunService")
 local Workspace     = game:GetService("Workspace")
 local TweenService  = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui    = game:GetService("StarterGui")
 
 local Camera        = Workspace.CurrentCamera
 local LocalPlayer   = Players.LocalPlayer
@@ -16,6 +18,17 @@ local accentColor   = Color3.fromRGB(0, 255, 255)  -- CIANO
 
 local lastSearchTime = 0
 local SEARCH_RATE    = 0.08
+
+-- ==================== DETECÇÃO DE DISPOSITIVO ====================
+local isMobile = UserInputService.TouchEnabled
+
+-- Notification no início
+StarterGui:SetCore("SendNotification", {
+    Title = "Cam Lock",
+    Text = "Dispositivo detectado: " .. (isMobile and "📱 MOBILE. Button/Botão Lock On" or "💻 PC Aperte Tecla L / Press the L key."),
+    Icon = "rbxassetid://6031094678",
+    Duration = 5
+})
 
 -- ==================== INDICADOR CAMLOCK ====================
 local camLockLines = {}
@@ -117,88 +130,86 @@ local function forceInstantReset()
     end
 end
 
--- ==================== BOTÃO COM IMAGEM DIFERENTE POR ESTADO ====================
+-- ==================== BOTÃO (SÓ APARECE NO MOBILE) ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local toggleBtn = Instance.new("ImageButton")
 toggleBtn.Size = UDim2.new(0, 85, 0, 85)
-toggleBtn.Position = UDim2.new(1, -85, 0, 0)  -- DIREITA EM CIMA
+toggleBtn.Position = UDim2.new(1, -85, 0, 0)
 toggleBtn.BackgroundTransparency = 1
-toggleBtn.Image = "rbxassetid://73466246454364"  -- OFF (nova imagem que você pediu)
+toggleBtn.Image = "rbxassetid://73466246454364"  -- OFF
 toggleBtn.ScaleType = Enum.ScaleType.Fit
+toggleBtn.Visible = isMobile  -- ← SÓ MOSTRA NO MOBILE
 toggleBtn.Parent = screenGui
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = toggleBtn
 
--- ANIMAÇÃO DE TOQUE (encolhe ao clicar)
-local clickTweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-local originalSize = toggleBtn.Size
+-- ANIMAÇÃO DE TOQUE + DRAG (só no mobile)
+if isMobile then
+    local clickTweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+    local originalSize = toggleBtn.Size
 
-toggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        TweenService:Create(toggleBtn, clickTweenInfo, {
-            Size = UDim2.new(
-                originalSize.X.Scale,
-                originalSize.X.Offset * 0.88,
-                originalSize.Y.Scale,
-                originalSize.Y.Offset * 0.88
-            )
-        }):Play()
-    end
-end)
+    toggleBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            TweenService:Create(toggleBtn, clickTweenInfo, {
+                Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset * 0.88, originalSize.Y.Scale, originalSize.Y.Offset * 0.88)
+            }):Play()
+        end
+    end)
 
-toggleBtn.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        TweenService:Create(toggleBtn, clickTweenInfo, {Size = originalSize}):Play()
-    end
-end)
+    toggleBtn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            TweenService:Create(toggleBtn, clickTweenInfo, {Size = originalSize}):Play()
+        end
+    end)
 
--- DRAG (pode mover o botão pra onde quiser)
-local dragging = false
-local dragStart = nil
-local startPos = nil
+    -- DRAG
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
 
-toggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = toggleBtn.Position
-    end
-end)
+    toggleBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = toggleBtn.Position
+        end
+    end)
 
-toggleBtn.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        toggleBtn.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
+    toggleBtn.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            toggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
 
-toggleBtn.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
+    toggleBtn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
 
--- TOGGLE (muda imagem conforme o estado)
-toggleBtn.MouseButton1Click:Connect(function()
-    Enabled = not Enabled
-    LockedTarget = nil
-    
-    if Enabled then
-        toggleBtn.Image = "rbxassetid://113252099863593"  -- ON (mantive a imagem anterior)
-    else
-        toggleBtn.Image = "rbxassetid://73466246454364"   -- OFF (nova imagem que você pediu)
-    end
-end)
+    -- TOGGLE COM BOTÃO (mobile)
+    toggleBtn.MouseButton1Click:Connect(function()
+        Enabled = not Enabled
+        LockedTarget = nil
+        toggleBtn.Image = Enabled and "rbxassetid://113252099863593" or "rbxassetid://73466246454364"
+    end)
+end
+
+-- ==================== TECLA L (só no PC) ====================
+if not isMobile then
+    UserInputService.InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.L then
+            Enabled = not Enabled
+            LockedTarget = nil
+        end
+    end)
+end
 
 -- ==================== LOOP ====================
 LocalPlayer.CharacterAdded:Connect(forceInstantReset)
