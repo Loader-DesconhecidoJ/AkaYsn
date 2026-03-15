@@ -25,7 +25,7 @@ local isMobile = UserInputService.TouchEnabled
 StarterGui:SetCore("SendNotification", {
     Title = "🔥 Jujutsu Shenanigans Lock On",
     Text = "Indicador novo recriado da foto!\nPC: Tecla L\nMobile: Botão na tela",
-    Icon = "rbxassetid://6031094678",
+    Icon = "rbxassetid://263401223",
     Duration = 6
 })
 
