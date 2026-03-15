@@ -34,7 +34,7 @@ StarterGui:SetCore("SendNotification", {
 local camLockLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
-    line.Thickness = 2.2
+    line.Thickness = 4          -- ← MAIS GROSSO
     line.Color = accentColor
     line.Transparency = 1
     line.Visible = false
@@ -45,7 +45,7 @@ end
 local camLockCenterLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
-    line.Thickness = 1.5
+    line.Thickness = 2.5        -- ← MAIS GROSSO
     line.Color = accentColor
     line.Transparency = 1
     line.Visible = false
@@ -68,7 +68,7 @@ local function updateCamLockIndicator(part)
     end
 
     local size = 30
-    local gap  = 8
+    local gap  = 15          -- ← AUMENTADO (pontas bem mais abertas)
     local cX = screenPos.X
     local cY = screenPos.Y
 
@@ -87,7 +87,9 @@ local function updateCamLockIndicator(part)
     for _, line in ipairs(camLockCenterLines) do line.Visible = true end
 end
 
--- ==================== FUNÇÕES ====================
+-- ==================== (resto do script igual) ====================
+-- (as funções getTargetPart, findClosestTarget, isValidLockedTarget, forceInstantReset, botão mobile, tecla L e o loop permanecem exatamente iguais)
+
 local function getTargetPart(character)
     return character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
 end
@@ -141,14 +143,13 @@ toggleBtn.Position = UDim2.new(1, -85, 0, 0)
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Image = "rbxassetid://73466246454364"  -- OFF
 toggleBtn.ScaleType = Enum.ScaleType.Fit
-toggleBtn.Visible = isMobile  -- ← SÓ MOSTRA NO MOBILE
+toggleBtn.Visible = isMobile
 toggleBtn.Parent = screenGui
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = toggleBtn
 
--- ANIMAÇÃO DE TOQUE + DRAG (só no mobile)
 if isMobile then
     local clickTweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
     local originalSize = toggleBtn.Size
@@ -167,7 +168,6 @@ if isMobile then
         end
     end)
 
-    -- DRAG
     local dragging = false
     local dragStart = nil
     local startPos = nil
@@ -193,7 +193,6 @@ if isMobile then
         end
     end)
 
-    -- TOGGLE COM BOTÃO (mobile)
     toggleBtn.MouseButton1Click:Connect(function()
         Enabled = not Enabled
         LockedTarget = nil
@@ -201,7 +200,6 @@ if isMobile then
     end)
 end
 
--- ==================== TECLA L (só no PC) ====================
 if not isMobile then
     UserInputService.InputBegan:Connect(function(input)
         if input.KeyCode == Enum.KeyCode.L then
@@ -211,7 +209,6 @@ if not isMobile then
     end)
 end
 
--- ==================== LOOP ====================
 LocalPlayer.CharacterAdded:Connect(forceInstantReset)
 
 RunService.RenderStepped:Connect(function()
