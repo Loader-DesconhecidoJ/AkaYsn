@@ -25,7 +25,7 @@ local isMobile = UserInputService.TouchEnabled
 -- Notification no início
 StarterGui:SetCore("SendNotification", {
     Title = "Cam Lock",
-    Text = "Dispositivo detectado: " .. (isMobile and "📱 MOBILE" or "💻 PC Press the L key."),
+    Text = "Dispositivo detectado: " .. (isMobile and "📱 MOBILE" or "💻 PC" (Press the L key)."),
     Icon = "rbxassetid://6031094678",
     Duration = 5
 })
