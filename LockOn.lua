@@ -12,7 +12,7 @@ local Enabled       = false
 local LockedTarget  = nil
 
 local MAX_FOV       = 110
-local CamSmooth     = 0.85
+local CamSmooth     = 0.82
 
 local accentColor   = Color3.fromRGB(0, 255, 255)  -- CIANO
 
