@@ -11,107 +11,83 @@ local LocalPlayer   = Players.LocalPlayer
 local Enabled       = false
 local LockedTarget  = nil
 
-local MAX_FOV       = 120
+local MAX_FOV       = 110
 local CamSmooth     = 0.85
 
-local accentColor   = Color3.fromRGB(0, 255, 255)  -- Ciano (muda se quiser roxo)
+local accentColor   = Color3.fromRGB(0, 255, 255)  -- CIANO
 
 local lastSearchTime = 0
-local SEARCH_RATE    = 0.05
+local SEARCH_RATE    = 0.08
 
 -- ==================== DETECÇÃO DE DISPOSITIVO ====================
 local isMobile = UserInputService.TouchEnabled
 
+-- Notification no início
 StarterGui:SetCore("SendNotification", {
-    Title = "🔥 Jujutsu Shenanigans Lock On",
-    Text = "💻Pc Key L\Mobile📱",
-    Icon = "rbxassetid://262619584",
-    Duration = 6
+    Title = "Cam Lock",
+    Text = "Dispositivo detectado: " .. (isMobile and "📱 MOBILE. Button/Botão Lock On" or "💻 PC Aperte Tecla L / Press the L key."),
+    Icon = "rbxassetid://6031094678",
+    Duration = 5
 })
 
--- ==================== INDICADOR DIAMOND (IGUAL DA FOTO) ====================
-local outerDiamondLines = {}
-for _ = 1, 4 do
-    local line = Drawing.new("Line")
-    line.Thickness = 3.8
-    line.Color = accentColor
-    line.Transparency = 1
-    line.Visible = false
-    line.ZIndex = 1000
-    table.insert(outerDiamondLines, line)
-end
-
-local centerDiamondLines = {}
+-- ==================== INDICADOR CAMLOCK ====================
+local camLockLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
     line.Thickness = 2.2
     line.Color = accentColor
     line.Transparency = 1
     line.Visible = false
-    line.ZIndex = 1001
-    table.insert(centerDiamondLines, line)
+    line.ZIndex = 1000
+    table.insert(camLockLines, line)
 end
 
-local function updateDiamondIndicator(part)
+local camLockCenterLines = {}
+for _ = 1, 4 do
+    local line = Drawing.new("Line")
+    line.Thickness = 1.5
+    line.Color = accentColor
+    line.Transparency = 1
+    line.Visible = false
+    line.ZIndex = 1001
+    table.insert(camLockCenterLines, line)
+end
+
+local function updateCamLockIndicator(part)
     if not Enabled or not LockedTarget or not part then
-        for _, line in ipairs(outerDiamondLines) do line.Visible = false end
-        for _, line in ipairs(centerDiamondLines) do line.Visible = false end
+        for _, line in ipairs(camLockLines) do line.Visible = false end
+        for _, line in ipairs(camLockCenterLines) do line.Visible = false end
         return
     end
 
     local screenPos, visible = Camera:WorldToViewportPoint(part.Position)
     if not visible then
-        for _, line in ipairs(outerDiamondLines) do line.Visible = false end
-        for _, line in ipairs(centerDiamondLines) do line.Visible = false end
+        for _, line in ipairs(camLockLines) do line.Visible = false end
+        for _, line in ipairs(camLockCenterLines) do line.Visible = false end
         return
     end
 
+    local size = 30
+    local gap  = 8
     local cX = screenPos.X
     local cY = screenPos.Y
 
-    local size = 35          -- tamanho do diamond externo
-    local shorten = 0.18     -- quanto abre as pontas (0.18 = bem aberto)
-    local smallSize = 5      -- diamond do centro
+    camLockLines[1].From = Vector2.new(cX - size, cY)          camLockLines[1].To = Vector2.new(cX - gap, cY - size + gap)
+    camLockLines[2].From = Vector2.new(cX + size, cY)          camLockLines[2].To = Vector2.new(cX + gap, cY - size + gap)
+    camLockLines[3].From = Vector2.new(cX - size, cY)          camLockLines[3].To = Vector2.new(cX - gap, cY + size - gap)
+    camLockLines[4].From = Vector2.new(cX + size, cY)          camLockLines[4].To = Vector2.new(cX + gap, cY + size - gap)
 
-    local top    = Vector2.new(cX, cY - size)
-    local right  = Vector2.new(cX + size, cY)
-    local bottom = Vector2.new(cX, cY + size)
-    local left   = Vector2.new(cX - size, cY)
+    local innerSize = 4
+    camLockCenterLines[1].From = Vector2.new(cX, cY - innerSize)          camLockCenterLines[1].To = Vector2.new(cX + innerSize, cY)
+    camLockCenterLines[2].From = Vector2.new(cX + innerSize, cY)          camLockCenterLines[2].To = Vector2.new(cX, cY + innerSize)
+    camLockCenterLines[3].From = Vector2.new(cX, cY + innerSize)          camLockCenterLines[3].To = Vector2.new(cX - innerSize, cY)
+    camLockCenterLines[4].From = Vector2.new(cX - innerSize, cY)          camLockCenterLines[4].To = Vector2.new(cX, cY - innerSize)
 
-    -- Linhas externas (pontas abertas)
-    local vecTR = right - top
-    outerDiamondLines[1].From = top + vecTR * shorten
-    outerDiamondLines[1].To   = top + vecTR * (1 - shorten)
-
-    local vecRB = bottom - right
-    outerDiamondLines[2].From = right + vecRB * shorten
-    outerDiamondLines[2].To   = right + vecRB * (1 - shorten)
-
-    local vecBL = left - bottom
-    outerDiamondLines[3].From = bottom + vecBL * shorten
-    outerDiamondLines[3].To   = bottom + vecBL * (1 - shorten)
-
-    local vecLT = top - left
-    outerDiamondLines[4].From = left + vecLT * shorten
-    outerDiamondLines[4].To   = left + vecLT * (1 - shorten)
-
-    -- Pequeno diamond no centro (fechado)
-    local sTop    = Vector2.new(cX, cY - smallSize)
-    local sRight  = Vector2.new(cX + smallSize, cY)
-    local sBottom = Vector2.new(cX, cY + smallSize)
-    local sLeft   = Vector2.new(cX - smallSize, cY)
-
-    centerDiamondLines[1].From = sTop    centerDiamondLines[1].To = sRight
-    centerDiamondLines[2].From = sRight  centerDiamondLines[2].To = sBottom
-    centerDiamondLines[3].From = sBottom centerDiamondLines[3].To = sLeft
-    centerDiamondLines[4].From = sLeft   centerDiamondLines[4].To = sTop
-
-    -- Ativa tudo
-    for _, line in ipairs(outerDiamondLines) do line.Visible = true end
-    for _, line in ipairs(centerDiamondLines) do line.Visible = true end
+    for _, line in ipairs(camLockLines) do line.Visible = true end
+    for _, line in ipairs(camLockCenterLines) do line.Visible = true end
 end
 
--- ==================== FUNÇÕES (mesmas) ====================
+-- ==================== FUNÇÕES ====================
 local function getTargetPart(character)
     return character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
 end
@@ -126,9 +102,9 @@ local function findClosestTarget()
             if part then
                 local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
                 if onScreen then
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                    if dist < MAX_FOV and dist < minDist then
-                        minDist = dist
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                    if distance < MAX_FOV and distance < minDist then
+                        minDist = distance
                         closest = part
                     end
                 end
@@ -138,42 +114,86 @@ local function findClosestTarget()
     return closest
 end
 
-local function isValidTarget(part)
+local function isValidLockedTarget(part)
     if not part then return false end
-    local char = part.Parent
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    local plr = Players:GetPlayerFromCharacter(char)
-    return plr and plr ~= LocalPlayer and hum and hum.Health > 0
+    local model = part.Parent
+    local plr = Players:GetPlayerFromCharacter(model)
+    return plr and plr ~= LocalPlayer and model:FindFirstChildOfClass("Humanoid") and model:FindFirstChildOfClass("Humanoid").Health > 0
 end
 
-local function forceCameraReset()
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("Humanoid") then
+local function forceInstantReset()
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("Humanoid") then
         Camera.CameraType = Enum.CameraType.Fixed
-        Camera.CameraSubject = char.Humanoid
+        Camera.CameraSubject = character.Humanoid
         Camera.CameraType = Enum.CameraType.Custom
     end
 end
 
--- ==================== BOTÃO MOBILE + TECLA L (igual) ====================
+-- ==================== BOTÃO (SÓ APARECE NO MOBILE) ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local toggleBtn = Instance.new("ImageButton")
-toggleBtn.Size = UDim2.new(0, 80, 0, 80)
-toggleBtn.Position = UDim2.new(1, -95, 0, 20)
+toggleBtn.Size = UDim2.new(0, 85, 0, 85)
+toggleBtn.Position = UDim2.new(1, -85, 0, 0)
 toggleBtn.BackgroundTransparency = 1
-toggleBtn.Image = "rbxassetid://73466246454364"
+toggleBtn.Image = "rbxassetid://73466246454364"  -- OFF
 toggleBtn.ScaleType = Enum.ScaleType.Fit
-toggleBtn.Visible = isMobile
+toggleBtn.Visible = isMobile  -- ← SÓ MOSTRA NO MOBILE
 toggleBtn.Parent = screenGui
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = toggleBtn
 
+-- ANIMAÇÃO DE TOQUE + DRAG (só no mobile)
 if isMobile then
+    local clickTweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+    local originalSize = toggleBtn.Size
+
+    toggleBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            TweenService:Create(toggleBtn, clickTweenInfo, {
+                Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset * 0.88, originalSize.Y.Scale, originalSize.Y.Offset * 0.88)
+            }):Play()
+        end
+    end)
+
+    toggleBtn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            TweenService:Create(toggleBtn, clickTweenInfo, {Size = originalSize}):Play()
+        end
+    end)
+
+    -- DRAG
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+
+    toggleBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = toggleBtn.Position
+        end
+    end)
+
+    toggleBtn.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            toggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    toggleBtn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    -- TOGGLE COM BOTÃO (mobile)
     toggleBtn.MouseButton1Click:Connect(function()
         Enabled = not Enabled
         LockedTarget = nil
@@ -181,6 +201,7 @@ if isMobile then
     end)
 end
 
+-- ==================== TECLA L (só no PC) ====================
 if not isMobile then
     UserInputService.InputBegan:Connect(function(input)
         if input.KeyCode == Enum.KeyCode.L then
@@ -191,16 +212,16 @@ if not isMobile then
 end
 
 -- ==================== LOOP ====================
-LocalPlayer.CharacterAdded:Connect(forceCameraReset)
+LocalPlayer.CharacterAdded:Connect(forceInstantReset)
 
 RunService.RenderStepped:Connect(function()
     if Enabled then
-        forceCameraReset()
+        forceInstantReset()
     end
 
     local now = tick()
     if now - lastSearchTime > SEARCH_RATE then
-        if not isValidTarget(LockedTarget) then
+        if not isValidLockedTarget(LockedTarget) then
             LockedTarget = findClosestTarget()
         end
         lastSearchTime = now
@@ -212,8 +233,8 @@ RunService.RenderStepped:Connect(function()
         local root = LockedTarget.Parent:FindFirstChild("HumanoidRootPart") or targetPart
         local targetCFrame = CFrame.new(Camera.CFrame.Position, root.Position)
         Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
-        updateDiamondIndicator(root)
+        updateCamLockIndicator(root)
     else
-        updateDiamondIndicator(nil)
+        updateCamLockIndicator(nil)
     end
 end)
