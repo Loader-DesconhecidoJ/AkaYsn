@@ -24,8 +24,8 @@ local isMobile = UserInputService.TouchEnabled
 
 StarterGui:SetCore("SendNotification", {
     Title = "🔥 Jujutsu Shenanigans Lock On",
-    Text = "💻Pc Tecla L\Mobile📱",
-    Icon = "rbxassetid://263401223",
+    Text = "💻Pc Key L\Mobile📱",
+    Icon = "rbxassetid://262619584",
     Duration = 6
 })
 
