@@ -17,7 +17,7 @@ local CamSmooth     = 0.83
 local accentColor   = Color3.fromRGB(0, 255, 255)  -- CIANO
 
 local lastSearchTime = 0
-local SEARCH_RATE    = 0.05
+local SEARCH_RATE    = 0.08
 
 -- ==================== DETECÇÃO DE DISPOSITIVO ====================
 local isMobile = UserInputService.TouchEnabled
