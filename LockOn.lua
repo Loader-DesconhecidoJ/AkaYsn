@@ -12,7 +12,7 @@ local Enabled       = false
 local LockedTarget  = nil
 
 local MAX_FOV       = 110
-local CamSmooth     = 0.82
+local CamSmooth     = 0.83
 
 local accentColor   = Color3.fromRGB(0, 255, 255)  -- CIANO
 
@@ -25,7 +25,7 @@ local isMobile = UserInputService.TouchEnabled
 -- Notification no início
 StarterGui:SetCore("SendNotification", {
     Title = "Cam Lock",
-    Text = "Dispositivo detectado: " .. (isMobile and "📱 MOBILE" or "💻 PC" (Press the L key)."),
+    Text = "Dispositivo detectado: " .. (isMobile and "📱 MOBILE" or "💻 PC Press the L key"),
     Icon = "rbxassetid://6031094678",
     Duration = 5
 })
