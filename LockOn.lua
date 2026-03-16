@@ -24,7 +24,7 @@ local SEARCH_RATE    = 0.05
 StarterGui:SetCore("SendNotification", {
     Title = "Cam Lock",
     Text = "Lock On Test Recreation",
-    Icon = "rbxassetid://6031094678",
+    Icon = "rbxassetid://5743022869",
     Duration = 5
 })
 
