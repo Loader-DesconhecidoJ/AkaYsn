@@ -9,13 +9,13 @@ local Camera        = Workspace.CurrentCamera
 local LocalPlayer   = Players.LocalPlayer
 
 local Enabled       = false
-local LockedTarget  = nil  -- AGORA SEMPRE é HumanoidRootPart
+local LockedTarget  = nil
 
-local MAX_FOV       = 110   -- Raio em pixels da tela (não é FOV da câmera)
+local MAX_FOV       = 110
 local CamSmooth     = 0.82
 local MAX_DISTANCE  = 100
 
-local accentColor   = Color3.fromRGB(0, 255, 255)
+local accentColor   = Color3.fromRGB(0,206,209)
 
 local lastSearchTime = 0
 local SEARCH_RATE    = 0.05
@@ -24,17 +24,17 @@ local SEARCH_RATE    = 0.05
 StarterGui:SetCore("SendNotification", {
     Title = "Cam Lock",
     Text = "Lock On Test Recreation",
-    Icon = "rbxassetid://5743022869",
+    Icon = "rbxassetid://6031094678",
     Duration = 5
 })
 
--- ==================== INDICADOR CAMLOCK (mantido perfeito) ====================
+-- ==================== INDICADOR CAMLOCK (agora SEMI-TRANSPARENTE) ====================
 local camLockLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
     line.Thickness = 2.2
     line.Color = accentColor
-    line.Transparency = 1
+    line.Transparency = 0.65   --  SEMI-TRANSPARENTE
     line.Visible = false
     line.ZIndex = 1000
     table.insert(camLockLines, line)
@@ -45,7 +45,7 @@ for _ = 1, 4 do
     local line = Drawing.new("Line")
     line.Thickness = 1.5
     line.Color = accentColor
-    line.Transparency = 1
+    line.Transparency = 0.65   --  SEMI-TRANSPARENTE
     line.Visible = false
     line.ZIndex = 1001
     table.insert(camLockCenterLines, line)
@@ -65,7 +65,6 @@ local function updateCamLockIndicator(rootPart)
         return
     end
 
-    -- Cálculo preciso do tamanho baseado em distância + FOV
     local dist = (Camera.CFrame.Position - rootPart.Position).Magnitude
     local charHeightStuds = 5.8
     local fovRad = math.rad(Camera.FieldOfView)
@@ -154,7 +153,7 @@ local function forceInstantReset()
     end
 end
 
--- ==================== BOTÃO + TECLA L (AMBOS DISPOSITIVOS) ====================
+-- ==================== BOTÃO + TECLA L (AMBOS) ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -165,21 +164,19 @@ toggleBtn.Position = UDim2.new(1, -95, 0, 10)
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Image = "rbxassetid://73466246454364"
 toggleBtn.ScaleType = Enum.ScaleType.Fit
-toggleBtn.Visible = true  -- SEMPRE visível (botão mobile + PC)
+toggleBtn.Visible = true
 toggleBtn.Parent = screenGui
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = toggleBtn
 
--- Função de toggle (atualiza imagem em QUALQUER método)
 local function toggleEnabled()
     Enabled = not Enabled
     LockedTarget = nil
     toggleBtn.Image = Enabled and "rbxassetid://113252099863593" or "rbxassetid://73466246454364"
 end
 
--- Animações de clique (funciona no mobile e no PC com mouse)
 local origSize = toggleBtn.Size
 local tweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine)
 
@@ -195,7 +192,6 @@ toggleBtn.InputEnded:Connect(function(inp)
     end
 end)
 
--- Drag (funciona no mobile e no PC com mouse)
 local dragging, dragStart, startPos
 toggleBtn.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -214,10 +210,8 @@ end)
 
 toggleBtn.InputEnded:Connect(function() dragging = false end)
 
--- Clique do botão
 toggleBtn.MouseButton1Click:Connect(toggleEnabled)
 
--- Tecla L (PC ou mobile com teclado externo)
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.L then
         toggleEnabled()
@@ -228,12 +222,10 @@ end)
 LocalPlayer.CharacterAdded:Connect(forceInstantReset)
 
 RunService.RenderStepped:Connect(function()
-    -- AUTO FORCE RESET
     if Enabled then
         forceInstantReset()
     end
 
-    -- Busca inteligente (a cada 0.05s)
     local now = tick()
     if now - lastSearchTime > SEARCH_RATE then
         if not isValidTarget(LockedTarget) then
@@ -242,7 +234,6 @@ RunService.RenderStepped:Connect(function()
         lastSearchTime = now
     end
 
-    -- Lock + Indicador
     if Enabled and LockedTarget and LockedTarget.Parent then
         local root = LockedTarget
         local targetCFrame = CFrame.new(Camera.CFrame.Position, root.Position)
