@@ -20,12 +20,10 @@ local accentColor   = Color3.fromRGB(0, 255, 255)
 local lastSearchTime = 0
 local SEARCH_RATE    = 0.05
 
--- ==================== DETECÇÃO DE DISPOSITIVO ====================
-local isMobile = UserInputService.TouchEnabled
-
+-- ==================== NOTIFICAÇÃO ====================
 StarterGui:SetCore("SendNotification", {
     Title = "Cam Lock",
-    Text = "Dispositivo detectado: " .. (isMobile and " MOBILE" or " PC") .. "\nPressione L para ativar",
+    Text = "Lock On Test Recreation",
     Icon = "rbxassetid://6031094678",
     Duration = 5
 })
@@ -156,7 +154,7 @@ local function forceInstantReset()
     end
 end
 
--- ==================== BOTÃO MOBILE + TECLA PC ====================
+-- ==================== BOTÃO + TECLA L (AMBOS DISPOSITIVOS) ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -167,71 +165,70 @@ toggleBtn.Position = UDim2.new(1, -95, 0, 10)
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Image = "rbxassetid://73466246454364"
 toggleBtn.ScaleType = Enum.ScaleType.Fit
-toggleBtn.Visible = isMobile
+toggleBtn.Visible = true  -- SEMPRE visível (botão mobile + PC)
 toggleBtn.Parent = screenGui
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = toggleBtn
 
--- Animações e drag (mobile)
-if isMobile then
-    local origSize = toggleBtn.Size
-    local tweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine)
-
-    toggleBtn.InputBegan:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
-            TweenService:Create(toggleBtn, tweenInfo, {Size = UDim2.new(origSize.X.Scale, origSize.X.Offset * 0.88, origSize.Y.Scale, origSize.Y.Offset * 0.88)}):Play()
-        end
-    end)
-
-    toggleBtn.InputEnded:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
-            TweenService:Create(toggleBtn, tweenInfo, {Size = origSize}):Play()
-        end
-    end)
-
-    -- Drag
-    local dragging, dragStart, startPos
-    toggleBtn.InputBegan:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = inp.Position
-            startPos = toggleBtn.Position
-        end
-    end)
-
-    toggleBtn.InputChanged:Connect(function(inp)
-        if dragging and (inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMovement) then
-            local delta = inp.Position - dragStart
-            toggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-
-    toggleBtn.InputEnded:Connect(function() dragging = false end)
-
-    toggleBtn.MouseButton1Click:Connect(function()
-        Enabled = not Enabled
-        LockedTarget = nil
-        toggleBtn.Image = Enabled and "rbxassetid://113252099863593" or "rbxassetid://73466246454364"
-    end)
+-- Função de toggle (atualiza imagem em QUALQUER método)
+local function toggleEnabled()
+    Enabled = not Enabled
+    LockedTarget = nil
+    toggleBtn.Image = Enabled and "rbxassetid://113252099863593" or "rbxassetid://73466246454364"
 end
 
--- Tecla L (PC)
-if not isMobile then
-    UserInputService.InputBegan:Connect(function(input)
-        if input.KeyCode == Enum.KeyCode.L then
-            Enabled = not Enabled
-            LockedTarget = nil
-        end
-    end)
-end
+-- Animações de clique (funciona no mobile e no PC com mouse)
+local origSize = toggleBtn.Size
+local tweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine)
+
+toggleBtn.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        TweenService:Create(toggleBtn, tweenInfo, {Size = UDim2.new(origSize.X.Scale, origSize.X.Offset * 0.88, origSize.Y.Scale, origSize.Y.Offset * 0.88)}):Play()
+    end
+end)
+
+toggleBtn.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        TweenService:Create(toggleBtn, tweenInfo, {Size = origSize}):Play()
+    end
+end)
+
+-- Drag (funciona no mobile e no PC com mouse)
+local dragging, dragStart, startPos
+toggleBtn.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = inp.Position
+        startPos = toggleBtn.Position
+    end
+end)
+
+toggleBtn.InputChanged:Connect(function(inp)
+    if dragging and (inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMovement) then
+        local delta = inp.Position - dragStart
+        toggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+toggleBtn.InputEnded:Connect(function() dragging = false end)
+
+-- Clique do botão
+toggleBtn.MouseButton1Click:Connect(toggleEnabled)
+
+-- Tecla L (PC ou mobile com teclado externo)
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.L then
+        toggleEnabled()
+    end
+end)
 
 -- ==================== LOOP PRINCIPAL ====================
 LocalPlayer.CharacterAdded:Connect(forceInstantReset)
 
 RunService.RenderStepped:Connect(function()
-    -- AUTO FORCE RESET (exatamente como você pediu)
+    -- AUTO FORCE RESET
     if Enabled then
         forceInstantReset()
     end
@@ -247,7 +244,7 @@ RunService.RenderStepped:Connect(function()
 
     -- Lock + Indicador
     if Enabled and LockedTarget and LockedTarget.Parent then
-        local root = LockedTarget  -- agora já é o HumanoidRootPart
+        local root = LockedTarget
         local targetCFrame = CFrame.new(Camera.CFrame.Position, root.Position)
 
         Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
