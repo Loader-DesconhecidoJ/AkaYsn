@@ -13,29 +13,28 @@ local LockedTarget  = nil
 
 local MAX_FOV       = 110
 local CamSmooth     = 0.82
-local CharSmooth    = 0.35   -- suavidade do boneco (pode mudar aqui)
 local MAX_DISTANCE  = 100
 
-local accentColor   = Color3.fromRGB(0, 206, 209)
+local accentColor   = Color3.fromRGB(0,206,209)
 
 local lastSearchTime = 0
 local SEARCH_RATE    = 0.05
 
 -- ==================== NOTIFICAÇÃO ====================
 StarterGui:SetCore("SendNotification", {
-    Title = "Cam Lock + Boneco Lock",
-    Text = "Lock On Test Recreation (com boneco olhando)",
+    Title = "Cam Lock",
+    Text = "Lock On Test Recreation",
     Icon = "rbxassetid://6031094678",
     Duration = 5
 })
 
--- ==================== INDICADOR CAMLOCK ====================
+-- ==================== INDICADOR CAMLOCK (agora SEMI-TRANSPARENTE) ====================
 local camLockLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
     line.Thickness = 2.2
     line.Color = accentColor
-    line.Transparency = 0.65
+    line.Transparency = 0.65   --  SEMI-TRANSPARENTE
     line.Visible = false
     line.ZIndex = 1000
     table.insert(camLockLines, line)
@@ -46,7 +45,7 @@ for _ = 1, 4 do
     local line = Drawing.new("Line")
     line.Thickness = 1.5
     line.Color = accentColor
-    line.Transparency = 0.65
+    line.Transparency = 0.65   --  SEMI-TRANSPARENTE
     line.Visible = false
     line.ZIndex = 1001
     table.insert(camLockCenterLines, line)
@@ -79,11 +78,13 @@ local function updateCamLockIndicator(rootPart)
 
     local cX, cY = screenPos.X, screenPos.Y
 
+    -- Cantos externos
     camLockLines[1].From = Vector2.new(cX - size, cY)          camLockLines[1].To = Vector2.new(cX - gap, cY - size + gap)
     camLockLines[2].From = Vector2.new(cX + size, cY)          camLockLines[2].To = Vector2.new(cX + gap, cY - size + gap)
     camLockLines[3].From = Vector2.new(cX - size, cY)          camLockLines[3].To = Vector2.new(cX - gap, cY + size - gap)
     camLockLines[4].From = Vector2.new(cX + size, cY)          camLockLines[4].To = Vector2.new(cX + gap, cY + size - gap)
 
+    -- Centro (X)
     camLockCenterLines[1].From = Vector2.new(cX, cY - innerSize)          camLockCenterLines[1].To = Vector2.new(cX + innerSize, cY)
     camLockCenterLines[2].From = Vector2.new(cX + innerSize, cY)          camLockCenterLines[2].To = Vector2.new(cX, cY + innerSize)
     camLockCenterLines[3].From = Vector2.new(cX, cY + innerSize)          camLockCenterLines[3].To = Vector2.new(cX - innerSize, cY)
@@ -103,19 +104,15 @@ local function findClosestTarget()
     local closest, minDist = nil, math.huge
 
     local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local myChar = LocalPlayer.Character
 
-    for _, char in ipairs(Workspace:GetDescendants()) do
-        if char:IsA("Model") 
-           and char:FindFirstChildOfClass("Humanoid") 
-           and char ~= myChar then
-
-            local root = getRootPart(char)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local root = getRootPart(player.Character)
             if root then
                 local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
                 if onScreen then
-                    if myRoot and (root.Position - myRoot.Position).Magnitude > MAX_DISTANCE then 
-                        continue 
+                    if myRoot then
+                        if (root.Position - myRoot.Position).Magnitude > MAX_DISTANCE then continue end
                     end
 
                     local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
@@ -133,9 +130,8 @@ end
 local function isValidTarget(rootPart)
     if not rootPart then return false end
     local char = rootPart.Parent
-    if not char then return false end
-
-    if LocalPlayer.Character and char == LocalPlayer.Character then return false end
+    local plr = Players:GetPlayerFromCharacter(char)
+    if not plr or plr == LocalPlayer then return false end
 
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum or hum.Health <= 0 then return false end
@@ -157,18 +153,7 @@ local function forceInstantReset()
     end
 end
 
--- ==================== NOVO: CONTROLE DO BONECO (AutoRotate + olhar) ====================
-local function setAutoRotate(state)
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.AutoRotate = state
-        end
-    end
-end
-
--- ==================== BOTÃO + TECLA L ====================
+-- ==================== BOTÃO + TECLA L (AMBOS) ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -189,18 +174,9 @@ corner.Parent = toggleBtn
 local function toggleEnabled()
     Enabled = not Enabled
     LockedTarget = nil
-    
-    if Enabled then
-        lastSearchTime = 0
-        setAutoRotate(false)   -- desliga AutoRotate pra boneco olhar pro alvo
-    else
-        setAutoRotate(true)    -- volta ao normal
-    end
-    
     toggleBtn.Image = Enabled and "rbxassetid://113252099863593" or "rbxassetid://73466246454364"
 end
 
--- Animação do botão
 local origSize = toggleBtn.Size
 local tweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine)
 
@@ -216,7 +192,6 @@ toggleBtn.InputEnded:Connect(function(inp)
     end
 end)
 
--- Arrastar botão
 local dragging, dragStart, startPos
 toggleBtn.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -243,56 +218,28 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
--- ==================== CHARACTER ADDED ====================
-LocalPlayer.CharacterAdded:Connect(function()
-    if Enabled then
-        forceInstantReset()
-        setAutoRotate(false)
-    else
-        setAutoRotate(true)
-    end
-end)
+-- ==================== LOOP PRINCIPAL ====================
+LocalPlayer.CharacterAdded:Connect(forceInstantReset)
 
--- ==================== LOOP PRINCIPAL (CAM + BONECO) ====================
 RunService.RenderStepped:Connect(function()
     if Enabled then
         forceInstantReset()
+    end
 
-        local now = tick()
-        if now - lastSearchTime > SEARCH_RATE then
-            if not isValidTarget(LockedTarget) then
-                LockedTarget = findClosestTarget()
-            end
-            lastSearchTime = now
+    local now = tick()
+    if now - lastSearchTime > SEARCH_RATE then
+        if not isValidTarget(LockedTarget) then
+            LockedTarget = findClosestTarget()
         end
+        lastSearchTime = now
+    end
 
-        if LockedTarget and LockedTarget.Parent then
-            local root = LockedTarget
+    if Enabled and LockedTarget and LockedTarget.Parent then
+        local root = LockedTarget
+        local targetCFrame = CFrame.new(Camera.CFrame.Position, root.Position)
 
-            -- === CAMERA LOCK ===
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, root.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
-
-            -- === BONECO LOCK (olhar pro alvo) ===
-            local myChar = LocalPlayer.Character
-            if myChar then
-                local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-                local hum = myChar:FindFirstChildOfClass("Humanoid")
-                
-                if hum then hum.AutoRotate = false end
-                
-                if myRoot then
-                    -- Olha apenas na horizontal (não fica torto pra cima/baixo)
-                    local lookPos = Vector3.new(root.Position.X, myRoot.Position.Y, root.Position.Z)
-                    local bonecoCFrame = CFrame.new(myRoot.Position, lookPos)
-                    myRoot.CFrame = myRoot.CFrame:Lerp(bonecoCFrame, CharSmooth)
-                end
-            end
-
-            updateCamLockIndicator(root)
-        else
-            updateCamLockIndicator(nil)
-        end
+        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
+        updateCamLockIndicator(root)
     else
         updateCamLockIndicator(nil)
     end
