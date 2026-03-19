@@ -1,112 +1,107 @@
---// 🔥 OPTIMIZER MOBILE 2026 - ULTRA LITE (Zero Input Lag + Anti Spam)
-local Players = game:GetService("Players")
+-- =============================================
+-- SCRIPT MISTURADO: LOW QUALITY EXTREMO + FOV 110 + FPS BOOST MÁXIMO
+-- Deixa o jogo feio pra porra, FOV travado em 110, roda liso pra caralho
+-- Mistura perfeita dos 2 scripts originais (low quality + todas as otimizações)
+-- Cole no executor (Fluxus, Krnl, Solara, etc.)
+-- =============================================
+
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local Camera = Workspace.CurrentCamera
 
-local localPlayer = Players.LocalPlayer
-
-local effectClasses = {
-    ParticleEmitter = true, Trail = true, Smoke = true, Fire = true, Sparkles = true,
-    Beam = true, SelectionBox = true, SelectionHighlight = true,
-    PointLight = true, SpotLight = true, SurfaceLight = true, Explosion = true
-}
-
-local function cleanVFX(obj)
-    if obj:IsA("Highlight") then
-        pcall(function()
-            obj.Enabled = false
-            obj.FillTransparency = 1
-            obj.OutlineTransparency = 1
-        end)
-        return
-    end
-    if effectClasses[obj.ClassName] then
-        pcall(function()
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Light") then
-                obj.Enabled = false
-            else
-                obj:Destroy()
-            end
-        end)
-    end
-end
-
-local function optimizePart(part)
-    if not part:IsA("BasePart") then return end
-    pcall(function()
-        part.Material = Enum.Material.SmoothPlastic
-        part.CastShadow = false
-        if part:IsA("MeshPart") then
-            part.CollisionFidelity = Enum.CollisionFidelity.Box
-        end
-    end)
-end
-
-local function setupCharacter(character)
-    for _, v in ipairs(character:GetDescendants()) do
-        cleanVFX(v)
-    end
-    character.DescendantAdded:Connect(cleanVFX)
-end
-
-local function monitorPlayer(player)
-    if player == localPlayer then return end
-    player.CharacterAdded:Connect(setupCharacter)
-    if player.Character then
-        setupCharacter(player.Character)
-    end
-end
-
---// INÍCIO (muito mais leve)
-local function optimizeLighting()
-    for _, obj in ipairs(Lighting:GetChildren()) do
-        if obj:IsA("PostEffect") or obj:IsA("Sky") or obj:IsA("Atmosphere") or obj:IsA("Clouds") then
-            pcall(obj.Destroy, obj)
-        end
-    end
-
+local function ApplyLowQuality()
+    -- === LIGHTING ULTRA RUIM (low quality extremo) ===
+    Lighting.Technology = Enum.Technology.Compatibility     -- segredo principal pra pixelado + leve
     Lighting.GlobalShadows = false
-    Lighting.FogEnd = 500
-    Lighting.FogStart = 400
-    Lighting.EnvironmentDiffuseScale = 0
-    Lighting.EnvironmentSpecularScale = 0
+    Lighting.ShadowSoftness = 0
+    Lighting.Brightness = 0.5
+    Lighting.Ambient = Color3.fromRGB(65, 65, 65)
+    Lighting.OutdoorAmbient = Color3.fromRGB(80, 80, 80)
+    Lighting.EnvironmentDiffuseScale = 0.2
+    Lighting.EnvironmentSpecularScale = 0.1
+    
+    -- Fog otimizado (mistura: limite distante do segundo + extremo do primeiro)
+    Lighting.FogStart = 80
+    Lighting.FogEnd = 100
+    Lighting.FogColor = Color3.fromRGB(185, 185, 195)
+    
+    -- Desativa TODOS os efeitos bonitos + Atmosphere zerado
+    for _, v in pairs(Lighting:GetChildren()) do
+        if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") or 
+           v:IsA("DepthOfFieldEffect") or v:IsA("SunRaysEffect") or 
+           v:IsA("BlurEffect") or v:IsA("Atmosphere") then
+            v.Enabled = false
+            if v:IsA("Atmosphere") then
+                v.Density = 0
+                v.Offset = 0
+                v.Glare = 0
+                v.Haze = 0
+            end
+        end
+    end
+    
+    -- === TERRAIN + ÁGUA (fica horrível mas leve pra caralho) ===
+    if Workspace:FindFirstChild("Terrain") then
+        local t = Workspace.Terrain
+        t.WaterWaveSize = 0
+        t.WaterWaveSpeed = 0
+        t.WaterReflectance = 0
+        t.WaterTransparency = 1
+    end
+end
 
-    pcall(function()
+-- Aplica em tudo que já existe
+ApplyLowQuality()
+
+-- Aplica em tudo que aparecer depois (nunca mais volta bonito)
+Workspace.DescendantAdded:Connect(function(desc)
+    if desc:IsA("BasePart") then
+        desc.CastShadow = false
+    elseif desc:IsA("ParticleEmitter") or desc:IsA("Trail") or desc:IsA("Beam") then
+        desc.Enabled = false
+    elseif desc:IsA("BloomEffect") or desc:IsA("ColorCorrectionEffect") or 
+           desc:IsA("DepthOfFieldEffect") or desc:IsA("SunRaysEffect") or 
+           desc:IsA("BlurEffect") or desc:IsA("Atmosphere") then
+        desc.Enabled = false
+    end
+end)
+
+-- Reaplica toda hora pra garantir que o jogo não tente carregar qualidade
+RunService.Heartbeat:Connect(function()
+    if Lighting.Technology ~= Enum.Technology.Compatibility then
         Lighting.Technology = Enum.Technology.Compatibility
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-    end)
-
-    local terrain = Workspace:FindFirstChildOfClass("Terrain")
-    if terrain then
-        terrain.WaterWaveSize = 0
-        terrain.WaterWaveSpeed = 0
-        terrain.WaterReflectance = 0
-        terrain.WaterTransparency = 1
-    end
-end
-
-optimizeLighting()
-
--- Monitora só jogadores (nada de limpar o mapa inteiro)
-for _, plr in ipairs(Players:GetPlayers()) do
-    monitorPlayer(plr)
-end
-Players.PlayerAdded:Connect(monitorPlayer)
-
--- Limpa só as coisas novas que aparecem (task.defer = super leve)
-Workspace.DescendantAdded:Connect(function(obj)
-    if obj:IsA("BasePart") then
-        task.defer(optimizePart, obj)
-    else
-        cleanVFX(obj)
     end
 end)
 
-Lighting.ChildAdded:Connect(function(child)
-    if child:IsA("PostEffect") or child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("Clouds") then
-        child:Destroy()
-    end
+-- === FOV 110 TRAVADO (prioridade máxima do segundo script) ===
+local FOV_ALVO = 110
+
+RunService.PreRender:Connect(function()
+    Camera.FieldOfView = FOV_ALVO
 end)
 
-print("✅ ULTRA LITE carregado! Toques devem voltar ao normal.")
+RunService.RenderStepped:Connect(function()
+    Camera.FieldOfView = FOV_ALVO
+end)
+
+-- === OTIMIZAÇÕES TURBO DE PERFORMANCE (streaming, physics, etc.) ===
+Workspace.StreamingEnabled = true
+Lighting.EagerBulkExecution = true
+settings().Rendering.EagerBulkExecution = true
+
+-- Physics otimizado (zero sleep + throttle desativado)
+pcall(function()
+    settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled
+    settings().Physics.AllowSleep = false
+    settings().Physics.ForceSleep = false
+end)
+
+-- Configurações extras de performance máxima
+pcall(function()
+    settings().Rendering.EagerBulkExecution = true
+    settings().Performance.MaxFPS = 0
+    settings().Network.ShowGui = false
+end)
+
+print("✅ Script MISTURADO ativado! Low Quality EXTREMO + FOV 110 travado + FPS voando pra caralho!")
