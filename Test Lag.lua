@@ -75,7 +75,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- === FOV 110 TRAVADO (prioridade máxima do segundo script) ===
-local FOV_ALVO = 110
+local FOV_ALVO = 75
 
 RunService.PreRender:Connect(function()
     Camera.FieldOfView = FOV_ALVO
