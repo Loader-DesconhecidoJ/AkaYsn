@@ -28,13 +28,13 @@ StarterGui:SetCore("SendNotification", {
     Duration = 5
 })
 
--- ==================== INDICADOR CAMLOCK (agora SEMI-TRANSPARENTE) ====================
+-- ==================== INDICADOR CAMLOCK (SEMI-TRANSPARENTE) ====================
 local camLockLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
     line.Thickness = 2.2
     line.Color = accentColor
-    line.Transparency = 0.65   --  SEMI-TRANSPARENTE
+    line.Transparency = 0.65
     line.Visible = false
     line.ZIndex = 1000
     table.insert(camLockLines, line)
@@ -45,27 +45,79 @@ for _ = 1, 4 do
     local line = Drawing.new("Line")
     line.Thickness = 1.5
     line.Color = accentColor
-    line.Transparency = 0.65   --  SEMI-TRANSPARENTE
+    line.Transparency = 0.65
     line.Visible = false
     line.ZIndex = 1001
     table.insert(camLockCenterLines, line)
 end
 
-local function updateCamLockIndicator(rootPart)
-    if not Enabled or not rootPart then
+-- ==================== NOVAS FUNÇÕES (PESÇOÇO + MORTE) ====================
+local function getTargetPart(character)
+    return character and character:FindFirstChild("Head")
+end
+
+local function getNeckPosition(head)
+    if not head then return nil end
+    local char = head.Parent
+    if not char then return nil end
+
+    -- Tenta NeckAttachment (mais preciso)
+    local neckAtt = head:FindFirstChild("NeckAttachment")
+    if not neckAtt then
+        local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+        if torso then
+            neckAtt = torso:FindFirstChild("NeckAttachment")
+        end
+    end
+
+    if neckAtt and neckAtt:IsA("Attachment") then
+        return neckAtt.WorldPosition
+    end
+
+    -- Fallback seguro
+    return (head.CFrame * CFrame.new(0, -0.5, 0)).Position
+end
+
+local function setupDeathHandler(character)
+    if not character then return end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.Died:Connect(function()
+            Enabled = false
+            LockedTarget = nil
+            StarterGui:SetCore("SendNotification", {
+                Title = "Cam Lock",
+                Text = "Desativado automaticamente (você morreu)",
+                Icon = "rbxassetid://6031094678",
+                Duration = 3
+            })
+        end)
+    end
+end
+
+-- ==================== INDICADOR (AGORA NO PESÇOÇO) ====================
+local function updateCamLockIndicator(targetPart)
+    if not Enabled or not targetPart then
         for _, v in ipairs(camLockLines) do v.Visible = false end
         for _, v in ipairs(camLockCenterLines) do v.Visible = false end
         return
     end
 
-    local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+    local neckPos = getNeckPosition(targetPart)
+    if not neckPos then
+        for _, v in ipairs(camLockLines) do v.Visible = false end
+        for _, v in ipairs(camLockCenterLines) do v.Visible = false end
+        return
+    end
+
+    local screenPos, onScreen = Camera:WorldToViewportPoint(neckPos)
     if not onScreen then
         for _, v in ipairs(camLockLines) do v.Visible = false end
         for _, v in ipairs(camLockCenterLines) do v.Visible = false end
         return
     end
 
-    local dist = (Camera.CFrame.Position - rootPart.Position).Magnitude
+    local dist = (Camera.CFrame.Position - neckPos).Magnitude
     local charHeightStuds = 5.8
     local fovRad = math.rad(Camera.FieldOfView)
     local projectedHeight = (charHeightStuds / dist) * (Camera.ViewportSize.Y / (2 * math.tan(fovRad / 2)))
@@ -95,10 +147,6 @@ local function updateCamLockIndicator(rootPart)
 end
 
 -- ==================== FUNÇÕES ====================
-local function getRootPart(character)
-    return character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head"))
-end
-
 local function findClosestTarget()
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local closest, minDist = nil, math.huge
@@ -107,18 +155,21 @@ local function findClosestTarget()
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
-            local root = getRootPart(player.Character)
-            if root then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-                if onScreen then
-                    if myRoot then
-                        if (root.Position - myRoot.Position).Magnitude > MAX_DISTANCE then continue end
+            local targetPart = getTargetPart(player.Character)
+            if targetPart then
+                local neckPos = getNeckPosition(targetPart)
+                if neckPos then
+                    if myRoot and (neckPos - myRoot.Position).Magnitude > MAX_DISTANCE then
+                        continue
                     end
 
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                    if dist < MAX_FOV and dist < minDist then
-                        minDist = dist
-                        closest = root
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(neckPos)
+                    if onScreen then
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                        if dist < MAX_FOV and dist < minDist then
+                            minDist = dist
+                            closest = targetPart
+                        end
                     end
                 end
             end
@@ -127,9 +178,9 @@ local function findClosestTarget()
     return closest
 end
 
-local function isValidTarget(rootPart)
-    if not rootPart then return false end
-    local char = rootPart.Parent
+local function isValidTarget(targetPart)
+    if not targetPart then return false end
+    local char = targetPart.Parent
     local plr = Players:GetPlayerFromCharacter(char)
     if not plr or plr == LocalPlayer then return false end
 
@@ -137,8 +188,11 @@ local function isValidTarget(rootPart)
     if not hum or hum.Health <= 0 then return false end
 
     local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if myRoot and (rootPart.Position - myRoot.Position).Magnitude > MAX_DISTANCE then
-        return false
+    if myRoot then
+        local neckPos = getNeckPosition(targetPart)
+        if neckPos and (neckPos - myRoot.Position).Magnitude > MAX_DISTANCE then
+            return false
+        end
     end
 
     return true
@@ -153,7 +207,7 @@ local function forceInstantReset()
     end
 end
 
--- ==================== BOTÃO + TECLA L (AMBOS) ====================
+-- ==================== BOTÃO + TECLA L ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -209,7 +263,6 @@ toggleBtn.InputChanged:Connect(function(inp)
 end)
 
 toggleBtn.InputEnded:Connect(function() dragging = false end)
-
 toggleBtn.MouseButton1Click:Connect(toggleEnabled)
 
 UserInputService.InputBegan:Connect(function(input)
@@ -218,9 +271,17 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
--- ==================== LOOP PRINCIPAL ====================
-LocalPlayer.CharacterAdded:Connect(forceInstantReset)
+-- ==================== HANDLER DE MORTE + CHARACTER ADDED ====================
+if LocalPlayer.Character then
+    setupDeathHandler(LocalPlayer.Character)
+end
 
+LocalPlayer.CharacterAdded:Connect(function(character)
+    forceInstantReset()
+    setupDeathHandler(character)
+end)
+
+-- ==================== LOOP PRINCIPAL ====================
 RunService.RenderStepped:Connect(function()
     if Enabled then
         forceInstantReset()
@@ -235,11 +296,14 @@ RunService.RenderStepped:Connect(function()
     end
 
     if Enabled and LockedTarget and LockedTarget.Parent then
-        local root = LockedTarget
-        local targetCFrame = CFrame.new(Camera.CFrame.Position, root.Position)
-
-        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
-        updateCamLockIndicator(root)
+        local neckPos = getNeckPosition(LockedTarget)
+        if neckPos then
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, neckPos)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
+            updateCamLockIndicator(LockedTarget)
+        else
+            updateCamLockIndicator(nil)
+        end
     else
         updateCamLockIndicator(nil)
     end
