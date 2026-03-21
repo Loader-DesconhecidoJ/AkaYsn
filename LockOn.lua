@@ -24,7 +24,7 @@ local SEARCH_RATE    = 0.08
 -- ==================== NOTIFICAÇÃO ====================
 StarterGui:SetCore("SendNotification", {
     Title = "Lock On🎯",
-    Text = "Lock On Test Recreation - Otimizado",
+    Text = "Lock On Test Recreation",
     Icon = "rbxassetid://6031094678",
     Duration = 5
 })
@@ -44,7 +44,7 @@ end
 local camLockCenterLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
-    line.Thickness = 1.5
+    line.Thickness = 2,0
     line.Color = accentColor
     line.Transparency = 0.65
     line.Visible = false
