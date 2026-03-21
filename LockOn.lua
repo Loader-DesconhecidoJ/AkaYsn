@@ -14,12 +14,12 @@ local LockedTarget  = nil
 local MAX_FOV       = 110
 local CamSmooth     = 0.82
 local MAX_DISTANCE  = 100
-local SEARCH_DISTANCE = 70
+local SEARCH_DISTANCE = 55
 
 local accentColor   = Color3.fromRGB(0,206,209)
 
 local lastSearchTime = 0
-local SEARCH_RATE    = 0.05
+local SEARCH_RATE    = 0.08
 
 -- ==================== NOTIFICAÇÃO ====================
 StarterGui:SetCore("SendNotification", {
@@ -33,7 +33,7 @@ StarterGui:SetCore("SendNotification", {
 local camLockLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
-    line.Thickness = 2.2
+    line.Thickness = 4.0
     line.Color = accentColor
     line.Transparency = 0.65
     line.Visible = false
