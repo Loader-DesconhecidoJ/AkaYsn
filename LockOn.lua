@@ -14,6 +14,7 @@ local LockedTarget  = nil
 local MAX_FOV       = 110
 local CamSmooth     = 0.82
 local MAX_DISTANCE  = 100
+local SEARCH_DISTANCE = 70
 
 local accentColor   = Color3.fromRGB(0,206,209)
 
@@ -22,13 +23,13 @@ local SEARCH_RATE    = 0.05
 
 -- ==================== NOTIFICAÇÃO ====================
 StarterGui:SetCore("SendNotification", {
-    Title = "Cam Lock",
-    Text = "Lock On Test Recreation",
+    Title = "Lock On🎯",
+    Text = "Lock On Test Recreation - Otimizado",
     Icon = "rbxassetid://6031094678",
     Duration = 5
 })
 
--- ==================== INDICADOR CAMLOCK (SEMI-TRANSPARENTE) ====================
+-- ==================== INDICADOR CAMLOCK ====================
 local camLockLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
@@ -51,7 +52,7 @@ for _ = 1, 4 do
     table.insert(camLockCenterLines, line)
 end
 
--- ==================== NOVAS FUNÇÕES (PESÇOÇO + MORTE) ====================
+-- ==================== FUNÇÕES AUXILIARES ====================
 local function getTargetPart(character)
     return character and character:FindFirstChild("Head")
 end
@@ -61,7 +62,6 @@ local function getNeckPosition(head)
     local char = head.Parent
     if not char then return nil end
 
-    -- Tenta NeckAttachment (mais preciso)
     local neckAtt = head:FindFirstChild("NeckAttachment")
     if not neckAtt then
         local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
@@ -74,7 +74,6 @@ local function getNeckPosition(head)
         return neckAtt.WorldPosition
     end
 
-    -- Fallback seguro
     return (head.CFrame * CFrame.new(0, -0.5, 0)).Position
 end
 
@@ -95,7 +94,7 @@ local function setupDeathHandler(character)
     end
 end
 
--- ==================== INDICADOR (AGORA NO PESÇOÇO) ====================
+-- ==================== INDICADOR (PESÇOÇO) ====================
 local function updateCamLockIndicator(targetPart)
     if not Enabled or not targetPart then
         for _, v in ipairs(camLockLines) do v.Visible = false end
@@ -104,18 +103,10 @@ local function updateCamLockIndicator(targetPart)
     end
 
     local neckPos = getNeckPosition(targetPart)
-    if not neckPos then
-        for _, v in ipairs(camLockLines) do v.Visible = false end
-        for _, v in ipairs(camLockCenterLines) do v.Visible = false end
-        return
-    end
+    if not neckPos then return end
 
     local screenPos, onScreen = Camera:WorldToViewportPoint(neckPos)
-    if not onScreen then
-        for _, v in ipairs(camLockLines) do v.Visible = false end
-        for _, v in ipairs(camLockCenterLines) do v.Visible = false end
-        return
-    end
+    if not onScreen then return end
 
     local dist = (Camera.CFrame.Position - neckPos).Magnitude
     local charHeightStuds = 5.8
@@ -124,19 +115,33 @@ local function updateCamLockIndicator(targetPart)
 
     local size = projectedHeight * 0.78
     size = math.max(18, math.min(130, size))
-
-    local gap       = size * (8 / 30)
     local innerSize = size * (4 / 30)
 
     local cX, cY = screenPos.X, screenPos.Y
 
-    -- Cantos externos
-    camLockLines[1].From = Vector2.new(cX - size, cY)          camLockLines[1].To = Vector2.new(cX - gap, cY - size + gap)
-    camLockLines[2].From = Vector2.new(cX + size, cY)          camLockLines[2].To = Vector2.new(cX + gap, cY - size + gap)
-    camLockLines[3].From = Vector2.new(cX - size, cY)          camLockLines[3].To = Vector2.new(cX - gap, cY + size - gap)
-    camLockLines[4].From = Vector2.new(cX + size, cY)          camLockLines[4].To = Vector2.new(cX + gap, cY + size - gap)
+    local topPoint    = Vector2.new(cX, cY - size)
+    local rightPoint  = Vector2.new(cX + size, cY)
+    local bottomPoint = Vector2.new(cX, cY + size)
+    local leftPoint   = Vector2.new(cX - size, cY)
 
-    -- Centro (X)
+    local gapFrac = 4 / 30
+
+    local dir = rightPoint - topPoint
+    camLockLines[1].From = topPoint + dir * gapFrac
+    camLockLines[1].To   = rightPoint - dir * gapFrac
+
+    dir = bottomPoint - rightPoint
+    camLockLines[2].From = rightPoint + dir * gapFrac
+    camLockLines[2].To   = bottomPoint - dir * gapFrac
+
+    dir = leftPoint - bottomPoint
+    camLockLines[3].From = bottomPoint + dir * gapFrac
+    camLockLines[3].To   = leftPoint - dir * gapFrac
+
+    dir = topPoint - leftPoint
+    camLockLines[4].From = leftPoint + dir * gapFrac
+    camLockLines[4].To   = topPoint - dir * gapFrac
+
     camLockCenterLines[1].From = Vector2.new(cX, cY - innerSize)          camLockCenterLines[1].To = Vector2.new(cX + innerSize, cY)
     camLockCenterLines[2].From = Vector2.new(cX + innerSize, cY)          camLockCenterLines[2].To = Vector2.new(cX, cY + innerSize)
     camLockCenterLines[3].From = Vector2.new(cX, cY + innerSize)          camLockCenterLines[3].To = Vector2.new(cX - innerSize, cY)
@@ -146,29 +151,42 @@ local function updateCamLockIndicator(targetPart)
     for _, v in ipairs(camLockCenterLines) do v.Visible = true end
 end
 
--- ==================== FUNÇÕES ====================
+-- ==================== FIND CLOSEST (OTIMIZADO - SÓ 50 METROS) ====================
+-- ANTES: Workspace:GetDescendants() → varria TODO o servidor = LAG + DROP DE FPS
+-- AGORA: GetPartBoundsInRadius → só pega partes dentro dos 50m = MUITO MAIS RÁPIDO
 local function findClosestTarget()
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local closest, minDist = nil, math.huge
 
     local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil end
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local targetPart = getTargetPart(player.Character)
-            if targetPart then
-                local neckPos = getNeckPosition(targetPart)
-                if neckPos then
-                    if myRoot and (neckPos - myRoot.Position).Magnitude > MAX_DISTANCE then
-                        continue
-                    end
+    local overlapParams = OverlapParams.new()
+    overlapParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    overlapParams.FilterType = Enum.RaycastFilterType.Exclude
 
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(neckPos)
-                    if onScreen then
-                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                        if dist < MAX_FOV and dist < minDist then
-                            minDist = dist
-                            closest = targetPart
+    local nearbyParts = Workspace:GetPartBoundsInRadius(myRoot.Position, SEARCH_DISTANCE, overlapParams)
+
+    local checkedModels = {}  -- evita checar o mesmo character várias vezes
+
+    for _, part in ipairs(nearbyParts) do
+        local char = part:FindFirstAncestorWhichIsA("Model")
+        if char and not checkedModels[char] and char ~= LocalPlayer.Character then
+            checkedModels[char] = true
+
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local targetPart = getTargetPart(char)
+                if targetPart then
+                    local neckPos = getNeckPosition(targetPart)
+                    if neckPos then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(neckPos)
+                        if onScreen then
+                            local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                            if dist < MAX_FOV and dist < minDist then
+                                minDist = dist
+                                closest = targetPart
+                            end
                         end
                     end
                 end
@@ -181,11 +199,11 @@ end
 local function isValidTarget(targetPart)
     if not targetPart then return false end
     local char = targetPart.Parent
-    local plr = Players:GetPlayerFromCharacter(char)
-    if not plr or plr == LocalPlayer then return false end
+    if not char or not char:IsA("Model") then return false end
 
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum or hum.Health <= 0 then return false end
+    if char == LocalPlayer.Character then return false end
 
     local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if myRoot then
@@ -194,7 +212,6 @@ local function isValidTarget(targetPart)
             return false
         end
     end
-
     return true
 end
 
@@ -228,6 +245,11 @@ corner.Parent = toggleBtn
 local function toggleEnabled()
     Enabled = not Enabled
     LockedTarget = nil
+    
+    if not Enabled then
+        updateCamLockIndicator(nil)
+    end
+    
     toggleBtn.Image = Enabled and "rbxassetid://113252099863593" or "rbxassetid://73466246454364"
 end
 
@@ -271,7 +293,7 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
--- ==================== HANDLER DE MORTE + CHARACTER ADDED ====================
+-- ==================== HANDLER DE MORTE ====================
 if LocalPlayer.Character then
     setupDeathHandler(LocalPlayer.Character)
 end
@@ -283,10 +305,11 @@ end)
 
 -- ==================== LOOP PRINCIPAL ====================
 RunService.RenderStepped:Connect(function()
-    if Enabled then
-        forceInstantReset()
+    if not Enabled then 
+        return 
     end
 
+    -- Busca otimizada (só quando não tem alvo válido)
     local now = tick()
     if now - lastSearchTime > SEARCH_RATE then
         if not isValidTarget(LockedTarget) then
@@ -295,7 +318,10 @@ RunService.RenderStepped:Connect(function()
         lastSearchTime = now
     end
 
-    if Enabled and LockedTarget and LockedTarget.Parent then
+    -- Só faz o lock quando tem alvo
+    if LockedTarget and LockedTarget.Parent then
+        forceInstantReset()
+
         local neckPos = getNeckPosition(LockedTarget)
         if neckPos then
             local targetCFrame = CFrame.new(Camera.CFrame.Position, neckPos)
