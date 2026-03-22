@@ -16,6 +16,10 @@ local CamSmooth     = 0.82
 local MAX_DISTANCE  = 100
 local SEARCH_DISTANCE = 55
 
+-- ==================== NOVO: OFFSET DA CÂMERA PRA ESQUERDA ====================
+local CAMERA_LEFT_OFFSET = -1.3 -- Ajuste aqui o quanto quer pra esquerda (em studs)
+                                -- 1.2 = bem sutil. Quer mais? Aumenta pra 2.0\~3.0
+
 local accentColor   = Color3.fromRGB(0,206,209)
 
 local lastSearchTime = 0
@@ -23,7 +27,7 @@ local SEARCH_RATE    = 0.08
 
 -- ==================== NOTIFICAÇÃO ====================
 StarterGui:SetCore("SendNotification", {
-    Title = "Lock On🎯",
+    Title = "Lock On",
     Text = "Lock On Test Recreation",
     Icon = "rbxassetid://6031094678",
     Duration = 5
@@ -44,7 +48,7 @@ end
 local camLockCenterLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
-    line.Thickness = 2,0
+    line.Thickness = 2.0
     line.Color = accentColor
     line.Transparency = 0.65
     line.Visible = false
@@ -57,6 +61,7 @@ local function getTargetPart(character)
     return character and character:FindFirstChild("Head")
 end
 
+-- AQUI É ONDE GARANTIMOS QUE SEMPRE É O PESCOÇO (independente da distância)
 local function getNeckPosition(head)
     if not head then return nil end
     local char = head.Parent
@@ -74,6 +79,7 @@ local function getNeckPosition(head)
         return neckAtt.WorldPosition
     end
 
+    -- Offset fixo no pescoço (sempre o mesmo ponto, longe ou perto)
     return (head.CFrame * CFrame.new(0, -0.5, 0)).Position
 end
 
@@ -108,6 +114,7 @@ local function updateCamLockIndicator(targetPart)
     local screenPos, onScreen = Camera:WorldToViewportPoint(neckPos)
     if not onScreen then return end
 
+    -- (tamanho do indicador escala com distância - só visual)
     local dist = (Camera.CFrame.Position - neckPos).Magnitude
     local charHeightStuds = 5.8
     local fovRad = math.rad(Camera.FieldOfView)
@@ -151,9 +158,7 @@ local function updateCamLockIndicator(targetPart)
     for _, v in ipairs(camLockCenterLines) do v.Visible = true end
 end
 
--- ==================== FIND CLOSEST (OTIMIZADO - SÓ 50 METROS) ====================
--- ANTES: Workspace:GetDescendants() → varria TODO o servidor = LAG + DROP DE FPS
--- AGORA: GetPartBoundsInRadius → só pega partes dentro dos 50m = MUITO MAIS RÁPIDO
+-- ==================== FIND CLOSEST + LOCK NO PESCOÇO ====================
 local function findClosestTarget()
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local closest, minDist = nil, math.huge
@@ -167,7 +172,7 @@ local function findClosestTarget()
 
     local nearbyParts = Workspace:GetPartBoundsInRadius(myRoot.Position, SEARCH_DISTANCE, overlapParams)
 
-    local checkedModels = {}  -- evita checar o mesmo character várias vezes
+    local checkedModels = {}
 
     for _, part in ipairs(nearbyParts) do
         local char = part:FindFirstAncestorWhichIsA("Model")
@@ -309,7 +314,6 @@ RunService.RenderStepped:Connect(function()
         return 
     end
 
-    -- Busca otimizada (só quando não tem alvo válido)
     local now = tick()
     if now - lastSearchTime > SEARCH_RATE then
         if not isValidTarget(LockedTarget) then
@@ -318,13 +322,16 @@ RunService.RenderStepped:Connect(function()
         lastSearchTime = now
     end
 
-    -- Só faz o lock quando tem alvo
     if LockedTarget and LockedTarget.Parent then
         forceInstantReset()
 
         local neckPos = getNeckPosition(LockedTarget)
         if neckPos then
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, neckPos)
+            -- === OFFSET PRA ESQUERDA APLICADO AQUI ===
+            local rightVec = Camera.CFrame.RightVector
+            local targetPos = neckPos - (rightVec * CAMERA_LEFT_OFFSET)  -- move o ponto de mira pra esquerda
+
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
             Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
             updateCamLockIndicator(LockedTarget)
         else
