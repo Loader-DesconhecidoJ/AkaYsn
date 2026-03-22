@@ -16,24 +16,20 @@ local CamSmooth     = 0.82
 local MAX_DISTANCE  = 100
 local SEARCH_DISTANCE = 55
 
--- ==================== NOVO: OFFSET DA CÂMERA PRA ESQUERDA ====================
-local CAMERA_LEFT_OFFSET = -1.3 -- Ajuste aqui o quanto quer pra esquerda (em studs)
-                                -- 1.2 = bem sutil. Quer mais? Aumenta pra 2.0\~3.0
+local CAMERA_LEFT_OFFSET = -1.3
 
 local accentColor   = Color3.fromRGB(0,206,209)
 
 local lastSearchTime = 0
 local SEARCH_RATE    = 0.08
 
--- ==================== NOTIFICAÇÃO ====================
 StarterGui:SetCore("SendNotification", {
     Title = "Lock On",
     Text = "Lock On Test Recreation",
-    Icon = "rbxassetid://6031094678",
+    Icon = "rbxassetid://82817965256191",
     Duration = 5
 })
 
--- ==================== INDICADOR CAMLOCK ====================
 local camLockLines = {}
 for _ = 1, 4 do
     local line = Drawing.new("Line")
@@ -56,12 +52,10 @@ for _ = 1, 4 do
     table.insert(camLockCenterLines, line)
 end
 
--- ==================== FUNÇÕES AUXILIARES ====================
 local function getTargetPart(character)
     return character and character:FindFirstChild("Head")
 end
 
--- AQUI É ONDE GARANTIMOS QUE SEMPRE É O PESCOÇO (independente da distância)
 local function getNeckPosition(head)
     if not head then return nil end
     local char = head.Parent
@@ -79,7 +73,6 @@ local function getNeckPosition(head)
         return neckAtt.WorldPosition
     end
 
-    -- Offset fixo no pescoço (sempre o mesmo ponto, longe ou perto)
     return (head.CFrame * CFrame.new(0, -0.5, 0)).Position
 end
 
@@ -90,17 +83,10 @@ local function setupDeathHandler(character)
         humanoid.Died:Connect(function()
             Enabled = false
             LockedTarget = nil
-            StarterGui:SetCore("SendNotification", {
-                Title = "Cam Lock",
-                Text = "Desativado automaticamente (você morreu)",
-                Icon = "rbxassetid://6031094678",
-                Duration = 3
-            })
         end)
     end
 end
 
--- ==================== INDICADOR (PESÇOÇO) ====================
 local function updateCamLockIndicator(targetPart)
     if not Enabled or not targetPart then
         for _, v in ipairs(camLockLines) do v.Visible = false end
@@ -114,7 +100,6 @@ local function updateCamLockIndicator(targetPart)
     local screenPos, onScreen = Camera:WorldToViewportPoint(neckPos)
     if not onScreen then return end
 
-    -- (tamanho do indicador escala com distância - só visual)
     local dist = (Camera.CFrame.Position - neckPos).Magnitude
     local charHeightStuds = 5.8
     local fovRad = math.rad(Camera.FieldOfView)
@@ -158,7 +143,6 @@ local function updateCamLockIndicator(targetPart)
     for _, v in ipairs(camLockCenterLines) do v.Visible = true end
 end
 
--- ==================== FIND CLOSEST + LOCK NO PESCOÇO ====================
 local function findClosestTarget()
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local closest, minDist = nil, math.huge
@@ -229,7 +213,6 @@ local function forceInstantReset()
     end
 end
 
--- ==================== BOTÃO + TECLA L ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -298,7 +281,6 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
--- ==================== HANDLER DE MORTE ====================
 if LocalPlayer.Character then
     setupDeathHandler(LocalPlayer.Character)
 end
@@ -308,7 +290,6 @@ LocalPlayer.CharacterAdded:Connect(function(character)
     setupDeathHandler(character)
 end)
 
--- ==================== LOOP PRINCIPAL ====================
 RunService.RenderStepped:Connect(function()
     if not Enabled then 
         return 
@@ -327,9 +308,8 @@ RunService.RenderStepped:Connect(function()
 
         local neckPos = getNeckPosition(LockedTarget)
         if neckPos then
-            -- === OFFSET PRA ESQUERDA APLICADO AQUI ===
             local rightVec = Camera.CFrame.RightVector
-            local targetPos = neckPos - (rightVec * CAMERA_LEFT_OFFSET)  -- move o ponto de mira pra esquerda
+            local targetPos = neckPos - (rightVec * CAMERA_LEFT_OFFSET)
 
             local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
             Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
