@@ -165,7 +165,7 @@ local indImage = Instance.new("ImageLabel")
 indImage.Size = UDim2.new(1, 0, 1, 0)
 indImage.BackgroundTransparency = 1
 indImage.Image = "rbxassetid://82817965256191"
-indImage.ImageTransparency = 0.1
+indImage.ImageTransparency = 0.3
 indImage.ImageColor3 = Color3.fromRGB(0, 255, 255)
 indImage.Parent = billboard
 
