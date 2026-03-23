@@ -18,8 +18,6 @@ local SEARCH_DISTANCE = 55
 
 local CAMERA_LEFT_OFFSET = -1.3
 
-local accentColor   = Color3.fromRGB(0,206,209)
-
 local lastSearchTime = 0
 local SEARCH_RATE    = 0.08
 
@@ -29,28 +27,6 @@ StarterGui:SetCore("SendNotification", {
     Icon = "rbxassetid://82817965256191",
     Duration = 5
 })
-
-local camLockLines = {}
-for _ = 1, 4 do
-    local line = Drawing.new("Line")
-    line.Thickness = 4.0
-    line.Color = accentColor
-    line.Transparency = 0.65
-    line.Visible = false
-    line.ZIndex = 1000
-    table.insert(camLockLines, line)
-end
-
-local camLockCenterLines = {}
-for _ = 1, 4 do
-    local line = Drawing.new("Line")
-    line.Thickness = 2.0
-    line.Color = accentColor
-    line.Transparency = 0.65
-    line.Visible = false
-    line.ZIndex = 1001
-    table.insert(camLockCenterLines, line)
-end
 
 local function getTargetPart(character)
     return character and character:FindFirstChild("Head")
@@ -85,62 +61,6 @@ local function setupDeathHandler(character)
             LockedTarget = nil
         end)
     end
-end
-
-local function updateCamLockIndicator(targetPart)
-    if not Enabled or not targetPart then
-        for _, v in ipairs(camLockLines) do v.Visible = false end
-        for _, v in ipairs(camLockCenterLines) do v.Visible = false end
-        return
-    end
-
-    local neckPos = getNeckPosition(targetPart)
-    if not neckPos then return end
-
-    local screenPos, onScreen = Camera:WorldToViewportPoint(neckPos)
-    if not onScreen then return end
-
-    local dist = (Camera.CFrame.Position - neckPos).Magnitude
-    local charHeightStuds = 5.8
-    local fovRad = math.rad(Camera.FieldOfView)
-    local projectedHeight = (charHeightStuds / dist) * (Camera.ViewportSize.Y / (2 * math.tan(fovRad / 2)))
-
-    local size = projectedHeight * 0.78
-    size = math.max(18, math.min(130, size))
-    local innerSize = size * (4 / 30)
-
-    local cX, cY = screenPos.X, screenPos.Y
-
-    local topPoint    = Vector2.new(cX, cY - size)
-    local rightPoint  = Vector2.new(cX + size, cY)
-    local bottomPoint = Vector2.new(cX, cY + size)
-    local leftPoint   = Vector2.new(cX - size, cY)
-
-    local gapFrac = 4 / 30
-
-    local dir = rightPoint - topPoint
-    camLockLines[1].From = topPoint + dir * gapFrac
-    camLockLines[1].To   = rightPoint - dir * gapFrac
-
-    dir = bottomPoint - rightPoint
-    camLockLines[2].From = rightPoint + dir * gapFrac
-    camLockLines[2].To   = bottomPoint - dir * gapFrac
-
-    dir = leftPoint - bottomPoint
-    camLockLines[3].From = bottomPoint + dir * gapFrac
-    camLockLines[3].To   = leftPoint - dir * gapFrac
-
-    dir = topPoint - leftPoint
-    camLockLines[4].From = leftPoint + dir * gapFrac
-    camLockLines[4].To   = topPoint - dir * gapFrac
-
-    camLockCenterLines[1].From = Vector2.new(cX, cY - innerSize)          camLockCenterLines[1].To = Vector2.new(cX + innerSize, cY)
-    camLockCenterLines[2].From = Vector2.new(cX + innerSize, cY)          camLockCenterLines[2].To = Vector2.new(cX, cY + innerSize)
-    camLockCenterLines[3].From = Vector2.new(cX, cY + innerSize)          camLockCenterLines[3].To = Vector2.new(cX - innerSize, cY)
-    camLockCenterLines[4].From = Vector2.new(cX - innerSize, cY)          camLockCenterLines[4].To = Vector2.new(cX, cY - innerSize)
-
-    for _, v in ipairs(camLockLines) do v.Visible = true end
-    for _, v in ipairs(camLockCenterLines) do v.Visible = true end
 end
 
 local function findClosestTarget()
@@ -213,6 +133,7 @@ local function forceInstantReset()
     end
 end
 
+-- ====================== UI ======================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -221,7 +142,7 @@ local toggleBtn = Instance.new("ImageButton")
 toggleBtn.Size = UDim2.new(0, 85, 0, 85)
 toggleBtn.Position = UDim2.new(1, -95, 0, 10)
 toggleBtn.BackgroundTransparency = 1
-toggleBtn.Image = "rbxassetid://73466246454364"
+toggleBtn.Image = "rbxassetid://110432273832755"   -- ← IMAGEM OFF
 toggleBtn.ScaleType = Enum.ScaleType.Fit
 toggleBtn.Visible = true
 toggleBtn.Parent = screenGui
@@ -230,15 +151,37 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = toggleBtn
 
+-- ================= INDICADOR NO TORSO (BillboardGui) =================
+local billboard = Instance.new("BillboardGui")
+billboard.Name = "LockOnIndicator"
+billboard.StudsOffset = Vector3.new(0, 0, 0)
+billboard.AlwaysOnTop = true
+billboard.LightInfluence = 0
+billboard.Enabled = false
+billboard.Parent = screenGui
+
+local indImage = Instance.new("ImageLabel")
+indImage.Size = UDim2.new(1, 0, 1, 0)
+indImage.BackgroundTransparency = 1
+indImage.Image = "rbxassetid://82817965256191"
+indImage.ImageTransparency = 0.1
+indImage.ImageColor3 = Color3.fromRGB(0, 255, 255)   -- ← CIANO
+indImage.Parent = billboard
+
+local indCorner = Instance.new("UICorner")
+indCorner.CornerRadius = UDim.new(1, 0)
+indCorner.Parent = indImage
+-- =====================================================================
+
 local function toggleEnabled()
     Enabled = not Enabled
     LockedTarget = nil
     
     if not Enabled then
-        updateCamLockIndicator(nil)
+        billboard.Enabled = false
     end
     
-    toggleBtn.Image = Enabled and "rbxassetid://113252099863593" or "rbxassetid://73466246454364"
+    toggleBtn.Image = Enabled and "rbxassetid://139332620449694" or "rbxassetid://110432273832755"
 end
 
 local origSize = toggleBtn.Size
@@ -313,11 +256,50 @@ RunService.RenderStepped:Connect(function()
 
             local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
             Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
-            updateCamLockIndicator(LockedTarget)
+        end
+    end
+
+    -- ================= ATUALIZA INDICADOR (CIANO + AJUSTE DINÂMICO POR DISTÂNCIA + TAMANHO DO HUMANOID DA CABEÇA AOS PÉS) =================
+    if LockedTarget and LockedTarget.Parent then
+        local character = LockedTarget.Parent
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+        
+        if rootPart then
+            -- ✅ INDICADOR AGORA SEGUE O TORSO (melhor posicionamento no peito)
+            local adorneePart = torso or rootPart
+            billboard.Adornee = adorneePart
+            billboard.Enabled = true
+            
+            -- 1. Escala do tamanho do Humanoid (AGORA COMPLETO: DA CABEÇA AOS PÉS)
+            local scaleFactor = 5.0  -- fallback médio
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local headPart = LockedTarget  -- já é a Head do alvo
+            
+            if humanoid and headPart and rootPart then
+                local feetY = rootPart.Position.Y - humanoid.HipHeight
+                local headTopY = headPart.Position.Y + (headPart.Size.Y / 2)
+                scaleFactor = headTopY - feetY
+            elseif torso then
+                scaleFactor = torso.Size.Y * 2.5  -- fallback aproximado
+            elseif rootPart then
+                scaleFactor = rootPart.Size.Y * 3.0
+            end
+            scaleFactor = math.clamp(scaleFactor, 3.0, 10.0)
+            
+            -- 2. Ajuste DINÂMICO por distância (fica GRANDE quando perto, pequeno quando longe)
+            local distance = (Camera.CFrame.Position - adorneePart.Position).Magnitude
+            local distanceMultiplier = 1400 / (distance + 8)   -- valor otimizado: \~180px perto, \~25px longe
+            
+            -- Tamanho final (combina tamanho completo do personagem + perspectiva)
+            local finalSize = distanceMultiplier * scaleFactor
+            
+            billboard.Size = UDim2.new(0, finalSize, 0, finalSize)
         else
-            updateCamLockIndicator(nil)
+            billboard.Enabled = false
         end
     else
-        updateCamLockIndicator(nil)
+        billboard.Enabled = false
     end
+    -- ===================================================================================================================
 end)
