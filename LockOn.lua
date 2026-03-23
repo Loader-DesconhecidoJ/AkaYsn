@@ -11,15 +11,15 @@ local LocalPlayer   = Players.LocalPlayer
 local Enabled       = false
 local LockedTarget  = nil
 
-local MAX_FOV       = 110
+local MAX_FOV       = 40
 local CamSmooth     = 0.82
 local MAX_DISTANCE  = 100
 local SEARCH_DISTANCE = 55
 
-local CAMERA_LEFT_OFFSET = -1.3
+local CAMERA_LEFT_OFFSET = -1.25
 
 local lastSearchTime = 0
-local SEARCH_RATE    = 0.08
+local SEARCH_RATE    = 0.25
 
 StarterGui:SetCore("SendNotification", {
     Title = "Lock On",
@@ -59,7 +59,7 @@ local function setupDeathHandler(character)
         humanoid.Died:Connect(function()
             Enabled = false
             LockedTarget = nil
-            forceInstantReset()  -- ← RESET INSTANTÂNEO AO MORRER
+            forceInstantReset()
         end)
     end
 end
@@ -165,7 +165,7 @@ local indImage = Instance.new("ImageLabel")
 indImage.Size = UDim2.new(1, 0, 1, 0)
 indImage.BackgroundTransparency = 1
 indImage.Image = "rbxassetid://82817965256191"
-indImage.ImageTransparency = 0.3
+indImage.ImageTransparency = 0.1
 indImage.ImageColor3 = Color3.fromRGB(0, 255, 255)
 indImage.Parent = billboard
 
@@ -177,11 +177,10 @@ local function toggleEnabled()
     Enabled = not Enabled
     
     if Enabled then
-        -- BUSCA INSTANTÂNEA AO ATIVAR (sem delay de 0.08s)
         LockedTarget = findClosestTarget()
     else
         LockedTarget = nil
-        forceInstantReset()  -- ← RESET INSTANTÂNEO AO DESATIVAR
+        forceInstantReset()
     end
     
     if not Enabled then
@@ -191,40 +190,40 @@ local function toggleEnabled()
     toggleBtn.Image = Enabled and "rbxassetid://139332620449694" or "rbxassetid://110432273832755"
 end
 
--- ================= ANIMAÇÃO DO BOTÃO =================
+-- ================= ANIMAÇÃO DO BOTÃO + DRAG (otimizado) =================
 local origSize = toggleBtn.Size
 local tweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine)
 
-toggleBtn.InputBegan:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        TweenService:Create(toggleBtn, tweenInfo, {Size = UDim2.new(origSize.X.Scale, origSize.X.Offset * 0.88, origSize.Y.Scale, origSize.Y.Offset * 0.88)}):Play()
-    end
-end)
-
-toggleBtn.InputEnded:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        TweenService:Create(toggleBtn, tweenInfo, {Size = origSize}):Play()
-    end
-end)
-
--- ================= DRAG DO BOTÃO =================
 local dragging, dragStart, startPos
-toggleBtn.InputBegan:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+
+local function handleInputBegan(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        TweenService:Create(toggleBtn, tweenInfo, {
+            Size = UDim2.new(origSize.X.Scale, origSize.X.Offset * 0.88, origSize.Y.Scale, origSize.Y.Offset * 0.88)
+        }):Play()
+        
         dragging = true
-        dragStart = inp.Position
+        dragStart = input.Position
         startPos = toggleBtn.Position
     end
-end)
+end
 
-toggleBtn.InputChanged:Connect(function(inp)
-    if dragging and (inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMovement) then
-        local delta = inp.Position - dragStart
+local function handleInputEnded(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        TweenService:Create(toggleBtn, tweenInfo, {Size = origSize}):Play()
+    end
+    dragging = false
+end
+
+toggleBtn.InputBegan:Connect(handleInputBegan)
+toggleBtn.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        local delta = input.Position - dragStart
         toggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
+toggleBtn.InputEnded:Connect(handleInputEnded)
 
-toggleBtn.InputEnded:Connect(function() dragging = false end)
 toggleBtn.MouseButton1Click:Connect(toggleEnabled)
 
 UserInputService.InputBegan:Connect(function(input)
@@ -238,14 +237,11 @@ if LocalPlayer.Character then
 end
 
 LocalPlayer.CharacterAdded:Connect(function(character)
-    -- forceInstantReset REMOVIDO (agora só funciona com alvo lockado)
     setupDeathHandler(character)
 end)
 
 RunService.RenderStepped:Connect(function()
-    if not Enabled then 
-        return 
-    end
+    if not Enabled then return end
 
     local now = tick()
     if now - lastSearchTime > SEARCH_RATE then
@@ -256,7 +252,7 @@ RunService.RenderStepped:Connect(function()
     end
 
     if LockedTarget and LockedTarget.Parent then
-        forceInstantReset()  -- ← SÓ AQUI (apenas quando tem alvo)
+        forceInstantReset()
 
         local neckPos = getNeckPosition(LockedTarget)
         if neckPos then
