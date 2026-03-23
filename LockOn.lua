@@ -11,7 +11,7 @@ local LocalPlayer   = Players.LocalPlayer
 local Enabled       = false
 local LockedTarget  = nil
 
-local MAX_FOV       = 40
+local MAX_FOV       = 50
 local CamSmooth     = 0.82
 local MAX_DISTANCE  = 100
 local SEARCH_DISTANCE = 55
