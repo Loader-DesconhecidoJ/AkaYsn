@@ -59,6 +59,7 @@ local function setupDeathHandler(character)
         humanoid.Died:Connect(function()
             Enabled = false
             LockedTarget = nil
+            forceInstantReset()  -- ← RESET INSTANTÂNEO AO MORRER
         end)
     end
 end
@@ -142,7 +143,7 @@ local toggleBtn = Instance.new("ImageButton")
 toggleBtn.Size = UDim2.new(0, 85, 0, 85)
 toggleBtn.Position = UDim2.new(1, -95, 0, 10)
 toggleBtn.BackgroundTransparency = 1
-toggleBtn.Image = "rbxassetid://110432273832755"   -- ← IMAGEM OFF
+toggleBtn.Image = "rbxassetid://110432273832755"
 toggleBtn.ScaleType = Enum.ScaleType.Fit
 toggleBtn.Visible = true
 toggleBtn.Parent = screenGui
@@ -151,7 +152,7 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = toggleBtn
 
--- ================= INDICADOR NO TORSO (BillboardGui) =================
+-- ================= INDICADOR NO TORSO =================
 local billboard = Instance.new("BillboardGui")
 billboard.Name = "LockOnIndicator"
 billboard.StudsOffset = Vector3.new(0, 0, 0)
@@ -165,17 +166,23 @@ indImage.Size = UDim2.new(1, 0, 1, 0)
 indImage.BackgroundTransparency = 1
 indImage.Image = "rbxassetid://82817965256191"
 indImage.ImageTransparency = 0.1
-indImage.ImageColor3 = Color3.fromRGB(0, 255, 255)   -- ← CIANO
+indImage.ImageColor3 = Color3.fromRGB(0, 255, 255)
 indImage.Parent = billboard
 
 local indCorner = Instance.new("UICorner")
 indCorner.CornerRadius = UDim.new(1, 0)
 indCorner.Parent = indImage
--- =====================================================================
 
 local function toggleEnabled()
     Enabled = not Enabled
-    LockedTarget = nil
+    
+    if Enabled then
+        -- BUSCA INSTANTÂNEA AO ATIVAR (sem delay de 0.08s)
+        LockedTarget = findClosestTarget()
+    else
+        LockedTarget = nil
+        forceInstantReset()  -- ← RESET INSTANTÂNEO AO DESATIVAR
+    end
     
     if not Enabled then
         billboard.Enabled = false
@@ -184,6 +191,7 @@ local function toggleEnabled()
     toggleBtn.Image = Enabled and "rbxassetid://139332620449694" or "rbxassetid://110432273832755"
 end
 
+-- ================= ANIMAÇÃO DO BOTÃO =================
 local origSize = toggleBtn.Size
 local tweenInfo = TweenInfo.new(0.09, Enum.EasingStyle.Sine)
 
@@ -199,6 +207,7 @@ toggleBtn.InputEnded:Connect(function(inp)
     end
 end)
 
+-- ================= DRAG DO BOTÃO =================
 local dragging, dragStart, startPos
 toggleBtn.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -229,7 +238,7 @@ if LocalPlayer.Character then
 end
 
 LocalPlayer.CharacterAdded:Connect(function(character)
-    forceInstantReset()
+    -- forceInstantReset REMOVIDO (agora só funciona com alvo lockado)
     setupDeathHandler(character)
 end)
 
@@ -247,7 +256,7 @@ RunService.RenderStepped:Connect(function()
     end
 
     if LockedTarget and LockedTarget.Parent then
-        forceInstantReset()
+        forceInstantReset()  -- ← SÓ AQUI (apenas quando tem alvo)
 
         local neckPos = getNeckPosition(LockedTarget)
         if neckPos then
@@ -259,39 +268,34 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- ================= ATUALIZA INDICADOR (CIANO + AJUSTE DINÂMICO POR DISTÂNCIA + TAMANHO DO HUMANOID DA CABEÇA AOS PÉS) =================
+    -- ================= ATUALIZA INDICADOR =================
     if LockedTarget and LockedTarget.Parent then
         local character = LockedTarget.Parent
         local rootPart = character:FindFirstChild("HumanoidRootPart")
         local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
         
         if rootPart then
-            -- ✅ INDICADOR AGORA SEGUE O TORSO (melhor posicionamento no peito)
             local adorneePart = torso or rootPart
             billboard.Adornee = adorneePart
             billboard.Enabled = true
             
-            -- 1. Escala do tamanho do Humanoid (AGORA COMPLETO: DA CABEÇA AOS PÉS)
-            local scaleFactor = 5.0  -- fallback médio
+            local scaleFactor = 5.0
             local humanoid = character:FindFirstChildOfClass("Humanoid")
-            local headPart = LockedTarget  -- já é a Head do alvo
+            local headPart = LockedTarget
             
             if humanoid and headPart and rootPart then
                 local feetY = rootPart.Position.Y - humanoid.HipHeight
                 local headTopY = headPart.Position.Y + (headPart.Size.Y / 2)
                 scaleFactor = headTopY - feetY
             elseif torso then
-                scaleFactor = torso.Size.Y * 2.5  -- fallback aproximado
+                scaleFactor = torso.Size.Y * 2.5
             elseif rootPart then
                 scaleFactor = rootPart.Size.Y * 3.0
             end
             scaleFactor = math.clamp(scaleFactor, 3.0, 10.0)
             
-            -- 2. Ajuste DINÂMICO por distância (fica GRANDE quando perto, pequeno quando longe)
             local distance = (Camera.CFrame.Position - adorneePart.Position).Magnitude
-            local distanceMultiplier = 1400 / (distance + 8)   -- valor otimizado: \~180px perto, \~25px longe
-            
-            -- Tamanho final (combina tamanho completo do personagem + perspectiva)
+            local distanceMultiplier = 1400 / (distance + 8)
             local finalSize = distanceMultiplier * scaleFactor
             
             billboard.Size = UDim2.new(0, finalSize, 0, finalSize)
@@ -301,5 +305,4 @@ RunService.RenderStepped:Connect(function()
     else
         billboard.Enabled = false
     end
-    -- ===================================================================================================================
 end)
