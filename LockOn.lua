@@ -10,12 +10,16 @@ local LocalPlayer   = Players.LocalPlayer
 
 local Enabled       = false
 local LockedTarget  = nil
-local lockMode      = 0
+local lockMode      = 0          -- 1 = Camera | 2 = Camera+Character | 3 = Character Only
 
 local CamSmooth     = 0.82
 local MAX_DISTANCE  = 100
 local SEARCH_DISTANCE = 55
-local CAMERA_LEFT_OFFSET = -1.25
+local CAMERA_LEFT_OFFSET = -1.27
+
+-- ====================== DISTÂNCIA PARA TROCA SUAVE (só câmera) ======================
+local FULL_NECK_DISTANCE = 22   -- acima disso → 100% pescoço
+local FULL_ROOT_DISTANCE = 7    -- abaixo disso → 100% RootPart
 
 local lastSearchTime = 0
 local SEARCH_RATE    = 0.25
@@ -26,9 +30,21 @@ screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+-- Carrega o modo salvo
 local savedMode = playerGui:FindFirstChild("SavedLockMode")
 if savedMode then
     lockMode = savedMode.Value
+end
+
+-- ====================== FLAGS ======================
+local isCameraMode   = false
+local isCharacterMode = false
+local showBillboard  = false
+
+local function updateModeFlags()
+    isCameraMode   = (lockMode == 1 or lockMode == 2)
+    isCharacterMode = (lockMode == 2 or lockMode == 3)
+    showBillboard  = (lockMode ~= 3)
 end
 
 local function getTargetPart(character)
@@ -55,6 +71,47 @@ local function getNeckPosition(head)
     return (head.CFrame * CFrame.new(0, -0.5, 0)).Position
 end
 
+-- ====================== TROCA SUAVE SÓ NA CÂMERA (Modos 1 e 2) ======================
+local function getCameraLockPosition(targetPart)
+    if not targetPart or not isCameraMode then
+        return getNeckPosition(targetPart)
+    end
+
+    local char = targetPart.Parent
+    if not char then return getNeckPosition(targetPart) end
+
+    local myChar = LocalPlayer.Character
+    if not myChar then return getNeckPosition(targetPart) end
+    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return getNeckPosition(targetPart) end
+
+    local targetRoot = char:FindFirstChild("HumanoidRootPart")
+    if not targetRoot then return getNeckPosition(targetPart) end
+
+    local neckPos = getNeckPosition(targetPart)
+    local rootPos = targetRoot.Position
+    local distance = (myRoot.Position - rootPos).Magnitude
+
+    if distance >= FULL_NECK_DISTANCE then
+        return neckPos
+    elseif distance <= FULL_ROOT_DISTANCE then
+        return rootPos
+    else
+        local t = (distance - FULL_ROOT_DISTANCE) / (FULL_NECK_DISTANCE - FULL_ROOT_DISTANCE)
+        return rootPos:Lerp(neckPos, t)
+    end
+end
+
+-- ====================== BILLBOARD SEMPRE NA POSIÇÃO ORIGINAL ======================
+-- (nunca muda pro RootPart, sempre fica no torso/pescoço como no script original)
+local function getLockAdornee(targetChar)
+    if not targetChar or not showBillboard then return nil end
+    -- Sempre usa a posição original (UpperTorso → Torso → RootPart)
+    return targetChar:FindFirstChild("UpperTorso") 
+        or targetChar:FindFirstChild("Torso") 
+        or targetChar:FindFirstChild("HumanoidRootPart")
+end
+
 local function setupDeathHandler(character)
     if not character then return end
     local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -62,7 +119,7 @@ local function setupDeathHandler(character)
         humanoid.Died:Connect(function()
             Enabled = false
             LockedTarget = nil
-            if lockMode == 1 or lockMode == 2 then
+            if isCameraMode then
                 forceInstantReset()
             end
         end)
@@ -143,6 +200,8 @@ local toggleBtn
 local billboard
 
 local function createToggleAndUI()
+    updateModeFlags()
+
     toggleBtn = Instance.new("ImageButton")
     toggleBtn.Size = UDim2.new(0, 85, 0, 85)
     toggleBtn.Position = UDim2.new(1, -95, 0, 10)
@@ -207,7 +266,7 @@ local function createToggleAndUI()
             LockedTarget = findClosestTarget()
         else
             LockedTarget = nil
-            if lockMode == 1 or lockMode == 2 then
+            if isCameraMode then
                 forceInstantReset()
             end
             if billboard then
@@ -227,7 +286,7 @@ local function createToggleAndUI()
 
     StarterGui:SetCore("SendNotification", {
         Title = "Lock On",
-        Text = "Lock On Test Recreation",
+        Text = "Modo " .. lockMode .. " ativado (Billboard sempre na posição original)",
         Icon = "rbxassetid://82817965256191",
         Duration = 5
     })
@@ -272,10 +331,7 @@ local function createLockModeMenu()
     btn1.TextSize = 18
     btn1.Font = Enum.Font.GothamSemibold
     btn1.Parent = menuFrame
-
-    local btn1Corner = Instance.new("UICorner")
-    btn1Corner.CornerRadius = UDim.new(0, 12)
-    btn1Corner.Parent = btn1
+    local btn1Corner = Instance.new("UICorner"); btn1Corner.CornerRadius = UDim.new(0, 12); btn1Corner.Parent = btn1
 
     local btn2 = Instance.new("TextButton")
     btn2.Size = UDim2.new(0.85, 0, 0, 55)
@@ -286,10 +342,7 @@ local function createLockModeMenu()
     btn2.TextSize = 18
     btn2.Font = Enum.Font.GothamSemibold
     btn2.Parent = menuFrame
-
-    local btn2Corner = Instance.new("UICorner")
-    btn2Corner.CornerRadius = UDim.new(0, 12)
-    btn2Corner.Parent = btn2
+    local btn2Corner = Instance.new("UICorner"); btn2Corner.CornerRadius = UDim.new(0, 12); btn2Corner.Parent = btn2
 
     local btn3 = Instance.new("TextButton")
     btn3.Size = UDim2.new(0.85, 0, 0, 55)
@@ -300,31 +353,22 @@ local function createLockModeMenu()
     btn3.TextSize = 18
     btn3.Font = Enum.Font.GothamSemibold
     btn3.Parent = menuFrame
+    local btn3Corner = Instance.new("UICorner"); btn3Corner.CornerRadius = UDim.new(0, 12); btn3Corner.Parent = btn3
 
-    local btn3Corner = Instance.new("UICorner")
-    btn3Corner.CornerRadius = UDim.new(0, 12)
-    btn3Corner.Parent = btn3
-
-    local tweenIn = TweenService:Create(menuFrame, TweenInfo.new(0.65, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 340, 0, 270)
-    })
+    local tweenIn = TweenService:Create(menuFrame, TweenInfo.new(0.65, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 340, 0, 270)})
     tweenIn:Play()
 
     local function escolherModo(modo)
-        local tweenOut = TweenService:Create(menuFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            Size = UDim2.new(0, 0, 0, 0)
-        })
+        local tweenOut = TweenService:Create(menuFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
         tweenOut:Play()
-
         tweenOut.Completed:Connect(function()
             menuFrame:Destroy()
-
+            lockMode = modo
+            updateModeFlags()
             local salvar = Instance.new("IntValue")
             salvar.Name = "SavedLockMode"
             salvar.Value = modo
             salvar.Parent = playerGui
-
-            lockMode = modo
             createToggleAndUI()
         end)
     end
@@ -334,19 +378,15 @@ local function createLockModeMenu()
     btn3.MouseButton1Click:Connect(function() escolherModo(3) end)
 end
 
+-- ====================== INÍCIO ======================
 if lockMode == 0 then
     createLockModeMenu()
 else
     createToggleAndUI()
 end
 
-if LocalPlayer.Character then
-    setupDeathHandler(LocalPlayer.Character)
-end
-
-LocalPlayer.CharacterAdded:Connect(function(character)
-    setupDeathHandler(character)
-end)
+if LocalPlayer.Character then setupDeathHandler(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(setupDeathHandler)
 
 RunService.RenderStepped:Connect(function()
     local character = LocalPlayer.Character
@@ -354,7 +394,8 @@ RunService.RenderStepped:Connect(function()
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if humanoid then
             local isLocking = LockedTarget and LockedTarget.Parent
-            if lockMode == 2 or lockMode == 3 then
+
+            if isCharacterMode then
                 if isLocking then
                     humanoid.AutoRotate = false
                     local rootPart = character:FindFirstChild("HumanoidRootPart")
@@ -385,6 +426,7 @@ RunService.RenderStepped:Connect(function()
         return
     end
 
+    -- Atualiza alvo
     local now = tick()
     if now - lastSearchTime > SEARCH_RATE then
         if not isValidTarget(LockedTarget) then
@@ -393,47 +435,47 @@ RunService.RenderStepped:Connect(function()
         lastSearchTime = now
     end
 
-    if LockedTarget and LockedTarget.Parent and (lockMode == 1 or lockMode == 2) then
+    -- ====================== CÂMERA (SÓ Modo 1 e 2) ======================
+    if LockedTarget and LockedTarget.Parent and isCameraMode then
         forceInstantReset()
 
-        local neckPos = getNeckPosition(LockedTarget)
-        if neckPos then
+        local lockPos = getCameraLockPosition(LockedTarget)  -- troca suave continua aqui
+        if lockPos then
             local rightVec = Camera.CFrame.RightVector
-            local targetPos = neckPos - (rightVec * CAMERA_LEFT_OFFSET)
+            local targetPos = lockPos - (rightVec * CAMERA_LEFT_OFFSET)
             local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
             Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
         end
     end
 
-    if LockedTarget and LockedTarget.Parent and lockMode ~= 3 then
-        local character = LockedTarget.Parent
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
-        
-        if rootPart then
-            local adorneePart = torso or rootPart
+    -- ====================== BILLBOARD (SÓ Modo 1 e 2) ======================
+    -- Agora SEMPRE na posição original (nunca muda pro RootPart)
+    if LockedTarget and LockedTarget.Parent and showBillboard then
+        local characterTarget = LockedTarget.Parent
+        local adorneePart = getLockAdornee(characterTarget)
+
+        if adorneePart then
             billboard.Adornee = adorneePart
             billboard.Enabled = true
-            
+
             local scaleFactor = 5.0
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local humanoid = characterTarget:FindFirstChildOfClass("Humanoid")
             local headPart = LockedTarget
-            
-            if humanoid and headPart and rootPart then
+
+            if humanoid and headPart and characterTarget:FindFirstChild("HumanoidRootPart") then
+                local rootPart = characterTarget:FindFirstChild("HumanoidRootPart")
                 local feetY = rootPart.Position.Y - humanoid.HipHeight
                 local headTopY = headPart.Position.Y + (headPart.Size.Y / 2)
                 scaleFactor = headTopY - feetY
-            elseif torso then
-                scaleFactor = torso.Size.Y * 2.5
-            elseif rootPart then
-                scaleFactor = rootPart.Size.Y * 3.0
+            elseif adorneePart then
+                scaleFactor = adorneePart.Size.Y * 2.5
             end
             scaleFactor = math.clamp(scaleFactor, 3.0, 10.0)
-            
+
             local distance = (Camera.CFrame.Position - adorneePart.Position).Magnitude
             local distanceMultiplier = 1400 / (distance + 8)
             local finalSize = distanceMultiplier * scaleFactor
-            
+
             billboard.Size = UDim2.new(0, finalSize, 0, finalSize)
         else
             billboard.Enabled = false
