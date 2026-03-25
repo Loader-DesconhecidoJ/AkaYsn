@@ -103,10 +103,8 @@ local function getCameraLockPosition(targetPart)
 end
 
 -- ====================== BILLBOARD SEMPRE NA POSIÇÃO ORIGINAL ======================
--- (nunca muda pro RootPart, sempre fica no torso/pescoço como no script original)
 local function getLockAdornee(targetChar)
     if not targetChar or not showBillboard then return nil end
-    -- Sempre usa a posição original (UpperTorso → Torso → RootPart)
     return targetChar:FindFirstChild("UpperTorso") 
         or targetChar:FindFirstChild("Torso") 
         or targetChar:FindFirstChild("HumanoidRootPart")
@@ -143,7 +141,7 @@ local function findClosestTarget()
 
     for _, part in ipairs(nearbyParts) do
         local char = part:FindFirstAncestorWhichIsA("Model")
-        if char and not checkedModels[char] and char ~= LocalPlayer.Character then
+        if char and char.Parent == Workspace and not checkedModels[char] and char ~= LocalPlayer.Character then
             checkedModels[char] = true
 
             local hum = char:FindFirstChildOfClass("Humanoid")
@@ -172,6 +170,9 @@ local function isValidTarget(targetPart)
     if not targetPart then return false end
     local char = targetPart.Parent
     if not char or not char:IsA("Model") then return false end
+    
+    -- Se o character saiu do Workspace (jogador saiu do jogo), invalida
+    if char.Parent ~= Workspace then return false end
 
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum or hum.Health <= 0 then return false end
@@ -286,7 +287,7 @@ local function createToggleAndUI()
 
     StarterGui:SetCore("SendNotification", {
         Title = "Lock On",
-        Text = "Modo " .. lockMode .. " ativado (Billboard sempre na posição original)",
+        Text = "Modo " .. lockMode .. " ativado (Toggle desliga automático se alvo sair)",
         Icon = "rbxassetid://82817965256191",
         Duration = 5
     })
@@ -426,10 +427,27 @@ RunService.RenderStepped:Connect(function()
         return
     end
 
-    -- Atualiza alvo
+    -- ====================== AUTO DESLIGA O TOGGLE QUANDO O ALVO SAI DO JOGO ======================
+    if LockedTarget and not isValidTarget(LockedTarget) then
+        LockedTarget = nil
+        Enabled = false
+        
+        if toggleBtn then
+            toggleBtn.Image = "rbxassetid://110432273832755"  -- imagem OFF
+        end
+        
+        if isCameraMode then
+            forceInstantReset()
+        end
+        if billboard then
+            billboard.Enabled = false
+        end
+    end
+
+    -- Atualiza alvo (só quando não tem alvo)
     local now = tick()
     if now - lastSearchTime > SEARCH_RATE then
-        if not isValidTarget(LockedTarget) then
+        if not LockedTarget then
             LockedTarget = findClosestTarget()
         end
         lastSearchTime = now
@@ -439,7 +457,7 @@ RunService.RenderStepped:Connect(function()
     if LockedTarget and LockedTarget.Parent and isCameraMode then
         forceInstantReset()
 
-        local lockPos = getCameraLockPosition(LockedTarget)  -- troca suave continua aqui
+        local lockPos = getCameraLockPosition(LockedTarget)
         if lockPos then
             local rightVec = Camera.CFrame.RightVector
             local targetPos = lockPos - (rightVec * CAMERA_LEFT_OFFSET)
@@ -449,7 +467,6 @@ RunService.RenderStepped:Connect(function()
     end
 
     -- ====================== BILLBOARD (SÓ Modo 1 e 2) ======================
-    -- Agora SEMPRE na posição original (nunca muda pro RootPart)
     if LockedTarget and LockedTarget.Parent and showBillboard then
         local characterTarget = LockedTarget.Parent
         local adorneePart = getLockAdornee(characterTarget)
