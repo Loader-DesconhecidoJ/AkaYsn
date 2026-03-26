@@ -12,14 +12,18 @@ local Enabled       = false
 local LockedTarget  = nil
 local lockMode      = 0          -- 1 = Camera | 2 = Camera+Character | 3 = Character Only
 
-local CamSmooth     = 0.85
+local CamSmooth     = 0.85       -- suavidade da câmera (pode deixar como está)
+local CharSmooth    = 0.95      -- ← NOVO: suavidade do character (Modo 2)
+                                 -- Quanto MENOR o valor → mais suave / menos agressivo
+                                 -- Recomendo entre 0.25 \~ 0.40
+
 local MAX_DISTANCE  = 100
 local SEARCH_DISTANCE = 55
 local CAMERA_LEFT_OFFSET = -1.27
 
 -- ====================== DISTÂNCIA PARA TROCA SUAVE (só câmera) ======================
-local FULL_NECK_DISTANCE = 22   -- acima disso → 100% pescoço
-local FULL_ROOT_DISTANCE = 7    -- abaixo disso → 100% RootPart
+local FULL_NECK_DISTANCE = 22
+local FULL_ROOT_DISTANCE = 7
 
 local lastSearchTime = 0
 local SEARCH_RATE    = 0.25
@@ -71,7 +75,6 @@ local function getNeckPosition(head)
     return (head.CFrame * CFrame.new(0, -0.5, 0)).Position
 end
 
--- ====================== TROCA SUAVE SÓ NA CÂMERA (Modos 1 e 2) ======================
 local function getCameraLockPosition(targetPart)
     if not targetPart or not isCameraMode then
         return getNeckPosition(targetPart)
@@ -102,11 +105,8 @@ local function getCameraLockPosition(targetPart)
     end
 end
 
--- ====================== BILLBOARD SEMPRE NA POSIÇÃO ORIGINAL ======================
--- (nunca muda pro RootPart, sempre fica no torso/pescoço como no script original)
 local function getLockAdornee(targetChar)
     if not targetChar or not showBillboard then return nil end
-    -- Sempre usa a posição original (UpperTorso → Torso → RootPart)
     return targetChar:FindFirstChild("UpperTorso") 
         or targetChar:FindFirstChild("Torso") 
         or targetChar:FindFirstChild("HumanoidRootPart")
@@ -286,7 +286,7 @@ local function createToggleAndUI()
 
     StarterGui:SetCore("SendNotification", {
         Title = "Lock On",
-        Text = "Modo " .. lockMode .. " ativado (Billboard sempre na posição original)",
+        Text = "Modo " .. lockMode .. " ativado (Character mais suave no Modo 2)",
         Icon = "rbxassetid://82817965256191",
         Duration = 5
     })
@@ -408,7 +408,9 @@ RunService.RenderStepped:Connect(function()
                             if mag > 0.1 then
                                 horizontalDir = horizontalDir / mag
                                 local targetCFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + horizontalDir)
-                                rootPart.CFrame = rootPart.CFrame:Lerp(targetCFrame, CamSmooth)
+                                
+                                -- AQUI está a mudança: agora usa CharSmooth (muito mais suave)
+                                rootPart.CFrame = rootPart.CFrame:Lerp(targetCFrame, CharSmooth)
                             end
                         end
                     end
@@ -435,11 +437,11 @@ RunService.RenderStepped:Connect(function()
         lastSearchTime = now
     end
 
-    -- ====================== CÂMERA (SÓ Modo 1 e 2) ======================
+    -- ====================== CÂMERA (Modos 1 e 2) ======================
     if LockedTarget and LockedTarget.Parent and isCameraMode then
         forceInstantReset()
 
-        local lockPos = getCameraLockPosition(LockedTarget)  -- troca suave continua aqui
+        local lockPos = getCameraLockPosition(LockedTarget)
         if lockPos then
             local rightVec = Camera.CFrame.RightVector
             local targetPos = lockPos - (rightVec * CAMERA_LEFT_OFFSET)
@@ -448,8 +450,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- ====================== BILLBOARD (SÓ Modo 1 e 2) ======================
-    -- Agora SEMPRE na posição original (nunca muda pro RootPart)
+    -- ====================== BILLBOARD ======================
     if LockedTarget and LockedTarget.Parent and showBillboard then
         local characterTarget = LockedTarget.Parent
         local adorneePart = getLockAdornee(characterTarget)
