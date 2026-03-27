@@ -13,7 +13,7 @@ local LockedTarget  = nil
 local lockMode      = 0          -- 1 = Camera | 2 = Camera+Character | 3 = Character Only
 
 local CamSmooth     = 0.85       -- suavidade da câmera (pode deixar como está)
-local CharSmooth    = 0.95      -- ← NOVO: suavidade do character (Modo 2)
+local CharSmooth    = 1     -- ← NOVO: suavidade do character (Modo 2)
                                  -- Quanto MENOR o valor → mais suave / menos agressivo
                                  -- Recomendo entre 0.25 \~ 0.40
 
@@ -226,7 +226,7 @@ local function createToggleAndUI()
     local indImage = Instance.new("ImageLabel")
     indImage.Size = UDim2.new(1, 0, 1, 0)
     indImage.BackgroundTransparency = 1
-    indImage.Image = "rbxassetid://82817965256191"
+    indImage.Image = "rbxassetid://100230908593841"
     indImage.ImageTransparency = 0.1
     indImage.ImageColor3 = Color3.fromRGB(0, 255, 255)
     indImage.Parent = billboard
