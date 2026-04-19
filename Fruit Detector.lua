@@ -1,68 +1,83 @@
--- ================================================
--- LOCALIZADOR DE FRUTAS - Blox Fruits (2026)
--- AGORA DETECTA TOOL + MODEL + SEM LAG + MENU MINI
--- ================================================
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
 local fruitData = {
-	["Rocket"] = {rarity = "Comum", color = Color3.fromRGB(170, 170, 170)},
-	["Spin"] = {rarity = "Comum", color = Color3.fromRGB(170, 170, 170)},
-	["Blade"] = {rarity = "Comum", color = Color3.fromRGB(170, 170, 170)},
-	["Spring"] = {rarity = "Comum", color = Color3.fromRGB(170, 170, 170)},
-	["Bomb"] = {rarity = "Comum", color = Color3.fromRGB(170, 170, 170)},
-	["Smoke"] = {rarity = "Comum", color = Color3.fromRGB(170, 170, 170)},
-	["Spike"] = {rarity = "Comum", color = Color3.fromRGB(170, 170, 170)},
+	["Rocket"] = {rarity = "Common",    color = Color3.fromRGB(170, 170, 170), icon = "⭐"},
+	["Spin"]   = {rarity = "Common",    color = Color3.fromRGB(170, 170, 170), icon = "⭐"},
+	["Blade"]  = {rarity = "Common",    color = Color3.fromRGB(170, 170, 170), icon = "⭐"},
+	["Spring"] = {rarity = "Common",    color = Color3.fromRGB(170, 170, 170), icon = "⭐"},
+	["Bomb"]   = {rarity = "Common",    color = Color3.fromRGB(170, 170, 170), icon = "⭐"},
+	["Smoke"]  = {rarity = "Common",    color = Color3.fromRGB(170, 170, 170), icon = "⭐"},
+	["Spike"]  = {rarity = "Common",    color = Color3.fromRGB(170, 170, 170), icon = "⭐"},
 
-	["Flame"] = {rarity = "Incomum", color = Color3.fromRGB(0, 170, 255)},
-	["Ice"] = {rarity = "Incomum", color = Color3.fromRGB(0, 170, 255)},
-	["Sand"] = {rarity = "Incomum", color = Color3.fromRGB(0, 170, 255)},
-	["Dark"] = {rarity = "Incomum", color = Color3.fromRGB(0, 170, 255)},
-	["Eagle"] = {rarity = "Incomum", color = Color3.fromRGB(0, 170, 255)},
-	["Diamond"] = {rarity = "Incomum", color = Color3.fromRGB(0, 170, 255)},
+	["Flame"]    = {rarity = "Uncommon", color = Color3.fromRGB(0, 170, 255), icon = "🔥"},
+	["Ice"]      = {rarity = "Uncommon", color = Color3.fromRGB(0, 170, 255), icon = "🔥"},
+	["Sand"]     = {rarity = "Uncommon", color = Color3.fromRGB(0, 170, 255), icon = "🔥"},
+	["Dark"]     = {rarity = "Uncommon", color = Color3.fromRGB(0, 170, 255), icon = "🔥"},
+	["Eagle"]    = {rarity = "Uncommon", color = Color3.fromRGB(0, 170, 255), icon = "🔥"},
+	["Diamond"]  = {rarity = "Uncommon", color = Color3.fromRGB(0, 170, 255), icon = "🔥"},
 
-	["Light"] = {rarity = "Raro", color = Color3.fromRGB(0, 255, 100)},
-	["Rubber"] = {rarity = "Raro", color = Color3.fromRGB(0, 255, 100)},
-	["Ghost"] = {rarity = "Raro", color = Color3.fromRGB(0, 255, 100)},
-	["Magma"] = {rarity = "Raro", color = Color3.fromRGB(0, 255, 100)},
+	["Light"]  = {rarity = "Rare", color = Color3.fromRGB(0, 255, 100), icon = "💎"},
+	["Rubber"] = {rarity = "Rare", color = Color3.fromRGB(0, 255, 100), icon = "💎"},
+	["Ghost"]  = {rarity = "Rare", color = Color3.fromRGB(0, 255, 100), icon = "💎"},
+	["Magma"]  = {rarity = "Rare", color = Color3.fromRGB(0, 255, 100), icon = "💎"},
 
-	["Quake"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
-	["Buddha"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
-	["Love"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
-	["Creation"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
-	["Spider"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
-	["Sound"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
-	["Phoenix"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
-	["Portal"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
-	["Lightning"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
-	["Pain"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
-	["Blizzard"] = {rarity = "Lendário", color = Color3.fromRGB(180, 0, 255)},
+	["Quake"]     = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
+	["Buddha"]    = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
+	["Love"]      = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
+	["Creation"]  = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
+	["Spider"]    = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
+	["Sound"]     = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
+	["Phoenix"]   = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
+	["Portal"]    = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
+	["Lightning"] = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
+	["Pain"]      = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
+	["Blizzard"]  = {rarity = "Legendary", color = Color3.fromRGB(180, 0, 255), icon = "👑"},
 
-	["Gravity"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Mammoth"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["T-Rex"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Dough"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Shadow"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Venom"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Gas"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Spirit"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Tiger"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Yeti"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Kitsune"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Control"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
-	["Dragon"] = {rarity = "Mítico", color = Color3.fromRGB(255, 180, 0)},
+	["Gravity"] = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Mammoth"] = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["T-Rex"]   = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Dough"]   = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Shadow"]  = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Venom"]   = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Gas"]     = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Spirit"]  = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Tiger"]   = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Yeti"]    = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Kitsune"] = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Control"] = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
+	["Dragon"]  = {rarity = "Mythic", color = Color3.fromRGB(255, 180, 0), icon = "🌟"},
 }
+
+local FRUIT_LIFETIME = 480
 
 local isEnabled = true
 local permanentlyDisabled = false
 local mainGui = nil
 local promptGui = nil
+local miniMap = nil
 local updateConnection = nil
+
+local activeFruits = {}
 local seenFruits = {}
-local lastUpdate = 0
+local settings = {
+	enabled = true,
+	menuPosition = UDim2.new(0.5, 0, 0, 10)
+}
+
+local menuVisible = false
+local menuTweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+if getgenv().FruitLocator_Settings then
+	settings = getgenv().FruitLocator_Settings
+	isEnabled = settings.enabled
+else
+	getgenv().FruitLocator_Settings = settings
+end
 
 local function getFruitPosition(fruit)
 	if not fruit then return nil end
@@ -70,239 +85,497 @@ local function getFruitPosition(fruit)
 	if handle and handle:IsA("BasePart") then return handle.Position end
 	local primary = fruit.PrimaryPart
 	if primary then return primary.Position end
-	local anyPart = fruit:FindFirstChildWhichIsA("BasePart")
-	if anyPart then return anyPart.Position end
+	local any = fruit:FindFirstChildWhichIsA("BasePart")
+	if any then return any.Position end
 	return fruit:GetPivot().Position
 end
 
-local function triggerRareNotification(fruitName, rarity)
-	if not mainGui or not mainGui.ScreenGui then return end
+local function sendPremiumNotification(fruitName, rarity, distance)
+	local color = rarity == "Mythic" and "🌟" or rarity == "Legendary" and "👑" or "🍎"
+	StarterGui:SetCore("SendNotification", {
+		Title = "🍎 FRUIT DETECTED",
+		Text = string.format("[%s] %s %s • %.0fm", color, rarity:upper(), fruitName, distance),
+		Duration = 10,
+	})
+end
+
+local function triggerRareNotification(fruitName, rarity, distance)
+	if rarity ~= "Legendary" and rarity ~= "Mythic" then return end
+	
 	local sound = Instance.new("Sound")
 	sound.SoundId = "rbxassetid://12221967"
-	sound.Volume = 0.8
-	sound.Parent = mainGui.ScreenGui
+	sound.Volume = 0.9
+	sound.Parent = game:GetService("SoundService")
 	sound:Play()
-	task.delay(3, function() if sound then sound:Destroy() end end)
-	print("🚨 NOVA " .. rarity .. ": " .. fruitName .. "!")
+	task.delay(3, function() sound:Destroy() end)
+	
+	sendPremiumNotification(fruitName, rarity, distance)
+end
+
+local function createHighlight(fruit, color)
+	if fruit:FindFirstChild("FruitHighlight") then return end
+	local hl = Instance.new("Highlight")
+	hl.Name = "FruitHighlight"
+	hl.FillColor = color
+	hl.OutlineColor = Color3.fromRGB(255,255,255)
+	hl.FillTransparency = 0.7
+	hl.OutlineTransparency = 0.3
+	hl.Parent = fruit
+	activeFruits[fruit].highlight = hl
 end
 
 local function createMainMenu()
 	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "FruitLocatorGui"
+	screenGui.Name = "FruitLocatorPremium"
 	screenGui.ResetOnSpawn = false
 	screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 	local frame = Instance.new("Frame")
 	frame.Name = "MainFrame"
-	frame.Size = UDim2.new(0.22, 0, 0, 110)
-	frame.Position = UDim2.new(0.5, 0, 0, 10)
+	frame.Size = UDim2.new(0.18, 0, 0, 95)
+	frame.Position = settings.menuPosition
 	frame.AnchorPoint = Vector2.new(0.5, 0)
-	frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	frame.BackgroundTransparency = 0.35
+	frame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+	frame.BackgroundTransparency = 0.25
 	frame.BorderSizePixel = 0
-	frame.Visible = true
+	frame.Visible = false
 	frame.Parent = screenGui
 
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(40,40,45)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(10,10,12))
+	}
+	gradient.Rotation = 90
+	gradient.Parent = frame
+
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(0, 255, 255)
-	stroke.Thickness = 2
-	stroke.Transparency = 0.3
+	stroke.Color = Color3.fromRGB(200, 205, 210)
+	stroke.Thickness = 2.5
+	stroke.Transparency = 0.2
 	stroke.Parent = frame
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
+	corner.CornerRadius = UDim.new(0, 12)
 	corner.Parent = frame
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0, 26)
+	title.Size = UDim2.new(1, 0, 0, 28)
 	title.BackgroundTransparency = 1
-	title.Text = "🍎 0 FRUTAS 🍎"
-	title.TextColor3 = Color3.fromRGB(0, 255, 255)
+	title.Text = "🍎 0 FRUITS 🍎"
+	title.TextColor3 = Color3.fromRGB(230, 230, 235)
 	title.TextScaled = true
-	title.Font = Enum.Font.GothamBold
+	title.Font = Enum.Font.GothamBlack
 	title.Parent = frame
 
 	local titleStroke = Instance.new("UIStroke")
-	titleStroke.Color = Color3.fromRGB(0, 255, 255)
-	titleStroke.Thickness = 0.8
+	titleStroke.Color = Color3.fromRGB(120, 200, 255)
+	titleStroke.Thickness = 1
 	titleStroke.Parent = title
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Name = "Scroll"
-	scroll.Size = UDim2.new(1, -10, 1, -32)
-	scroll.Position = UDim2.new(0, 5, 0, 28)
+	scroll.Size = UDim2.new(1, -12, 1, -34)
+	scroll.Position = UDim2.new(0, 6, 0, 30)
 	scroll.BackgroundTransparency = 1
-	scroll.ScrollBarThickness = 3
-	scroll.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 255)
+	scroll.ScrollBarThickness = 2
+	scroll.ScrollBarImageColor3 = Color3.fromRGB(120, 200, 255)
 	scroll.Parent = frame
 
 	local listLayout = Instance.new("UIListLayout")
 	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	listLayout.Padding = UDim.new(0, 3)
+	listLayout.Padding = UDim.new(0, 4)
 	listLayout.Parent = scroll
+
+	local dragging = false
+	title.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			local mouse = LocalPlayer:GetMouse()
+			local offset = Vector2.new(frame.Position.X.Offset - mouse.X, frame.Position.Y.Offset - mouse.Y)
+			local conn
+			conn = RunService.RenderStepped:Connect(function()
+				if dragging then
+					frame.Position = UDim2.new(0, mouse.X + offset.X, 0, mouse.Y + offset.Y)
+				else
+					conn:Disconnect()
+				end
+			end)
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+					settings.menuPosition = frame.Position
+					getgenv().FruitLocator_Settings = settings
+				end
+			end)
+		end
+	end)
 
 	mainGui = {ScreenGui = screenGui, Frame = frame, Scroll = scroll, Title = title}
 	return mainGui
 end
 
-local function updateFruitList()
-	if not mainGui or not isEnabled then return end
-	if tick() - lastUpdate < 0.25 then return end
-	lastUpdate = tick()
+local function createMiniMap()
+	local frame = Instance.new("Frame")
+	frame.Name = "MiniMap"
+	frame.Size = UDim2.new(0, 85, 0, 85)
+	frame.Position = UDim2.new(0, 15, 0, 25)
+	frame.BackgroundColor3 = Color3.fromRGB(6, 8, 12)
+	frame.BackgroundTransparency = 0.35
+	frame.Parent = mainGui.ScreenGui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = frame
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(100, 180, 255)
+	stroke.Thickness = 2.5
+	stroke.Parent = frame
+
+	local inner = Instance.new("Frame")
+	inner.Size = UDim2.new(1, -12, 1, -12)
+	inner.Position = UDim2.new(0.5, 0, 0.5, 0)
+	inner.AnchorPoint = Vector2.new(0.5, 0.5)
+	inner.BackgroundTransparency = 1
+	inner.Parent = frame
+
+	local innerCorner = Instance.new("UICorner")
+	innerCorner.CornerRadius = UDim.new(1, 0)
+	innerCorner.Parent = inner
+
+	-- RADAR RINGS
+	for i = 1, 3 do
+		local ring = Instance.new("Frame")
+		ring.BackgroundTransparency = 1
+		ring.Size = UDim2.new(1 - (i * 0.24), 0, 1 - (i * 0.24), 0)
+		ring.Position = UDim2.new(0.5, 0, 0.5, 0)
+		ring.AnchorPoint = Vector2.new(0.5, 0.5)
+		ring.Parent = frame
+
+		local ringCorner = Instance.new("UICorner")
+		ringCorner.CornerRadius = UDim.new(1, 0)
+		ringCorner.Parent = ring
+
+		local ringStroke = Instance.new("UIStroke")
+		ringStroke.Color = Color3.fromRGB(80, 160, 255)
+		ringStroke.Thickness = 1.1
+		ringStroke.Transparency = 0.65
+		ringStroke.Parent = ring
+	end
+
+	-- PLAYER FACING ARROW (sempre apontando para cima = direção que você está olhando)
+	local playerArrow = Instance.new("TextLabel")
+	playerArrow.Name = "PlayerArrow"
+	playerArrow.Size = UDim2.new(0, 24, 0, 24)
+	playerArrow.Position = UDim2.new(0.5, -12, 0.5, -12)
+	playerArrow.BackgroundTransparency = 1
+	playerArrow.Text = "▲"
+	playerArrow.TextColor3 = Color3.fromRGB(0, 255, 120)
+	playerArrow.TextScaled = true
+	playerArrow.Font = Enum.Font.GothamBold
+	playerArrow.ZIndex = 10
+	playerArrow.Parent = frame
+
+	miniMap = {Frame = frame, Dots = {}}
+end
+
+local function updateMiniMap(rootPos, foundFruits)
+	if not miniMap then return end
+	for _, dot in pairs(miniMap.Dots) do 
+		if dot and dot.Parent then dot:Destroy() end 
+	end
+	miniMap.Dots = {}
+
+	local scale = 36
 
 	local character = LocalPlayer.Character
 	if not character or not character:FindFirstChild("HumanoidRootPart") then 
-		mainGui.Frame.Visible = false
+		return 
+	end
+
+	local rootCFrame = character.HumanoidRootPart.CFrame
+	local rightVec = rootCFrame.RightVector
+	local forwardVec = rootCFrame.LookVector
+
+	-- Fruit dots (o minimapa gira automaticamente conforme a direção que você olha)
+	for _, fruit in ipairs(foundFruits) do
+		local fruitPos = getFruitPosition(fruit.model)
+		if fruitPos then
+			local rel = fruitPos - rootPos
+			local dist = rel.Magnitude
+			if dist > 1 then
+				local localX = rel:Dot(rightVec)
+				local localForward = rel:Dot(forwardVec)
+
+				local factor = math.min(dist, 400) / 400 * scale
+				local mapX = (localX / dist) * factor
+				local mapZ = - (localForward / dist) * factor
+
+				local dot = Instance.new("Frame")
+				dot.Size = UDim2.new(0, 6, 0, 6)
+				dot.Position = UDim2.new(0.5, mapX, 0.5, mapZ)
+				dot.BackgroundColor3 = fruit.color
+				dot.BorderSizePixel = 0
+				dot.Parent = miniMap.Frame
+
+				local dotCorner = Instance.new("UICorner")
+				dotCorner.CornerRadius = UDim.new(1,0)
+				dotCorner.Parent = dot
+
+				table.insert(miniMap.Dots, dot)
+			end
+		end
+	end
+end
+
+local function showMenu()
+	if menuVisible then return end
+	menuVisible = true
+	local targetPosition = settings.menuPosition
+	mainGui.Frame.Position = UDim2.new(targetPosition.X.Scale, targetPosition.X.Offset, targetPosition.Y.Scale, targetPosition.Y.Offset - 150)
+	mainGui.Frame.Visible = true
+	local tween = TweenService:Create(mainGui.Frame, menuTweenInfo, {Position = targetPosition})
+	tween:Play()
+end
+
+local function hideMenu()
+	if not menuVisible then return end
+	menuVisible = false
+	local targetPosition = settings.menuPosition
+	local offscreenPos = UDim2.new(targetPosition.X.Scale, targetPosition.X.Offset, targetPosition.Y.Scale, targetPosition.Y.Offset - 150)
+	local tween = TweenService:Create(mainGui.Frame, menuTweenInfo, {Position = offscreenPos})
+	tween:Play()
+	tween.Completed:Connect(function(playbackState)
+		if playbackState == Enum.PlaybackState.Completed and not menuVisible then
+			mainGui.Frame.Visible = false
+		end
+	end)
+end
+
+local function updateFruitList()
+	if not mainGui or not isEnabled then return end
+
+	local character = LocalPlayer.Character
+	if not character or not character:FindFirstChild("HumanoidRootPart") then 
+		if menuVisible then hideMenu() end
 		return 
 	end
 
 	local rootPos = character.HumanoidRootPart.Position
 	local foundFruits = {}
-	local seenObjects = {}
 
-	-- 1. Frutas no workspace (dropadas ou no mapa)
-	for _, obj in ipairs(workspace:GetChildren()) do
-		if (obj:IsA("Model") or obj:IsA("Tool")) and fruitData[obj.Name] and not seenObjects[obj] then
-			seenObjects[obj] = true
-			if obj:FindFirstChild("Handle") then
-				local fruitPos = getFruitPosition(obj)
-				if fruitPos then
-					local distance = (rootPos - fruitPos).Magnitude
-					table.insert(foundFruits, {
-						name = obj.Name,
-						rarity = fruitData[obj.Name].rarity,
-						color = fruitData[obj.Name].color,
-						distance = distance,
-						object = obj
-					})
-				end
-			end
-		end
-	end
+	for fruit, data in pairs(activeFruits) do
+		if fruit and fruit.Parent then
+			local fruitPos = getFruitPosition(fruit)
+			if fruitPos then
+				local distance = (rootPos - fruitPos).Magnitude
+				local timeLeft = math.max(0, FRUIT_LIFETIME - (os.time() - data.spawnTime))
 
-	-- 2. Frutas spawnadas no DevilFruitSpawner
-	local spawner = workspace:FindFirstChild("DevilFruitSpawner")
-	if spawner then
-		local spawnedFolder = spawner:FindFirstChild("SpawnedDFS") or spawner
-		for _, obj in ipairs(spawnedFolder:GetChildren()) do
-			if (obj:IsA("Model") or obj:IsA("Tool")) and fruitData[obj.Name] and not seenObjects[obj] then
-				seenObjects[obj] = true
-				if obj:FindFirstChild("Handle") then
-					local fruitPos = getFruitPosition(obj)
-					if fruitPos then
-						local distance = (rootPos - fruitPos).Magnitude
-						table.insert(foundFruits, {
-							name = obj.Name,
-							rarity = fruitData[obj.Name].rarity,
-							color = fruitData[obj.Name].color,
-							distance = distance,
-							object = obj
-						})
-					end
-				end
+				table.insert(foundFruits, {
+					name = fruit.Name,
+					rarity = fruitData[data.baseName].rarity,
+					color = fruitData[data.baseName].color,
+					icon = fruitData[data.baseName].icon,
+					distance = distance,
+					timeLeft = timeLeft,
+					model = fruit
+				})
 			end
+		else
+			if data.highlight then data.highlight:Destroy() end
+			activeFruits[fruit] = nil
 		end
 	end
 
 	table.sort(foundFruits, function(a, b) return a.distance < b.distance end)
 
-	mainGui.Frame.Visible = true
-	mainGui.Title.Text = string.format("🍎 %d FRUTAS 🍎", #foundFruits)
+	mainGui.Title.Text = string.format("🍎 %d FRUITS 🍎", #foundFruits)
 
-	-- Limpa lista
-	for _, child in ipairs(mainGui.Scroll:GetChildren()) do
-		if child:IsA("Frame") and child.Name == "FruitRow" then child:Destroy() end
-	end
+	local shouldShow = #foundFruits > 0
 
-	local newSeen = {}
-	for _, fruit in ipairs(foundFruits) do
-		local fruitObject = fruit.object
-		newSeen[fruitObject] = true
-
-		if (fruit.rarity == "Lendário" or fruit.rarity == "Mítico") and not seenFruits[fruitObject] then
-			triggerRareNotification(fruit.name, fruit.rarity)
+	if shouldShow then
+		for _, child in ipairs(mainGui.Scroll:GetChildren()) do
+			if child:IsA("Frame") and child.Name == "FruitRow" then child:Destroy() end
 		end
 
-		local row = Instance.new("Frame")
-		row.Name = "FruitRow"
-		row.Size = UDim2.new(1, 0, 0, 22)
-		row.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-		row.BackgroundTransparency = 0.75
-		row.Parent = mainGui.Scroll
+		local newSeen = {}
+		for _, fruit in ipairs(foundFruits) do
+			local fruitModel = fruit.model
+			newSeen[fruitModel] = true
 
-		local rowStroke = Instance.new("UIStroke")
-		rowStroke.Color = Color3.fromRGB(0, 255, 255)
-		rowStroke.Thickness = 1
-		rowStroke.Transparency = 0.6
-		rowStroke.Parent = row
-
-		local rowCorner = Instance.new("UICorner")
-		rowCorner.CornerRadius = UDim.new(0, 6)
-		rowCorner.Parent = row
-
-		local rowLayout = Instance.new("UIListLayout")
-		rowLayout.FillDirection = Enum.FillDirection.Horizontal
-		rowLayout.Padding = UDim.new(0, 5)
-		rowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-		rowLayout.Parent = row
-
-		local infoLabel = Instance.new("TextLabel")
-		infoLabel.Size = UDim2.new(0.68, 0, 1, 0)
-		infoLabel.BackgroundTransparency = 1
-		infoLabel.Text = string.format("%s • %.0fm", fruit.name, fruit.distance)
-		infoLabel.TextColor3 = fruit.color
-		infoLabel.TextXAlignment = Enum.TextXAlignment.Left
-		infoLabel.TextScaled = true
-		infoLabel.Font = Enum.Font.GothamSemibold
-		infoLabel.Parent = row
-
-		local infoPadding = Instance.new("UIPadding")
-		infoPadding.PaddingLeft = UDim.new(0, 6)
-		infoPadding.Parent = infoLabel
-
-		local tpBtn = Instance.new("TextButton")
-		tpBtn.Size = UDim2.new(0.28, 0, 1, 0)
-		tpBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-		tpBtn.Text = "TP"
-		tpBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-		tpBtn.TextScaled = true
-		tpBtn.Font = Enum.Font.GothamBold
-		tpBtn.Parent = row
-
-		local btnCorner = Instance.new("UICorner")
-		btnCorner.CornerRadius = UDim.new(0, 6)
-		btnCorner.Parent = tpBtn
-
-		tpBtn.MouseButton1Click:Connect(function()
-			local char = LocalPlayer.Character
-			if char and char:FindFirstChild("HumanoidRootPart") and fruitObject and fruitObject.Parent then
-				local fruitPos = getFruitPosition(fruitObject)
-				if fruitPos then
-					char.HumanoidRootPart.CFrame = CFrame.new(fruitPos.X, fruitPos.Y + 4, fruitPos.Z)
-				end
+			if (fruit.rarity == "Legendary" or fruit.rarity == "Mythic") and not seenFruits[fruitModel] then
+				triggerRareNotification(fruit.name, fruit.rarity, fruit.distance)
 			end
-		end)
+
+			local row = Instance.new("Frame")
+			row.Name = "FruitRow"
+			row.Size = UDim2.new(1, 0, 0, 32)
+			row.BackgroundColor3 = fruit.color
+			row.BackgroundTransparency = 0.92
+			row.Parent = mainGui.Scroll
+
+			local content = Instance.new("Frame")
+			content.Name = "Content"
+			content.Size = UDim2.new(1, 0, 0, 26)
+			content.Position = UDim2.new(0, 0, 0, 0)
+			content.BackgroundTransparency = 1
+			content.Parent = row
+
+			local rowLayout = Instance.new("UIListLayout")
+			rowLayout.FillDirection = Enum.FillDirection.Horizontal
+			rowLayout.Padding = UDim.new(0, 6)
+			rowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+			rowLayout.Parent = content
+
+			local iconLabel = Instance.new("TextLabel")
+			iconLabel.Size = UDim2.new(0, 22, 1, 0)
+			iconLabel.BackgroundTransparency = 1
+			iconLabel.Text = fruit.icon
+			iconLabel.TextColor3 = fruit.color
+			iconLabel.TextScaled = true
+			iconLabel.Font = Enum.Font.GothamBold
+			iconLabel.Parent = content
+
+			local infoLabel = Instance.new("TextLabel")
+			infoLabel.Size = UDim2.new(0.62, 0, 1, 0)
+			infoLabel.BackgroundTransparency = 1
+			infoLabel.Text = string.format("%s • %.0fm • %ds", fruit.name, fruit.distance, fruit.timeLeft)
+			infoLabel.TextColor3 = Color3.fromRGB(240,240,245)
+			infoLabel.TextXAlignment = Enum.TextXAlignment.Left
+			infoLabel.TextScaled = true
+			infoLabel.Font = Enum.Font.GothamSemibold
+			infoLabel.Parent = content
+
+			local bringBtn = Instance.new("TextButton")
+			bringBtn.Size = UDim2.new(0.28, 0, 1, 0)
+			bringBtn.BackgroundColor3 = Color3.fromRGB(255, 160, 40)
+			bringBtn.Text = "BRING"
+			bringBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+			bringBtn.TextScaled = true
+			bringBtn.Font = Enum.Font.GothamBold
+			bringBtn.Parent = content
+
+			local btnCorner = Instance.new("UICorner")
+			btnCorner.CornerRadius = UDim.new(0, 8)
+			btnCorner.Parent = bringBtn
+
+			bringBtn.MouseButton1Click:Connect(function()
+				local char = LocalPlayer.Character
+				if char and char:FindFirstChild("HumanoidRootPart") and fruitModel and fruitModel.Parent then
+					local target = char.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+					local handle = fruitModel:FindFirstChild("Handle") or fruitModel:FindFirstChildWhichIsA("BasePart")
+					if handle then handle.CFrame = target end
+				end
+			end)
+
+			local progressContainer = Instance.new("Frame")
+			progressContainer.Name = "Progress"
+			progressContainer.Size = UDim2.new(1, -12, 0, 4)
+			progressContainer.Position = UDim2.new(0, 6, 1, -5)
+			progressContainer.BackgroundTransparency = 1
+			progressContainer.BorderSizePixel = 0
+			progressContainer.Parent = row
+
+			local t = fruit.timeLeft / FRUIT_LIFETIME
+			local progressBar = Instance.new("Frame")
+			progressBar.Size = UDim2.new(t, 0, 1, 0)
+			progressBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - t), 255 * t, 0)
+			progressBar.BorderSizePixel = 0
+			progressBar.Parent = progressContainer
+
+			local progCorner = Instance.new("UICorner")
+			progCorner.CornerRadius = UDim.new(0, 2)
+			progCorner.Parent = progressBar
+
+			local progressBg = Instance.new("Frame")
+			progressBg.Size = UDim2.new(1, 0, 1, 0)
+			progressBg.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+			progressBg.BackgroundTransparency = 0.7
+			progressBg.ZIndex = progressBar.ZIndex - 1
+			progressBg.Parent = progressContainer
+
+			local bgCorner = Instance.new("UICorner")
+			bgCorner.CornerRadius = UDim.new(0, 2)
+			bgCorner.Parent = progressBg
+
+			local rowGradient = Instance.new("UIGradient")
+			rowGradient.Color = ColorSequence.new{
+				ColorSequenceKeypoint.new(0, fruit.color),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(20,20,25))
+			}
+			rowGradient.Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0,0.9), NumberSequenceKeypoint.new(1,0.95)}
+			rowGradient.Parent = row
+
+			local rowCorner = Instance.new("UICorner")
+			rowCorner.CornerRadius = UDim.new(0, 8)
+			rowCorner.Parent = row
+
+			local rowStroke = Instance.new("UIStroke")
+			rowStroke.Color = fruit.color
+			rowStroke.Thickness = 1.2
+			rowStroke.Transparency = 0.5
+			rowStroke.Parent = row
+		end
+
+		seenFruits = newSeen
+		mainGui.Scroll.CanvasSize = UDim2.new(0, 0, 0, mainGui.Scroll.UIListLayout.AbsoluteContentSize.Y + 10)
+	else
+		for _, child in ipairs(mainGui.Scroll:GetChildren()) do
+			if child:IsA("Frame") and child.Name == "FruitRow" then child:Destroy() end
+		end
 	end
 
-	seenFruits = newSeen
-	mainGui.Scroll.CanvasSize = UDim2.new(0, 0, 0, mainGui.Scroll.UIListLayout.AbsoluteContentSize.Y + 8)
+	if shouldShow and not menuVisible then
+		showMenu()
+	elseif not shouldShow and menuVisible then
+		hideMenu()
+	end
+
+	updateMiniMap(rootPos, foundFruits)
 end
 
 local function startUpdateLoop()
 	if updateConnection then return end
-	updateConnection = RunService.Heartbeat:Connect(updateFruitList)
+	updateConnection = task.spawn(function()
+		while true do
+			if isEnabled and mainGui then
+				updateFruitList()
+			end
+			task.wait(0.4)
+		end
+	end)
+end
+
+local function onDescendantAdded(obj)
+	if (obj:IsA("Tool") or obj:IsA("Model")) and not activeFruits[obj] then
+		local baseName = obj.Name:match("^(.+) Fruit$")
+		if baseName and fruitData[baseName] then
+			activeFruits[obj] = {
+				baseName = baseName,
+				spawnTime = os.time()
+			}
+			createHighlight(obj, fruitData[baseName].color)
+		end
+	end
+end
+
+local function onDescendantRemoving(obj)
+	if activeFruits[obj] then
+		if activeFruits[obj].highlight then activeFruits[obj].highlight:Destroy() end
+		activeFruits[obj] = nil
+	end
+end
+
+local function scanInitialFruits()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		onDescendantAdded(obj)
+	end
 end
 
 local function onCharacterDied()
 	isEnabled = false
-	if mainGui and mainGui.Frame then mainGui.Frame.Visible = false end
-end
-
-local function onCharacterAdded(character)
-	task.wait(1)
-	if permanentlyDisabled then return end
-	if isEnabled then startUpdateLoop() return end
-	createReActivationPrompt()
+	if menuVisible then hideMenu() end
 end
 
 local function createReActivationPrompt()
@@ -316,12 +589,12 @@ local function createReActivationPrompt()
 	frame.Size = UDim2.new(0, 340, 0, 160)
 	frame.Position = UDim2.new(0.5, -170, 0.4, 0)
 	frame.AnchorPoint = Vector2.new(0.5, 0.5)
-	frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	frame.BackgroundColor3 = Color3.fromRGB(10,10,12)
 	frame.BackgroundTransparency = 0.2
 	frame.Parent = screenGui
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(0, 255, 255)
+	stroke.Color = Color3.fromRGB(180,190,200)
 	stroke.Thickness = 4
 	stroke.Parent = frame
 
@@ -332,18 +605,18 @@ local function createReActivationPrompt()
 	local title = Instance.new("TextLabel")
 	title.Size = UDim2.new(1, 0, 0, 50)
 	title.BackgroundTransparency = 1
-	title.Text = "🔄 Script pausado"
-	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Text = "🔄 Script Paused"
+	title.TextColor3 = Color3.fromRGB(255,255,255)
 	title.TextScaled = true
-	title.Font = Enum.Font.GothamBold
+	title.Font = Enum.Font.GothamBlack
 	title.Parent = frame
 
 	local question = Instance.new("TextLabel")
 	question.Size = UDim2.new(1, 0, 0, 40)
 	question.Position = UDim2.new(0, 0, 0, 50)
 	question.BackgroundTransparency = 1
-	question.Text = "Deseja ativar o Localizador novamente?"
-	question.TextColor3 = Color3.fromRGB(200, 200, 200)
+	question.Text = "Do you want to reactivate the Fruit Locator?"
+	question.TextColor3 = Color3.fromRGB(200,200,200)
 	question.TextScaled = true
 	question.Font = Enum.Font.Gotham
 	question.Parent = frame
@@ -352,33 +625,34 @@ local function createReActivationPrompt()
 	btnYes.Size = UDim2.new(0.45, 0, 0, 45)
 	btnYes.Position = UDim2.new(0.05, 0, 0.68, 0)
 	btnYes.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-	btnYes.Text = "SIM"
+	btnYes.Text = "YES"
 	btnYes.TextColor3 = Color3.fromRGB(0, 0, 0)
 	btnYes.TextScaled = true
 	btnYes.Font = Enum.Font.GothamBold
 	btnYes.Parent = frame
 
-	local yesCorner = Instance.new("UICorner")
-	yesCorner.CornerRadius = UDim.new(0, 10)
-	yesCorner.Parent = btnYes
-
 	local btnNo = Instance.new("TextButton")
 	btnNo.Size = UDim2.new(0.45, 0, 0, 45)
 	btnNo.Position = UDim2.new(0.5, 0, 0.68, 0)
 	btnNo.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-	btnNo.Text = "NÃO (parar permanente)"
-	btnNo.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btnNo.Text = "NO (stop permanently)"
+	btnNo.TextColor3 = Color3.fromRGB(255,255,255)
 	btnNo.TextScaled = true
 	btnNo.Font = Enum.Font.GothamBold
 	btnNo.Parent = frame
 
-	local noCorner = Instance.new("UICorner")
-	noCorner.CornerRadius = UDim.new(0, 10)
-	noCorner.Parent = btnNo
+	local function makeCorner(btn)
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0,10)
+		c.Parent = btn
+	end
+	makeCorner(btnYes)
+	makeCorner(btnNo)
 
 	btnYes.MouseButton1Click:Connect(function()
 		isEnabled = true
-		permanentlyDisabled = false
+		settings.enabled = true
+		getgenv().FruitLocator_Settings = settings
 		screenGui:Destroy()
 		promptGui = nil
 	end)
@@ -393,19 +667,35 @@ local function createReActivationPrompt()
 	promptGui = screenGui
 end
 
+local function setupCharacter(character)
+	if not character then return end
+	local humanoid = character:WaitForChild("Humanoid", 5)
+	if humanoid then humanoid.Died:Connect(onCharacterDied) end
+end
+
+local function onCharacterAdded(character)
+	task.spawn(function()
+		task.wait(1)
+		if permanentlyDisabled then return end
+		setupCharacter(character)
+		if not isEnabled then createReActivationPrompt() end
+	end)
+end
+
 local function init()
 	mainGui = createMainMenu()
-	startUpdateLoop()
+	createMiniMap()
 
-	if LocalPlayer.Character then
-		local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-		if humanoid then humanoid.Died:Connect(onCharacterDied) end
-	end
+	scanInitialFruits()
+	workspace.DescendantAdded:Connect(onDescendantAdded)
+	workspace.DescendantRemoving:Connect(onDescendantRemoving)
+
+	startUpdateLoop()
 
 	LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 	LocalPlayer.CharacterRemoving:Connect(function() isEnabled = false end)
 
-	print("✅ Localizador ATUALIZADO - agora pega Tool + Model!")
+	if LocalPlayer.Character then onCharacterAdded(LocalPlayer.Character) end
 end
 
 init()
