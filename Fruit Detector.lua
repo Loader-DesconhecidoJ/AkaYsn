@@ -126,61 +126,85 @@ end
 
 local function createMainMenu()
 	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "FruitLocatorPremium"
+	screenGui.Name = "FruitLocatorPainel"
 	screenGui.ResetOnSpawn = false
 	screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-	local frame = Instance.new("Frame")
-	frame.Name = "MainFrame"
-	frame.Size = UDim2.new(0.18, 0, 0, 95)
-	frame.Position = settings.menuPosition
-	frame.AnchorPoint = Vector2.new(0.5, 0)
-	frame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
-	frame.BackgroundTransparency = 0.25
-	frame.BorderSizePixel = 0
-	frame.Visible = false
-	frame.Parent = screenGui
+	local mainFrame = Instance.new("Frame")
+	mainFrame.Name = "MainFrame"
+	mainFrame.Size = UDim2.new(0, 215, 0, 85)
+	mainFrame.Position = settings.menuPosition
+	mainFrame.AnchorPoint = Vector2.new(0.5, 0)
+	mainFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 13)
+	mainFrame.BackgroundTransparency = 0.32
+	mainFrame.BorderSizePixel = 0
+	mainFrame.Visible = false
+	mainFrame.Parent = screenGui
 
-	local gradient = Instance.new("UIGradient")
-	gradient.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(40,40,45)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(10,10,12))
-	}
-	gradient.Rotation = 90
-	gradient.Parent = frame
+	local outerGlow = Instance.new("UIStroke")
+	outerGlow.Color = Color3.fromRGB(110, 190, 255)
+	outerGlow.Thickness = 3.8
+	outerGlow.Transparency = 0.35
+	outerGlow.Parent = mainFrame
 
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(200, 205, 210)
-	stroke.Thickness = 2.5
-	stroke.Transparency = 0.2
-	stroke.Parent = frame
+	local innerGlow = Instance.new("UIStroke")
+	innerGlow.Color = Color3.fromRGB(170, 120, 255)
+	innerGlow.Thickness = 1.1
+	innerGlow.Transparency = 0.7
+	innerGlow.Parent = mainFrame
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = frame
+	corner.CornerRadius = UDim.new(0, 14)
+	corner.Parent = mainFrame
+
+	local header = Instance.new("Frame")
+	header.Size = UDim2.new(1, 0, 0, 34)
+	header.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
+	header.BackgroundTransparency = 0.3
+	header.Parent = mainFrame
+
+	local headerGradient = Instance.new("UIGradient")
+	headerGradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(110, 190, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(170, 120, 255))
+	}
+	headerGradient.Rotation = 90
+	headerGradient.Parent = header
+
+	local headerCorner = Instance.new("UICorner")
+	headerCorner.CornerRadius = UDim.new(0, 14)
+	headerCorner.Parent = header
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0, 28)
+	title.Size = UDim2.new(1, -68, 1, 0)
+	title.Position = UDim2.new(0, 14, 0, 0)
 	title.BackgroundTransparency = 1
-	title.Text = " 0 FRUITS "
-	title.TextColor3 = Color3.fromRGB(230, 230, 235)
+	title.Text = "🍎 FRUIT LOCATOR"
+	title.TextColor3 = Color3.fromRGB(235, 235, 255)
 	title.TextScaled = true
 	title.Font = Enum.Font.GothamBlack
-	title.Parent = frame
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = header
 
-	local titleStroke = Instance.new("UIStroke")
-	titleStroke.Color = Color3.fromRGB(120, 200, 255)
-	titleStroke.Thickness = 1
-	titleStroke.Parent = title
+	local countLabel = Instance.new("TextLabel")
+	countLabel.Name = "Count"
+	countLabel.Size = UDim2.new(0, 42, 1, 0)
+	countLabel.Position = UDim2.new(1, -54, 0, 0)
+	countLabel.BackgroundTransparency = 1
+	countLabel.Text = "0"
+	countLabel.TextColor3 = Color3.fromRGB(255, 215, 80)
+	countLabel.TextScaled = true
+	countLabel.Font = Enum.Font.GothamBlack
+	countLabel.Parent = header
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Name = "Scroll"
-	scroll.Size = UDim2.new(1, -12, 1, -34)
-	scroll.Position = UDim2.new(0, 6, 0, 30)
+	scroll.Size = UDim2.new(1, -12, 1, -40)
+	scroll.Position = UDim2.new(0, 6, 0, 36)
 	scroll.BackgroundTransparency = 1
-	scroll.ScrollBarThickness = 2
-	scroll.ScrollBarImageColor3 = Color3.fromRGB(120, 200, 255)
-	scroll.Parent = frame
+	scroll.ScrollBarThickness = 3
+	scroll.ScrollBarImageColor3 = Color3.fromRGB(120, 190, 255)
+	scroll.Parent = mainFrame
 
 	local listLayout = Instance.new("UIListLayout")
 	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -188,15 +212,15 @@ local function createMainMenu()
 	listLayout.Parent = scroll
 
 	local dragging = false
-	title.InputBegan:Connect(function(input)
+	header.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			dragging = true
 			local mouse = LocalPlayer:GetMouse()
-			local offset = Vector2.new(frame.Position.X.Offset - mouse.X, frame.Position.Y.Offset - mouse.Y)
+			local offset = Vector2.new(mainFrame.Position.X.Offset - mouse.X, mainFrame.Position.Y.Offset - mouse.Y)
 			local conn
 			conn = RunService.RenderStepped:Connect(function()
 				if dragging then
-					frame.Position = UDim2.new(0, mouse.X + offset.X, 0, mouse.Y + offset.Y)
+					mainFrame.Position = UDim2.new(0, mouse.X + offset.X, 0, mouse.Y + offset.Y)
 				else
 					conn:Disconnect()
 				end
@@ -204,14 +228,20 @@ local function createMainMenu()
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
-					settings.menuPosition = frame.Position
+					settings.menuPosition = mainFrame.Position
 					getgenv().FruitLocator_Settings = settings
 				end
 			end)
 		end
 	end)
 
-	mainGui = {ScreenGui = screenGui, Frame = frame, Scroll = scroll, Title = title}
+	mainGui = {
+		ScreenGui = screenGui,
+		Frame = mainFrame,
+		Title = title,
+		Count = countLabel,
+		Scroll = scroll
+	}
 	return mainGui
 end
 
@@ -244,7 +274,6 @@ local function createMiniMap()
 	innerCorner.CornerRadius = UDim.new(1, 0)
 	innerCorner.Parent = inner
 
-	-- RADAR RINGS
 	for i = 1, 3 do
 		local ring = Instance.new("Frame")
 		ring.BackgroundTransparency = 1
@@ -264,7 +293,6 @@ local function createMiniMap()
 		ringStroke.Parent = ring
 	end
 
-	-- PLAYER FACING ARROW (sempre apontando para cima = direção que você está olhando)
 	local playerArrow = Instance.new("TextLabel")
 	playerArrow.Name = "PlayerArrow"
 	playerArrow.Size = UDim2.new(0, 24, 0, 24)
@@ -298,7 +326,6 @@ local function updateMiniMap(rootPos, foundFruits)
 	local rightVec = rootCFrame.RightVector
 	local forwardVec = rootCFrame.LookVector
 
-	-- Fruit dots (o minimapa gira automaticamente conforme a direção que você olha)
 	for _, fruit in ipairs(foundFruits) do
 		local fruitPos = getFruitPosition(fruit.model)
 		if fruitPos then
@@ -353,6 +380,133 @@ local function hideMenu()
 	end)
 end
 
+local function createFruitRow(fruit)
+	local row = Instance.new("Frame")
+	row.Name = "FruitRow"
+	row.Size = UDim2.new(1, 0, 0, 32)
+	row.BackgroundColor3 = fruit.color
+	row.BackgroundTransparency = 0.90
+	row.Parent = mainGui.Scroll
+
+	local rowStroke = Instance.new("UIStroke")
+	rowStroke.Color = fruit.color
+	rowStroke.Thickness = 1.4
+	rowStroke.Transparency = 0.5
+	rowStroke.Parent = row
+
+	local rowCorner = Instance.new("UICorner")
+	rowCorner.CornerRadius = UDim.new(0, 10)
+	rowCorner.Parent = row
+
+	local content = Instance.new("Frame")
+	content.Size = UDim2.new(1, -12, 1, -6)
+	content.Position = UDim2.new(0, 6, 0, 3)
+	content.BackgroundTransparency = 1
+	content.Parent = row
+
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.Padding = UDim.new(0, 8)
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.Parent = content
+
+	local iconFrame = Instance.new("Frame")
+	iconFrame.Size = UDim2.new(0, 32, 0, 32)
+	iconFrame.BackgroundTransparency = 1
+	iconFrame.Parent = content
+
+	local vLayout = Instance.new("UIListLayout")
+	vLayout.FillDirection = Enum.FillDirection.Vertical
+	vLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+	vLayout.Padding = UDim.new(0, 1)
+	vLayout.Parent = iconFrame
+
+	local badge = Instance.new("TextLabel")
+	badge.Size = UDim2.new(1, 0, 0, 13)
+	badge.BackgroundColor3 = fruit.color
+	badge.BackgroundTransparency = 0.25
+	badge.Text = fruit.rarity:upper()
+	badge.TextColor3 = Color3.new(1,1,1)
+	badge.TextScaled = true
+	badge.Font = Enum.Font.GothamBold
+	badge.Parent = iconFrame
+	local badgeCorner = Instance.new("UICorner")
+	badgeCorner.CornerRadius = UDim.new(0, 3)
+	badgeCorner.Parent = badge
+
+	local icon = Instance.new("TextLabel")
+	icon.Size = UDim2.new(1, 0, 0, 18)
+	icon.BackgroundTransparency = 1
+	icon.Text = fruit.icon
+	icon.TextScaled = true
+	icon.Font = Enum.Font.GothamBlack
+	icon.TextColor3 = fruit.color
+	icon.Parent = iconFrame
+
+	local info = Instance.new("TextLabel")
+	info.Size = UDim2.new(0.52, 0, 1, 0)
+	info.BackgroundTransparency = 1
+	info.Text = string.format("%s\n<font color='#e0e0e8' size='11'>%.0fm • %ds</font>", 
+		fruit.name, fruit.distance, fruit.timeLeft)
+	info.RichText = true
+	info.TextColor3 = Color3.fromRGB(245,245,250)
+	info.TextXAlignment = Enum.TextXAlignment.Left
+	info.TextScaled = true
+	info.Font = Enum.Font.GothamSemibold
+	info.Parent = content
+
+	local bringBtn = Instance.new("TextButton")
+	bringBtn.Size = UDim2.new(0.26, 0, 0.78, 0)
+	bringBtn.BackgroundColor3 = Color3.fromRGB(255, 175, 55)
+	bringBtn.Text = "BRING"
+	bringBtn.TextColor3 = Color3.fromRGB(0,0,0)
+	bringBtn.TextScaled = true
+	bringBtn.Font = Enum.Font.GothamBold
+	bringBtn.Parent = content
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 8)
+	btnCorner.Parent = bringBtn
+
+	local btnStroke = Instance.new("UIStroke")
+	btnStroke.Color = Color3.fromRGB(255, 235, 120)
+	btnStroke.Thickness = 1.6
+	btnStroke.Parent = bringBtn
+
+	bringBtn.MouseEnter:Connect(function()
+		TweenService:Create(bringBtn, TweenInfo.new(0.12), {Size = UDim2.new(0.28,0,0.82,0)}):Play()
+	end)
+	bringBtn.MouseLeave:Connect(function()
+		TweenService:Create(bringBtn, TweenInfo.new(0.12), {Size = UDim2.new(0.26,0,0.78,0)}):Play()
+	end)
+
+	bringBtn.MouseButton1Click:Connect(function()
+		local char = LocalPlayer.Character
+		if char and char:FindFirstChild("HumanoidRootPart") and fruit.model and fruit.model.Parent then
+			local target = char.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+			local handle = fruit.model:FindFirstChild("Handle") or fruit.model:FindFirstChildWhichIsA("BasePart")
+			if handle then handle.CFrame = target end
+		end
+	end)
+
+	local progressContainer = Instance.new("Frame")
+	progressContainer.Size = UDim2.new(1, 0, 0, 3)
+	progressContainer.Position = UDim2.new(0, 0, 1, -4)
+	progressContainer.BackgroundTransparency = 1
+	progressContainer.Parent = row
+
+	local t = fruit.timeLeft / FRUIT_LIFETIME
+	local progress = Instance.new("Frame")
+	progress.Size = UDim2.new(t, 0, 1, 0)
+	progress.BackgroundColor3 = Color3.fromRGB(255 * (1 - t), 255 * t, 0)
+	progress.Parent = progressContainer
+	local progCorner = Instance.new("UICorner")
+	progCorner.CornerRadius = UDim.new(1,0)
+	progCorner.Parent = progress
+
+	return row
+end
+
 local function updateFruitList()
 	if not mainGui or not isEnabled then return end
 
@@ -390,7 +544,7 @@ local function updateFruitList()
 
 	table.sort(foundFruits, function(a, b) return a.distance < b.distance end)
 
-	mainGui.Title.Text = string.format(" %d FRUITS ", #foundFruits)
+	mainGui.Count.Text = tostring(#foundFruits)
 
 	local shouldShow = #foundFruits > 0
 
@@ -408,118 +562,11 @@ local function updateFruitList()
 				triggerRareNotification(fruit.name, fruit.rarity, fruit.distance)
 			end
 
-			local row = Instance.new("Frame")
-			row.Name = "FruitRow"
-			row.Size = UDim2.new(1, 0, 0, 32)
-			row.BackgroundColor3 = fruit.color
-			row.BackgroundTransparency = 0.92
-			row.Parent = mainGui.Scroll
-
-			local content = Instance.new("Frame")
-			content.Name = "Content"
-			content.Size = UDim2.new(1, 0, 0, 26)
-			content.Position = UDim2.new(0, 0, 0, 0)
-			content.BackgroundTransparency = 1
-			content.Parent = row
-
-			local rowLayout = Instance.new("UIListLayout")
-			rowLayout.FillDirection = Enum.FillDirection.Horizontal
-			rowLayout.Padding = UDim.new(0, 6)
-			rowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-			rowLayout.Parent = content
-
-			local iconLabel = Instance.new("TextLabel")
-			iconLabel.Size = UDim2.new(0, 22, 1, 0)
-			iconLabel.BackgroundTransparency = 1
-			iconLabel.Text = fruit.icon
-			iconLabel.TextColor3 = fruit.color
-			iconLabel.TextScaled = true
-			iconLabel.Font = Enum.Font.GothamBold
-			iconLabel.Parent = content
-
-			local infoLabel = Instance.new("TextLabel")
-			infoLabel.Size = UDim2.new(0.62, 0, 1, 0)
-			infoLabel.BackgroundTransparency = 1
-			infoLabel.Text = string.format("%s • %.0fm • %ds", fruit.name, fruit.distance, fruit.timeLeft)
-			infoLabel.TextColor3 = Color3.fromRGB(240,240,245)
-			infoLabel.TextXAlignment = Enum.TextXAlignment.Left
-			infoLabel.TextScaled = true
-			infoLabel.Font = Enum.Font.GothamSemibold
-			infoLabel.Parent = content
-
-			local bringBtn = Instance.new("TextButton")
-			bringBtn.Size = UDim2.new(0.28, 0, 1, 0)
-			bringBtn.BackgroundColor3 = Color3.fromRGB(255, 160, 40)
-			bringBtn.Text = "BRING"
-			bringBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-			bringBtn.TextScaled = true
-			bringBtn.Font = Enum.Font.GothamBold
-			bringBtn.Parent = content
-
-			local btnCorner = Instance.new("UICorner")
-			btnCorner.CornerRadius = UDim.new(0, 8)
-			btnCorner.Parent = bringBtn
-
-			bringBtn.MouseButton1Click:Connect(function()
-				local char = LocalPlayer.Character
-				if char and char:FindFirstChild("HumanoidRootPart") and fruitModel and fruitModel.Parent then
-					local target = char.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-					local handle = fruitModel:FindFirstChild("Handle") or fruitModel:FindFirstChildWhichIsA("BasePart")
-					if handle then handle.CFrame = target end
-				end
-			end)
-
-			local progressContainer = Instance.new("Frame")
-			progressContainer.Name = "Progress"
-			progressContainer.Size = UDim2.new(1, -12, 0, 4)
-			progressContainer.Position = UDim2.new(0, 6, 1, -5)
-			progressContainer.BackgroundTransparency = 1
-			progressContainer.BorderSizePixel = 0
-			progressContainer.Parent = row
-
-			local t = fruit.timeLeft / FRUIT_LIFETIME
-			local progressBar = Instance.new("Frame")
-			progressBar.Size = UDim2.new(t, 0, 1, 0)
-			progressBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - t), 255 * t, 0)
-			progressBar.BorderSizePixel = 0
-			progressBar.Parent = progressContainer
-
-			local progCorner = Instance.new("UICorner")
-			progCorner.CornerRadius = UDim.new(0, 2)
-			progCorner.Parent = progressBar
-
-			local progressBg = Instance.new("Frame")
-			progressBg.Size = UDim2.new(1, 0, 1, 0)
-			progressBg.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-			progressBg.BackgroundTransparency = 0.7
-			progressBg.ZIndex = progressBar.ZIndex - 1
-			progressBg.Parent = progressContainer
-
-			local bgCorner = Instance.new("UICorner")
-			bgCorner.CornerRadius = UDim.new(0, 2)
-			bgCorner.Parent = progressBg
-
-			local rowGradient = Instance.new("UIGradient")
-			rowGradient.Color = ColorSequence.new{
-				ColorSequenceKeypoint.new(0, fruit.color),
-				ColorSequenceKeypoint.new(1, Color3.fromRGB(20,20,25))
-			}
-			rowGradient.Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0,0.9), NumberSequenceKeypoint.new(1,0.95)}
-			rowGradient.Parent = row
-
-			local rowCorner = Instance.new("UICorner")
-			rowCorner.CornerRadius = UDim.new(0, 8)
-			rowCorner.Parent = row
-
-			local rowStroke = Instance.new("UIStroke")
-			rowStroke.Color = fruit.color
-			rowStroke.Thickness = 1.2
-			rowStroke.Transparency = 0.5
-			rowStroke.Parent = row
+			local row = createFruitRow(fruit)
 		end
 
 		seenFruits = newSeen
-		mainGui.Scroll.CanvasSize = UDim2.new(0, 0, 0, mainGui.Scroll.UIListLayout.AbsoluteContentSize.Y + 10)
+		mainGui.Scroll.CanvasSize = UDim2.new(0, 0, 0, mainGui.Scroll.UIListLayout.AbsoluteContentSize.Y + 8)
 	else
 		for _, child in ipairs(mainGui.Scroll:GetChildren()) do
 			if child:IsA("Frame") and child.Name == "FruitRow" then child:Destroy() end
@@ -576,6 +623,9 @@ end
 local function onCharacterDied()
 	isEnabled = false
 	if menuVisible then hideMenu() end
+	if miniMap and miniMap.Frame then
+		miniMap.Frame.Visible = false
+	end
 end
 
 local function createReActivationPrompt()
@@ -653,6 +703,9 @@ local function createReActivationPrompt()
 		isEnabled = true
 		settings.enabled = true
 		getgenv().FruitLocator_Settings = settings
+		if miniMap and miniMap.Frame then
+			miniMap.Frame.Visible = true
+		end
 		screenGui:Destroy()
 		promptGui = nil
 	end)
