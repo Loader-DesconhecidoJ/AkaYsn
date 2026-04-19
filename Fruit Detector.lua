@@ -162,7 +162,7 @@ local function createMainMenu()
 	local title = Instance.new("TextLabel")
 	title.Size = UDim2.new(1, 0, 0, 28)
 	title.BackgroundTransparency = 1
-	title.Text = "🍎 0 FRUITS 🍎"
+	title.Text = " 0 FRUITS "
 	title.TextColor3 = Color3.fromRGB(230, 230, 235)
 	title.TextScaled = true
 	title.Font = Enum.Font.GothamBlack
@@ -390,7 +390,7 @@ local function updateFruitList()
 
 	table.sort(foundFruits, function(a, b) return a.distance < b.distance end)
 
-	mainGui.Title.Text = string.format("🍎 %d FRUITS 🍎", #foundFruits)
+	mainGui.Title.Text = string.format(" %d FRUITS ", #foundFruits)
 
 	local shouldShow = #foundFruits > 0
 
