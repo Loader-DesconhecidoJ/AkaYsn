@@ -8,7 +8,7 @@ local ID_CONFIG = {
     CrouchWalk  = "rbxassetid://118788948575185",
     Sit         = "rbxassetid://75243953240047",
     Lie         = "rbxassetid://98220014348433",
-    IdleVariant = "rbxassetid://129026910898635",
+    IdleVariant = "rbxassetid://129026910898635",  -- ← Troque aqui pelo ID da sua animação de 10s parado
     Drink       = "rbxassetid://85688041753037",
     Fall        = "rbxassetid://132779477045913"
 }
@@ -52,6 +52,11 @@ local lastFootprintTime = 0
 local alternateFoot = true
 
 local fadeFrame = nil
+
+-- NOVO: Variáveis do IdleVariant
+local idleVariantTrack = nil
+local idleTimer = nil
+local isIdle = false
 
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -206,6 +211,88 @@ local function playBoostFade(starting)
     end)
 end
 
+-- NOVO: Funções do IdleVariant (controle total e sem interferência)
+local function resetIdleVariant()
+    if idleVariantTrack then
+        pcall(function()
+            if idleVariantTrack.IsPlaying then
+                idleVariantTrack:Stop(0.2)
+            end
+        end)
+        idleVariantTrack = nil
+    end
+    if idleTimer then
+        task.cancel(idleTimer)
+        idleTimer = nil
+    end
+end
+
+local function playIdleVariant()
+    if not Humanoid or not Character or not SETTINGS.Enabled then return end
+    resetIdleVariant()
+
+    local anim = Instance.new("Animation")
+    anim.AnimationId = ID_CONFIG.IdleVariant
+    idleVariantTrack = Humanoid:LoadAnimation(anim)
+    idleVariantTrack.Looped = false
+    idleVariantTrack.Priority = Enum.AnimationPriority.Idle
+    idleVariantTrack:Play(0.3)
+
+    idleVariantTrack.Stopped:Once(function()
+        idleVariantTrack = nil
+        if isIdle then
+            startIdleTimer()
+        end
+    end)
+end
+
+local function startIdleTimer()
+    resetIdleVariant()
+    idleTimer = task.delay(10, function()
+        idleTimer = nil
+        if isIdle and SETTINGS.Enabled and not isDrinking and not isSitting and not SETTINGS.LieEnabled and not isInvis then
+            playIdleVariant()
+        end
+    end)
+end
+
+local function updateIdleStatus()
+    if not SETTINGS.Enabled or not Humanoid or not Character then
+        if isIdle then
+            isIdle = false
+            resetIdleVariant()
+        end
+        return
+    end
+
+    local shouldBeIdle = not (isDrinking or isSitting or SETTINGS.LieEnabled or isInvis)
+    if not shouldBeIdle then
+        if isIdle then
+            isIdle = false
+            resetIdleVariant()
+        end
+        return
+    end
+
+    local root = Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local horizSpeed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
+    local currentlyIdle = horizSpeed < 2
+
+    if currentlyIdle then
+        if not isIdle then
+            isIdle = true
+            startIdleTimer()
+        end
+    else
+        if isIdle then
+            isIdle = false
+            resetIdleVariant()
+        end
+    end
+end
+
 local function spawnFootprint(root)
     if not root then return end
     local rayOrigin = root.Position - Vector3.new(0, 2.8, 0)
@@ -267,6 +354,9 @@ local function spawnFootprint(root)
 end
 
 local function cleanup()
+    resetIdleVariant()  -- NOVO
+    isIdle = false
+
     if invisTimer then task.cancel(invisTimer) invisTimer = nil end
     isInvis = false
     deactivateInvisibility()
@@ -376,19 +466,22 @@ local function setAnims()
         ids = originalIDs
     else
         ids = {
-            Idle = ID_CONFIG.Idle,
-            Walk = ID_CONFIG.Walk,
-            Run  = ID_CONFIG.Run,
-            Sit  = ID_CONFIG.Sit,
-            Fall = ID_CONFIG.Fall
+            Idle        = ID_CONFIG.Idle,
+            Idle2       = ID_CONFIG.Idle,   -- ← Agora é igual ao Idle normal (evita interferência do Animate original)
+            Walk        = ID_CONFIG.Walk,
+            Run         = ID_CONFIG.Run,
+            Sit         = ID_CONFIG.Sit,
+            Fall        = ID_CONFIG.Fall
         }
 
         if SETTINGS.LieEnabled then
-            ids.Idle = ID_CONFIG.Lie
+            ids.Idle  = ID_CONFIG.Lie
+            ids.Idle2 = ID_CONFIG.Lie
         elseif SETTINGS.CrouchEnabled then
-            ids.Idle = ID_CONFIG.CrouchIdle
-            ids.Walk = ID_CONFIG.CrouchWalk
-            ids.Run  = ID_CONFIG.CrouchWalk
+            ids.Idle  = ID_CONFIG.CrouchIdle
+            ids.Idle2 = ID_CONFIG.CrouchIdle
+            ids.Walk  = ID_CONFIG.CrouchWalk
+            ids.Run   = ID_CONFIG.CrouchWalk
         end
     end
 
@@ -556,6 +649,8 @@ local function onCharacterAdded(char)
 
     if footprintConnection then footprintConnection:Disconnect() end
     footprintConnection = RunService.Heartbeat:Connect(function()
+        updateIdleStatus()  -- ← NOVO: verifica idle toda frame
+
         if not Character or not Humanoid or isDrinking or isSitting or SETTINGS.LieEnabled or isInvis then return end
         local root = Character:FindFirstChild("HumanoidRootPart")
         if not root then return end
