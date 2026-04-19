@@ -66,7 +66,7 @@ local Workspace = game:GetService("Workspace")
 local SOUNDS = {}
 
 SOUNDS.Invis = Instance.new("Sound", Player:WaitForChild("PlayerGui"))
-SOUNDS.Invis.SoundId = "rbxassetid://92988212682139"
+SOUNDS.Invis.SoundId = "rbxassetid://73840813063136"
 SOUNDS.Invis.Volume = 1.5
 SOUNDS.Invis.PlaybackSpeed = 1
 SOUNDS.Invis.Looped = false
