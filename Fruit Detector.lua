@@ -103,7 +103,7 @@ local function triggerRareNotification(fruitName, rarity, distance)
 	if rarity ~= "Legendary" and rarity ~= "Mythic" then return end
 	
 	local sound = Instance.new("Sound")
-	sound.SoundId = "rbxassetid://12221967"
+	sound.SoundId = "rbxassetid://137071444068298"
 	sound.Volume = 0.9
 	sound.Parent = game:GetService("SoundService")
 	sound:Play()
