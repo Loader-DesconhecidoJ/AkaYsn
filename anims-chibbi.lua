@@ -123,7 +123,7 @@ local function setTransparency(character, targetTransparency, duration)
     if not character or not character.Parent then return end
     local tweenInfo = TweenInfo.new(duration or 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     for _, part in pairs(character:GetDescendants()) do
-        if (part:IsA("BasePart") or part:IsA("Decal")) and part.Name \~= "HumanoidRootPart" then
+        if (part:IsA("BasePart") or part:IsA("Decal")) and part.Name ~= "HumanoidRootPart" then
             TweenService:Create(part, tweenInfo, {Transparency = targetTransparency}):Play()
         end
     end
@@ -302,7 +302,7 @@ local function removeExtraRoots()
     if not mainRoot then return end
 
     for _, child in pairs(Character:GetChildren()) do
-        if child:IsA("BasePart") and child.Name == "HumanoidRootPart" and child \~= mainRoot then
+        if child:IsA("BasePart") and child.Name == "HumanoidRootPart" and child ~= mainRoot then
             pcall(function() child:Destroy() end)
             if child and child.Parent then
                 child.Transparency = 1
