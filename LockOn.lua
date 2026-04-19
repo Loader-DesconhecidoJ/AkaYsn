@@ -17,7 +17,7 @@ local CharSmooth    = 1     -- ← NOVO: suavidade do character (Modo 2)
                                  -- Quanto MENOR o valor → mais suave / menos agressivo
                                  -- Recomendo entre 0.25 \~ 0.40
 
-local MAX_DISTANCE  = 100
+local MAX_DISTANCE  = 1000
 local SEARCH_DISTANCE = 55
 local CAMERA_LEFT_OFFSET = -1.27
 
