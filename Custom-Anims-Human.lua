@@ -1,14 +1,5 @@
 -- =========================================================
--- SCRIPT ATUALIZADO v3.1: Custom Animations + NOVO Tze Music Player
--- (FIXES 3.1 - Music Player Close agora para a animação do celular + RefreshAnims chamado em TODOS os fechamentos)
--- =========================================================
-
--- ====================== FIXES APLICADOS ======================
--- 1. Quando o music player fecha → animação de mexer no celular PARA imediatamente
---    (agora com refreshAnims(0.25) em TODOS os caminhos de fechamento)
--- 2. Sempre lembrar de atualizar o RefreshAnims → agora chamado explicitamente após fechar o player
---    (garante que as animações padrão do Roblox voltem corretamente)
--- 3. Todos os fixes da v3.0 mantidos (Clock Slide Right + SRun PlaybackSpeed Fix + RefreshAnims otimizado)
+-- SCRIPT ATUALIZADO v4.8: Spray Paint FIX + Color Picker + SOM DE SPRAY + MUSIC PLAYER MENOR + AUTO NEXT + ORELHAS + FIX RESPAWN TOTAL + FIX JUMP ANIMATION
 -- =========================================================
 
 local ID_CONFIG = {
@@ -46,13 +37,15 @@ local SETTINGS = {
 local TOOL_IDS = {
     BloxyCola = { MeshId = "rbxassetid://10470609", TextureId = "rbxassetid://10470600", HandleColor = "Really red" },
     TzesPhone = { MeshId = "rbxassetid://130757014132786", TextureId = "rbxassetid://101684537135469", HandleColor = "Lime green" },
-    Lanterna  = { MeshId = "rbxassetid://137073484684190", TextureId = "rbxassetid://120980688754080", HandleColor = "Bright yellow" }
+    Lanterna  = { MeshId = "rbxassetid://137073484684190", TextureId = "rbxassetid://120980688754080", HandleColor = "Bright yellow" },
+    SprayCan  = { MeshId = "rbxassetid://102100150193796", TextureId = "5383116479", HandleColor = "Bright green" }
 }
 
 local TOOL_CONFIGS = {
     BloxyCola = { Handle = { Size = Vector3.new(1,1,1), Material = Enum.Material.SmoothPlastic, Rotation = Vector3.new(0,0,0), Position = Vector3.new(0,0,0) }, Mesh = { Scale = Vector3.new(1.1,1.1,1.1) } },
     TzesPhone = { Handle = { Size = Vector3.new(0.4,0.8,0.2), Material = Enum.Material.SmoothPlastic, Transparency = 0, Rotation = Vector3.new(0,450,0), Position = Vector3.new(0,-0.5,-0.5) }, Mesh = { Scale = Vector3.new(1,1,1) } },
-    Lanterna  = { Handle = { Size = Vector3.new(0.7,1.4,0.7), Material = Enum.Material.Neon, Transparency = 0, Rotation = Vector3.new(0,0,0), Position = Vector3.new(0,0,0) }, Mesh = { Scale = Vector3.new(1,1,1) }, LanternLight = { Brightness = 4, Range = 80, Angle = 60 } }
+    Lanterna  = { Handle = { Size = Vector3.new(0.7,1.4,0.7), Material = Enum.Material.Neon, Transparency = 0, Rotation = Vector3.new(0,0,0), Position = Vector3.new(0,0,0) }, Mesh = { Scale = Vector3.new(1,1,1) }, LanternLight = { Brightness = 4, Range = 80, Angle = 60 } },
+    SprayCan = { Handle = { Size = Vector3.new(1.2,0.6,0.6), Material = Enum.Material.SmoothPlastic, Transparency = 0, Rotation = Vector3.new(0,90,0), Position = Vector3.new(0,0,-0.3) }, Mesh = { Scale = Vector3.new(1.1,1.1,1.1) }, Nozzle = { Size = Vector3.new(0.2,0.4,0.2), Position = Vector3.new(0,0,0.5) } }
 }
 
 local Player = game.Players.LocalPlayer
@@ -60,6 +53,7 @@ local Character, Humanoid, Animator
 local originalIDs = {}
 local jumpingConnection = nil
 local activeJumpTrack = nil
+local jumpStateConnection = nil
 local isSitting = false
 local customSitTrack = nil
 local isDrinking = false
@@ -75,12 +69,15 @@ local fadeFrame = nil
 local idleVariantTrack = nil
 local idleTimer = nil
 local isIdle = false
-
--- NOVAS VARIÁVEIS (declaradas no topo para evitar scoping Lua)
 local sRunTrack = nil
 local lastSRunTime = 0
 local phoneTrack = nil
 local isMusicOpen = false
+local currentPaintColor = Color3.fromRGB(255, 0, 0)
+local isSpraying = false
+local paintSplatsFolder = nil
+local sprayConnection = nil
+local maxSplats = 200
 
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -90,14 +87,12 @@ local SOUNDS = {}
 local clockFrame
 local timeLabel
 
--- ====================== HELPER (Animator) ======================
 local function loadAnim(animationId)
     if not Animator then return nil end
     local anim = Instance.new("Animation")
     anim.AnimationId = animationId
     return Animator:LoadAnimation(anim)
 end
--- =========================================================
 
 local function createSounds()
     for _, sound in pairs(Player:WaitForChild("PlayerGui"):GetChildren()) do
@@ -275,7 +270,6 @@ local function updateIdleStatus()
     end
 end
 
--- ====================== SRun (2x garantido SEM erro de PlaybackSpeed) ======================
 local function updateRunAnimation()
     if not Humanoid or not Character or not SETTINGS.Enabled then
         if sRunTrack then pcall(function() sRunTrack:Stop(0.2) end) sRunTrack = nil end
@@ -308,9 +302,7 @@ local function updateRunAnimation()
         lastSRunTime = 0
     end
 end
--- =========================================================
 
--- ====================== Phone Animation ======================
 local function updatePhoneAnimation()
     if not Humanoid or not Character or not SETTINGS.Enabled then
         if phoneTrack then pcall(function() phoneTrack:Stop(0.3) end) phoneTrack = nil end
@@ -333,7 +325,6 @@ local function updatePhoneAnimation()
         end
     end
 end
--- =========================================================
 
 local function spawnFootprint(root)
     if not root then return end
@@ -393,6 +384,9 @@ local function cleanup()
     lastSRunTime = 0
 
     if footprintConnection then footprintConnection:Disconnect() footprintConnection = nil end
+    if jumpingConnection then jumpingConnection:Disconnect() jumpingConnection = nil end
+    if jumpStateConnection then jumpStateConnection:Disconnect() jumpStateConnection = nil end
+
     lastFootprintTime = 0
     local cam = Workspace.CurrentCamera
     if cam then cam.FieldOfView = originalFOV end
@@ -426,14 +420,12 @@ local function stopAllTracks(fadeTime)
     end
 end
 
--- ====================== REFRESH ANIMS (atualizado para novas animações) ======================
 local function refreshAnims(fadeTime)
     fadeTime = fadeTime or 0.25
     if not Character or not Humanoid then return end
 
     stopAllTracks(fadeTime)
 
-    -- Para todas as animações customizadas novas
     if sRunTrack then pcall(function() sRunTrack:Stop(0) end) sRunTrack = nil end
     if phoneTrack then pcall(function() phoneTrack:Stop(0) end) phoneTrack = nil end
     if idleVariantTrack then pcall(function() idleVariantTrack:Stop(0) end) idleVariantTrack = nil end
@@ -447,7 +439,6 @@ local function refreshAnims(fadeTime)
         task.wait(0.08)
     end
 end
--- =========================================================
 
 local function updateMovementStats()
     if not Humanoid then return end
@@ -571,7 +562,6 @@ local function showPhoneClock()
     TweenService:Create(clockFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = finalPosition}):Play()
 end
 
--- ====================== RELÓGIO AGORA FECHA PARA A DIREITA ======================
 local function hidePhoneClock()
     if not clockFrame or not clockFrame.Visible then return end
     local offRightPosition = UDim2.new(1, clockFrame.Size.X.Offset + 30, 0, 20)
@@ -579,10 +569,9 @@ local function hidePhoneClock()
     tween:Play()
     tween.Completed:Once(function() clockFrame.Visible = false end)
 end
--- =========================================================
 
 -- =========================================================
--- NOVO TZE MUSIC PLAYER (com fix de animação ao fechar)
+-- TZE MUSIC PLAYER v4.8
 -- =========================================================
 local CoreGui = game:GetService("CoreGui")
 if CoreGui:FindFirstChild("TzeMusicSystem") then CoreGui.TzeMusicSystem:Destroy() end
@@ -597,47 +586,56 @@ local isPaused = false
 local currentMode = "File"
 local mp3List = {}
 local currentTrackIndex = 0
+local shuffleMode = false
+local repeatMode = false
 isMusicOpen = false
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 350, 0, 500)
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -250)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+MainFrame.Size = UDim2.new(0, 260, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -130, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 15)
+UICorner.CornerRadius = UDim.new(0, 28)
 UICorner.Parent = MainFrame
 
-local musicBorder = Instance.new("UIStroke")
-musicBorder.Color = Color3.fromRGB(50, 205, 50)
-musicBorder.Thickness = 4
-musicBorder.Parent = MainFrame
+local bezelStroke = Instance.new("UIStroke")
+bezelStroke.Color = Color3.fromRGB(50, 205, 50)
+bezelStroke.Thickness = 6
+bezelStroke.Parent = MainFrame
 
-local CameraDot = Instance.new("Frame")
-CameraDot.Size = UDim2.new(0, 20, 0, 20)
-CameraDot.Position = UDim2.new(0.5, -10, 0, 12)
-CameraDot.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
-CameraDot.BorderSizePixel = 0
-CameraDot.Parent = MainFrame
+-- === ORELHAS DECORATIVAS ===
+local earsImage = Instance.new("ImageLabel")
+earsImage.Name = "EarsDecoration"
+earsImage.Size = UDim2.new(0, 320, 0, 95)
+earsImage.Position = UDim2.new(0.5, -160, 0, -48)
+earsImage.BackgroundTransparency = 1
+earsImage.Image = "rbxassetid://108135642658853"
+earsImage.ImageColor3 = Color3.fromRGB(50, 205, 50)
+earsImage.ZIndex = MainFrame.ZIndex + 2
+earsImage.Parent = MainFrame
 
-local camCorner = Instance.new("UICorner", CameraDot)
+local notch = Instance.new("Frame")
+notch.Size = UDim2.new(0, 82, 0, 24)
+notch.Position = UDim2.new(0.5, -41, 0, 9)
+notch.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+notch.BorderSizePixel = 0
+notch.Parent = MainFrame
+local notchCorner = Instance.new("UICorner", notch)
+notchCorner.CornerRadius = UDim.new(1, 0)
+
+local cameraDot = Instance.new("Frame")
+cameraDot.Size = UDim2.new(0, 10, 0, 10)
+cameraDot.Position = UDim2.new(0.5, -55, 0, 13)
+cameraDot.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+cameraDot.BorderSizePixel = 0
+cameraDot.Parent = MainFrame
+local camCorner = Instance.new("UICorner", cameraDot)
 camCorner.CornerRadius = UDim.new(1, 0)
-
-local camStroke = Instance.new("UIStroke", CameraDot)
-camStroke.Color = Color3.fromRGB(10, 20, 70)
-camStroke.Thickness = 2.5
-
-local lens = Instance.new("Frame", CameraDot)
-lens.Size = UDim2.new(0, 9, 0, 9)
-lens.Position = UDim2.new(0.5, -4.5, 0.5, -4.5)
-lens.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-lens.BorderSizePixel = 0
-local lensCorner = Instance.new("UICorner", lens)
-lensCorner.CornerRadius = UDim.new(1, 0)
 
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 50)
@@ -645,52 +643,51 @@ Header.BackgroundTransparency = 1
 Header.Parent = MainFrame
 
 local ModeBtn = Instance.new("TextButton")
-ModeBtn.Size = UDim2.new(0, 120, 0, 30)
+ModeBtn.Size = UDim2.new(0, 115, 0, 30)
 ModeBtn.Position = UDim2.new(1, -130, 0.5, -15)
-ModeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+ModeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 ModeBtn.Text = "Modo: Arquivo"
 ModeBtn.TextColor3 = Color3.new(1, 1, 1)
 ModeBtn.Font = Enum.Font.GothamBold
-ModeBtn.TextSize = 12
+ModeBtn.TextSize = 13
 ModeBtn.Parent = Header
-Instance.new("UICorner", ModeBtn)
+Instance.new("UICorner", ModeBtn).CornerRadius = UDim.new(0, 12)
 
 local TrackName = Instance.new("TextLabel")
-TrackName.Size = UDim2.new(1, -40, 0, 30)
-TrackName.Position = UDim2.new(0, 20, 0, 60)
+TrackName.Size = UDim2.new(1, -30, 0, 28)
+TrackName.Position = UDim2.new(0, 15, 0, 55)
 TrackName.BackgroundTransparency = 1
 TrackName.Text = "Nenhuma música tocando"
 TrackName.TextColor3 = Color3.new(1, 1, 1)
 TrackName.Font = Enum.Font.GothamBold
-TrackName.TextSize = 16
+TrackName.TextSize = 14
 TrackName.TextTruncate = Enum.TextTruncate.AtEnd
 TrackName.Parent = MainFrame
 
 local TimeBarBG = Instance.new("Frame")
-TimeBarBG.Size = UDim2.new(1, -40, 0, 6)
-TimeBarBG.Position = UDim2.new(0, 20, 0, 100)
-TimeBarBG.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+TimeBarBG.Size = UDim2.new(1, -30, 0, 5)
+TimeBarBG.Position = UDim2.new(0, 15, 0, 88)
+TimeBarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 TimeBarBG.Parent = MainFrame
-
 local TimeBarFill = Instance.new("Frame")
 TimeBarFill.Size = UDim2.new(0, 0, 1, 0)
-TimeBarFill.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
+TimeBarFill.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
 TimeBarFill.BorderSizePixel = 0
 TimeBarFill.Parent = TimeBarBG
 
 local TimeLabel = Instance.new("TextLabel")
-TimeLabel.Size = UDim2.new(1, 0, 0, 20)
-TimeLabel.Position = UDim2.new(0, 0, 1, 5)
+TimeLabel.Size = UDim2.new(1, 0, 0, 16)
+TimeLabel.Position = UDim2.new(0, 0, 1, 2)
 TimeLabel.BackgroundTransparency = 1
 TimeLabel.Text = "00:00 / 00:00"
-TimeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+TimeLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
 TimeLabel.Font = Enum.Font.Code
-TimeLabel.TextSize = 12
+TimeLabel.TextSize = 11
 TimeLabel.Parent = TimeBarBG
 
 local ScrollList = Instance.new("ScrollingFrame")
-ScrollList.Size = UDim2.new(1, -20, 1, -260)
-ScrollList.Position = UDim2.new(0, 10, 0, 140)
+ScrollList.Size = UDim2.new(1, -30, 1, -255)
+ScrollList.Position = UDim2.new(0, 15, 0, 112)
 ScrollList.BackgroundTransparency = 1
 ScrollList.ScrollBarThickness = 4
 ScrollList.Parent = MainFrame
@@ -699,19 +696,19 @@ UIListLayout.Padding = UDim.new(0, 5)
 UIListLayout.Parent = ScrollList
 
 local IDInput = Instance.new("TextBox")
-IDInput.Size = UDim2.new(1, -40, 0, 40)
-IDInput.Position = UDim2.new(0, 20, 1, -110)
-IDInput.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+IDInput.Size = UDim2.new(1, -30, 0, 38)
+IDInput.Position = UDim2.new(0, 15, 1, -102)
+IDInput.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 IDInput.PlaceholderText = "Digite o Sound ID aqui..."
 IDInput.Text = ""
 IDInput.TextColor3 = Color3.new(1, 1, 1)
 IDInput.Visible = false
 IDInput.Parent = MainFrame
-Instance.new("UICorner", IDInput)
+Instance.new("UICorner", IDInput).CornerRadius = UDim.new(0, 12)
 
 local Controls = Instance.new("Frame")
-Controls.Size = UDim2.new(1, 0, 0, 60)
-Controls.Position = UDim2.new(0, 0, 1, -60)
+Controls.Size = UDim2.new(1, 0, 0, 65)
+Controls.Position = UDim2.new(0, 0, 1, -65)
 Controls.BackgroundTransparency = 1
 Controls.Parent = MainFrame
 
@@ -719,18 +716,20 @@ local function createBtn(text, pos, size)
     local btn = Instance.new("TextButton")
     btn.Size = size
     btn.Position = pos
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
     btn.Text = text
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Font = Enum.Font.GothamBold
     btn.Parent = Controls
-    Instance.new("UICorner", btn)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
     return btn
 end
 
-local PrevBtn = createBtn("<<", UDim2.new(0.2, -25, 0.5, -20), UDim2.new(0, 50, 0, 40))
-local PlayBtn = createBtn("PLAY", UDim2.new(0.5, -35, 0.5, -25), UDim2.new(0, 70, 0, 50))
-local NextBtn = createBtn(">>", UDim2.new(0.8, -25, 0.5, -20), UDim2.new(0, 50, 0, 40))
+local PrevBtn = createBtn("<<", UDim2.new(0.12, -20, 0.5, -18), UDim2.new(0, 42, 0, 36))
+local PlayBtn = createBtn("PLAY", UDim2.new(0.5, -31, 0.5, -22), UDim2.new(0, 62, 0, 44))
+local NextBtn = createBtn(">>", UDim2.new(0.88, -22, 0.5, -18), UDim2.new(0, 42, 0, 36))
+local ShuffleBtn = createBtn("🔀", UDim2.new(0.04, 0, 0.5, -18), UDim2.new(0, 36, 0, 36))
+local RepeatBtn = createBtn("🔁", UDim2.new(0.96, -36, 0.5, -18), UDim2.new(0, 36, 0, 36))
 
 local function formatTime(seconds)
     local mins = math.floor(seconds / 60)
@@ -756,6 +755,17 @@ local function play(id, name, index)
     TrackName.Text = name
     PlayBtn.Text = "PAUSE"
     isPaused = false
+
+    currentSound.Ended:Connect(function()
+        if not currentSound then return end
+        if repeatMode then
+            currentSound.TimePosition = 0
+            currentSound:Play()
+        elseif currentMode == "File" and #mp3List > 0 then
+            local nextIdx = shuffleMode and math.random(1, #mp3List) or ((currentTrackIndex % #mp3List) + 1)
+            play(getcustomasset(mp3List[nextIdx].path), mp3List[nextIdx].name, nextIdx)
+        end
+    end)
 end
 
 local function refreshFiles()
@@ -772,10 +782,10 @@ local function refreshFiles()
                 table.insert(mp3List, {name = name, path = file})
                 
                 local btnFrame = Instance.new("Frame")
-                btnFrame.Size = UDim2.new(1, 0, 0, 40)
-                btnFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+                btnFrame.Size = UDim2.new(1, 0, 0, 38)
+                btnFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
                 btnFrame.Parent = ScrollList
-                Instance.new("UICorner", btnFrame)
+                Instance.new("UICorner", btnFrame).CornerRadius = UDim.new(0, 10)
                 
                 local t = Instance.new("TextButton")
                 t.Size = UDim2.new(1, 0, 1, 0)
@@ -783,6 +793,7 @@ local function refreshFiles()
                 t.Text = "  " .. name
                 t.TextColor3 = Color3.new(1,1,1)
                 t.TextXAlignment = Enum.TextXAlignment.Left
+                t.TextSize = 13
                 t.Parent = btnFrame
                 
                 local idx = count
@@ -797,8 +808,7 @@ end
 
 local function toggleMusicPlayer()
     if isMusicOpen then
-        -- FECHANDO O MUSIC PLAYER → animação do celular PARA + refresh
-        local target = UDim2.new(0.5, -175, 1, 50)
+        local target = UDim2.new(0.5, -130, 1, 80)
         local tween = TweenService:Create(MainFrame, TweenInfo.new(0.55, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {Position = target})
         tween:Play()
         tween.Completed:Once(function()
@@ -806,13 +816,12 @@ local function toggleMusicPlayer()
             isMusicOpen = false
             updateMovementStats()
             updatePhoneAnimation()
-            refreshAnims(0.25) -- FIX: sempre atualiza RefreshAnims ao fechar
+            refreshAnims(0.25)
         end)
     else
-        -- ABRINDO
         MainFrame.Visible = true
-        MainFrame.Position = UDim2.new(0.5, -175, 1, 50)
-        local target = UDim2.new(0.5, -175, 0.5, -250)
+        MainFrame.Position = UDim2.new(0.5, -130, 1, 80)
+        local target = UDim2.new(0.5, -130, 0.5, -200)
         local tween = TweenService:Create(MainFrame, TweenInfo.new(0.65, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = target})
         tween:Play()
         isMusicOpen = true
@@ -861,17 +870,27 @@ end)
 
 NextBtn.MouseButton1Click:Connect(function()
     if currentMode == "File" and #mp3List > 0 then
-        local nextIdx = (currentTrackIndex % #mp3List) + 1
+        local nextIdx = shuffleMode and math.random(1, #mp3List) or ((currentTrackIndex % #mp3List) + 1)
         play(getcustomasset(mp3List[nextIdx].path), mp3List[nextIdx].name, nextIdx)
     end
 end)
 
 PrevBtn.MouseButton1Click:Connect(function()
     if currentMode == "File" and #mp3List > 0 then
-        local prevIdx = currentTrackIndex - 1
+        local prevIdx = shuffleMode and math.random(1, #mp3List) or (currentTrackIndex - 1)
         if prevIdx < 1 then prevIdx = #mp3List end
         play(getcustomasset(mp3List[prevIdx].path), mp3List[prevIdx].name, prevIdx)
     end
+end)
+
+ShuffleBtn.MouseButton1Click:Connect(function()
+    shuffleMode = not shuffleMode
+    ShuffleBtn.Text = shuffleMode and "🔀" or "➡️"
+end)
+
+RepeatBtn.MouseButton1Click:Connect(function()
+    repeatMode = not repeatMode
+    RepeatBtn.Text = repeatMode and "🔁" or "🔂"
 end)
 
 RunService.RenderStepped:Connect(function()
@@ -879,7 +898,8 @@ RunService.RenderStepped:Connect(function()
         local duration = currentSound.TimeLength
         local current = currentSound.TimePosition
         if duration > 0 then
-            TimeBarFill.Size = UDim2.new(current/duration, 0, 1, 0)
+            local progress = current / duration
+            TimeBarFill.Size = UDim2.new(progress, 0, 1, 0)
             TimeLabel.Text = formatTime(current) .. " / " .. formatTime(duration)
         end
     end
@@ -967,18 +987,15 @@ local function createPhoneTool()
     tool.Unequipped:Connect(function()
         hidePhoneClock()
         if isMusicOpen then
-            local target = UDim2.new(0.5, -175, 1, 100)
+            local target = UDim2.new(0.5, -130, 1, 100)
             local tweenPos = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {Position = target})
-            local tweenFade = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
             tweenPos:Play()
-            tweenFade:Play()
             tweenPos.Completed:Once(function()
                 MainFrame.Visible = false
-                MainFrame.BackgroundTransparency = 0
                 isMusicOpen = false
                 updateMovementStats()
                 updatePhoneAnimation()
-                refreshAnims(0.25) -- FIX: sempre atualiza RefreshAnims ao fechar via unequip
+                refreshAnims(0.25)
             end)
         end
     end)
@@ -1023,6 +1040,265 @@ local function createLanternTool()
     end)
 end
 
+local function createSprayTool()
+    local toolName = "TzeSprayCan"
+    if Player.Backpack:FindFirstChild(toolName) then return end
+    
+    local tool = Instance.new("Tool")
+    tool.Name = toolName
+    tool.RequiresHandle = true
+    tool.CanBeDropped = true
+    tool.Parent = Player.Backpack
+
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.BrickColor = BrickColor.new(TOOL_IDS.SprayCan.HandleColor)
+    handle.Parent = tool
+    local mesh = Instance.new("SpecialMesh")
+    mesh.MeshId = TOOL_IDS.SprayCan.MeshId
+    mesh.Scale = TOOL_CONFIGS.SprayCan.Mesh.Scale
+    mesh.Parent = handle
+    applyToolConfig(tool, toolName)
+
+    local nozzle = Instance.new("Part")
+    nozzle.Name = "Nozzle"
+    nozzle.Size = TOOL_CONFIGS.SprayCan.Nozzle.Size
+    nozzle.Material = Enum.Material.Neon
+    nozzle.Color = Color3.fromRGB(255, 255, 255)
+    nozzle.Transparency = 0.3
+    nozzle.Parent = handle
+    local weld = Instance.new("Weld")
+    weld.Part0 = handle
+    weld.Part1 = nozzle
+    weld.C0 = CFrame.new(0, 0, 0.5)
+    weld.Parent = handle
+
+    local sprayParticles = Instance.new("ParticleEmitter")
+    sprayParticles.Name = "SprayParticles"
+    sprayParticles.Texture = "rbxassetid://241650885"
+    sprayParticles.Color = ColorSequence.new(currentPaintColor)
+    sprayParticles.LightEmission = 0.8
+    sprayParticles.Rate = 0
+    sprayParticles.Lifetime = NumberRange.new(0.3, 0.6)
+    sprayParticles.Speed = NumberRange.new(60, 90)
+    sprayParticles.SpreadAngle = Vector2.new(15, 15)
+    sprayParticles.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 0.1)})
+    sprayParticles.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
+    sprayParticles.Parent = nozzle
+
+    local spraySound = Instance.new("Sound")
+    spraySound.Name = "SpraySound"
+    spraySound.SoundId = "rbxassetid://135953747985183"
+    spraySound.Volume = 0.85
+    spraySound.Looped = true
+    spraySound.Parent = nozzle
+
+    local sprayGui = nil
+    local crosshair = nil
+    local sprayBtn = nil
+    local colorBtn = nil
+    local clearBtn = nil
+
+    tool.Equipped:Connect(function()
+        sprayGui = Instance.new("ScreenGui")
+        sprayGui.Name = "SprayGui"
+        sprayGui.ResetOnSpawn = false
+        sprayGui.Parent = Player.PlayerGui
+
+        crosshair = Instance.new("TextLabel")
+        crosshair.Size = UDim2.new(0, 42, 0, 42)
+        crosshair.Position = UDim2.new(0.5, -21, 0.5, -21)
+        crosshair.BackgroundTransparency = 1
+        crosshair.Text = "✚"
+        crosshair.TextColor3 = Color3.new(1,1,1)
+        crosshair.TextSize = 42
+        crosshair.Font = Enum.Font.GothamBold
+        crosshair.Parent = sprayGui
+
+        sprayBtn = Instance.new("TextButton")
+        sprayBtn.Size = UDim2.new(0, 130, 0, 130)
+        sprayBtn.Position = UDim2.new(0.5, 210, 0.8, -65)
+        sprayBtn.BackgroundColor3 = Color3.fromRGB(255, 40, 40)
+        sprayBtn.Text = "SEGURAR\nSPRAY"
+        sprayBtn.TextColor3 = Color3.new(1,1,1)
+        sprayBtn.Font = Enum.Font.GothamBold
+        sprayBtn.TextSize = 19
+        sprayBtn.Parent = sprayGui
+        Instance.new("UICorner", sprayBtn).CornerRadius = UDim.new(1,0)
+
+        colorBtn = Instance.new("TextButton")
+        colorBtn.Size = UDim2.new(0, 64, 0, 64)
+        colorBtn.Position = UDim2.new(0.5, 360, 0.8, -32)
+        colorBtn.BackgroundColor3 = currentPaintColor
+        colorBtn.Text = "🎨"
+        colorBtn.TextSize = 32
+        colorBtn.Parent = sprayGui
+        Instance.new("UICorner", colorBtn).CornerRadius = UDim.new(1,0)
+
+        clearBtn = Instance.new("TextButton")
+        clearBtn.Size = UDim2.new(0, 64, 0, 64)
+        clearBtn.Position = UDim2.new(0.5, 360, 0.8, -110)
+        clearBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        clearBtn.Text = "🗑️"
+        clearBtn.TextSize = 32
+        clearBtn.Parent = sprayGui
+        Instance.new("UICorner", clearBtn).CornerRadius = UDim.new(1,0)
+
+        local lastSplatTime = 0
+
+        local function startSpraying()
+            isSpraying = true
+            sprayParticles.Rate = 140
+            spraySound:Play()
+            if sprayConnection then sprayConnection:Disconnect() end
+            sprayConnection = RunService.Heartbeat:Connect(function()
+                if not isSpraying or not Character then return end
+                
+                local now = os.clock()
+                if now - lastSplatTime < 0.06 then return end
+                lastSplatTime = now
+
+                local camera = Workspace.CurrentCamera
+                local ray = camera:ViewportPointToRay(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+                
+                local raycastParams = RaycastParams.new()
+                raycastParams.FilterDescendantsInstances = {Character}
+                if paintSplatsFolder then table.insert(raycastParams.FilterDescendantsInstances, paintSplatsFolder) end
+                raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+                
+                local result = Workspace:Raycast(ray.Origin, ray.Direction * 300, raycastParams)
+                if result and result.Instance then
+                    if not paintSplatsFolder then
+                        paintSplatsFolder = Instance.new("Folder")
+                        paintSplatsFolder.Name = "TzePaintSplats"
+                        paintSplatsFolder.Parent = Workspace
+                    end
+                    if #paintSplatsFolder:GetChildren() > maxSplats then
+                        paintSplatsFolder:GetChildren()[1]:Destroy()
+                    end
+
+                    local hitPos = result.Position + result.Normal * 0.06
+                    local normal = result.Normal
+
+                    local right = normal:Cross(Vector3.new(0,1,0))
+                    if right.Magnitude < 0.01 then right = normal:Cross(Vector3.new(1,0,0)) end
+                    right = right.Unit
+
+                    local splat = Instance.new("Part")
+                    splat.Size = Vector3.new(0.7 + math.random(), 0.08, 0.7 + math.random())
+                    splat.Color = currentPaintColor
+                    splat.Material = Enum.Material.SmoothPlastic
+                    splat.Anchored = true
+                    splat.CanCollide = false
+                    splat.CFrame = CFrame.new(hitPos) * CFrame.fromMatrix(Vector3.new(0,0,0), right, normal) * CFrame.Angles(0, math.random() * math.pi * 2, 0)
+                    splat.Parent = paintSplatsFolder
+
+                    local hitParticle = Instance.new("ParticleEmitter")
+                    hitParticle.Texture = "rbxassetid://241650885"
+                    hitParticle.Color = ColorSequence.new(currentPaintColor)
+                    hitParticle.Lifetime = NumberRange.new(0.4, 0.8)
+                    hitParticle.Rate = 35
+                    hitParticle.Speed = NumberRange.new(3, 10)
+                    hitParticle.Parent = splat
+                    game.Debris:AddItem(hitParticle, 1)
+                end
+            end)
+        end
+
+        sprayBtn.MouseButton1Down:Connect(startSpraying)
+        sprayBtn.MouseButton1Up:Connect(function()
+            isSpraying = false
+            sprayParticles.Rate = 0
+            spraySound:Stop()
+            if sprayConnection then sprayConnection:Disconnect() sprayConnection = nil end
+        end)
+
+        colorBtn.MouseButton1Click:Connect(function()
+            local picker = Instance.new("Frame")
+            picker.Size = UDim2.new(0, 280, 0, 340)
+            picker.Position = UDim2.new(0.5, 260, 0.5, -170)
+            picker.BackgroundColor3 = Color3.fromRGB(25,25,30)
+            picker.Parent = sprayGui
+            Instance.new("UICorner", picker).CornerRadius = UDim.new(0, 16)
+
+            local title = Instance.new("TextLabel")
+            title.Size = UDim2.new(1, 0, 0, 40)
+            title.BackgroundTransparency = 1
+            title.Text = "🎨 Escolha a Cor"
+            title.TextColor3 = Color3.new(1,1,1)
+            title.Font = Enum.Font.GothamBold
+            title.TextSize = 18
+            title.Parent = picker
+
+            local scroll = Instance.new("ScrollingFrame")
+            scroll.Size = UDim2.new(1, -20, 1, -60)
+            scroll.Position = UDim2.new(0, 10, 0, 45)
+            scroll.BackgroundTransparency = 1
+            scroll.ScrollBarThickness = 6
+            scroll.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+            scroll.Parent = picker
+
+            local gridLayout = Instance.new("UIGridLayout")
+            gridLayout.CellSize = UDim2.new(0, 52, 0, 52)
+            gridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
+            gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+            gridLayout.Parent = scroll
+
+            local colors = {
+                Color3.fromRGB(255,0,0), Color3.fromRGB(220,20,60), Color3.fromRGB(255,69,0),
+                Color3.fromRGB(255,140,0), Color3.fromRGB(255,165,0), Color3.fromRGB(255,215,0),
+                Color3.fromRGB(255,255,0), Color3.fromRGB(173,255,47), Color3.fromRGB(0,255,0),
+                Color3.fromRGB(0,128,0), Color3.fromRGB(0,255,127), Color3.fromRGB(0,206,209),
+                Color3.fromRGB(0,191,255), Color3.fromRGB(30,144,255), Color3.fromRGB(0,0,255),
+                Color3.fromRGB(75,0,130), Color3.fromRGB(138,43,226), Color3.fromRGB(128,0,128),
+                Color3.fromRGB(255,0,255), Color3.fromRGB(255,20,147), Color3.fromRGB(255,105,180),
+                Color3.fromRGB(219,112,147), Color3.fromRGB(165,42,42), Color3.fromRGB(139,69,19),
+                Color3.fromRGB(128,128,128), Color3.fromRGB(169,169,169), Color3.fromRGB(211,211,211),
+                Color3.fromRGB(255,255,255), Color3.fromRGB(0,0,0), Color3.fromRGB(105,105,105),
+                Color3.fromRGB(255,182,193), Color3.fromRGB(255,192,203), Color3.fromRGB(144,238,144)
+            }
+
+            for _, col in ipairs(colors) do
+                local cBtn = Instance.new("TextButton")
+                cBtn.BackgroundColor3 = col
+                cBtn.Text = ""
+                cBtn.Parent = scroll
+                Instance.new("UICorner", cBtn).CornerRadius = UDim.new(1, 0)
+                local cStroke = Instance.new("UIStroke")
+                cStroke.Thickness = 3
+                cStroke.Color = Color3.fromRGB(40,40,40)
+                cStroke.Parent = cBtn
+
+                cBtn.MouseButton1Click:Connect(function()
+                    currentPaintColor = col
+                    sprayParticles.Color = ColorSequence.new(col)
+                    colorBtn.BackgroundColor3 = col
+                    picker:Destroy()
+                end)
+            end
+
+            local function updateCanvas()
+                scroll.CanvasSize = UDim2.new(0, 0, 0, gridLayout.AbsoluteContentSize.Y + 20)
+            end
+            gridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+            updateCanvas()
+        end)
+
+        clearBtn.MouseButton1Click:Connect(function()
+            if paintSplatsFolder then
+                paintSplatsFolder:ClearAllChildren()
+            end
+        end)
+    end)
+
+    tool.Unequipped:Connect(function()
+        isSpraying = false
+        spraySound:Stop()
+        if sprayConnection then sprayConnection:Disconnect() sprayConnection = nil end
+        if sprayGui then sprayGui:Destroy() end
+    end)
+end
+
 local function onCharacterAdded(char)
     cleanup()
     Character = char
@@ -1033,15 +1309,27 @@ local function onCharacterAdded(char)
     local camera = Workspace.CurrentCamera
     if camera then originalFOV = camera.FieldOfView end
 
+    -- ====================== FIX RESPAWN ======================
     local animate = char:WaitForChild("Animate")
+    
+    -- Espera as pastas principais carregarem (evita o erro "walk is not a valid member")
+    animate:WaitForChild("idle")
+    animate:WaitForChild("walk")
+    animate:WaitForChild("run")
+    animate:WaitForChild("sit")
+    animate:WaitForChild("fall")
+    
     local anim2Id = animate.idle.Animation1.AnimationId
     if animate.idle:FindFirstChild("Animation2") then anim2Id = animate.idle.Animation2.AnimationId end
+    
     local sitId = ""
-    local sitFolder = animate:FindFirstChild("sit")
+    local sitFolder = animate.sit
     if sitFolder and sitFolder:FindFirstChild("SitAnim") then sitId = sitFolder.SitAnim.AnimationId end
+    
     local fallId = ""
-    local fallFolder = animate:FindFirstChild("fall")
+    local fallFolder = animate.fall
     if fallFolder and fallFolder:FindFirstChild("FallAnim") then fallId = fallFolder.FallAnim.AnimationId end
+    
     originalIDs = {
         Idle  = animate.idle.Animation1.AnimationId,
         Idle2 = anim2Id,
@@ -1050,6 +1338,7 @@ local function onCharacterAdded(char)
         Sit   = sitId,
         Fall  = fallId
     }
+    -- ========================================================
 
     Humanoid.JumpPower = SETTINGS.JumpPower
     setAnims()
@@ -1070,6 +1359,18 @@ local function onCharacterAdded(char)
         activeJumpTrack.Stopped:Once(function() activeJumpTrack = nil end)
     end)
 
+    -- ====================== FIX JUMP ANIMATION CANCEL ======================
+    if jumpStateConnection then jumpStateConnection:Disconnect() end
+    jumpStateConnection = Humanoid.StateChanged:Connect(function(oldState, newState)
+        if activeJumpTrack and activeJumpTrack.IsPlaying then
+            -- Cancela imediatamente quando não estiver mais pulando ou caindo
+            if newState ~= Enum.HumanoidStateType.Jumping and newState ~= Enum.HumanoidStateType.Freefall then
+                activeJumpTrack:Stop(0.15)  -- fade rápido e suave
+            end
+        end
+    end)
+    -- =====================================================================
+
     if footprintConnection then footprintConnection:Disconnect() end
     footprintConnection = RunService.Heartbeat:Connect(function()
         updateIdleStatus()
@@ -1089,6 +1390,7 @@ local function onCharacterAdded(char)
     createBoostTool()
     createPhoneTool()
     createLanternTool()
+    createSprayTool()
 end
 
 Player.CharacterRemoving:Connect(cleanup)
@@ -1157,9 +1459,6 @@ timeLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 timeLabel.Parent = clockFrame
 
 startClockUpdater()
-createBoostTool()
-createPhoneTool()
-createLanternTool()
 
 local function createActionButton(imageAssetId)
     local button = Instance.new("ImageButton")
