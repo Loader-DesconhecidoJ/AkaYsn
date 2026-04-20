@@ -22,7 +22,7 @@ local SETTINGS = {
     LieEnabled       = false,
 
     DrinkDuration    = 4.5,
-    BoostDuration    = 10,
+    BoostDuration    = 15,
     BoostSpeed       = 23,
     BoostFOV         = 90,
     BoostJump        = 17,
