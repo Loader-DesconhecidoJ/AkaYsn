@@ -1,9 +1,3 @@
--- =============================================
---  SCRIPT: DETECTOR DE OLHAR (MELHORADO PARA PINGUINS)
---  Jogo: Knockout!
---  Usa rotação do boneco (única forma possível)
--- =============================================
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
