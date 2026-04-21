@@ -1,0 +1,87 @@
+-- =============================================
+--  SCRIPT: DETECTOR DE OLHAR (MELHORADO PARA PINGUINS)
+--  Jogo: Knockout!
+--  Usa rotação do boneco (única forma possível)
+-- =============================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local highlights = {}
+
+local MAX_DISTANCE = 100
+local DOT_THRESHOLD = 0.72  -- aumentado pra exigir olhar mais direto (ajuste entre 0.6 e 0.85)
+
+local function createHighlight(character)
+    if highlights[character] then return end
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "LookAtMeHighlight"
+    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+    highlight.OutlineColor = Color3.fromRGB(255, 50, 50)
+    highlight.FillTransparency = 0.35
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = character
+    highlight.Parent = character
+    highlights[character] = highlight
+end
+
+local function removeHighlight(character)
+    if highlights[character] then
+        highlights[character]:Destroy()
+        highlights[character] = nil
+    end
+end
+
+local function getLookPart(character)
+    return character:FindFirstChild("Head") 
+        or character:FindFirstChild("HumanoidRootPart") 
+        or character.PrimaryPart
+end
+
+local function isPlayerLookingAtMe(otherPlayer)
+    local otherChar = otherPlayer.Character
+    local myChar = LocalPlayer.Character
+    if not otherChar or not myChar then return false end
+
+    local otherLookPart = getLookPart(otherChar)
+    local myLookPart = getLookPart(myChar)
+    if not otherLookPart or not myLookPart then return false end
+
+    local distance = (myLookPart.Position - otherLookPart.Position).Magnitude
+    if distance > MAX_DISTANCE or distance < 2 then return false end
+
+    -- Direção do outro jogador até você
+    local directionToMe = (myLookPart.Position - otherLookPart.Position).Unit
+    
+    -- Olhar do outro jogador (com pequeno offset pra cima, simulando câmera)
+    local lookVector = otherLookPart.CFrame.LookVector
+    
+    local dot = directionToMe:Dot(lookVector)
+    return dot > DOT_THRESHOLD
+end
+
+RunService.RenderStepped:Connect(function()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        local character = player.Character
+        if not character then
+            removeHighlight(character)
+            continue
+        end
+        
+        if isPlayerLookingAtMe(player) then
+            createHighlight(character)
+        else
+            removeHighlight(character)
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    local char = player.Character
+    if char then removeHighlight(char) end
+end)
+
+print("✅ Script de highlight vermelho MELHORADO carregado!")
+print("   Agora detecta com mais precisão nos pinguins do Knockout!")
