@@ -1,12 +1,12 @@
 -- =========================================================
--- SCRIPT ATUALIZADO v4.8: Spray Paint FIX + Color Picker + SOM DE SPRAY + MUSIC PLAYER MENOR + AUTO NEXT + ORELHAS + FIX RESPAWN TOTAL + FIX JUMP ANIMATION
+-- SCRIPT ATUALIZADO v4.9: Run Normal Speed Config + SRun Speed & Restart Interval + Refresh Anim Fix (no mixing)
 -- =========================================================
 
 local ID_CONFIG = {
     Idle        = "rbxassetid://72492959889389",
     Walk        = "rbxassetid://118959209918644",
-    Run         = "rbxassetid://116881956670910",
-    JumpRunning = "rbxassetid://82083900175742",
+    Run         = "rbxassetid://101871663749983",
+    JumpRunning = "rbxassetid://131814798893284",
     JumpStanding = "rbxassetid://131814798893284",
     CrouchIdle  = "rbxassetid://104930844061263",
     CrouchWalk  = "rbxassetid://99452665172764",
@@ -20,8 +20,8 @@ local ID_CONFIG = {
 }
 
 local SETTINGS = {
-    WalkSpeed        = 14,
-    RunSpeed         = 18,
+    WalkSpeed        = 15,
+    RunSpeed         = 19,
     JumpPower        = 50,
     Enabled          = true,
     CrouchEnabled    = false,
@@ -32,6 +32,10 @@ local SETTINGS = {
     BoostFOV         = 90,
     BoostJump        = 17,
     FootprintInterval = 0.32,
+    -- NOVAS CONFIGS v4.9
+    RunAnimSpeed        = 1.5,
+    SRunAnimSpeed       = 3,
+    SRunRestartInterval = 1.3
 }
 
 local TOOL_IDS = {
@@ -161,7 +165,7 @@ local function setTransparency(character, targetTransparency, duration)
 end
 
 local function activateInvisibility()
-    SOUNDS.Invis:Play()
+    if SOUNDS.Invis then SOUNDS.Invis:Play() end
     local root = Character and Character:FindFirstChild("HumanoidRootPart")
     if not root then return end
     local savedCFrame = root.CFrame
@@ -270,6 +274,17 @@ local function updateIdleStatus()
     end
 end
 
+local function updateNormalRunSpeed()
+    if not Humanoid or not SETTINGS.Enabled then return end
+    for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do
+        if track and track.Animation and track.Animation.AnimationId == ID_CONFIG.Run then
+            pcall(function()
+                track.Speed = SETTINGS.RunAnimSpeed
+            end)
+        end
+    end
+end
+
 local function updateRunAnimation()
     if not Humanoid or not Character or not SETTINGS.Enabled then
         if sRunTrack then pcall(function() sRunTrack:Stop(0.2) end) sRunTrack = nil end
@@ -289,9 +304,9 @@ local function updateRunAnimation()
         end
 
         local now = os.clock()
-        if (now - lastSRunTime >= 2) or not sRunTrack.IsPlaying then
+        if (now - lastSRunTime >= SETTINGS.SRunRestartInterval) or not sRunTrack.IsPlaying then
             if sRunTrack.IsPlaying then sRunTrack:Stop(0) end
-            sRunTrack:Play(0.1, 1, 2)
+            sRunTrack:Play(0.1, 1, SETTINGS.SRunAnimSpeed)
             lastSRunTime = now
         end
     else
@@ -424,7 +439,7 @@ local function refreshAnims(fadeTime)
     fadeTime = fadeTime or 0.25
     if not Character or not Humanoid then return end
 
-    stopAllTracks(fadeTime)
+    stopAllTracks(0)
 
     if sRunTrack then pcall(function() sRunTrack:Stop(0) end) sRunTrack = nil end
     if phoneTrack then pcall(function() phoneTrack:Stop(0) end) phoneTrack = nil end
@@ -434,10 +449,12 @@ local function refreshAnims(fadeTime)
     local animate = Character:FindFirstChild("Animate")
     if animate then
         animate.Disabled = true
-        task.wait(0.05)
-        animate.Disabled = false
         task.wait(0.08)
+        animate.Disabled = false
+        task.wait(0.12)
     end
+
+    updateNormalRunSpeed()
 end
 
 local function updateMovementStats()
@@ -501,7 +518,7 @@ local function toggleInvis()
         if invisTimer then task.cancel(invisTimer) invisTimer = nil end
         deactivateInvisibility()
         updateMovementStats()
-        SOUNDS.Deactivate:Play()
+        if SOUNDS.Deactivate then SOUNDS.Deactivate:Play() end
         updateButtonVisuals()
     else
         isInvis = true
@@ -513,7 +530,7 @@ local function toggleInvis()
                 isInvis = false
                 deactivateInvisibility()
                 updateMovementStats()
-                SOUNDS.Deactivate:Play()
+                if SOUNDS.Deactivate then SOUNDS.Deactivate:Play() end
                 updateButtonVisuals()
                 invisTimer = nil
             end
@@ -608,7 +625,6 @@ bezelStroke.Color = Color3.fromRGB(50, 205, 50)
 bezelStroke.Thickness = 6
 bezelStroke.Parent = MainFrame
 
--- === ORELHAS DECORATIVAS ===
 local earsImage = Instance.new("ImageLabel")
 earsImage.Name = "EarsDecoration"
 earsImage.Size = UDim2.new(0, 320, 0, 95)
@@ -934,7 +950,7 @@ local function createBoostTool()
         isDrinking = true
         updateMovementStats()
         stopAllTracks(0.2)
-        SOUNDS.Drink:Play()
+        if SOUNDS.Drink then SOUNDS.Drink:Play() end
         local drinkTrack = loadAnim(ID_CONFIG.Drink)
         if not drinkTrack then isDrinking = false return end
         drinkTrack.Looped = false
@@ -1309,10 +1325,8 @@ local function onCharacterAdded(char)
     local camera = Workspace.CurrentCamera
     if camera then originalFOV = camera.FieldOfView end
 
-    -- ====================== FIX RESPAWN ======================
     local animate = char:WaitForChild("Animate")
     
-    -- Espera as pastas principais carregarem (evita o erro "walk is not a valid member")
     animate:WaitForChild("idle")
     animate:WaitForChild("walk")
     animate:WaitForChild("run")
@@ -1338,7 +1352,6 @@ local function onCharacterAdded(char)
         Sit   = sitId,
         Fall  = fallId
     }
-    -- ========================================================
 
     Humanoid.JumpPower = SETTINGS.JumpPower
     setAnims()
@@ -1359,23 +1372,21 @@ local function onCharacterAdded(char)
         activeJumpTrack.Stopped:Once(function() activeJumpTrack = nil end)
     end)
 
-    -- ====================== FIX JUMP ANIMATION CANCEL ======================
     if jumpStateConnection then jumpStateConnection:Disconnect() end
     jumpStateConnection = Humanoid.StateChanged:Connect(function(oldState, newState)
         if activeJumpTrack and activeJumpTrack.IsPlaying then
-            -- Cancela imediatamente quando não estiver mais pulando ou caindo
             if newState ~= Enum.HumanoidStateType.Jumping and newState ~= Enum.HumanoidStateType.Freefall then
-                activeJumpTrack:Stop(0.15)  -- fade rápido e suave
+                activeJumpTrack:Stop(0.15)
             end
         end
     end)
-    -- =====================================================================
 
     if footprintConnection then footprintConnection:Disconnect() end
     footprintConnection = RunService.Heartbeat:Connect(function()
         updateIdleStatus()
         updateRunAnimation()
         updatePhoneAnimation()
+        updateNormalRunSpeed()
         if not Character or not Humanoid or isDrinking or isSitting or SETTINGS.LieEnabled or isInvis or isMusicOpen then return end
         local root = Character:FindFirstChild("HumanoidRootPart")
         if not root then return end
