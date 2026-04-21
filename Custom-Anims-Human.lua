@@ -1,5 +1,5 @@
 -- =========================================================
--- SCRIPT ATUALIZADO v4.9: Run Normal Speed Config + SRun Speed & Restart Interval + Refresh Anim Fix (no mixing)
+-- SCRIPT ATUALIZADO v4.9.1: Walk/Run seguem velocidade padrão do jogo
 -- =========================================================
 
 local ID_CONFIG = {
@@ -20,8 +20,6 @@ local ID_CONFIG = {
 }
 
 local SETTINGS = {
-    WalkSpeed        = 15,
-    RunSpeed         = 19,
     JumpPower        = 50,
     Enabled          = true,
     CrouchEnabled    = false,
@@ -32,7 +30,6 @@ local SETTINGS = {
     BoostFOV         = 90,
     BoostJump        = 17,
     FootprintInterval = 0.32,
-    -- NOVAS CONFIGS v4.9
     RunAnimSpeed        = 1.5,
     SRunAnimSpeed       = 3,
     SRunRestartInterval = 1.3
@@ -55,6 +52,7 @@ local TOOL_CONFIGS = {
 local Player = game.Players.LocalPlayer
 local Character, Humanoid, Animator
 local originalIDs = {}
+local originalWalkSpeed = 16
 local jumpingConnection = nil
 local activeJumpTrack = nil
 local jumpStateConnection = nil
@@ -464,7 +462,7 @@ local function updateMovementStats()
         return
     end
 
-    local baseSpeed = (SETTINGS.LieEnabled or isSitting) and 0 or SETTINGS.WalkSpeed
+    local baseSpeed = (SETTINGS.LieEnabled or isSitting) and 0 or originalWalkSpeed
     if isInvis or (os.clock() < drinkBoostEndTime) then baseSpeed = SETTINGS.BoostSpeed end
     Humanoid.WalkSpeed = baseSpeed
     local baseJump = SETTINGS.JumpPower
@@ -1320,6 +1318,9 @@ local function onCharacterAdded(char)
     Character = char
     Humanoid = char:WaitForChild("Humanoid")
     Animator = Humanoid:WaitForChild("Animator")
+    
+    originalWalkSpeed = Humanoid.WalkSpeed
+
     removeExtraRoots()
     createSounds()
     local camera = Workspace.CurrentCamera
@@ -1535,5 +1536,78 @@ lieButton.MouseButton1Click:Connect(function()
 end)
 
 invisButton.MouseButton1Click:Connect(toggleInvis)
+
+local Camera = Workspace.CurrentCamera
+
+local blurEffect = Instance.new("BlurEffect")
+blurEffect.Name = "TzeMotionBlur"
+blurEffect.Size = 0
+blurEffect.Parent = game.Lighting
+
+local windAttachment = nil
+local windEmitter = nil
+
+local function createWindParticles()
+    if windEmitter then return end
+    windAttachment = Instance.new("Attachment")
+    windAttachment.Parent = Camera
+    windEmitter = Instance.new("ParticleEmitter")
+    windEmitter.Name = "TzeWindParticles"
+    windEmitter.Texture = "rbxassetid://241650885"
+    windEmitter.Color = ColorSequence.new(Color3.fromRGB(200, 230, 255))
+    windEmitter.LightEmission = 0.7
+    windEmitter.Rate = 0
+    windEmitter.Lifetime = NumberRange.new(0.45, 0.9)
+    windEmitter.Speed = NumberRange.new(110, 160)
+    windEmitter.SpreadAngle = Vector2.new(35, 35)
+    windEmitter.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(0.4, 0.07), NumberSequenceKeypoint.new(1, 0.01)})
+    windEmitter.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1)})
+    windEmitter.Rotation = NumberRange.new(-120, 120)
+    windEmitter.Acceleration = Vector3.new(0, -12, 0)
+    windEmitter.Parent = windAttachment
+end
+
+local isSRunning = false
+local lastCameraCFrame = Camera.CFrame
+
+RunService.RenderStepped:Connect(function(dt)
+    if not Camera then return end
+    local currentCFrame = Camera.CFrame
+    local rotDiff = lastCameraCFrame.Rotation:Inverse() * currentCFrame.Rotation
+    local _, yaw, _ = rotDiff:ToEulerAnglesYXZ()
+    local turnSpeed = math.abs(yaw) / dt
+    if turnSpeed > 3.5 then
+        blurEffect.Size = math.clamp(turnSpeed * 1.2, 0, 9)
+    else
+        blurEffect.Size = math.max(blurEffect.Size - 45 * dt, 0)
+    end
+    lastCameraCFrame = currentCFrame
+
+    local speed = 0
+    local root = Character and Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        local vel = root.Velocity
+        speed = Vector3.new(vel.X, 0, vel.Z).Magnitude
+    end
+
+    isSRunning = (speed > 18.5 and SETTINGS.Enabled and not isDrinking and not isMusicOpen)
+
+    if isSRunning then
+        if not windEmitter then createWindParticles() end
+        windEmitter.Rate = 380
+        local shakeIntensity = 0.045 + (speed - 20) * 0.0022
+        local shakeX = math.sin(os.clock() * 28) * shakeIntensity
+        local shakeY = math.sin(os.clock() * 19) * shakeIntensity * 0.7
+        Camera.CFrame *= CFrame.new(shakeX, shakeY, 0)
+    else
+        if windEmitter then
+            windEmitter.Rate = 0
+        end
+    end
+end)
+
+if Character then
+    createWindParticles()
+end
 
 updateButtonVisuals()
