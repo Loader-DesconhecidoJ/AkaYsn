@@ -22,8 +22,8 @@ local frozenParts = {}
 
 local COLORS = {
 	Yellow = Color3.fromRGB(255, 215, 0),
-	Green = Color3.fromRGB(0, 255, 120),
-	Purple = Color3.fromRGB(170, 0, 255),
+	Green = Color3.fromRGB(0, 0, 0),
+	Purple = Color3.fromRGB(0, 0, 0),
 	Black = Color3.fromRGB(0, 0, 0)
 }
 
@@ -38,27 +38,31 @@ local ASSETS = {
 	KNIFE_HIT_SOUND = "rbxassetid://743521337",
 	BARRAGE_ANIM = "rbxassetid://90073013818806",
 	KNIFE_THROW_ANIM = "rbxassetid://109638015126982",
-	PLAYER_BARRAGE = "rbxassetid://105746954691593" -- ID corrigido aqui
+	PLAYER_BARRAGE = "rbxassetid://105746954691593",
+	TS_IMAGE = "rbxassetid://107526909795121",
+	STAND_IMAGE = "rbxassetid://71063600838165",
+	KNIFE_IMAGE = "rbxassetid://128478684091020"
 }
 
 --------------------------------------------------------------------------------
 -- NOVO: FUNÇÃO PARA CRIAR BALÕES DE TEXTO (IMAGENS PEQUENAS AO LADO DA CABEÇA)
+-- ATUALIZADO: agora suporta mostrar no Stand (customHead) ou no player
 --------------------------------------------------------------------------------
-local function showSpeechBubble(imageId, side, duration)
-	if not character or not character:FindFirstChild("Head") then return end
+local function showSpeechBubble(imageId, side, duration, customHead)
+	if not customHead then
+		if not character or not character:FindFirstChild("Head") then return end
+		customHead = character.Head
+	end
 	
-	local head = character.Head
+	local head = customHead
+	if not head or not head.Parent then return end
 	
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "JojoSpeechBubble"
 	billboard.Adornee = head
 	
-	-- Tamanho em Studs (Fixo em relação ao boneco)
 	billboard.Size = UDim2.new(3.5, 0, 3.5, 0) 
 	
-	-- AJUSTE DE PROXIMIDADE:
-	-- O primeiro número (1.8) controla a distância lateral (esquerda/direita)
-	-- O segundo número (1.5) controla a altura (para cima/baixo)
 	local lateralDist = 1.8
 	local altura = 1.5
 	
@@ -77,10 +81,8 @@ local function showSpeechBubble(imageId, side, duration)
 	imageLabel.ImageTransparency = 1
 	imageLabel.Parent = billboard
 	
-	-- Animação de entrada
 	TweenService:Create(imageLabel, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 0}):Play()
 	
-	-- Remove automaticamente
 	task.delay(duration, function()
 		if billboard and billboard.Parent then
 			TweenService:Create(imageLabel, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {ImageTransparency = 1}):Play()
@@ -107,7 +109,9 @@ local M1_POS       = UDim2.new(0.6, 0, 0.85, 0)
 local KNIFE_POS_ON = UDim2.new(0.7, 0, 0.85, 0)
 local KNIFE_POS_OFF = M1_POS
 
-local function createCircularButton(name, pos, text, color)
+local function createCircularButton(name, pos, text, color, imageId)
+	color = color or COLORS.Yellow
+	
 	local btn = Instance.new("TextButton", screenGui)
 	btn.Name = name
 	btn.Size = UDim2.fromOffset(85, 85)
@@ -117,7 +121,6 @@ local function createCircularButton(name, pos, text, color)
 	btn.Text = text
 	btn.TextColor3 = Color3.new(1, 1, 1)
 	
-	-- ✅ FONTE ESTILO JOJO'S BIZARRE ADVENTURE
 	btn.Font = Enum.Font.Bangers
 	btn.TextSize = 18
 	btn.TextStrokeTransparency = 0
@@ -128,17 +131,31 @@ local function createCircularButton(name, pos, text, color)
 	
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
 	local stroke = Instance.new("UIStroke", btn)
-	stroke.Color = color or COLORS.Yellow
+	stroke.Color = color
 	stroke.Thickness = 4
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	
-	return btn, stroke
+	local icon = nil
+	if imageId then
+		icon = Instance.new("ImageLabel", btn)
+		icon.Name = "Icon"
+		icon.Size = UDim2.new(1, 0, 1, 0)
+		icon.Position = UDim2.new(0.5, 0, 0.5, 0)
+		icon.AnchorPoint = Vector2.new(0.5, 0.5)
+		icon.BackgroundTransparency = 1
+		icon.Image = imageId
+		icon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+		icon.ScaleType = Enum.ScaleType.Fit
+		icon.ZIndex = 2
+	end
+	
+	return btn, stroke, icon
 end
 
-local tsBtn, tsStroke       = createCircularButton("TimeStopBtn", TS_POS, "STOP") 
-local activateBtn, actStroke = createCircularButton("ActivateBtn", ACTIVATE_POS, "STAND")
+local tsBtn, tsStroke, tsIcon       = createCircularButton("TimeStopBtn", TS_POS, "STOP", nil, ASSETS.TS_IMAGE)
+local activateBtn, actStroke, standIcon = createCircularButton("ActivateBtn", ACTIVATE_POS, "STAND", nil, ASSETS.STAND_IMAGE)
 local m1Btn, m1Stroke       = createCircularButton("M1Btn", M1_POS, "M1")
-local knifeBtn, knifeStroke = createCircularButton("KnifeBtn", KNIFE_POS_OFF, "KNIFE")
+local knifeBtn, knifeStroke, knifeIcon = createCircularButton("KnifeBtn", KNIFE_POS_OFF, "KNIFE", nil, ASSETS.KNIFE_IMAGE)
 
 m1Btn.Visible = false
 knifeBtn.Visible = true
@@ -155,6 +172,19 @@ resumeImage.ImageTransparency = 1
 resumeImage.Visible = false
 resumeImage.ZIndex = 100
 resumeImage.ScaleType = Enum.ScaleType.Fit
+
+local function updateIconState(icon, isActive)
+	if not icon then return end
+	if isActive then
+		icon.ImageColor3 = Color3.fromRGB(128, 128, 128)
+	else
+		icon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+	end
+end
+
+updateIconState(tsIcon, false)
+updateIconState(standIcon, false)
+updateIconState(knifeIcon, false)
 
 --------------------------------------------------------------------------------
 -- FUNÇÃO PARA MOVER O BOTÃO KNIFE COM ANIMAÇÃO
@@ -211,7 +241,6 @@ end
 --------------------------------------------------------------------------------
 local function toggleStand()
 	if isStandActive then
-		-- ==================== DESATIVANDO STAND ====================
 		isStandActive = false
 		isAttacking = false
 		
@@ -231,7 +260,6 @@ local function toggleStand()
 			currentStand = nil
 		end
 		
-		-- ANIMAÇÃO M1
 		local m1TweenBack = TweenService:Create(
 			m1Btn,
 			TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
@@ -245,17 +273,15 @@ local function toggleStand()
 		end)
 		
 		updateKnifePosition(false)
+		updateIconState(standIcon, false)
 		
 	else
-		-- ==================== ATIVANDO STAND ====================
 		isStandActive = true
 		
 		activateBtn.Text = "OFF"
 		
-		-- NOVO: Balão "The World" ao ativar o Stand (direita da cabeça)
 		showSpeechBubble(81663476180868, "right", 2.5)
 		
-		-- ANIMAÇÃO M1
 		m1Btn.Position = ACTIVATE_POS
 		m1Btn.Visible = true
 		TweenService:Create(
@@ -288,6 +314,7 @@ local function toggleStand()
 		end
 		
 		updateKnifePosition(true)
+		updateIconState(standIcon, true)
 	end
 end
 
@@ -362,32 +389,26 @@ local function toggleTime()
 				Debris:AddItem(cc, 0.7)
 			end)
 		end
+		updateIconState(tsIcon, false)
 
 	else
-		-- ================= ATIVAR TIME STOP =================
 		isTimeStopped = true
 		tsBtn.Text = "RESUME"
 		
 		local root = character:FindFirstChild("HumanoidRootPart")
 		
-		-- 1. Toca o som e a animação
 		local s = Instance.new("Sound", workspace); s.SoundId = ASSETS.TS_START_SFX; s.Volume = 2; s:Play(); Debris:AddItem(s, 5)
 		local tsAnimTrack = playAnim(hum, ASSETS.ANIM_DIO, 2)
 		
-		-- 2. IMOBILIZA O JOGADOR (Ancorar para não cair nem andar)
 		if root then root.Anchored = true end
 		
-		-- Balão "Za Warudo"
 		showSpeechBubble(106366607174396, "right", 4)
 		
-		-- 3. ESPERA A ANIMAÇÃO ACABAR OU O TEMPO CONGELAR
 		task.delay(2, function()
 			if not isTimeStopped then return end
 			
-			-- LIBERA O JOGADOR (Desancorar para você poder se mover no tempo parado)
 			if root then root.Anchored = false end
 
-			-- Configura o ColorCorrection (Efeito visual)
 			local cc = Lighting:FindFirstChild("TS_Effect") or Instance.new("ColorCorrectionEffect", Lighting)
 			cc.Name = "TS_Effect"
 			
@@ -430,7 +451,6 @@ local function toggleTime()
 				}):Play()
 			end)
 
-			-- 4. CONGELA O RESTO DO MUNDO
 			frozenParts = {}
 			for _, part in ipairs(workspace:GetDescendants()) do
 				if part:IsA("BasePart") 
@@ -443,26 +463,23 @@ local function toggleTime()
 				end
 			end
 		end)
+		updateIconState(tsIcon, true)
 	end
 end
 
 --------------------------------------------------------------------------------
--- ATAQUE M1 (sem alterações)
+-- ATAQUE M1 (MODIFICADO)
+-- Agora: se não tiver alvo → mostra balão novo (102362181377695) e NÃO ataca
+-- Se tiver alvo → mostra balão MUDA MUDA no STAND (não no player) e ataca
 --------------------------------------------------------------------------------
 local function performM1()
 	if not isStandActive or not currentStand or isAttacking then return end
 	
-	isAttacking = true
-	
-	-- Balão "Muda Muda Muda"
-	showSpeechBubble(82682258182370, "left", 4)
-	
 	local root = character:FindFirstChild("HumanoidRootPart")
-	if not root then isAttacking = false return end
+	if not root then return end
 	
-	-- LÓGICA DE ALVO (RESTAURADA DO SCRIPT ANTIGO)
 	local closest = nil
-	local minDist = 12 -- Distância máxima para acertar o soco
+	local minDist = 12
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
 			local d = (p.Character.HumanoidRootPart.Position - root.Position).Magnitude
@@ -474,9 +491,15 @@ local function performM1()
 	end
 	
 	if not closest then 
-		isAttacking = false
+		showSpeechBubble(102362181377695, "right", 2.5)
 		return 
 	end
+	
+	isAttacking = true
+	
+	-- Balão MUDA MUDA agora aparece NO STAND (com o mesmo offset lateral)
+	local standHead = currentStand:FindFirstChild("Head")
+	showSpeechBubble(82682258182370, "left", 4, standHead)
 	
 	local targetRoot = closest:FindFirstChild("HumanoidRootPart")
 	local targetHum = closest:FindFirstChildOfClass("Humanoid")
@@ -489,24 +512,20 @@ local function performM1()
 	local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
 	local sHum = currentStand:FindFirstChildOfClass("Humanoid")
 	
-	-- Posiciona o Stand na frente do alvo
 	if sRoot then
 		local basePos = targetRoot.CFrame * CFrame.new(0, 2, -4)
 		local attackCFrame = CFrame.lookAt(basePos.Position, targetRoot.Position)
 		TweenService:Create(sRoot, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {CFrame = attackCFrame}):Play()
 	end
 	
-	-- Variáveis para as animações
 	local barrageTrack = nil
 	local playerBarrageTrack = nil
 	
-	-- 1. Toca animação no Stand
 	if sHum then
 		if idleTrack and idleTrack.IsPlaying then idleTrack:Stop() end
 		barrageTrack = playAnim(sHum, ASSETS.BARRAGE_ANIM, 2.5)
 	end
 	
-	-- 2. Toca animação no SEU BONECO (Se o ID for válido)
 	if hum and ASSETS.PLAYER_BARRAGE and ASSETS.PLAYER_BARRAGE ~= "" then
 		playerBarrageTrack = playAnim(hum, ASSETS.PLAYER_BARRAGE, 1)
 	end
@@ -517,7 +536,6 @@ local function performM1()
 	mudaSound:Play()
 	Debris:AddItem(mudaSound, 6)
 	
-	-- Loop de Dano
 	local NUM_HITS = 46
 	for i = 1, NUM_HITS do
 		if targetRoot and targetRoot.Parent and targetHum and targetHum.Parent then
@@ -538,7 +556,6 @@ local function performM1()
 		task.wait(0.065)
 	end
 	
-	-- Para as animações
 	if barrageTrack then barrageTrack:Stop() end
 	if playerBarrageTrack then playerBarrageTrack:Stop() end
 	
@@ -546,7 +563,6 @@ local function performM1()
 		idleTrack = playAnim(sHum, ASSETS.STAND_IDLE)
 	end
 	
-	-- Efeito de empurrão final (Knockback)
 	if targetRoot and targetRoot.Parent then
 		local att = Instance.new("Attachment", targetRoot)
 		local vel = Instance.new("LinearVelocity", att)
@@ -573,7 +589,10 @@ local function performM1()
 end
 
 --------------------------------------------------------------------------------
--- KNIFE THROW HÍBRIDO (BONECO OU STAND) + MOVIMENTO SUAVE
+-- KNIFE THROW HÍBRIDO (MODIFICADO)
+-- Agora: se estiver com Stand ativo e NÃO tiver alvo na área (50 studs) → 
+-- mostra balão novo (102362181377695) e NÃO ativa o throw
+-- Se tiver alvo → mostra balão HMPH e atira normalmente
 --------------------------------------------------------------------------------
 local function getClosestTarget(maxDist)
     local closest = nil
@@ -606,27 +625,27 @@ local function performKnifeThrow()
 	
 	if not attackerRoot or not attackerHum or not charRoot then return end
 
-	isAttacking = true 
-
-	-- 1. DEFINIÇÃO DE ALVO E DIREÇÃO
+	-- NOVO: verificação de alvo ANTES de ativar o ataque (só para Stand)
 	local target = nil
 	if isStandAttacking then
 		target = getClosestTarget(50)
+		if not target then
+			showSpeechBubble(102362181377695, "right", 2.5)
+			return
+		end
 	end
 
-	-- Direção baseada na câmera ou no alvo
+	isAttacking = true 
+
 	local shootDir = (isStandAttacking and target) and (target.Position - attackerRoot.Position).Unit or camera.CFrame.LookVector
 
-	-- 2. ROTAÇÃO SUAVE DO BONECO (QUANDO STAND ESTÁ OFF)
 	if not isStandAttacking then
-		-- Cria um CFrame olhando para a direção do tiro, mas mantendo o boneco em pé (Y fixo)
 		local lookTarget = charRoot.Position + Vector3.new(shootDir.X, 0, shootDir.Z)
 		local targetRotation = CFrame.lookAt(charRoot.Position, lookTarget)
 		
 		TweenService:Create(charRoot, TweenInfo.new(0.15, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {CFrame = targetRotation}):Play()
 	end
 
-	-- 3. POSICIONAMENTO DO STAND (QUANDO STAND ESTÁ ON)
 	if isStandAttacking then
 		local goalCF
 		if target then
@@ -642,7 +661,6 @@ local function performKnifeThrow()
 		tweenMove.Completed:Wait()
 	end
 
-	-- 4. ANIMAÇÃO
 	local throwTrack = nil
 	if ASSETS.KNIFE_THROW_ANIM ~= "" then
 		if isStandAttacking and idleTrack then idleTrack:Stop() end
@@ -650,25 +668,29 @@ local function performKnifeThrow()
 		if throwTrack then throwTrack.Looped = false end
 	end
 
-	-- Som e Efeitos
 	local throwSound = Instance.new("Sound", workspace)
 	throwSound.SoundId = ASSETS.KNIFE_THROW_SOUND
 	throwSound:Play()
 	Debris:AddItem(throwSound, 3)
 
+	-- Balão HMPH agora só aparece se tiver alvo (já garantido pelo check acima)
 	if isStandAttacking then
 		showSpeechBubble(92536008979873, "right", 1.5)
 	end
 
-	-- 5. DISPARO DAS FACAS
 	for i = 1, 5 do
 		local knife = Instance.new("Part")
 		knife.Name = "DioKnife"
 		knife.Size = Vector3.new(1, 1, 1)
 		
-		-- Ajusta a posição inicial da faca para sair da frente do atacante atual
 		knife.CFrame = attackerRoot.CFrame * CFrame.new((i-3)*0.8, 0.5, -1.5)
-		knife.CFrame = CFrame.lookAt(knife.Position, knife.Position + shootDir)
+		local baseCFrame = CFrame.lookAt(knife.Position, knife.Position + shootDir)
+
+-- Use math.rad() para converter graus em radianos
+-- Teste mudar os valores de 90 em 90 graus em X, Y ou Z
+local rotacaoAjustada = CFrame.Angles(math.rad(10), math.rad(-180), math.rad(0)) 
+
+knife.CFrame = baseCFrame * rotacaoAjustada
 		knife.CanCollide = false
 		knife.Parent = workspace
 		
@@ -794,10 +816,8 @@ applyClickEffect(activateBtn)
 applyClickEffect(m1Btn)
 applyClickEffect(knifeBtn)
 
--- Inicializa o botão Knife na posição correta
 updateKnifePosition(false)
 
--- Opcional: atualiza a referência do character caso o jogador morra e respawne
 player.CharacterAdded:Connect(function(newChar)
 	character = newChar
 	hum = newChar:WaitForChild("Humanoid")
