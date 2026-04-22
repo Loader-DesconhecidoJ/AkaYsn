@@ -107,37 +107,40 @@ local screenGui = Instance.new("ScreenGui", player.PlayerGui)
 screenGui.Name = "DioStandUniversal"
 screenGui.ResetOnSpawn = false
 
-local TS_POS = UDim2.new(0.4, 0, 0.85, 0)
-local ACTIVATE_POS = UDim2.new(0.5, 0, 0.85, 0)
-local M1_POS = UDim2.new(0.6, 0, 0.85, 0)
-local KNIFE_POS_ON = UDim2.new(0.7, 0, 0.85, 0)
+local TS_POS = UDim2.new(0.4, 0, 0.78, 0)
+local ACTIVATE_POS = UDim2.new(0.5, 0, 0.75, 0)
+local M1_POS = UDim2.new(0.6, 0, 0.78, 0)
+local KNIFE_POS_ON = UDim2.new(0.7, 0, 0.78, 0)
 local KNIFE_POS_OFF = M1_POS
 
-local function createCircularButton(name, pos, text, color, imageId)
+local function createCircularButton(name, pos, text, color, imageId, sizeOffset)
+	sizeOffset = sizeOffset or 70 -- Padrão agora é 70
 	color = color or COLORS.Yellow
 	local btn = Instance.new("TextButton", screenGui)
 	btn.Name = name
-	btn.Size = UDim2.fromOffset(85, 85)
+	btn.Size = UDim2.fromOffset(sizeOffset, sizeOffset)
 	btn.Position = pos
 	btn.AnchorPoint = Vector2.new(0.5, 0.5)
 	btn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 	btn.Text = text
 	btn.TextColor3 = Color3.new(1, 1, 1)
 	btn.Font = Enum.Font.Bangers
-	btn.TextSize = 18
+	btn.TextSize = 14 -- Texto um pouco menor para caber no botão menor
 	btn.TextStrokeTransparency = 0
 	btn.TextStrokeColor3 = Color3.new(0, 0, 0)
 	btn.AutoButtonColor = false
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
 	local stroke = Instance.new("UIStroke", btn)
 	stroke.Color = color
-	stroke.Thickness = 4
+	stroke.Thickness = 3
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	local icon = nil
+		local icon = nil
 	if imageId then
 		icon = Instance.new("ImageLabel", btn)
 		icon.Name = "Icon"
-		icon.Size = UDim2.new(1, 0, 1, 0)
+		-- ALTERE A LINHA ABAIXO PARA ESTES VALORES (1, 0, 1, 0):
+		icon.Size = UDim2.new(1, 0, 1, 0) 
+		-------------------------------------------------------
 		icon.Position = UDim2.new(0.5, 0, 0.5, 0)
 		icon.AnchorPoint = Vector2.new(0.5, 0.5)
 		icon.BackgroundTransparency = 1
@@ -145,14 +148,18 @@ local function createCircularButton(name, pos, text, color, imageId)
 		icon.ImageColor3 = Color3.fromRGB(255, 255, 255)
 		icon.ScaleType = Enum.ScaleType.Fit
 		icon.ZIndex = 2
+		
+		-- ADICIONE ESTA LINHA PARA GARANTIR QUE O ÍCONE FIQUE REDONDO JUNTO COM O BOTÃO
+		Instance.new("UICorner", icon).CornerRadius = UDim.new(1, 0)
 	end
 	return btn, stroke, icon
 end
 
-local tsBtn, tsStroke, tsIcon = createCircularButton("TimeStopBtn", TS_POS, "STOP", nil, ASSETS.TS_IMAGE)
-local activateBtn, actStroke, standIcon = createCircularButton("ActivateBtn", ACTIVATE_POS, "STAND", nil, ASSETS.STAND_IMAGE)
-local m1Btn, m1Stroke = createCircularButton("M1Btn", M1_POS, "M1")
-local knifeBtn, knifeStroke, knifeIcon = createCircularButton("KnifeBtn", KNIFE_POS_OFF, "KNIFE", nil, ASSETS.KNIFE_IMAGE)
+-- TAMANHOS REDUZIDOS: 70 para normais e 95 para o Stand
+local tsBtn, tsStroke, tsIcon = createCircularButton("TimeStopBtn", TS_POS, "STOP", nil, ASSETS.TS_IMAGE, 70)
+local activateBtn, actStroke, standIcon = createCircularButton("ActivateBtn", ACTIVATE_POS, "STAND", nil, ASSETS.STAND_IMAGE, 95)
+local m1Btn, m1Stroke = createCircularButton("M1Btn", M1_POS, "M1", nil, nil, 70)
+local knifeBtn, knifeStroke, knifeIcon = createCircularButton("KnifeBtn", KNIFE_POS_OFF, "KNIFE", nil, ASSETS.KNIFE_IMAGE, 70)
 
 m1Btn.Visible = false
 knifeBtn.Visible = true
@@ -419,7 +426,7 @@ local function performKnifeThrow()
 	local throwTrack
 	if ASSETS.KNIFE_THROW_ANIM ~= "" then if isStandAttacking and idleTrack then idleTrack:Stop() end throwTrack = playAnim(attackerHum, ASSETS.KNIFE_THROW_ANIM, 2) if throwTrack then throwTrack.Looped = false end end
 	local throwSound = Instance.new("Sound", workspace) throwSound.SoundId = ASSETS.KNIFE_THROW_SOUND throwSound:Play() Debris:AddItem(throwSound, 3)
-	if isStandAttacking then showSpeechBubble(92536008979873, "right", 1.5) end
+	if isStandAttacking then showSpeechBubble(92536008979873, "leftt", 1.5) end
 	for i = 1, 5 do
 		local knife = Instance.new("Part") knife.Name = "DioKnife" knife.Size = Vector3.new(1,1,1) knife.CanCollide = false knife.Parent = workspace
 		local baseCFrame = CFrame.lookAt(attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5), attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5) + shootDir)
@@ -486,11 +493,20 @@ task.spawn(function()
 	end
 end)
 
-local function applyClickEffect(b)
-	b.MouseButton1Down:Connect(function() TweenService:Create(b, TweenInfo.new(0.1), {Size = UDim2.fromOffset(75, 75)}):Play() end)
-	b.MouseButton1Up:Connect(function() TweenService:Create(b, TweenInfo.new(0.1), {Size = UDim2.fromOffset(85, 85)}):Play() end)
+-- EFEITO DE CLIQUE (Diminui proporcionalmente)
+local function applyClickEffect(b, baseSize)
+	b.MouseButton1Down:Connect(function() 
+		TweenService:Create(b, TweenInfo.new(0.1), {Size = UDim2.fromOffset(baseSize - 8, baseSize - 8)}):Play() 
+	end)
+	b.MouseButton1Up:Connect(function() 
+		TweenService:Create(b, TweenInfo.new(0.1), {Size = UDim2.fromOffset(baseSize, baseSize)}):Play() 
+	end)
 end
-applyClickEffect(tsBtn) applyClickEffect(activateBtn) applyClickEffect(m1Btn) applyClickEffect(knifeBtn)
+
+applyClickEffect(tsBtn, 70)
+applyClickEffect(activateBtn, 95)
+applyClickEffect(m1Btn, 70)
+applyClickEffect(knifeBtn, 70)
 
 updateKnifePosition(false)
 
