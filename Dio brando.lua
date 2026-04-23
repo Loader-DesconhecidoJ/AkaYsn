@@ -78,6 +78,7 @@ local function showSpeechBubble(imageId, side, duration, customHead)
 	end
 	local head = customHead
 	if not head or not head.Parent then return end
+
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "JojoSpeechBubble"
 	billboard.Adornee = head
@@ -87,18 +88,42 @@ local function showSpeechBubble(imageId, side, duration, customHead)
 	billboard.LightInfluence = 0
 	billboard.MaxDistance = 100
 	billboard.Parent = head
+
 	local imageLabel = Instance.new("ImageLabel")
 	imageLabel.Name = "BubbleImage"
-	imageLabel.Size = UDim2.new(1, 0, 1, 0)
 	imageLabel.BackgroundTransparency = 1
-	imageLabel.Image = "rbxassetid://".. imageId
+	imageLabel.Image = "rbxassetid://" .. imageId
 	imageLabel.ImageTransparency = 1
+	
+	imageLabel.Size = UDim2.new(0.2, 0, 0.2, 0)
+	imageLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+	imageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	
 	imageLabel.Parent = billboard
-	TweenService:Create(imageLabel, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 0}):Play()
+
+	local tweenInfoIn = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	local tweenIn = TweenService:Create(imageLabel, tweenInfoIn, {
+		Size = UDim2.new(1, 0, 1, 0),
+		ImageTransparency = 0
+	})
+	tweenIn:Play()
+
 	task.delay(duration, function()
 		if billboard and billboard.Parent then
-			TweenService:Create(imageLabel, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {ImageTransparency = 1}):Play()
-			task.delay(0.45, function() if billboard and billboard.Parent then billboard:Destroy() end end)
+			local tweenInfoOut = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			local tweenOut = TweenService:Create(imageLabel, tweenInfoOut, {
+				Size = UDim2.new(0.2, 0, 0.2, 0),
+				ImageTransparency = 1
+			})
+			
+			tweenOut:Play()
+			tweenOut.Completed:Connect(function(playbackState)
+				if playbackState == Enum.PlaybackState.Completed then
+					if billboard and billboard.Parent then
+						billboard:Destroy()
+					end
+				end
+			end)
 		end
 	end)
 end
@@ -114,7 +139,7 @@ local KNIFE_POS_ON = UDim2.new(0.7, 0, 0.78, 0)
 local KNIFE_POS_OFF = M1_POS
 
 local function createCircularButton(name, pos, text, color, imageId, sizeOffset)
-	sizeOffset = sizeOffset or 70 -- Padrão agora é 70
+	sizeOffset = sizeOffset or 70
 	color = color or COLORS.Yellow
 	local btn = Instance.new("TextButton", screenGui)
 	btn.Name = name
@@ -125,7 +150,7 @@ local function createCircularButton(name, pos, text, color, imageId, sizeOffset)
 	btn.Text = text
 	btn.TextColor3 = Color3.new(1, 1, 1)
 	btn.Font = Enum.Font.Bangers
-	btn.TextSize = 14 -- Texto um pouco menor para caber no botão menor
+	btn.TextSize = 14
 	btn.TextStrokeTransparency = 0
 	btn.TextStrokeColor3 = Color3.new(0, 0, 0)
 	btn.AutoButtonColor = false
@@ -134,13 +159,11 @@ local function createCircularButton(name, pos, text, color, imageId, sizeOffset)
 	stroke.Color = color
 	stroke.Thickness = 3
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		local icon = nil
+	local icon = nil
 	if imageId then
 		icon = Instance.new("ImageLabel", btn)
 		icon.Name = "Icon"
-		-- ALTERE A LINHA ABAIXO PARA ESTES VALORES (1, 0, 1, 0):
-		icon.Size = UDim2.new(1, 0, 1, 0) 
-		-------------------------------------------------------
+		icon.Size = UDim2.new(1, 0, 1, 0)
 		icon.Position = UDim2.new(0.5, 0, 0.5, 0)
 		icon.AnchorPoint = Vector2.new(0.5, 0.5)
 		icon.BackgroundTransparency = 1
@@ -148,14 +171,11 @@ local function createCircularButton(name, pos, text, color, imageId, sizeOffset)
 		icon.ImageColor3 = Color3.fromRGB(255, 255, 255)
 		icon.ScaleType = Enum.ScaleType.Fit
 		icon.ZIndex = 2
-		
-		-- ADICIONE ESTA LINHA PARA GARANTIR QUE O ÍCONE FIQUE REDONDO JUNTO COM O BOTÃO
 		Instance.new("UICorner", icon).CornerRadius = UDim.new(1, 0)
 	end
 	return btn, stroke, icon
 end
 
--- TAMANHOS REDUZIDOS: 70 para normais e 95 para o Stand
 local tsBtn, tsStroke, tsIcon = createCircularButton("TimeStopBtn", TS_POS, "STOP", nil, ASSETS.TS_IMAGE, 70)
 local activateBtn, actStroke, standIcon = createCircularButton("ActivateBtn", ACTIVATE_POS, "STAND", nil, ASSETS.STAND_IMAGE, 95)
 local m1Btn, m1Stroke = createCircularButton("M1Btn", M1_POS, "M1", nil, nil, 70)
@@ -190,13 +210,14 @@ local function updateKnifePosition(isActive)
 	TweenService:Create(knifeBtn, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = targetPos}):Play()
 end
 
-local function playAnim(target, animId, speed, looped)
+local function playAnim(target, animId, speed, looped, priority)
     if not target or not target.Parent then return end
     local a = Instance.new("Animation")
     a.AnimationId = animId
     local track = target:LoadAnimation(a)
     
-    track.Looped = (looped == true) -- Garante que só será true se você pedir
+    track.Looped = (looped == true)
+    if priority then track.Priority = priority end
     
     track:Play()
     if speed then track:AdjustSpeed(speed) end
@@ -299,15 +320,14 @@ local function toggleTime()
 			task.delay(0.9, function() if not isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.6), {Saturation = 0, Contrast = 0, Brightness = 0, TintColor = Color3.fromRGB(255,255,255)}):Play() Debris:AddItem(cc, 0.7) end end)
 		end
 		updateIconState(tsIcon, false)
-		else
+	else
 		if not canUse("TimeStop") then return end
 		isTimeStopped = true
 		tsBtn.Text = "RESUME"
 		local root = character:FindFirstChild("HumanoidRootPart")
 		local s = Instance.new("Sound", workspace) s.SoundId = ASSETS.TS_START_SFX s.Volume = 2 s:Play() Debris:AddItem(s, 5)
 		
-		-- Carrega a animação uma única vez e define o loop como falso
-		local tsTrack = playAnim(hum, ASSETS.ANIM_DIO, 2, false) 
+		local tsTrack = playAnim(hum, ASSETS.ANIM_DIO, 1.5, false, Enum.AnimationPriority.Action) 
 		
 		if root then root.Anchored = true end
 		showSpeechBubble(106366607174396, "right", 4)
@@ -334,84 +354,134 @@ local function toggleTime()
 	end	
 end
 
-local function performM1()
-	if not canUse("M1") then return end
-	if not isStandActive or not currentStand or isAttacking then return end
-	local root = character:FindFirstChild("HumanoidRootPart")
-	if not root then return end
-	local closest, minDist = nil, 12
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-			local d = (p.Character.HumanoidRootPart.Position - root.Position).Magnitude
-			if d < minDist then minDist = d closest = p.Character end
-		end
-	end
-	if not closest then showSpeechBubble(102362181377695, "right", 2.5) return end
-	isAttacking = true
-	cameraShake(3, 0.5)
-	showSpeechBubble(82682258182370, "left", 4, currentStand:FindFirstChild("Head"))
-	local targetRoot = closest:FindFirstChild("HumanoidRootPart")
-	local targetHum = closest:FindFirstChildOfClass("Humanoid")
-	if not targetRoot or not targetHum then isAttacking = false return end
-	local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
-	local sHum = currentStand:FindFirstChildOfClass("Humanoid")
-	if sRoot then
-		local basePos = targetRoot.CFrame * CFrame.new(0, 2, -4)
-		TweenService:Create(sRoot, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {CFrame = CFrame.lookAt(basePos.Position, targetRoot.Position)}):Play()
-	end
-		local barrageTrack, playerBarrageTrack
-	-- Adicionado 'true' no final para as animações de barrage repetirem
-	if sHum then 
-		if idleTrack and idleTrack.IsPlaying then idleTrack:Stop() end 
-		barrageTrack = playAnim(sHum, ASSETS.BARRAGE_ANIM, 2.5, true) 
-	end
-	if hum then 
-		playerBarrageTrack = playAnim(hum, ASSETS.PLAYER_BARRAGE, 1, true) 
-	end
-
-	local mudaSound = Instance.new("Sound", workspace) mudaSound.SoundId = ASSETS.MUDA_SOUND mudaSound.Volume = 1.2 mudaSound:Play() Debris:AddItem(mudaSound, 6)
-	for i = 1, 46 do
-		if targetRoot and targetRoot.Parent and targetHum and targetHum.Parent then
-			targetHum:TakeDamage(1)
-			targetRoot:ApplyImpulse((targetRoot.Position - root.Position).Unit * 12000 + Vector3.new(0, 8000, 0))
-			local hit = Instance.new("Part") hit.Size = Vector3.new(1,1,1) hit.Color = Color3.fromRGB(255,0,100) hit.Transparency = 0.3 hit.Anchored = true hit.CanCollide = false hit.CFrame = targetRoot.CFrame hit.Parent = workspace
-			TweenService:Create(hit, TweenInfo.new(0.4), {Transparency = 1, Size = Vector3.new(4,4,4)}):Play() Debris:AddItem(hit, 0.5)
-		end
-		task.wait(0.065)
-	end
-	if barrageTrack then barrageTrack:Stop() end
-	if playerBarrageTrack then playerBarrageTrack:Stop() end
-	if sHum then idleTrack = playAnim(sHum, ASSETS.STAND_IDLE) end
-	if targetRoot and targetRoot.Parent then
-		local att = Instance.new("Attachment", targetRoot)
-		local vel = Instance.new("LinearVelocity", att) vel.MaxForce = math.huge vel.VectorVelocity = (targetRoot.Position - root.Position).Unit * 650 + Vector3.new(0, 220, 0)
-		local rot = Instance.new("AngularVelocity", att) rot.MaxTorque = math.huge rot.AngularVelocity = Vector3.new(800, 1200, 800)
-		Debris:AddItem(att, 0.8)
-	end
-	task.delay(0.5, function()
-		if currentStand then
-			local sRoot2 = currentStand:FindFirstChild("HumanoidRootPart")
-			local root2 = character:FindFirstChild("HumanoidRootPart")
-			if sRoot2 and root2 then TweenService:Create(sRoot2, TweenInfo.new(0.4), {CFrame = root2.CFrame * CFrame.new(STAND_OFFSET)}):Play() end
-		end
-		isAttacking = false
-	end)
-end
-
+-- ==================== TARGETING MELHORADO (NUNCA MAIS ATACA A SI MESMO) ====================
 local function getClosestTarget(maxDist)
 	local closest, minDist = nil, maxDist
 	local root = character:FindFirstChild("HumanoidRootPart")
 	if not root then return nil end
+	
 	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Humanoid") and obj.Parent ~= character and (not currentStand or obj.Parent ~= currentStand) then
+		-- === CORREÇÃO PRINCIPAL: usa "hum" (seu próprio Humanoid) ao invés de character ===
+		-- Isso garante que nunca pegue você mesmo, mesmo se o personagem respawnar ou der bug de referência
+		if obj:IsA("Humanoid") and obj ~= hum and (not currentStand or obj.Parent ~= currentStand) then
 			local targetRoot = obj.Parent:FindFirstChild("HumanoidRootPart")
 			if targetRoot then
 				local dist = (targetRoot.Position - root.Position).Magnitude
-				if dist < minDist then minDist = dist closest = targetRoot end
+				if dist < minDist then
+					minDist = dist
+					closest = targetRoot
+				end
 			end
 		end
 	end
 	return closest
+end
+
+local function performM1()
+	if not canUse("M1") then return end
+	if not isStandActive or not currentStand or isAttacking then return end
+	
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	
+	-- Agora usa o mesmo sistema de target do Knife (mais preciso e pega NPCs também)
+	local targetRoot = getClosestTarget(12)
+	if not targetRoot then 
+		showSpeechBubble(102362181377695, "right", 2.5) 
+		return 
+	end
+	
+	local targetHum = targetRoot.Parent:FindFirstChildOfClass("Humanoid")
+	if not targetRoot or not targetHum then 
+		isAttacking = false 
+		return 
+	end
+	
+	isAttacking = true
+	cameraShake(3, 0.5)
+	showSpeechBubble(82682258182370, "left", 4, currentStand:FindFirstChild("Head"))
+	
+	local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
+	local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+	
+	local barrageTrack, playerBarrageTrack
+	if sHum then 
+		if idleTrack and idleTrack.IsPlaying then idleTrack:Stop() end 
+		barrageTrack = playAnim(sHum, ASSETS.BARRAGE_ANIM, 2.5, true, Enum.AnimationPriority.Action) 
+	end
+	if hum then 
+		playerBarrageTrack = playAnim(hum, ASSETS.PLAYER_BARRAGE, 1, true, Enum.AnimationPriority.Action) 
+	end
+
+	local mudaSound = Instance.new("Sound", workspace) 
+	mudaSound.SoundId = ASSETS.MUDA_SOUND 
+	mudaSound.Volume = 1.2 
+	mudaSound:Play() 
+	Debris:AddItem(mudaSound, 6)
+	
+	-- Loop da barragem com follow dinâmico
+	for i = 1, 46 do
+		if targetRoot and targetRoot.Parent and targetHum and targetHum.Parent then
+			targetHum:TakeDamage(1)
+			targetRoot:ApplyImpulse((targetRoot.Position - root.Position).Unit * 12000 + Vector3.new(0, 8000, 0))
+			
+			local hit = Instance.new("Part") 
+			hit.Size = Vector3.new(1,1,1) 
+			hit.Color = Color3.fromRGB(255,0,100) 
+			hit.Transparency = 0.3 
+			hit.Anchored = true 
+			hit.CanCollide = false 
+			hit.CFrame = targetRoot.CFrame 
+			hit.Parent = workspace
+			TweenService:Create(hit, TweenInfo.new(0.4), {Transparency = 1, Size = Vector3.new(4,4,4)}):Play() 
+			Debris:AddItem(hit, 0.5)
+			
+			-- Stand segue o alvo o tempo todo
+			if sRoot and sRoot.Parent then
+				local basePos = targetRoot.CFrame * CFrame.new(0, 2, -4)
+				local targetCF = CFrame.lookAt(basePos.Position, targetRoot.Position)
+				sRoot.CFrame = sRoot.CFrame:Lerp(targetCF, 0.35)
+			end
+			
+			-- Seu boneco olha pro alvo
+			if root and targetRoot and targetRoot.Parent then
+				local dir = (targetRoot.Position - root.Position)
+				local flatDir = Vector3.new(dir.X, 0, dir.Z)
+				if flatDir.Magnitude > 0.1 then
+					flatDir = flatDir.Unit
+					local targetLookCF = CFrame.lookAt(root.Position, root.Position + flatDir)
+					root.CFrame = root.CFrame:Lerp(targetLookCF, 0.25)
+				end
+			end
+		end
+		task.wait(0.065)
+	end
+	
+	if barrageTrack then barrageTrack:Stop() end
+	if playerBarrageTrack then playerBarrageTrack:Stop() end
+	if sHum then idleTrack = playAnim(sHum, ASSETS.STAND_IDLE) end
+	
+	if targetRoot and targetRoot.Parent then
+		local att = Instance.new("Attachment", targetRoot)
+		local vel = Instance.new("LinearVelocity", att) 
+		vel.MaxForce = math.huge 
+		vel.VectorVelocity = (targetRoot.Position - root.Position).Unit * 650 + Vector3.new(0, 220, 0)
+		local rot = Instance.new("AngularVelocity", att) 
+		rot.MaxTorque = math.huge 
+		rot.AngularVelocity = Vector3.new(800, 1200, 800)
+		Debris:AddItem(att, 0.8)
+	end
+	
+	task.delay(0.5, function()
+		if currentStand then
+			local sRoot2 = currentStand:FindFirstChild("HumanoidRootPart")
+			local root2 = character:FindFirstChild("HumanoidRootPart")
+			if sRoot2 and root2 then 
+				TweenService:Create(sRoot2, TweenInfo.new(0.4), {CFrame = root2.CFrame * CFrame.new(STAND_OFFSET)}):Play() 
+			end
+		end
+		isAttacking = false
+	end)
 end
 
 local function performKnifeThrow()
@@ -423,39 +493,87 @@ local function performKnifeThrow()
 	local charRoot = character:FindFirstChild("HumanoidRootPart")
 	local camera = workspace.CurrentCamera
 	if not attackerRoot or not attackerHum or not charRoot then return end
+	
 	local target = nil
-	if isStandAttacking then target = getClosestTarget(50) if not target then showSpeechBubble(102362181377695, "right", 2.5) return end end
+	if isStandAttacking then 
+		target = getClosestTarget(50) 
+		if not target then 
+			showSpeechBubble(102362181377695, "right", 2.5) 
+			return 
+		end 
+	end
+	
 	isAttacking = true
 	local shootDir = (isStandAttacking and target) and (target.Position - attackerRoot.Position).Unit or camera.CFrame.LookVector
+	
 	if not isStandAttacking then
 		local lookTarget = charRoot.Position + Vector3.new(shootDir.X, 0, shootDir.Z)
 		TweenService:Create(charRoot, TweenInfo.new(0.15, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {CFrame = CFrame.lookAt(charRoot.Position, lookTarget)}):Play()
 	end
+	
 	if isStandAttacking then
 		local goalCF = target and CFrame.lookAt(charRoot.Position + (target.Position - charRoot.Position).Unit * 3.5, target.Position) or charRoot.CFrame * CFrame.new(0,0,-3.5)
 		local tweenMove = TweenService:Create(attackerRoot, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {CFrame = goalCF})
-		tweenMove:Play() tweenMove.Completed:Wait()
+		tweenMove:Play() 
+		tweenMove.Completed:Wait()
 	end
+	
 	local throwTrack
-	if ASSETS.KNIFE_THROW_ANIM ~= "" then if isStandAttacking and idleTrack then idleTrack:Stop() end throwTrack = playAnim(attackerHum, ASSETS.KNIFE_THROW_ANIM, 2) if throwTrack then throwTrack.Looped = false end end
-	local throwSound = Instance.new("Sound", workspace) throwSound.SoundId = ASSETS.KNIFE_THROW_SOUND throwSound:Play() Debris:AddItem(throwSound, 3)
+	if ASSETS.KNIFE_THROW_ANIM ~= "" then 
+		if isStandAttacking and idleTrack then idleTrack:Stop() end 
+		throwTrack = playAnim(attackerHum, ASSETS.KNIFE_THROW_ANIM, 2, false, Enum.AnimationPriority.Action)
+		if throwTrack then throwTrack.Looped = false end 
+	end
+	
+	local throwSound = Instance.new("Sound", workspace) 
+	throwSound.SoundId = ASSETS.KNIFE_THROW_SOUND 
+	throwSound:Play() 
+	Debris:AddItem(throwSound, 3)
 	if isStandAttacking then showSpeechBubble(92536008979873, "left", 1.5) end
+	
 	for i = 1, 5 do
-		local knife = Instance.new("Part") knife.Name = "DioKnife" knife.Size = Vector3.new(1,1,1) knife.CanCollide = false knife.Parent = workspace
+		-- Stand olha pro alvo em cada faca
+		if isStandAttacking and target and target.Parent and attackerRoot then
+			shootDir = (target.Position - attackerRoot.Position).Unit
+			local lookCF = CFrame.lookAt(attackerRoot.Position, target.Position)
+			attackerRoot.CFrame = attackerRoot.CFrame:Lerp(lookCF, 0.5)
+		end
+		
+		local knife = Instance.new("Part") 
+		knife.Name = "DioKnife" 
+		knife.Size = Vector3.new(1,1,1) 
+		knife.CanCollide = false 
+		knife.Parent = workspace
+		
 		local baseCFrame = CFrame.lookAt(attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5), attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5) + shootDir)
 		knife.CFrame = baseCFrame * CFrame.Angles(math.rad(10), math.rad(-180), 0)
-		local mesh = Instance.new("SpecialMesh", knife) mesh.MeshId = "rbxassetid://15945983658" mesh.TextureId = "rbxassetid://15946012483" mesh.Scale = Vector3.new(1.2,1.2,1.8)
-		local vel = Instance.new("LinearVelocity", knife) vel.Attachment0 = Instance.new("Attachment", knife) vel.MaxForce = math.huge vel.VectorVelocity = shootDir * 280
+		
+		local mesh = Instance.new("SpecialMesh", knife) 
+		mesh.MeshId = "rbxassetid://15945983658" 
+		mesh.TextureId = "rbxassetid://15946012483" 
+		mesh.Scale = Vector3.new(1.2,1.2,1.8)
+		
+		local vel = Instance.new("LinearVelocity", knife) 
+		vel.Attachment0 = Instance.new("Attachment", knife) 
+		vel.MaxForce = math.huge 
+		vel.VectorVelocity = shootDir * 280
+		
 		knife.Touched:Connect(function(hitPart)
 			local hitHum = hitPart.Parent:FindFirstChildOfClass("Humanoid")
 			if hitHum and hitHum.Parent ~= character and hitHum.Parent ~= currentStand then
 				hitHum:TakeDamage(18)
-				local hitSound = Instance.new("Sound", workspace) hitSound.SoundId = ASSETS.KNIFE_HIT_SOUND hitSound:Play() Debris:AddItem(hitSound, 2)
+				local hitSound = Instance.new("Sound", workspace) 
+				hitSound.SoundId = ASSETS.KNIFE_HIT_SOUND 
+				hitSound:Play() 
+				Debris:AddItem(hitSound, 2)
 				knife:Destroy()
 			end
 		end)
-		Debris:AddItem(knife, 4) task.wait(0.06)
+		
+		Debris:AddItem(knife, 4) 
+		task.wait(0.06)
 	end
+	
 	task.wait(0.2)
 	if throwTrack then throwTrack:Stop() end
 	if isStandAttacking and attackerHum then idleTrack = playAnim(attackerHum, ASSETS.STAND_IDLE) end
@@ -468,7 +586,8 @@ local function freezeCharacterOnSpawn(plr, char)
 		if not char or not char.Parent then return end
 		for _, part in ipairs(char:GetDescendants()) do
 			if part:IsA("BasePart") and not part.Anchored and not (currentStand and part:IsDescendantOf(currentStand)) then
-				frozenParts[part] = true part.Anchored = true
+				frozenParts[part] = true 
+				part.Anchored = true
 			end
 		end
 	end)
@@ -488,7 +607,9 @@ RunService.RenderStepped:Connect(function()
 	if isStandActive and currentStand and not isAttacking then
 		local root = character:FindFirstChild("HumanoidRootPart")
 		local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
-		if root and sRoot then sRoot.CFrame = sRoot.CFrame:Lerp(root.CFrame * CFrame.new(STAND_OFFSET), 0.1) end
+		if root and sRoot then 
+			sRoot.CFrame = sRoot.CFrame:Lerp(root.CFrame * CFrame.new(STAND_OFFSET), 0.1) 
+		end
 	end
 end)
 
@@ -502,11 +623,11 @@ task.spawn(function()
 	local i = 1
 	while true do
 		TweenService:Create(tsStroke, TweenInfo.new(0.7), {Color = sequence[i]}):Play()
-		i = i % #sequence + 1 task.wait(0.7)
+		i = i % #sequence + 1 
+		task.wait(0.7)
 	end
 end)
 
--- EFEITO DE CLIQUE (Diminui proporcionalmente)
 local function applyClickEffect(b, baseSize)
 	b.MouseButton1Down:Connect(function() 
 		TweenService:Create(b, TweenInfo.new(0.1), {Size = UDim2.fromOffset(baseSize - 8, baseSize - 8)}):Play() 
@@ -523,4 +644,7 @@ applyClickEffect(knifeBtn, 70)
 
 updateKnifePosition(false)
 
-player.CharacterAdded:Connect(function(newChar) character = newChar hum = newChar:WaitForChild("Humanoid") end)
+player.CharacterAdded:Connect(function(newChar) 
+	character = newChar 
+	hum = newChar:WaitForChild("Humanoid") 
+end)
