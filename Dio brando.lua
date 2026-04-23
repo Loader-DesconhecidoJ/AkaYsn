@@ -190,14 +190,17 @@ local function updateKnifePosition(isActive)
 	TweenService:Create(knifeBtn, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = targetPos}):Play()
 end
 
-local function playAnim(target, animId, speed)
-	if not target or not target.Parent then return end
-	local a = Instance.new("Animation")
-	a.AnimationId = animId
-	local track = target:LoadAnimation(a)
-	track:Play()
-	if speed then track:AdjustSpeed(speed) end
-	return track
+local function playAnim(target, animId, speed, looped)
+    if not target or not target.Parent then return end
+    local a = Instance.new("Animation")
+    a.AnimationId = animId
+    local track = target:LoadAnimation(a)
+    
+    track.Looped = (looped == true) -- Garante que só será true se você pedir
+    
+    track:Play()
+    if speed then track:AdjustSpeed(speed) end
+    return track
 end
 
 local function getStandModel()
@@ -296,13 +299,16 @@ local function toggleTime()
 			task.delay(0.9, function() if not isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.6), {Saturation = 0, Contrast = 0, Brightness = 0, TintColor = Color3.fromRGB(255,255,255)}):Play() Debris:AddItem(cc, 0.7) end end)
 		end
 		updateIconState(tsIcon, false)
-	else
+		else
 		if not canUse("TimeStop") then return end
 		isTimeStopped = true
 		tsBtn.Text = "RESUME"
 		local root = character:FindFirstChild("HumanoidRootPart")
 		local s = Instance.new("Sound", workspace) s.SoundId = ASSETS.TS_START_SFX s.Volume = 2 s:Play() Debris:AddItem(s, 5)
-		playAnim(hum, ASSETS.ANIM_DIO, 2)
+		
+		-- Carrega a animação uma única vez e define o loop como falso
+		local tsTrack = playAnim(hum, ASSETS.ANIM_DIO, 2, false) 
+		
 		if root then root.Anchored = true end
 		showSpeechBubble(106366607174396, "right", 4)
 		task.delay(2, function()
@@ -325,7 +331,7 @@ local function toggleTime()
 			end
 		end)
 		updateIconState(tsIcon, true)
-	end
+	end	
 end
 
 local function performM1()
@@ -353,9 +359,16 @@ local function performM1()
 		local basePos = targetRoot.CFrame * CFrame.new(0, 2, -4)
 		TweenService:Create(sRoot, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {CFrame = CFrame.lookAt(basePos.Position, targetRoot.Position)}):Play()
 	end
-	local barrageTrack, playerBarrageTrack
-	if sHum then if idleTrack and idleTrack.IsPlaying then idleTrack:Stop() end barrageTrack = playAnim(sHum, ASSETS.BARRAGE_ANIM, 2.5) end
-	if hum then playerBarrageTrack = playAnim(hum, ASSETS.PLAYER_BARRAGE, 1) end
+		local barrageTrack, playerBarrageTrack
+	-- Adicionado 'true' no final para as animações de barrage repetirem
+	if sHum then 
+		if idleTrack and idleTrack.IsPlaying then idleTrack:Stop() end 
+		barrageTrack = playAnim(sHum, ASSETS.BARRAGE_ANIM, 2.5, true) 
+	end
+	if hum then 
+		playerBarrageTrack = playAnim(hum, ASSETS.PLAYER_BARRAGE, 1, true) 
+	end
+
 	local mudaSound = Instance.new("Sound", workspace) mudaSound.SoundId = ASSETS.MUDA_SOUND mudaSound.Volume = 1.2 mudaSound:Play() Debris:AddItem(mudaSound, 6)
 	for i = 1, 46 do
 		if targetRoot and targetRoot.Parent and targetHum and targetHum.Parent then
