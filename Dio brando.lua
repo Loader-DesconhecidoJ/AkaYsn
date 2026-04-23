@@ -236,6 +236,15 @@ local function playAnim(target, animId, speed, looped, priority)
     
     track:Play()
     if speed then track:AdjustSpeed(speed) end
+    
+    if looped then
+        track.Stopped:Connect(function()
+            if track and track.Parent then
+                track:Play()
+            end
+        end)
+    end
+    
     return track
 end
 
