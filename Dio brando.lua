@@ -426,7 +426,7 @@ local function performKnifeThrow()
 	local throwTrack
 	if ASSETS.KNIFE_THROW_ANIM ~= "" then if isStandAttacking and idleTrack then idleTrack:Stop() end throwTrack = playAnim(attackerHum, ASSETS.KNIFE_THROW_ANIM, 2) if throwTrack then throwTrack.Looped = false end end
 	local throwSound = Instance.new("Sound", workspace) throwSound.SoundId = ASSETS.KNIFE_THROW_SOUND throwSound:Play() Debris:AddItem(throwSound, 3)
-	if isStandAttacking then showSpeechBubble(92536008979873, "leftt", 1.5) end
+	if isStandAttacking then showSpeechBubble(92536008979873, "left", 1.5) end
 	for i = 1, 5 do
 		local knife = Instance.new("Part") knife.Name = "DioKnife" knife.Size = Vector3.new(1,1,1) knife.CanCollide = false knife.Parent = workspace
 		local baseCFrame = CFrame.lookAt(attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5), attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5) + shootDir)
