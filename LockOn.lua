@@ -13,9 +13,17 @@ local LockedTarget  = nil
 local lockMode      = 0          -- 1 = Camera | 2 = Camera+Character | 3 = Character Only
 
 local CamSmooth     = 0.85       -- suavidade da câmera (pode deixar como está)
-local CharSmooth    = 1     -- ← NOVO: suavidade do character (Modo 2)
+local CharSmooth    = 1          -- ← NOVO: suavidade do character (Modo 2)
                                  -- Quanto MENOR o valor → mais suave / menos agressivo
-                                 -- Recomendo entre 0.25 \~ 0.40
+                                 -- Recomendo entre 0.25 ~ 0.40
+
+-- ====================== PREDICTION SETTINGS ======================
+local CurrentPrediction = 0.15   -- Predição padrão (será alterada pelo menu)
+
+-- Variáveis para cálculo de velocidade
+local LastTargetPosition = nil
+local TargetVelocity = Vector3.zero
+local LastUpdateTime = 0
 
 local MAX_DISTANCE  = 1000
 local SEARCH_DISTANCE = 55
@@ -38,6 +46,12 @@ local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 local savedMode = playerGui:FindFirstChild("SavedLockMode")
 if savedMode then
     lockMode = savedMode.Value
+end
+
+-- Carrega predição salva
+local savedPred = playerGui:FindFirstChild("SavedPrediction")
+if savedPred then
+    CurrentPrediction = savedPred.Value
 end
 
 -- ====================== FLAGS ======================
@@ -75,24 +89,71 @@ local function getNeckPosition(head)
     return (head.CFrame * CFrame.new(0, -0.5, 0)).Position
 end
 
+-- ====================== FUNÇÃO DE PREDIÇÃO ======================
+local function calculatePrediction(targetPart)
+    if not targetPart or not targetPart.Parent then
+        return Vector3.zero
+    end
+    
+    if CurrentPrediction <= 0 then
+        return Vector3.zero
+    end
+    
+    local currentTime = tick()
+    local targetRoot = targetPart.Parent:FindFirstChild("HumanoidRootPart")
+    
+    if targetRoot then
+        local currentPos = targetRoot.Position
+        
+        if LastTargetPosition and (currentTime - LastUpdateTime) > 0 then
+            local deltaTime = currentTime - LastUpdateTime
+            local newVelocity = (currentPos - LastTargetPosition) / deltaTime
+            
+            -- Suavização da velocidade
+            TargetVelocity = TargetVelocity:Lerp(newVelocity, 0.3)
+            
+            -- Limita a velocidade máxima para evitar predição exagerada
+            local maxSpeed = 50
+            if TargetVelocity.Magnitude > maxSpeed then
+                TargetVelocity = TargetVelocity.Unit * maxSpeed
+            end
+            
+            return TargetVelocity * CurrentPrediction
+        end
+        
+        LastTargetPosition = currentPos
+        LastUpdateTime = currentTime
+    end
+    
+    return Vector3.zero
+end
+
+local function getPredictedPosition(targetPart)
+    local basePosition = getNeckPosition(targetPart)
+    if not basePosition then return nil end
+    
+    local prediction = calculatePrediction(targetPart)
+    return basePosition + prediction
+end
+
 local function getCameraLockPosition(targetPart)
     if not targetPart or not isCameraMode then
-        return getNeckPosition(targetPart)
+        return getPredictedPosition(targetPart) or getNeckPosition(targetPart)
     end
 
     local char = targetPart.Parent
-    if not char then return getNeckPosition(targetPart) end
+    if not char then return getPredictedPosition(targetPart) or getNeckPosition(targetPart) end
 
     local myChar = LocalPlayer.Character
-    if not myChar then return getNeckPosition(targetPart) end
+    if not myChar then return getPredictedPosition(targetPart) or getNeckPosition(targetPart) end
     local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-    if not myRoot then return getNeckPosition(targetPart) end
+    if not myRoot then return getPredictedPosition(targetPart) or getNeckPosition(targetPart) end
 
     local targetRoot = char:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then return getNeckPosition(targetPart) end
+    if not targetRoot then return getPredictedPosition(targetPart) or getNeckPosition(targetPart) end
 
-    local neckPos = getNeckPosition(targetPart)
-    local rootPos = targetRoot.Position
+    local neckPos = getPredictedPosition(targetPart) or getNeckPosition(targetPart)
+    local rootPos = targetRoot.Position + calculatePrediction(targetPart)
     local distance = (myRoot.Position - rootPos).Magnitude
 
     if distance >= FULL_NECK_DISTANCE then
@@ -119,6 +180,8 @@ local function setupDeathHandler(character)
         humanoid.Died:Connect(function()
             Enabled = false
             LockedTarget = nil
+            LastTargetPosition = nil
+            TargetVelocity = Vector3.zero
             if isCameraMode then
                 forceInstantReset()
             end
@@ -150,9 +213,9 @@ local function findClosestTarget()
             if hum and hum.Health > 0 then
                 local targetPart = getTargetPart(char)
                 if targetPart then
-                    local neckPos = getNeckPosition(targetPart)
-                    if neckPos then
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(neckPos)
+                    local predictedPos = getPredictedPosition(targetPart) or getNeckPosition(targetPart)
+                    if predictedPos then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
                         if onScreen then
                             local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
                             if dist < minDist then
@@ -264,8 +327,12 @@ local function createToggleAndUI()
         Enabled = not Enabled
         if Enabled then
             LockedTarget = findClosestTarget()
+            LastTargetPosition = nil
+            TargetVelocity = Vector3.zero
         else
             LockedTarget = nil
+            LastTargetPosition = nil
+            TargetVelocity = Vector3.zero
             if isCameraMode then
                 forceInstantReset()
             end
@@ -286,10 +353,123 @@ local function createToggleAndUI()
 
     StarterGui:SetCore("SendNotification", {
         Title = "Lock On",
-        Text = "Modo " .. lockMode .. " ativado (Character mais suave no Modo 2)",
+        Text = "Modo " .. lockMode .. " ativado (Predição: " .. string.format("%.2f", CurrentPrediction) .. ")",
         Icon = "rbxassetid://82817965256191",
         Duration = 5
     })
+end
+
+local function createPredictionSlider(parent, yPosition)
+    -- Label da predição
+    local predLabel = Instance.new("TextLabel")
+    predLabel.Size = UDim2.new(0.85, 0, 0, 25)
+    predLabel.Position = UDim2.new(0.075, 0, 0, yPosition)
+    predLabel.BackgroundTransparency = 1
+    predLabel.Text = "Prediction: " .. string.format("%.2f", CurrentPrediction)
+    predLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    predLabel.TextSize = 16
+    predLabel.Font = Enum.Font.GothamSemibold
+    predLabel.TextXAlignment = Enum.TextXAlignment.Left
+    predLabel.Parent = parent
+
+    -- Container do slider
+    local sliderContainer = Instance.new("Frame")
+    sliderContainer.Size = UDim2.new(0.85, 0, 0, 30)
+    sliderContainer.Position = UDim2.new(0.075, 0, 0, yPosition + 30)
+    sliderContainer.BackgroundTransparency = 1
+    sliderContainer.Parent = parent
+
+    -- Background do slider
+    local sliderBg = Instance.new("Frame")
+    sliderBg.Size = UDim2.new(1, -30, 0, 8)
+    sliderBg.Position = UDim2.new(0, 0, 0.5, -4)
+    sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    sliderBg.Parent = sliderContainer
+    local bgCorner = Instance.new("UICorner"); bgCorner.CornerRadius = UDim.new(0, 4); bgCorner.Parent = sliderBg
+
+    -- Barra preenchida
+    local fillBar = Instance.new("Frame")
+    fillBar.Size = UDim2.new(CurrentPrediction / 0.5, 0, 1, 0)
+    fillBar.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+    fillBar.Parent = sliderBg
+    local fillCorner = Instance.new("UICorner"); fillCorner.CornerRadius = UDim.new(0, 4); fillCorner.Parent = fillBar
+
+    -- Botão do slider
+    local sliderBtn = Instance.new("TextButton")
+    sliderBtn.Size = UDim2.new(0, 30, 0, 30)
+    sliderBtn.Position = UDim2.new(CurrentPrediction / 0.5, -15, 0.5, -15)
+    sliderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+    sliderBtn.Text = ""
+    sliderBtn.Parent = sliderContainer
+    local btnCorner = Instance.new("UICorner"); btnCorner.CornerRadius = UDim.new(1, 0); btnCorner.Parent = sliderBtn
+
+    -- Input do valor
+    local valueInput = Instance.new("TextBox")
+    valueInput.Size = UDim2.new(0, 55, 0, 25)
+    valueInput.Position = UDim2.new(1, -55, 0.5, -12)
+    valueInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    valueInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    valueInput.Text = string.format("%.2f", CurrentPrediction)
+    valueInput.TextSize = 14
+    valueInput.Font = Enum.Font.GothamSemibold
+    valueInput.Parent = sliderContainer
+    local inputCorner = Instance.new("UICorner"); inputCorner.CornerRadius = UDim.new(0, 6); inputCorner.Parent = valueInput
+
+    local function updatePrediction(value)
+        CurrentPrediction = math.clamp(value, 0, 0.5)
+        predLabel.Text = "Prediction: " .. string.format("%.2f", CurrentPrediction)
+        valueInput.Text = string.format("%.2f", CurrentPrediction)
+        fillBar.Size = UDim2.new(CurrentPrediction / 0.5, 0, 1, 0)
+        sliderBtn.Position = UDim2.new(CurrentPrediction / 0.5, -15, 0.5, -15)
+    end
+
+    local dragging = false
+
+    sliderBtn.MouseButton1Down:Connect(function()
+        dragging = true
+    end)
+
+    sliderBtn.MouseButton1Up:Connect(function()
+        dragging = false
+    end)
+
+    sliderBtn.MouseLeave:Connect(function()
+        dragging = false
+    end)
+
+    sliderContainer.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+        end
+    end)
+
+    sliderContainer.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    sliderContainer.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local mousePos = input.Position.X
+            local sliderAbsPos = sliderBg.AbsolutePosition.X
+            local sliderWidth = sliderBg.AbsoluteSize.X
+            local relativeX = (mousePos - sliderAbsPos) / sliderWidth
+            local newValue = math.clamp(relativeX, 0, 1) * 0.5
+            updatePrediction(newValue)
+        end
+    end)
+
+    valueInput.FocusLost:Connect(function(enterPressed)
+        local num = tonumber(valueInput.Text)
+        if num then
+            updatePrediction(num)
+        else
+            valueInput.Text = string.format("%.2f", CurrentPrediction)
+        end
+    end)
+
+    return updatePrediction
 end
 
 local function createLockModeMenu()
@@ -355,7 +535,10 @@ local function createLockModeMenu()
     btn3.Parent = menuFrame
     local btn3Corner = Instance.new("UICorner"); btn3Corner.CornerRadius = UDim.new(0, 12); btn3Corner.Parent = btn3
 
-    local tweenIn = TweenService:Create(menuFrame, TweenInfo.new(0.65, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 340, 0, 270)})
+    -- Adiciona o slider de predição
+    createPredictionSlider(menuFrame, 265)
+
+    local tweenIn = TweenService:Create(menuFrame, TweenInfo.new(0.65, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 400, 0, 330)})
     tweenIn:Play()
 
     local function escolherModo(modo)
@@ -365,10 +548,18 @@ local function createLockModeMenu()
             menuFrame:Destroy()
             lockMode = modo
             updateModeFlags()
-            local salvar = Instance.new("IntValue")
-            salvar.Name = "SavedLockMode"
-            salvar.Value = modo
-            salvar.Parent = playerGui
+            
+            -- Salva modo e predição
+            local salvarModo = Instance.new("IntValue")
+            salvarModo.Name = "SavedLockMode"
+            salvarModo.Value = modo
+            salvarModo.Parent = playerGui
+            
+            local salvarPred = Instance.new("NumberValue")
+            salvarPred.Name = "SavedPrediction"
+            salvarPred.Value = CurrentPrediction
+            salvarPred.Parent = playerGui
+            
             createToggleAndUI()
         end)
     end
@@ -400,9 +591,9 @@ RunService.RenderStepped:Connect(function()
                     humanoid.AutoRotate = false
                     local rootPart = character:FindFirstChild("HumanoidRootPart")
                     if rootPart then
-                        local neckPos = getNeckPosition(LockedTarget)
-                        if neckPos then
-                            local direction = neckPos - rootPart.Position
+                        local predictedPos = getPredictedPosition(LockedTarget) or getNeckPosition(LockedTarget)
+                        if predictedPos then
+                            local direction = predictedPos - rootPart.Position
                             local horizontalDir = Vector3.new(direction.X, 0, direction.Z)
                             local mag = horizontalDir.Magnitude
                             if mag > 0.1 then
@@ -433,6 +624,8 @@ RunService.RenderStepped:Connect(function()
     if now - lastSearchTime > SEARCH_RATE then
         if not isValidTarget(LockedTarget) then
             LockedTarget = findClosestTarget()
+            LastTargetPosition = nil
+            TargetVelocity = Vector3.zero
         end
         lastSearchTime = now
     end
