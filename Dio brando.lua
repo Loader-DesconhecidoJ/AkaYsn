@@ -37,7 +37,15 @@ local ASSETS = {
 	PLAYER_BARRAGE = "rbxassetid://105746954691593",
 	TS_IMAGE = "rbxassetid://107526909795121",
 	STAND_IMAGE = "rbxassetid://71063600838165",
-	KNIFE_IMAGE = "rbxassetid://128478684091020"
+	KNIFE_IMAGE = "rbxassetid://128478684091020",
+	-- === NOVOS ASSETS ROAD ROLLER ===
+	ROAD_ROLLER_MESH = "rbxassetid://123055050240257",
+	ROAD_ROLLER_TEXTURE = "rbxassetid://70977204379919",
+	ROAD_ROLLER_DA = "124648495201789",
+	ROAD_ROLLER_SPAWN_SFX = "rbxassetid://6273171415",        -- NOVO: som ao spawnar
+	ROAD_ROLLER_IMPACT_SFX1 = "rbxassetid://122293342039104", -- NOVO: impacto 1
+	ROAD_ROLLER_IMPACT_SFX2 = "rbxassetid://138680390593747", -- NOVO: impacto 2
+	ROAD_ROLLER_RIDE_ANIM = "rbxassetid://140327538515031" -- <- COLOQUE AQUI O ID DA SUA ANIMAÇÃO
 }
 
 local function cameraShake(duration, intensity)
@@ -59,8 +67,8 @@ local function cameraShake(duration, intensity)
 	end)
 end
 
-local COOLDOWNS = {M1 = 0.8, Knife = 1, TimeStop = 3}
-local lastUsed = {M1 = 0, Knife = 0, TimeStop = 0}
+local COOLDOWNS = {M1 = 0.8, Knife = 1, TimeStop = 3, RoadRoller = 15}
+local lastUsed = {M1 = 0, Knife = 0, TimeStop = 0, RoadRoller = 0}
 
 local function canUse(abilityName)
 	local currentTime = tick()
@@ -133,6 +141,7 @@ screenGui.Name = "DioStandUniversal"
 screenGui.ResetOnSpawn = false
 
 local TS_POS = UDim2.new(0.4, 0, 0.78, 0)
+local ROAD_POS = UDim2.new(0.3, 0, 0.78, 0)   -- NOVO: botão do Ultimate à esquerda do Time Stop
 local ACTIVATE_POS = UDim2.new(0.5, 0, 0.75, 0)
 local M1_POS = UDim2.new(0.6, 0, 0.78, 0)
 local KNIFE_POS_ON = UDim2.new(0.7, 0, 0.78, 0)
@@ -164,7 +173,7 @@ local function createCircularButton(name, pos, text, color, imageId, sizeOffset)
 		icon = Instance.new("ImageLabel", btn)
 		icon.Name = "Icon"
 		icon.Size = UDim2.new(1, 0, 1, 0)
-		icon.Position = UDim2.new(0.5, 0, 0.5, 0)
+		icon.Position = UDim2.new(0.49, 0, 0.5, 0)
 		icon.AnchorPoint = Vector2.new(0.5, 0.5)
 		icon.BackgroundTransparency = 1
 		icon.Image = imageId
@@ -176,13 +185,15 @@ local function createCircularButton(name, pos, text, color, imageId, sizeOffset)
 	return btn, stroke, icon
 end
 
-local tsBtn, tsStroke, tsIcon = createCircularButton("TimeStopBtn", TS_POS, "STOP", nil, ASSETS.TS_IMAGE, 70)
-local activateBtn, actStroke, standIcon = createCircularButton("ActivateBtn", ACTIVATE_POS, "STAND", nil, ASSETS.STAND_IMAGE, 95)
-local m1Btn, m1Stroke = createCircularButton("M1Btn", M1_POS, "M1", nil, nil, 70)
-local knifeBtn, knifeStroke, knifeIcon = createCircularButton("KnifeBtn", KNIFE_POS_OFF, "KNIFE", nil, ASSETS.KNIFE_IMAGE, 70)
+local tsBtn, tsStroke, tsIcon = createCircularButton("TimeStopBtn", TS_POS, "STOP", nil, ASSETS.TS_IMAGE, 80)     -- 70 → 80 (maior)
+local roadBtn, roadStroke = createCircularButton("RoadRollerBtn", ROAD_POS, "ROAD", Color3.fromRGB(170, 0, 255), nil, 70) -- Road = 70
+local activateBtn, actStroke, standIcon = createCircularButton("ActivateBtn", ACTIVATE_POS, "STAND", nil, ASSETS.STAND_IMAGE, 95) -- Stand = 95
+local m1Btn, m1Stroke = createCircularButton("M1Btn", M1_POS, "M1", nil, nil, 80)          -- 70 → 80 (maior)
+local knifeBtn, knifeStroke, knifeIcon = createCircularButton("KnifeBtn", KNIFE_POS_OFF, "KNIFE", nil, ASSETS.KNIFE_IMAGE, 80) -- 70 → 80 (maior)
 
 m1Btn.Visible = false
 knifeBtn.Visible = true
+roadBtn.Visible = true
 
 local resumeImage = Instance.new("ImageLabel", screenGui)
 resumeImage.Name = "TSResumeImage"
@@ -327,7 +338,7 @@ local function toggleTime()
 		local root = character:FindFirstChild("HumanoidRootPart")
 		local s = Instance.new("Sound", workspace) s.SoundId = ASSETS.TS_START_SFX s.Volume = 2 s:Play() Debris:AddItem(s, 5)
 		
-		local tsTrack = playAnim(hum, ASSETS.ANIM_DIO, 1.8, false, Enum.AnimationPriority.Action) 
+		local tsTrack = playAnim(hum, ASSETS.ANIM_DIO, 2, false, Enum.AnimationPriority.Action) 
 		
 		if root then root.Anchored = true end
 		showSpeechBubble(106366607174396, "right", 4)
@@ -354,15 +365,13 @@ local function toggleTime()
 	end	
 end
 
--- ==================== TARGETING MELHORADO (NUNCA MAIS ATACA A SI MESMO) ====================
+-- ==================== TARGETING MELHORADO ====================
 local function getClosestTarget(maxDist)
 	local closest, minDist = nil, maxDist
 	local root = character:FindFirstChild("HumanoidRootPart")
 	if not root then return nil end
 	
 	for _, obj in ipairs(workspace:GetDescendants()) do
-		-- === CORREÇÃO PRINCIPAL: usa "hum" (seu próprio Humanoid) ao invés de character ===
-		-- Isso garante que nunca pegue você mesmo, mesmo se o personagem respawnar ou der bug de referência
 		if obj:IsA("Humanoid") and obj ~= hum and (not currentStand or obj.Parent ~= currentStand) then
 			local targetRoot = obj.Parent:FindFirstChild("HumanoidRootPart")
 			if targetRoot then
@@ -377,6 +386,355 @@ local function getClosestTarget(maxDist)
 	return closest
 end
 
+-- ==================== ROAD ROLLER (ULTIMATE) ====================
+local function createExplosion(position)
+	local explosionPart = Instance.new("Part")
+	explosionPart.Transparency = 1
+	explosionPart.Anchored = true
+	explosionPart.CanCollide = false
+	explosionPart.Position = position
+	explosionPart.Size = Vector3.new(1,1,1)
+	explosionPart.Parent = workspace
+
+	-- Fogo roxo
+	local fire = Instance.new("ParticleEmitter", explosionPart)
+	fire.Texture = "rbxassetid://241650899"
+	fire.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(170, 0, 255)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 0, 200)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 0, 150))
+	}
+	fire.Lifetime = NumberRange.new(1.8, 2.5)
+	fire.Rate = 350
+	fire.Speed = NumberRange.new(15, 35)
+	fire.Size = NumberSequence.new{NumberSequenceKeypoint.new(0, 6), NumberSequenceKeypoint.new(1, 0)}
+	fire.Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1)}
+	fire.Acceleration = Vector3.new(0, -25, 0)
+	fire.SpreadAngle = Vector2.new(30, 30)
+
+	-- Poeira / fumaça
+	local dust = Instance.new("ParticleEmitter", explosionPart)
+	dust.Texture = "rbxassetid://241650899"
+	dust.Color = ColorSequence.new(Color3.fromRGB(170, 170, 170))
+	dust.Lifetime = NumberRange.new(2, 3.5)
+	dust.Rate = 180
+	dust.Speed = NumberRange.new(8, 18)
+	dust.Size = NumberSequence.new{NumberSequenceKeypoint.new(0, 8), NumberSequenceKeypoint.new(1, 2)}
+	dust.Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1)}
+	dust.Acceleration = Vector3.new(0, -10, 0)
+
+	Debris:AddItem(explosionPart, 4)
+end
+
+local function createRoadRoller()
+	local model = Instance.new("Model")
+	model.Name = "RoadRoller"
+
+	local mainPart = Instance.new("Part")
+	mainPart.Name = "Body"
+	mainPart.Size = Vector3.new(1, 1, 1)
+	mainPart.Transparency = 0
+	mainPart.Color = Color3.fromRGB(80, 80, 80)
+	mainPart.Anchored = true
+	mainPart.CanCollide = false
+	mainPart.Parent = model
+
+	local mesh = Instance.new("SpecialMesh", mainPart)
+	mesh.MeshId = ASSETS.ROAD_ROLLER_MESH
+	mesh.TextureId = ASSETS.ROAD_ROLLER_TEXTURE
+	mesh.Scale = Vector3.new(1.3, 1.7, 1.3)   -- Ajuste aqui se o rolo ficar pequeno/grande
+
+	model.PrimaryPart = mainPart
+	return model
+end
+
+local function createGroundCracks(position)
+	-- Cria rachaduras no chão usando partes planas com decalques
+	for i = 1, 8 do
+		local crack = Instance.new("Part")
+		crack.Size = Vector3.new(0.15, 0.01, math.random(3, 8))
+		crack.Anchored = true
+		crack.CanCollide = false
+		crack.Color = Color3.fromRGB(25, 25, 25)
+		crack.Material = Enum.Material.CrackedLava
+		crack.Transparency = 0.2
+		
+		-- Posiciona as rachaduras em torno do ponto de impacto
+		local angle = math.rad(math.random(0, 360))
+		local distance = math.random(1, 6)
+		local offset = Vector3.new(math.cos(angle) * distance, 0.01, math.sin(angle) * distance)
+		crack.CFrame = CFrame.new(position + offset) * CFrame.Angles(0, math.rad(math.random(0, 360)), 0)
+		crack.Parent = workspace
+		
+		-- Efeito de spawn
+		crack.Transparency = 0.8
+		TweenService:Create(crack, TweenInfo.new(0.3), {Transparency = 0.2}):Play()
+		
+		Debris:AddItem(crack, 8)
+	end
+	
+	-- Adiciona um círculo central de impacto
+	local centerCrater = Instance.new("Part")
+	centerCrater.Size = Vector3.new(4, 0.02, 4)
+	centerCrater.Anchored = true
+	centerCrater.CanCollide = false
+	centerCrater.Color = Color3.fromRGB(30, 30, 30)
+	centerCrater.Material = Enum.Material.CrackedLava
+	centerCrater.Transparency = 0.4
+	centerCrater.CFrame = CFrame.new(position + Vector3.new(0, 0.005, 0))
+	centerCrater.Parent = workspace
+	
+	-- Decalque de rachadura circular
+	local decal = Instance.new("Decal", centerCrater)
+	decal.Texture = "rbxassetid://154292235" -- textura de rachadura genérica
+	decal.Face = Enum.NormalId.Top
+	decal.Transparency = 0.3
+	
+	Debris:AddItem(centerCrater, 8)
+end
+
+local function performRoadRoller()
+	if not isTimeStopped then
+		showSpeechBubble(102362181377695, "right", 2.5)
+		return
+	end
+	if not canUse("RoadRoller") then return end
+	
+	-- ===== FLASH PRETO NA ATIVAÇÃO (0.1s fade in, 0.1s fade out) =====
+local activationFlash = Instance.new("Frame")
+activationFlash.Name = "RoadRollerActivationFlash"
+activationFlash.Size = UDim2.fromScale(2, 2)
+activationFlash.Position = UDim2.fromScale(-0.5, -0.5)
+activationFlash.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+activationFlash.BackgroundTransparency = 1
+activationFlash.ZIndex = 100
+activationFlash.Parent = screenGui
+
+-- Fade in rápido: 0.1s
+TweenService:Create(activationFlash, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+	BackgroundTransparency = 0
+}):Play()
+
+-- Fade out após 0.1s
+task.delay(0.1, function()
+	if activationFlash.Parent then
+		TweenService:Create(activationFlash, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = 1
+		}):Play()
+		task.delay(0.15, function() 
+			if activationFlash.Parent then 
+				activationFlash:Destroy() 
+			end 
+		end)
+	end
+end)
+
+	local targetRoot = getClosestTarget(100)
+	if not targetRoot then return end
+
+	showSpeechBubble(ASSETS.ROAD_ROLLER_DA, "right", 2.5)
+	cameraShake(4.5, 2.5)
+
+	local rollerModel = createRoadRoller()
+	local rollerRoot = rollerModel.PrimaryPart
+
+	-- Spawn ALTÍSSIMO (500 studs)
+	local startHeight = 500
+	local startPos = targetRoot.Position + Vector3.new(0, startHeight, 0)
+	rollerRoot.CFrame = CFrame.new(startPos) * CFrame.Angles(math.rad(85), 0, 90)
+	rollerRoot.Anchored = false
+	rollerModel.Parent = workspace
+
+	-- Remove do frozenParts
+	for _, part in ipairs(rollerModel:GetDescendants()) do
+		if part:IsA("BasePart") then
+			frozenParts[part] = nil
+			part.Anchored = false
+		end
+	end
+
+	-- SOM DE SPAWN
+	local spawnSound = Instance.new("Sound")
+	spawnSound.SoundId = ASSETS.ROAD_ROLLER_SPAWN_SFX
+	spawnSound.Volume = 2.5
+	spawnSound.Parent = rollerRoot
+	spawnSound:Play()
+	Debris:AddItem(spawnSound, 5)
+
+	-- ===== SEU PERSONAGEM SOBE EM CIMA (CORRIGIDO - OLHANDO PRA FRENTE) =====
+local charRoot = character:FindFirstChild("HumanoidRootPart")
+local rideTrack = nil
+local weld = nil
+
+if charRoot then
+	charRoot.Anchored = false
+	frozenParts[charRoot] = nil
+	
+	-- Posiciona em cima do rolo
+	charRoot.CFrame = rollerRoot.CFrame * CFrame.new(0, -2.5, -17)
+	
+	-- FAZ O PERSONAGEM OLHAR PARA O ALVO (FRENTE)
+	charRoot.CFrame = CFrame.lookAt(charRoot.Position, targetRoot.Position) * CFrame.Angles(math.rad(90), 0, 0)
+	
+	if hum and ASSETS.ROAD_ROLLER_RIDE_ANIM ~= "" then
+		rideTrack = playAnim(hum, ASSETS.ROAD_ROLLER_RIDE_ANIM, 1.5, true, Enum.AnimationPriority.Action)
+		
+		weld = Instance.new("WeldConstraint")
+		weld.Part0 = charRoot
+		weld.Part1 = rollerRoot
+		weld.Parent = charRoot
+	end
+end
+
+	-- ===== FORÇA DE QUEDA VIOLENTA =====
+	-- Usa BodyVelocity para queda ultra rápida em vez de Tween
+	local bodyVel = Instance.new("BodyVelocity")
+	bodyVel.Velocity = Vector3.new(0, -450, 0) -- Velocidade de queda MUITO alta
+	bodyVel.MaxForce = Vector3.new(1, 1, 1) * math.huge
+	bodyVel.Parent = rollerRoot
+	
+	-- Força extra pra baixo
+	local bodyForce = Instance.new("BodyForce")
+	bodyForce.Force = Vector3.new(0, -rollerRoot:GetMass() * 500, 0)
+	bodyForce.Parent = rollerRoot
+	
+	-- Rastreia a distância para detectar quando chegar ao chão
+	local impactTriggered = false
+	local checkConnection
+	checkConnection = RunService.RenderStepped:Connect(function()
+		if not rollerRoot or not rollerRoot.Parent then
+			checkConnection:Disconnect()
+			return
+		end
+		
+		local currentY = rollerRoot.Position.Y
+		local groundY = targetRoot.Position.Y - 3 -- Posição do chão (enterrado)
+		
+		-- Verifica se chegou ao chão ou passou
+		if currentY <= groundY + 5 and not impactTriggered then
+			impactTriggered = true
+			checkConnection:Disconnect()
+			
+			-- Para as forças
+			bodyVel:Destroy()
+			bodyForce:Destroy()
+			
+			-- ===== IMPACTO =====
+			rollerRoot.Anchored = true
+			rollerRoot.CFrame = CFrame.new(targetRoot.Position + Vector3.new(0, -3, 0)) * CFrame.Angles(math.rad(-80), math.rad(180), 0)
+			
+			-- SONS DE IMPACTO
+			local impactSound1 = Instance.new("Sound")
+			impactSound1.SoundId = ASSETS.ROAD_ROLLER_IMPACT_SFX1
+			impactSound1.Volume = 3
+			impactSound1.Parent = rollerRoot
+			impactSound1:Play()
+			Debris:AddItem(impactSound1, 5)
+			
+			task.delay(0.15, function()
+				local impactSound2 = Instance.new("Sound")
+				impactSound2.SoundId = ASSETS.ROAD_ROLLER_IMPACT_SFX2
+				impactSound2.Volume = 3
+				impactSound2.Parent = rollerRoot
+				impactSound2:Play()
+				Debris:AddItem(impactSound2, 5)
+			end)
+			
+			-- Câmera shake BRUTAL
+			cameraShake(1.5, 5.0)
+			
+			-- ===== PERSONAGEM SAI DE CIMA =====
+			if charRoot and charRoot.Parent then
+				if weld then weld:Destroy() end
+				if rideTrack then rideTrack:Stop() end
+				
+				charRoot.Anchored = false
+				
+				local exitPos = rollerRoot.CFrame * CFrame.new(8, 6, 0)
+				TweenService:Create(charRoot, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					CFrame = exitPos
+				}):Play()
+				
+				task.delay(0.5, function()
+					if charRoot and charRoot.Parent then
+						local exitVel = Instance.new("BodyVelocity")
+						exitVel.Velocity = Vector3.new(20, 30, 0)
+						exitVel.MaxForce = Vector3.new(1, 1, 1) * 100000
+						exitVel.Parent = charRoot
+						Debris:AddItem(exitVel, 0.5)
+					end
+				end)
+			end
+			
+			-- Dano no alvo
+			local targetHum = targetRoot.Parent:FindFirstChildOfClass("Humanoid")
+			if targetHum then
+				targetHum:TakeDamage(95)
+			end
+
+			-- Rachaduras
+			createGroundCracks(targetRoot.Position)
+
+			-- Explosão
+			createExplosion(targetRoot.Position)
+
+			-- Knockback
+			if targetRoot and targetRoot.Parent then
+				local knockbackDir = (targetRoot.Position - character.HumanoidRootPart.Position).Unit
+				targetRoot:ApplyImpulse(Vector3.new(0, 80000, 0) + knockbackDir * 50000)
+			end
+
+			-- ===== DESINTEGRAÇÃO =====
+			local disintegrationDelay = COOLDOWNS.RoadRoller - 4
+			
+			task.delay(disintegrationDelay, function()
+				if rollerModel and rollerModel.Parent then
+					local disintegratePart = Instance.new("Part")
+					disintegratePart.Transparency = 1
+					disintegratePart.Anchored = true
+					disintegratePart.CanCollide = false
+					disintegratePart.Position = rollerRoot.Position
+					disintegratePart.Size = Vector3.new(1,1,1)
+					disintegratePart.Parent = workspace
+					
+					local particles = Instance.new("ParticleEmitter", disintegratePart)
+					particles.Texture = "rbxassetid://241650899"
+					particles.Color = ColorSequence.new{
+						ColorSequenceKeypoint.new(0, Color3.fromRGB(170, 0, 255)),
+						ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 0, 200)),
+						ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 0, 150))
+					}
+					particles.Lifetime = NumberRange.new(1, 2)
+					particles.Rate = 200
+					particles.Speed = NumberRange.new(3, 8)
+					particles.Size = NumberSequence.new{NumberSequenceKeypoint.new(0, 3), NumberSequenceKeypoint.new(1, 0)}
+					particles.Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1)}
+					particles.Acceleration = Vector3.new(0, 2, 0)
+					particles.SpreadAngle = Vector2.new(360, 360)
+					
+					Debris:AddItem(disintegratePart, 3)
+					
+					for _, part in ipairs(rollerModel:GetDescendants()) do
+						if part:IsA("BasePart") and part ~= rollerRoot then
+							TweenService:Create(part, TweenInfo.new(2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+								Transparency = 1
+							}):Play()
+						end
+					end
+					
+					TweenService:Create(rollerRoot, TweenInfo.new(2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+						Transparency = 1
+					}):Play()
+					
+					Debris:AddItem(rollerModel, 2.7)
+				end
+			end)
+			
+			Debris:AddItem(rollerModel, COOLDOWNS.RoadRoller)
+		end
+	end)
+end
+
 local function performM1()
 	if not canUse("M1") then return end
 	if not isStandActive or not currentStand or isAttacking then return end
@@ -384,7 +742,6 @@ local function performM1()
 	local root = character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 	
-	-- Agora usa o mesmo sistema de target do Knife (mais preciso e pega NPCs também)
 	local targetRoot = getClosestTarget(12)
 	if not targetRoot then 
 		showSpeechBubble(102362181377695, "right", 2.5) 
@@ -419,7 +776,6 @@ local function performM1()
 	mudaSound:Play() 
 	Debris:AddItem(mudaSound, 6)
 	
-	-- Loop da barragem com follow dinâmico
 	for i = 1, 46 do
 		if targetRoot and targetRoot.Parent and targetHum and targetHum.Parent then
 			targetHum:TakeDamage(1)
@@ -436,14 +792,12 @@ local function performM1()
 			TweenService:Create(hit, TweenInfo.new(0.4), {Transparency = 1, Size = Vector3.new(4,4,4)}):Play() 
 			Debris:AddItem(hit, 0.5)
 			
-			-- Stand segue o alvo o tempo todo
 			if sRoot and sRoot.Parent then
 				local basePos = targetRoot.CFrame * CFrame.new(0, 2, -4)
 				local targetCF = CFrame.lookAt(basePos.Position, targetRoot.Position)
 				sRoot.CFrame = sRoot.CFrame:Lerp(targetCF, 0.35)
 			end
 			
-			-- Seu boneco olha pro alvo
 			if root and targetRoot and targetRoot.Parent then
 				local dir = (targetRoot.Position - root.Position)
 				local flatDir = Vector3.new(dir.X, 0, dir.Z)
@@ -532,7 +886,6 @@ local function performKnifeThrow()
 	if isStandAttacking then showSpeechBubble(92536008979873, "left", 1.5) end
 	
 	for i = 1, 5 do
-		-- Stand olha pro alvo em cada faca
 		if isStandAttacking and target and target.Parent and attackerRoot then
 			shootDir = (target.Position - attackerRoot.Position).Unit
 			local lookCF = CFrame.lookAt(attackerRoot.Position, target.Position)
@@ -613,10 +966,12 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
+-- ==================== CONEXÕES DOS BOTÕES ====================
 tsBtn.MouseButton1Click:Connect(toggleTime)
 activateBtn.MouseButton1Click:Connect(toggleStand)
 m1Btn.MouseButton1Click:Connect(performM1)
 knifeBtn.MouseButton1Click:Connect(performKnifeThrow)
+roadBtn.MouseButton1Click:Connect(performRoadRoller)   -- NOVO BOTÃO
 
 task.spawn(function()
 	local sequence = {COLORS.Yellow, COLORS.Black, COLORS.Green, COLORS.Black, COLORS.Purple, COLORS.Black}
@@ -638,6 +993,7 @@ local function applyClickEffect(b, baseSize)
 end
 
 applyClickEffect(tsBtn, 70)
+applyClickEffect(roadBtn, 70)
 applyClickEffect(activateBtn, 95)
 applyClickEffect(m1Btn, 70)
 applyClickEffect(knifeBtn, 70)
