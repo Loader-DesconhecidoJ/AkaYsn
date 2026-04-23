@@ -12,18 +12,8 @@ local Enabled       = false
 local LockedTarget  = nil
 local lockMode      = 0          -- 1 = Camera | 2 = Camera+Character | 3 = Character Only
 
-local CamSmooth     = 0.85       -- suavidade da câmera (pode deixar como está)
-local CharSmooth    = 1          -- ← NOVO: suavidade do character (Modo 2)
-                                 -- Quanto MENOR o valor → mais suave / menos agressivo
-                                 -- Recomendo entre 0.25 ~ 0.40
-
--- ====================== PREDICTION SETTINGS ======================
-local CurrentPrediction = 0.15   -- Predição padrão (será alterada pelo menu)
-
--- Variáveis para cálculo de velocidade
-local LastTargetPosition = nil
-local TargetVelocity = Vector3.zero
-local LastUpdateTime = 0
+local CamSmooth     = 0.85       -- suavidade da câmera (padrão)
+local CharSmooth    = 1          -- suavidade do character (padrão)
 
 local MAX_DISTANCE  = 1000
 local SEARCH_DISTANCE = 55
@@ -48,10 +38,15 @@ if savedMode then
     lockMode = savedMode.Value
 end
 
--- Carrega predição salva
-local savedPred = playerGui:FindFirstChild("SavedPrediction")
-if savedPred then
-    CurrentPrediction = savedPred.Value
+-- Carrega valores salvos dos sliders
+local savedCamSmooth = playerGui:FindFirstChild("SavedCamSmooth")
+if savedCamSmooth then
+    CamSmooth = savedCamSmooth.Value
+end
+
+local savedCharSmooth = playerGui:FindFirstChild("SavedCharSmooth")
+if savedCharSmooth then
+    CharSmooth = savedCharSmooth.Value
 end
 
 -- ====================== FLAGS ======================
@@ -89,71 +84,24 @@ local function getNeckPosition(head)
     return (head.CFrame * CFrame.new(0, -0.5, 0)).Position
 end
 
--- ====================== FUNÇÃO DE PREDIÇÃO ======================
-local function calculatePrediction(targetPart)
-    if not targetPart or not targetPart.Parent then
-        return Vector3.zero
-    end
-    
-    if CurrentPrediction <= 0 then
-        return Vector3.zero
-    end
-    
-    local currentTime = tick()
-    local targetRoot = targetPart.Parent:FindFirstChild("HumanoidRootPart")
-    
-    if targetRoot then
-        local currentPos = targetRoot.Position
-        
-        if LastTargetPosition and (currentTime - LastUpdateTime) > 0 then
-            local deltaTime = currentTime - LastUpdateTime
-            local newVelocity = (currentPos - LastTargetPosition) / deltaTime
-            
-            -- Suavização da velocidade
-            TargetVelocity = TargetVelocity:Lerp(newVelocity, 0.3)
-            
-            -- Limita a velocidade máxima para evitar predição exagerada
-            local maxSpeed = 50
-            if TargetVelocity.Magnitude > maxSpeed then
-                TargetVelocity = TargetVelocity.Unit * maxSpeed
-            end
-            
-            return TargetVelocity * CurrentPrediction
-        end
-        
-        LastTargetPosition = currentPos
-        LastUpdateTime = currentTime
-    end
-    
-    return Vector3.zero
-end
-
-local function getPredictedPosition(targetPart)
-    local basePosition = getNeckPosition(targetPart)
-    if not basePosition then return nil end
-    
-    local prediction = calculatePrediction(targetPart)
-    return basePosition + prediction
-end
-
 local function getCameraLockPosition(targetPart)
     if not targetPart or not isCameraMode then
-        return getPredictedPosition(targetPart) or getNeckPosition(targetPart)
+        return getNeckPosition(targetPart)
     end
 
     local char = targetPart.Parent
-    if not char then return getPredictedPosition(targetPart) or getNeckPosition(targetPart) end
+    if not char then return getNeckPosition(targetPart) end
 
     local myChar = LocalPlayer.Character
-    if not myChar then return getPredictedPosition(targetPart) or getNeckPosition(targetPart) end
+    if not myChar then return getNeckPosition(targetPart) end
     local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-    if not myRoot then return getPredictedPosition(targetPart) or getNeckPosition(targetPart) end
+    if not myRoot then return getNeckPosition(targetPart) end
 
     local targetRoot = char:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then return getPredictedPosition(targetPart) or getNeckPosition(targetPart) end
+    if not targetRoot then return getNeckPosition(targetPart) end
 
-    local neckPos = getPredictedPosition(targetPart) or getNeckPosition(targetPart)
-    local rootPos = targetRoot.Position + calculatePrediction(targetPart)
+    local neckPos = getNeckPosition(targetPart)
+    local rootPos = targetRoot.Position
     local distance = (myRoot.Position - rootPos).Magnitude
 
     if distance >= FULL_NECK_DISTANCE then
@@ -180,8 +128,6 @@ local function setupDeathHandler(character)
         humanoid.Died:Connect(function()
             Enabled = false
             LockedTarget = nil
-            LastTargetPosition = nil
-            TargetVelocity = Vector3.zero
             if isCameraMode then
                 forceInstantReset()
             end
@@ -213,9 +159,9 @@ local function findClosestTarget()
             if hum and hum.Health > 0 then
                 local targetPart = getTargetPart(char)
                 if targetPart then
-                    local predictedPos = getPredictedPosition(targetPart) or getNeckPosition(targetPart)
-                    if predictedPos then
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
+                    local neckPos = getNeckPosition(targetPart)
+                    if neckPos then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(neckPos)
                         if onScreen then
                             local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
                             if dist < minDist then
@@ -261,6 +207,129 @@ end
 
 local toggleBtn
 local billboard
+
+-- ====================== FUNÇÃO PARA CRIAR SLIDER MINI ======================
+local function createMiniSlider(parent, name, minValue, maxValue, defaultValue, yPosition, callback)
+    -- Label do slider (menor)
+    local sliderLabel = Instance.new("TextLabel")
+    sliderLabel.Size = UDim2.new(0.85, 0, 0, 18)
+    sliderLabel.Position = UDim2.new(0.075, 0, 0, yPosition)
+    sliderLabel.BackgroundTransparency = 1
+    sliderLabel.Text = name .. ": " .. string.format("%.2f", defaultValue)
+    sliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    sliderLabel.TextSize = 13
+    sliderLabel.Font = Enum.Font.GothamSemibold
+    sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    sliderLabel.Parent = parent
+
+    -- Container do slider (menor)
+    local sliderContainer = Instance.new("Frame")
+    sliderContainer.Size = UDim2.new(0.85, 0, 0, 22)
+    sliderContainer.Position = UDim2.new(0.075, 0, 0, yPosition + 20)
+    sliderContainer.BackgroundTransparency = 1
+    sliderContainer.Parent = parent
+
+    -- Background do slider (mais fino)
+    local sliderBg = Instance.new("Frame")
+    sliderBg.Size = UDim2.new(1, -25, 0, 5)
+    sliderBg.Position = UDim2.new(0, 0, 0.5, -2)
+    sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    sliderBg.Parent = sliderContainer
+    local bgCorner = Instance.new("UICorner"); bgCorner.CornerRadius = UDim.new(0, 3); bgCorner.Parent = sliderBg
+
+    -- Barra preenchida
+    local fillBar = Instance.new("Frame")
+    local fillPercent = (defaultValue - minValue) / (maxValue - minValue)
+    fillBar.Size = UDim2.new(fillPercent, 0, 1, 0)
+    fillBar.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+    fillBar.Parent = sliderBg
+    local fillCorner = Instance.new("UICorner"); fillCorner.CornerRadius = UDim.new(0, 3); fillCorner.Parent = fillBar
+
+    -- Botão do slider (menor)
+    local sliderBtn = Instance.new("TextButton")
+    sliderBtn.Size = UDim2.new(0, 22, 0, 22)
+    sliderBtn.Position = UDim2.new(fillPercent, -11, 0.5, -11)
+    sliderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+    sliderBtn.Text = ""
+    sliderBtn.Parent = sliderContainer
+    local btnCorner = Instance.new("UICorner"); btnCorner.CornerRadius = UDim.new(1, 0); btnCorner.Parent = sliderBtn
+
+    -- Input do valor (menor)
+    local valueInput = Instance.new("TextBox")
+    valueInput.Size = UDim2.new(0, 45, 0, 20)
+    valueInput.Position = UDim2.new(1, -45, 0.5, -10)
+    valueInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    valueInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    valueInput.Text = string.format("%.2f", defaultValue)
+    valueInput.TextSize = 12
+    valueInput.Font = Enum.Font.GothamSemibold
+    valueInput.Parent = sliderContainer
+    local inputCorner = Instance.new("UICorner"); inputCorner.CornerRadius = UDim.new(0, 4); inputCorner.Parent = valueInput
+
+    local currentValue = defaultValue
+
+    local function updateValue(newValue)
+        currentValue = math.clamp(newValue, minValue, maxValue)
+        local percent = (currentValue - minValue) / (maxValue - minValue)
+        
+        sliderLabel.Text = name .. ": " .. string.format("%.2f", currentValue)
+        valueInput.Text = string.format("%.2f", currentValue)
+        fillBar.Size = UDim2.new(percent, 0, 1, 0)
+        sliderBtn.Position = UDim2.new(percent, -11, 0.5, -11)
+        
+        if callback then
+            callback(currentValue)
+        end
+    end
+
+    local dragging = false
+
+    sliderBtn.MouseButton1Down:Connect(function()
+        dragging = true
+    end)
+
+    sliderBtn.MouseButton1Up:Connect(function()
+        dragging = false
+    end)
+
+    sliderBtn.MouseLeave:Connect(function()
+        dragging = false
+    end)
+
+    sliderContainer.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+        end
+    end)
+
+    sliderContainer.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    sliderContainer.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local mousePos = input.Position.X
+            local sliderAbsPos = sliderBg.AbsolutePosition.X
+            local sliderWidth = sliderBg.AbsoluteSize.X
+            local relativeX = (mousePos - sliderAbsPos) / sliderWidth
+            local newValue = minValue + (relativeX * (maxValue - minValue))
+            updateValue(newValue)
+        end
+    end)
+
+    valueInput.FocusLost:Connect(function(enterPressed)
+        local num = tonumber(valueInput.Text)
+        if num then
+            updateValue(num)
+        else
+            valueInput.Text = string.format("%.2f", currentValue)
+        end
+    end)
+
+    return updateValue, currentValue
+end
 
 local function createToggleAndUI()
     updateModeFlags()
@@ -327,12 +396,8 @@ local function createToggleAndUI()
         Enabled = not Enabled
         if Enabled then
             LockedTarget = findClosestTarget()
-            LastTargetPosition = nil
-            TargetVelocity = Vector3.zero
         else
             LockedTarget = nil
-            LastTargetPosition = nil
-            TargetVelocity = Vector3.zero
             if isCameraMode then
                 forceInstantReset()
             end
@@ -350,126 +415,6 @@ local function createToggleAndUI()
             toggleEnabled()
         end
     end)
-
-    StarterGui:SetCore("SendNotification", {
-        Title = "Lock On",
-        Text = "Modo " .. lockMode .. " ativado (Predição: " .. string.format("%.2f", CurrentPrediction) .. ")",
-        Icon = "rbxassetid://82817965256191",
-        Duration = 5
-    })
-end
-
-local function createPredictionSlider(parent, yPosition)
-    -- Label da predição
-    local predLabel = Instance.new("TextLabel")
-    predLabel.Size = UDim2.new(0.85, 0, 0, 25)
-    predLabel.Position = UDim2.new(0.075, 0, 0, yPosition)
-    predLabel.BackgroundTransparency = 1
-    predLabel.Text = "Prediction: " .. string.format("%.2f", CurrentPrediction)
-    predLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    predLabel.TextSize = 16
-    predLabel.Font = Enum.Font.GothamSemibold
-    predLabel.TextXAlignment = Enum.TextXAlignment.Left
-    predLabel.Parent = parent
-
-    -- Container do slider
-    local sliderContainer = Instance.new("Frame")
-    sliderContainer.Size = UDim2.new(0.85, 0, 0, 30)
-    sliderContainer.Position = UDim2.new(0.075, 0, 0, yPosition + 30)
-    sliderContainer.BackgroundTransparency = 1
-    sliderContainer.Parent = parent
-
-    -- Background do slider
-    local sliderBg = Instance.new("Frame")
-    sliderBg.Size = UDim2.new(1, -30, 0, 8)
-    sliderBg.Position = UDim2.new(0, 0, 0.5, -4)
-    sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    sliderBg.Parent = sliderContainer
-    local bgCorner = Instance.new("UICorner"); bgCorner.CornerRadius = UDim.new(0, 4); bgCorner.Parent = sliderBg
-
-    -- Barra preenchida
-    local fillBar = Instance.new("Frame")
-    fillBar.Size = UDim2.new(CurrentPrediction / 0.5, 0, 1, 0)
-    fillBar.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
-    fillBar.Parent = sliderBg
-    local fillCorner = Instance.new("UICorner"); fillCorner.CornerRadius = UDim.new(0, 4); fillCorner.Parent = fillBar
-
-    -- Botão do slider
-    local sliderBtn = Instance.new("TextButton")
-    sliderBtn.Size = UDim2.new(0, 30, 0, 30)
-    sliderBtn.Position = UDim2.new(CurrentPrediction / 0.5, -15, 0.5, -15)
-    sliderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
-    sliderBtn.Text = ""
-    sliderBtn.Parent = sliderContainer
-    local btnCorner = Instance.new("UICorner"); btnCorner.CornerRadius = UDim.new(1, 0); btnCorner.Parent = sliderBtn
-
-    -- Input do valor
-    local valueInput = Instance.new("TextBox")
-    valueInput.Size = UDim2.new(0, 55, 0, 25)
-    valueInput.Position = UDim2.new(1, -55, 0.5, -12)
-    valueInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    valueInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-    valueInput.Text = string.format("%.2f", CurrentPrediction)
-    valueInput.TextSize = 14
-    valueInput.Font = Enum.Font.GothamSemibold
-    valueInput.Parent = sliderContainer
-    local inputCorner = Instance.new("UICorner"); inputCorner.CornerRadius = UDim.new(0, 6); inputCorner.Parent = valueInput
-
-    local function updatePrediction(value)
-        CurrentPrediction = math.clamp(value, 0, 0.5)
-        predLabel.Text = "Prediction: " .. string.format("%.2f", CurrentPrediction)
-        valueInput.Text = string.format("%.2f", CurrentPrediction)
-        fillBar.Size = UDim2.new(CurrentPrediction / 0.5, 0, 1, 0)
-        sliderBtn.Position = UDim2.new(CurrentPrediction / 0.5, -15, 0.5, -15)
-    end
-
-    local dragging = false
-
-    sliderBtn.MouseButton1Down:Connect(function()
-        dragging = true
-    end)
-
-    sliderBtn.MouseButton1Up:Connect(function()
-        dragging = false
-    end)
-
-    sliderBtn.MouseLeave:Connect(function()
-        dragging = false
-    end)
-
-    sliderContainer.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-        end
-    end)
-
-    sliderContainer.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
-
-    sliderContainer.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local mousePos = input.Position.X
-            local sliderAbsPos = sliderBg.AbsolutePosition.X
-            local sliderWidth = sliderBg.AbsoluteSize.X
-            local relativeX = (mousePos - sliderAbsPos) / sliderWidth
-            local newValue = math.clamp(relativeX, 0, 1) * 0.5
-            updatePrediction(newValue)
-        end
-    end)
-
-    valueInput.FocusLost:Connect(function(enterPressed)
-        local num = tonumber(valueInput.Text)
-        if num then
-            updatePrediction(num)
-        else
-            valueInput.Text = string.format("%.2f", CurrentPrediction)
-        end
-    end)
-
-    return updatePrediction
 end
 
 local function createLockModeMenu()
@@ -480,87 +425,185 @@ local function createLockModeMenu()
     menuFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     menuFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
     menuFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    menuFrame.BackgroundTransparency = 1
     menuFrame.BorderSizePixel = 0
     menuFrame.Size = UDim2.new(0, 0, 0, 0)
     menuFrame.Parent = screenGui
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 16)
+    corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = menuFrame
 
     local stroke = Instance.new("UIStroke")
     stroke.Color = Color3.fromRGB(0, 255, 255)
-    stroke.Thickness = 3
+    stroke.Thickness = 2
+    stroke.Transparency = 1
     stroke.Parent = menuFrame
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 50)
+    title.Size = UDim2.new(1, 0, 0, 35)
     title.BackgroundTransparency = 1
     title.Text = "Lock Mode"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextSize = 22
+    title.TextTransparency = 1
+    title.TextSize = 18
     title.Font = Enum.Font.GothamBold
     title.Parent = menuFrame
 
-    local btn1 = Instance.new("TextButton")
-    btn1.Size = UDim2.new(0.85, 0, 0, 55)
-    btn1.Position = UDim2.new(0.075, 0, 0, 65)
-    btn1.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    btn1.Text = "Mode 1 Camera"
-    btn1.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn1.TextSize = 18
-    btn1.Font = Enum.Font.GothamSemibold
-    btn1.Parent = menuFrame
-    local btn1Corner = Instance.new("UICorner"); btn1Corner.CornerRadius = UDim.new(0, 12); btn1Corner.Parent = btn1
+    local function createMiniButton(parent, text, yPos)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0.85, 0, 0, 38)
+        btn.Position = UDim2.new(0.075, 0, 0, yPos)
+        btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        btn.BackgroundTransparency = 1
+        btn.Text = text
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.TextTransparency = 1
+        btn.TextSize = 14
+        btn.Font = Enum.Font.GothamSemibold
+        btn.Parent = parent
+        local btnCorner = Instance.new("UICorner"); btnCorner.CornerRadius = UDim.new(0, 8); btnCorner.Parent = btn
+        return btn
+    end
 
-    local btn2 = Instance.new("TextButton")
-    btn2.Size = UDim2.new(0.85, 0, 0, 55)
-    btn2.Position = UDim2.new(0.075, 0, 0, 130)
-    btn2.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    btn2.Text = "Mode 2 Camera + Character"
-    btn2.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn2.TextSize = 18
-    btn2.Font = Enum.Font.GothamSemibold
-    btn2.Parent = menuFrame
-    local btn2Corner = Instance.new("UICorner"); btn2Corner.CornerRadius = UDim.new(0, 12); btn2Corner.Parent = btn2
+    local btn1 = createMiniButton(menuFrame, "Mode 1 - Camera", 45)
+    local btn2 = createMiniButton(menuFrame, "Mode 2 - Camera + Character", 88)
+    local btn3 = createMiniButton(menuFrame, "Mode 3 - Character Only", 131)
 
-    local btn3 = Instance.new("TextButton")
-    btn3.Size = UDim2.new(0.85, 0, 0, 55)
-    btn3.Position = UDim2.new(0.075, 0, 0, 195)
-    btn3.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    btn3.Text = "Mode 3 Character Only"
-    btn3.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn3.TextSize = 18
-    btn3.Font = Enum.Font.GothamSemibold
-    btn3.Parent = menuFrame
-    local btn3Corner = Instance.new("UICorner"); btn3Corner.CornerRadius = UDim.new(0, 12); btn3Corner.Parent = btn3
+    -- Variáveis temporárias para os sliders
+    local tempCamSmooth = CamSmooth
+    local tempCharSmooth = CharSmooth
 
-    -- Adiciona o slider de predição
-    createPredictionSlider(menuFrame, 265)
+    -- CORREÇÃO: Atualiza as variáveis temporárias quando o slider muda
+    local camUpdate, camValue = createMiniSlider(menuFrame, "Cam Smooth", 0.1, 3.0, CamSmooth, 180,
+        function(value)
+            tempCamSmooth = value
+            print("CamSmooth alterado para: " .. string.format("%.2f", value)) -- Debug
+        end
+    )
+    
+    local charUpdate, charValue = createMiniSlider(menuFrame, "Char Smooth", 0.1, 3.0, CharSmooth, 230,
+        function(value)
+            tempCharSmooth = value
+            print("CharSmooth alterado para: " .. string.format("%.2f", value)) -- Debug
+        end
+    )
 
-    local tweenIn = TweenService:Create(menuFrame, TweenInfo.new(0.65, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 400, 0, 330)})
-    tweenIn:Play()
+    -- Animação de entrada
+    local tweenInSize = TweenService:Create(menuFrame, 
+        TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
+        {Size = UDim2.new(0, 320, 0, 280)})
+    
+    local tweenInBg = TweenService:Create(menuFrame, 
+        TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+        {BackgroundTransparency = 0})
+    
+    local tweenInStroke = TweenService:Create(stroke, 
+        TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+        {Transparency = 0})
+    
+    local tweenInTitle = TweenService:Create(title, 
+        TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+        {TextTransparency = 0})
+
+    local function animateButtonsIn()
+        for _, btn in ipairs({btn1, btn2, btn3}) do
+            TweenService:Create(btn, 
+                TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+                {BackgroundTransparency = 0}):Play()
+            TweenService:Create(btn, 
+                TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+                {TextTransparency = 0}):Play()
+        end
+    end
+
+    tweenInSize:Play()
+    tweenInBg:Play()
+    tweenInStroke:Play()
+    tweenInTitle:Play()
+    
+    delay(0.15, animateButtonsIn)
 
     local function escolherModo(modo)
-        local tweenOut = TweenService:Create(menuFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
-        tweenOut:Play()
-        tweenOut.Completed:Connect(function()
+        -- CORREÇÃO: Atualiza as variáveis globais com os valores dos sliders
+        CamSmooth = tempCamSmooth
+        CharSmooth = tempCharSmooth
+        
+        print("Salvando - CamSmooth: " .. string.format("%.2f", CamSmooth) .. " | CharSmooth: " .. string.format("%.2f", CharSmooth))
+        
+        -- Animação de saída
+        local tweenOutSize = TweenService:Create(menuFrame, 
+            TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.In), 
+            {Size = UDim2.new(0, 0, 0, 0)})
+        
+        local tweenOutBg = TweenService:Create(menuFrame, 
+            TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+            {BackgroundTransparency = 1})
+        
+        local tweenOutStroke = TweenService:Create(stroke, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+            {Transparency = 1})
+        
+        local tweenOutTitle = TweenService:Create(title, 
+            TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+            {TextTransparency = 1})
+
+        for _, child in ipairs(menuFrame:GetChildren()) do
+            if child:IsA("TextButton") then
+                TweenService:Create(child, 
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+                    {BackgroundTransparency = 1}):Play()
+                TweenService:Create(child, 
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+                    {TextTransparency = 1}):Play()
+            elseif child:IsA("TextLabel") and child ~= title then
+                TweenService:Create(child, 
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+                    {TextTransparency = 1}):Play()
+            elseif child:IsA("Frame") then
+                TweenService:Create(child, 
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+                    {BackgroundTransparency = 1}):Play()
+            end
+        end
+
+        tweenOutSize:Play()
+        tweenOutBg:Play()
+        tweenOutStroke:Play()
+        tweenOutTitle:Play()
+        
+        tweenOutSize.Completed:Connect(function()
             menuFrame:Destroy()
             lockMode = modo
             updateModeFlags()
             
-            -- Salva modo e predição
+            -- Salvar modo
             local salvarModo = Instance.new("IntValue")
             salvarModo.Name = "SavedLockMode"
             salvarModo.Value = modo
             salvarModo.Parent = playerGui
             
-            local salvarPred = Instance.new("NumberValue")
-            salvarPred.Name = "SavedPrediction"
-            salvarPred.Value = CurrentPrediction
-            salvarPred.Parent = playerGui
+            -- Salvar CamSmooth
+            local salvarCam = Instance.new("NumberValue")
+            salvarCam.Name = "SavedCamSmooth"
+            salvarCam.Value = CamSmooth
+            salvarCam.Parent = playerGui
+            
+            -- Salvar CharSmooth
+            local salvarChar = Instance.new("NumberValue")
+            salvarChar.Name = "SavedCharSmooth"
+            salvarChar.Value = CharSmooth
+            salvarChar.Parent = playerGui
             
             createToggleAndUI()
+            
+            -- Notificação com os valores
+            StarterGui:SetCore("SendNotification", {
+                Title = "Lock On Configurado",
+                Text = "Modo " .. modo .. " | Cam: " .. string.format("%.2f", CamSmooth) .. " | Char: " .. string.format("%.2f", CharSmooth),
+                Icon = "rbxassetid://82817965256191",
+                Duration = 5
+            })
         end)
     end
 
@@ -591,16 +634,16 @@ RunService.RenderStepped:Connect(function()
                     humanoid.AutoRotate = false
                     local rootPart = character:FindFirstChild("HumanoidRootPart")
                     if rootPart then
-                        local predictedPos = getPredictedPosition(LockedTarget) or getNeckPosition(LockedTarget)
-                        if predictedPos then
-                            local direction = predictedPos - rootPart.Position
+                        local neckPos = getNeckPosition(LockedTarget)
+                        if neckPos then
+                            local direction = neckPos - rootPart.Position
                             local horizontalDir = Vector3.new(direction.X, 0, direction.Z)
                             local mag = horizontalDir.Magnitude
                             if mag > 0.1 then
                                 horizontalDir = horizontalDir / mag
                                 local targetCFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + horizontalDir)
                                 
-                                -- AQUI está a mudança: agora usa CharSmooth (muito mais suave)
+                                -- Usa CharSmooth configurável
                                 rootPart.CFrame = rootPart.CFrame:Lerp(targetCFrame, CharSmooth)
                             end
                         end
@@ -624,8 +667,6 @@ RunService.RenderStepped:Connect(function()
     if now - lastSearchTime > SEARCH_RATE then
         if not isValidTarget(LockedTarget) then
             LockedTarget = findClosestTarget()
-            LastTargetPosition = nil
-            TargetVelocity = Vector3.zero
         end
         lastSearchTime = now
     end
@@ -639,6 +680,7 @@ RunService.RenderStepped:Connect(function()
             local rightVec = Camera.CFrame.RightVector
             local targetPos = lockPos - (rightVec * CAMERA_LEFT_OFFSET)
             local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+            -- Usa CamSmooth configurável
             Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CamSmooth)
         end
     end
