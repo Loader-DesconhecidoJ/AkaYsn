@@ -192,8 +192,12 @@ local m1Btn, m1Stroke = createCircularButton("M1Btn", M1_POS, "M1", nil, nil, 80
 local knifeBtn, knifeStroke, knifeIcon = createCircularButton("KnifeBtn", KNIFE_POS_OFF, "KNIFE", nil, ASSETS.KNIFE_IMAGE, 80) -- 70 → 80 (maior)
 
 m1Btn.Visible = false
+m1Btn.Position = ACTIVATE_POS         -- Começa na posição do Stand
+m1Btn.Size = UDim2.fromOffset(0, 0)  -- Começa com tamanho 0
 knifeBtn.Visible = true
-roadBtn.Visible = true
+roadBtn.Visible = false              
+roadBtn.Position = TS_POS            
+roadBtn.Size = UDim2.fromOffset(0, 0)
 
 local resumeImage = Instance.new("ImageLabel", screenGui)
 resumeImage.Name = "TSResumeImage"
@@ -270,18 +274,28 @@ local function toggleStand()
 			Debris:AddItem(currentStand, 0.5)
 			currentStand = nil
 		end
-		local m1TweenBack = TweenService:Create(m1Btn, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = ACTIVATE_POS})
-		m1TweenBack:Play()
-		m1TweenBack.Completed:Connect(function(s) if s == Enum.PlaybackState.Completed then m1Btn.Visible = false end end)
+		
+		-- 🍑 Esconde M1 de volta
+		TweenService:Create(m1Btn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = ACTIVATE_POS,
+			Size = UDim2.fromOffset(0, 0)
+		}):Play()
+		task.delay(0.3, function() m1Btn.Visible = false end)
+		
 		updateKnifePosition(false)
 		updateIconState(standIcon, false)
 	else
 		isStandActive = true
 		activateBtn.Text = "OFF"
 		showSpeechBubble(81663476180868, "right", 2.5)
-		m1Btn.Position = ACTIVATE_POS
+		
+		-- 🔥 Mostra M1 saindo do Stand
 		m1Btn.Visible = true
-		TweenService:Create(m1Btn, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = M1_POS}):Play()
+		TweenService:Create(m1Btn, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Position = M1_POS,
+			Size = UDim2.fromOffset(80, 80)
+		}):Play()
+		
 		currentStand = getStandModel()
 		currentStand.Parent = workspace
 		local sHum = currentStand:FindFirstChildOfClass("Humanoid")
@@ -309,6 +323,13 @@ local function toggleTime()
 	if isTimeStopped then
 		isTimeStopped = false
 		tsBtn.Text = "STOP"
+		
+		TweenService:Create(roadBtn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = TS_POS,
+			Size = UDim2.fromOffset(0, 0)
+		}):Play()
+		task.delay(0.3, function() roadBtn.Visible = false end)
+		
 		local s = Instance.new("Sound", workspace) s.SoundId = ASSETS.TS_END_SFX s:Play() Debris:AddItem(s, 3)
 		for part in pairs(frozenParts) do if part and part.Parent then part.Anchored = false end end
 		frozenParts = {}
@@ -332,10 +353,17 @@ local function toggleTime()
 		end
 		updateIconState(tsIcon, false)
 	else
-		if not canUse("TimeStop") then return end
-		isTimeStopped = true
-		tsBtn.Text = "RESUME"
-		local root = character:FindFirstChild("HumanoidRootPart")
+	if not canUse("TimeStop") then return end
+	isTimeStopped = true
+	tsBtn.Text = "RESUME"
+	
+	roadBtn.Visible = true
+	TweenService:Create(roadBtn, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = ROAD_POS,
+		Size = UDim2.fromOffset(70, 70)
+	}):Play()
+	
+	local root = character:FindFirstChild("HumanoidRootPart")
 		local s = Instance.new("Sound", workspace) s.SoundId = ASSETS.TS_START_SFX s.Volume = 2 s:Play() Debris:AddItem(s, 5)
 		
 		local tsTrack = playAnim(hum, ASSETS.ANIM_DIO, 2, false, Enum.AnimationPriority.Action) 
