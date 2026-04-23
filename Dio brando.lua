@@ -327,7 +327,7 @@ local function toggleTime()
 		local root = character:FindFirstChild("HumanoidRootPart")
 		local s = Instance.new("Sound", workspace) s.SoundId = ASSETS.TS_START_SFX s.Volume = 2 s:Play() Debris:AddItem(s, 5)
 		
-		local tsTrack = playAnim(hum, ASSETS.ANIM_DIO, 1.5, false, Enum.AnimationPriority.Action) 
+		local tsTrack = playAnim(hum, ASSETS.ANIM_DIO, 1.8, false, Enum.AnimationPriority.Action) 
 		
 		if root then root.Anchored = true end
 		showSpeechBubble(106366607174396, "right", 4)
