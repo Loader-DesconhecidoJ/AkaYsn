@@ -71,7 +71,6 @@ local function startFinisher(targetRoot)
 	
 	noclipFinisherConn = RunService.Stepped:Connect(function()
 		if not finisherTargetRoot or not finisherTargetRoot.Parent then return end
-		
 		for _, part in ipairs(finisherTargetRoot.Parent:GetDescendants()) do
 			if part:IsA("BasePart") then
 				part.CanCollide = false
@@ -85,7 +84,7 @@ local function startFinisher(targetRoot)
 		local oldVel = myRoot.Velocity
 		myRoot.Velocity = oldVel * 14800 + Vector3.new(0, 17200, 0)
 		RunService.RenderStepped:Wait()
-		myRoot.Velocity = oldVel * 0.5
+		myRoot.Velocity = oldVel * 0.15
 	end)
 	
 	task.delay(FINISHER_DURATION, function()
@@ -106,12 +105,23 @@ local function endFinisher()
 	end
 	
 	isFinisherActive = false
-	finisherTargetRoot = nil
 	
 	local myRoot = character:FindFirstChild("HumanoidRootPart")
 	if myRoot then
 		myRoot.Velocity = Vector3.new(0, 0, 0)
-		myRoot.CFrame = myRoot.CFrame + Vector3.new(3, 6, 0)
+		myRoot.RotVelocity = Vector3.new(0, 0, 0)
+		myRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+		myRoot.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+		
+		for _, v in ipairs(myRoot:GetChildren()) do
+			if v:IsA("BodyVelocity") or v:IsA("BodyForce") or v:IsA("BodyThrust") or v:IsA("RocketPropulsion") then
+				v:Destroy()
+			end
+		end
+		
+		myRoot.Anchored = true
+		task.wait(0.1)
+		myRoot.Anchored = false
 	end
 	
 	if finisherTargetRoot and finisherTargetRoot.Parent then
@@ -121,6 +131,8 @@ local function endFinisher()
 			end
 		end
 	end
+	
+	finisherTargetRoot = nil
 end
 
 local screenGui = Instance.new("ScreenGui", player.PlayerGui)
