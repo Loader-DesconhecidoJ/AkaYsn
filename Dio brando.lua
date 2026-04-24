@@ -492,6 +492,182 @@ end
 	end
 end
 
+-- ==================== VFX SYSTEM ====================
+local function createParticle(parent, props)
+	local emitter = Instance.new("ParticleEmitter")
+	for property, value in pairs(props) do
+		emitter[property] = value
+	end
+	emitter.Parent = parent
+	return emitter
+end
+
+local function EmitTimeStopVFX()
+	local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+	if not torso then return end
+
+	local vfxAttachment = Instance.new("Attachment")
+	vfxAttachment.Parent = torso
+	vfxAttachment.Position = Vector3.new(0, 0, 0)
+
+	-- Emissor 1
+	local emitter1 = createParticle(vfxAttachment, {
+		Texture = "rbxassetid://17391818367",
+		Color = ColorSequence.new(Color3.fromRGB(255, 215, 0)),
+		Lifetime = NumberRange.new(0.1, 0.3),
+		Rate = 0,
+		Rotation = NumberRange.new(0),
+		RotSpeed = NumberRange.new(0),
+		EmissionDirection = Enum.NormalId.Top,
+		Speed = NumberRange.new(8),
+		Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 6),
+			NumberSequenceKeypoint.new(0.2, 6.5),
+			NumberSequenceKeypoint.new(0.75, 2.5),
+			NumberSequenceKeypoint.new(1, 0)
+		}),
+		LightEmission = 1,
+		Orientation = Enum.ParticleOrientation.FacingCamera,
+		SpreadAngle = Vector2.new(360, 360),
+		Shape = Enum.ParticleEmitterShape.Box,
+		ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward,
+		Brightness = 5,
+		ZOffset = 0.05,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.95, 0),
+			NumberSequenceKeypoint.new(1, 1)
+		}),
+		VelocityInheritance = 0,
+		LockedToPart = false,
+		Enabled = false
+	})
+	emitter1:Emit(10)
+
+	-- Emissor 2
+	local emitter2 = createParticle(vfxAttachment, {
+		Texture = "rbxassetid://16511964424",
+		Color = ColorSequence.new(Color3.fromRGB(255, 215, 0)),
+		Lifetime = NumberRange.new(0.1, 0.3),
+		Rate = 0,
+		Rotation = NumberRange.new(0),
+		RotSpeed = NumberRange.new(0),
+		EmissionDirection = Enum.NormalId.Top,
+		Speed = NumberRange.new(8),
+		Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 6),
+			NumberSequenceKeypoint.new(0.2, 6.5),
+			NumberSequenceKeypoint.new(0.75, 2.5),
+			NumberSequenceKeypoint.new(1, 0)
+		}),
+		LightEmission = 1,
+		Orientation = Enum.ParticleOrientation.FacingCamera,
+		SpreadAngle = Vector2.new(360, 360),
+		Shape = Enum.ParticleEmitterShape.Box,
+		ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward,
+		Brightness = 5,
+		ZOffset = 0.05,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.95, 0),
+			NumberSequenceKeypoint.new(1, 1)
+		}),
+		VelocityInheritance = 0,
+		LockedToPart = false,
+		Enabled = false
+	})
+	emitter2:Emit(10)
+
+	task.wait(0.25)
+
+	-- Emissor 3 (explosão dourada)
+	local emitter3 = createParticle(vfxAttachment, {
+		Texture = "rbxassetid://13161986324",
+		Color = ColorSequence.new(Color3.fromRGB(255, 215, 0)),
+		Lifetime = NumberRange.new(0.5, 1.5),
+		Rate = 0,
+		Speed = NumberRange.new(30, 50),
+		Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 5),
+			NumberSequenceKeypoint.new(0.1, 6),
+			NumberSequenceKeypoint.new(0.3, 3),
+			NumberSequenceKeypoint.new(1, 0)
+		}),
+		LightEmission = 1,
+		SpreadAngle = Vector2.new(360, 360),
+		Shape = Enum.ParticleEmitterShape.Box,
+		Brightness = 10,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.3),
+			NumberSequenceKeypoint.new(0.5, 0.5),
+			NumberSequenceKeypoint.new(1, 1)
+		}),
+		VelocityInheritance = 0,
+		Enabled = false
+	})
+	emitter3:Emit(60)
+
+	-- Emissor 4 (raio de luz subindo)
+	local emitter4 = createParticle(vfxAttachment, {
+		Texture = "rbxassetid://10335418884",
+		Color = ColorSequence.new(Color3.fromRGB(255, 200, 0)),
+		Lifetime = NumberRange.new(0.8, 2),
+		Rate = 0,
+		EmissionDirection = Enum.NormalId.Top,
+		Speed = NumberRange.new(20, 35),
+		Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 4),
+			NumberSequenceKeypoint.new(0.08, 5),
+			NumberSequenceKeypoint.new(0.1, 3),
+			NumberSequenceKeypoint.new(0.75, 2),
+			NumberSequenceKeypoint.new(1, 0)
+		}),
+		LightEmission = 0.9,
+		SpreadAngle = Vector2.new(360, 360),
+		Shape = Enum.ParticleEmitterShape.Box,
+		Brightness = 15,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.5),
+			NumberSequenceKeypoint.new(0.5, 0.5),
+			NumberSequenceKeypoint.new(1, 1)
+		}),
+		VelocityInheritance = 0,
+		Enabled = false
+	})
+	emitter4:Emit(80)
+
+	-- Emissor 5 (brilho final)
+	local emitter5 = createParticle(vfxAttachment, {
+		Texture = "rbxassetid://13161986324",
+		Color = ColorSequence.new(Color3.fromRGB(255, 220, 50)),
+		Lifetime = NumberRange.new(0.3, 1),
+		Rate = 0,
+		Speed = NumberRange.new(25, 45),
+		Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.1, 5),
+			NumberSequenceKeypoint.new(0.35, 4),
+			NumberSequenceKeypoint.new(0.75, 3),
+			NumberSequenceKeypoint.new(1, 0)
+		}),
+		LightEmission = 0.9,
+		SpreadAngle = Vector2.new(360, 360),
+		Shape = Enum.ParticleEmitterShape.Box,
+		Brightness = 15,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(1, 0)
+		}),
+		VelocityInheritance = 0,
+		Enabled = false
+	})
+	emitter5:Emit(40)
+
+	task.delay(2, function()
+		if vfxAttachment then vfxAttachment:Destroy() end
+	end)
+end
+
 local function toggleTime()
 	if isTimeStopped then
 		isTimeStopped = false
@@ -549,13 +725,15 @@ end
 		
 		if root then root.Anchored = true end
 		showSpeechBubble(106366607174396, "right", 4)
-		task.delay(1.9, function()
+		task.delay(1.85, function()
     if not isTimeStopped then return end
+    
+    EmitTimeStopVFX()
     
     cinematicZoom(1, 40)
     
     task.delay(0.1, function()
-        cameraShake(2.,  3.0)
+        cameraShake(2, 3.0)
     end)
 			if root then root.Anchored = false end
 			local cc = Lighting:FindFirstChild("TS_Effect") or Instance.new("ColorCorrectionEffect", Lighting)
