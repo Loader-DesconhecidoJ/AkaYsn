@@ -119,7 +119,7 @@ local function endFinisher()
 	-- Reset seguro do seu boneco
 	local myRoot = character:FindFirstChild("HumanoidRootPart")
 	if myRoot then
-		myRoot.Velocity = Vector3.new(0, 25, 0)
+		myRoot.Velocity = Vector3.new(0, 0, 0)
 		myRoot.CFrame = myRoot.CFrame + Vector3.new(3, 6, 0)  -- sai um pouco pro lado pra nÃ£o ficar preso
 	end
 	
@@ -214,6 +214,26 @@ local function cameraShake(duration, intensity)
 			hum.CameraOffset = Vector3.new(0, 0, 0)
 			connection:Disconnect()
 		end
+	end)
+end
+
+-- ====================  ZOOM CINEMATOGRÁFICO ====================
+local function cinematicZoom(duration, targetFOV)
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	
+	local originalFOV = camera.FieldOfView
+	
+	-- Zoom in rápido
+	TweenService:Create(camera, TweenInfo.new(duration * 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		FieldOfView = targetFOV
+	}):Play()
+	
+	-- Mantém zoom por um tempo e depois volta
+	task.delay(duration * 0.6, function()
+		TweenService:Create(camera, TweenInfo.new(duration * 0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			FieldOfView = originalFOV
+		}):Play()
 	end)
 end
 
@@ -412,17 +432,17 @@ local function getStandModel()
     for _, p in ipairs(model:GetDescendants()) do
         if p:IsA("BasePart") then
             p.CanCollide = false
-            p.Transparency = 1 -- <--- Garante que comece invisÃ­vel
+            p.Transparency = 1  -- Tudo começa invisível
             p.CastShadow = false
-        elseif p:IsA("Decal") then -- Isso remove faces/texturas extras se houver
+        elseif p:IsA("Decal") then
             p.Transparency = 1
         elseif p:IsA("LocalScript") or p:IsA("Script") then
             p:Destroy()
         end
     end
+    
     return model
 end
-
 
 local function toggleStand()
 	if isStandActive then
@@ -479,10 +499,12 @@ local function toggleStand()
     if p:IsA("BasePart") then
         p.Color = Color3.new(1,1,1)
         
-        -- Se a parte for o bloco central (RootPart), ela DEVE continuar transparente
+        --  APENAS o RootPart fica transparente
         if p.Name == "HumanoidRootPart" then
-            p.Transparency = 1
+            p.Transparency = 1        -- SEMPRE invisível
+            p.CastShadow = false      -- Sem sombra
         else
+            -- O RESTO do Stand aparece normalmente
             TweenService:Create(p, TweenInfo.new(0.4), {Transparency = 0}):Play()
         end
     end
@@ -497,6 +519,12 @@ local function toggleTime()
 	if isTimeStopped then
 		isTimeStopped = false
 		tsBtn.Text = "STOP"
+		
+local bloom = Lighting:FindFirstChild("TS_Bloom")
+if bloom then
+    TweenService:Create(bloom, TweenInfo.new(0.5), {Intensity = 0}):Play()
+    task.delay(0.5, function() if bloom then bloom:Destroy() end end)
+end
 		
 		TweenService:Create(roadBtn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 			Position = TS_POS,
@@ -544,9 +572,16 @@ local function toggleTime()
 		
 		if root then root.Anchored = true end
 		showSpeechBubble(106366607174396, "right", 4)
-		task.delay(2, function()
-			if not isTimeStopped then return end
-			cameraShake(0.6, 2.0)
+		task.delay(1.9, function()
+    if not isTimeStopped then return end
+    
+    --  ZOOM começa aos 1.5s
+    cinematicZoom(1, 40)
+    
+    --  SHAKE começa aos 2.0s (0.5s depois do zoom)
+    task.delay(0.1, function()
+        cameraShake(2.,  3.0)
+    end)
 			if root then root.Anchored = false end
 			local cc = Lighting:FindFirstChild("TS_Effect") or Instance.new("ColorCorrectionEffect", Lighting)
 			cc.Name = "TS_Effect"
@@ -1150,41 +1185,46 @@ for i = 1, knifeCount do
         hitSound:Play() 
         Debris:AddItem(hitSound, 2)
         
-        -- Remove a velocidade da faca
+        -- 🔧 PARA A FACA IMEDIATAMENTE NO IMPACTO
+        knife.Velocity = Vector3.new(0, 0, 0)
+        knife.Anchored = true
+        knife.CFrame = CFrame.new(hitPart.Position) -- Fixa no ponto de impacto
+        
+        -- Remove a velocidade
         if knife:FindFirstChild("LinearVelocity") then
             knife.LinearVelocity:Destroy()
         end
+        if knife:FindFirstChild("BodyVelocity") then
+            knife.BodyVelocity:Destroy()
+        end
         
-        --- FACA "CRAVADA" (cria uma faca decorativa IGUAL a original)
-local stuckKnife = Instance.new("Part", workspace)
-stuckKnife.Name = "StuckKnife"
-stuckKnife.Size = Vector3.new(1, 1, 1) -- Tamanho base igual ao original
-stuckKnife.CanCollide = false
-stuckKnife.Anchored = false
-stuckKnife.CFrame = knife.CFrame
-stuckKnife.Transparency = 0
-stuckKnife.Color = Color3.fromRGB(255, 255, 255) -- Cor branca pra não interferir na textura
-
---  MESMA MESH DA FACA ORIGINAL
-local stuckMesh = Instance.new("SpecialMesh", stuckKnife)
-stuckMesh.MeshId = "rbxassetid://15945983658"
-stuckMesh.TextureId = "rbxassetid://15946012483"
-stuckMesh.Scale = Vector3.new(1.2, 1.2, 1.8) -- Mesma escala
-
--- Faz a faca decorativa grudar no alvo
-local stickWeld = Instance.new("WeldConstraint")
-stickWeld.Part0 = stuckKnife
-stickWeld.Part1 = hitPart
-stickWeld.Parent = stuckKnife
-
-Debris:AddItem(stuckKnife, 3)
+        -- 🔪 FACA CRAVADA (decorativa)
+        local stuckKnife = Instance.new("Part", workspace)
+        stuckKnife.Name = "StuckKnife"
+        stuckKnife.Size = Vector3.new(1, 1, 1)
+        stuckKnife.CanCollide = false
+        stuckKnife.Anchored = false
+        stuckKnife.CFrame = knife.CFrame
+        stuckKnife.Transparency = 0
+        stuckKnife.Color = Color3.fromRGB(255, 255, 255)
         
-        --  FINISHER: Matou com faca
+        local stuckMesh = Instance.new("SpecialMesh", stuckKnife)
+        stuckMesh.MeshId = "rbxassetid://15945983658"
+        stuckMesh.TextureId = "rbxassetid://15946012483"
+        stuckMesh.Scale = Vector3.new(1.2, 1.2, 1.8)
+        
+        -- Gruda no alvo
+        local stickWeld = Instance.new("WeldConstraint")
+        stickWeld.Part0 = stuckKnife
+        stickWeld.Part1 = hitPart
+        stickWeld.Parent = stuckKnife
+        
+        Debris:AddItem(stuckKnife, 3)
+        
+        -- 💀 FINISHER
         if hitHum.Health <= 0 and knife:GetAttribute("Finished") ~= true then
             knife:SetAttribute("Finished", true)
-            
             showSpeechBubble("92536008979873", "right", 3, character.Head)
-            
             local dioSound = Instance.new("Sound", workspace)
             dioSound.SoundId = "rbxassetid://110578259527952"
             dioSound.Volume = 1.5
