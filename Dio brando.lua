@@ -249,21 +249,25 @@ local function playAnim(target, animId, speed, looped, priority)
 end
 
 local function getStandModel()
-	character.Archivable = true
-	local model = character:Clone()
-	character.Archivable = false
-	model.Name = "Stand"
-	for _, p in ipairs(model:GetDescendants()) do
-		if p:IsA("BasePart") then
-			p.CanCollide = false
-			p.Transparency = 1
-			p.CastShadow = false
-		elseif p:IsA("LocalScript") or p:IsA("Script") then
-			p:Destroy()
-		end
-	end
-	return model
+    character.Archivable = true
+    local model = character:Clone()
+    character.Archivable = false
+    model.Name = "Stand"
+    
+    for _, p in ipairs(model:GetDescendants()) do
+        if p:IsA("BasePart") then
+            p.CanCollide = false
+            p.Transparency = 1 -- <--- Garante que comece invisível
+            p.CastShadow = false
+        elseif p:IsA("Decal") then -- Isso remove faces/texturas extras se houver
+            p.Transparency = 1
+        elseif p:IsA("LocalScript") or p:IsA("Script") then
+            p:Destroy()
+        end
+    end
+    return model
 end
+
 
 local function toggleStand()
 	if isStandActive then
@@ -317,12 +321,18 @@ local function toggleStand()
 			idleTrack = playAnim(sHum, ASSETS.STAND_IDLE)
 		end
 		for _, p in ipairs(currentStand:GetDescendants()) do
-			if p:IsA("BasePart") then
-				p.Color = Color3.new(1,1,1)
-				p.Transparency = 1
-				TweenService:Create(p, TweenInfo.new(0.4), {Transparency = 0}):Play()
-			end
-		end
+    if p:IsA("BasePart") then
+        p.Color = Color3.new(1,1,1)
+        
+        -- Se a parte for o bloco central (RootPart), ela DEVE continuar transparente
+        if p.Name == "HumanoidRootPart" then
+            p.Transparency = 1
+        else
+            TweenService:Create(p, TweenInfo.new(0.4), {Transparency = 0}):Play()
+        end
+    end
+end
+
 		updateKnifePosition(true)
 		updateIconState(standIcon, true)
 	end
