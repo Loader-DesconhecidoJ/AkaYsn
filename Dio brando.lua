@@ -15,6 +15,9 @@ local isAttacking = false
 local currentStand = nil
 local idleTrack = nil
 local frozenParts = {}
+local mudaComboCount = 0 -- ðŸ”¢ Combo counter
+local comboDisplay = nil -- ðŸ“Š HUD do combo
+local comboTweens = {} -- ðŸŽ¬ Tweens do combo
 
 local COLORS = {
 	Yellow = Color3.fromRGB(255, 215, 0),
@@ -45,8 +48,155 @@ local ASSETS = {
 	ROAD_ROLLER_SPAWN_SFX = "rbxassetid://6273171415",        -- NOVO: som ao spawnar
 	ROAD_ROLLER_IMPACT_SFX1 = "rbxassetid://122293342039104", -- NOVO: impacto 1
 	ROAD_ROLLER_IMPACT_SFX2 = "rbxassetid://138680390593747", -- NOVO: impacto 2
-	ROAD_ROLLER_RIDE_ANIM = "rbxassetid://140327538515031" -- <- COLOQUE AQUI O ID DA SUA ANIMAÇÃO
+	ROAD_ROLLER_RIDE_ANIM = "rbxassetid://140327538515031" -- <- COLOQUE AQUI O ID DA SUA ANIMAÃ‡ÃƒO
 }
+
+-- ==================== FINISHER CONFIG + NOCLIP NO ALVO ====================
+local FINISHER_HEALTH_THRESHOLD = 20     -- Vida vermelha
+local FINISHER_DURATION = 2              -- Segundos de fling + noclip
+
+local isFinisherActive = false
+local finisherConnection = nil
+local noclipFinisherConn = nil
+local finisherTargetRoot = nil
+
+local function startFinisher(targetRoot)
+	if isFinisherActive or not targetRoot then return end
+	
+	isFinisherActive = true
+	finisherTargetRoot = targetRoot
+	
+	local myRoot = character:FindFirstChild("HumanoidRootPart")
+	if not myRoot then return end
+	
+	-- Teleporta seu boneco PRA DENTRO do alvo
+	myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 0)
+	
+	-- ==================== NOCLIP SÃ“ NO ALVO ====================
+	noclipFinisherConn = RunService.Stepped:Connect(function()
+		if not finisherTargetRoot or not finisherTargetRoot.Parent then return end
+		
+		for _, part in ipairs(finisherTargetRoot.Parent:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false   -- VocÃª atravessa o corpo do alvo
+			end
+		end
+	end)
+	
+	-- ==================== FLING NUCLEAR ====================
+	finisherConnection = RunService.Heartbeat:Connect(function()
+		if not myRoot or not finisherTargetRoot or not finisherTargetRoot.Parent then return end
+		
+		local oldVel = myRoot.Velocity
+		myRoot.Velocity = oldVel * 14800 + Vector3.new(0, 17200, 0)   -- Fling bem forte
+		RunService.RenderStepped:Wait()
+		myRoot.Velocity = oldVel * 0.5
+	end)
+	
+	print(" FINISHER + NOCLIP NO ALVO ATIVADO - ELE VAI VOAR PRA CARALHO!")
+	
+	-- Desativa tudo automaticamente apÃ³s 2 segundos
+	task.delay(FINISHER_DURATION, function()
+		if isFinisherActive then
+			endFinisher()
+		end
+	end)
+end
+
+local function endFinisher()
+	if finisherConnection then
+		finisherConnection:Disconnect()
+		finisherConnection = nil
+	end
+	if noclipFinisherConn then
+		noclipFinisherConn:Disconnect()
+		noclipFinisherConn = nil
+	end
+	
+	isFinisherActive = false
+	finisherTargetRoot = nil
+	
+	-- Reset seguro do seu boneco
+	local myRoot = character:FindFirstChild("HumanoidRootPart")
+	if myRoot then
+		myRoot.Velocity = Vector3.new(0, 25, 0)
+		myRoot.CFrame = myRoot.CFrame + Vector3.new(3, 6, 0)  -- sai um pouco pro lado pra nÃ£o ficar preso
+	end
+	
+	-- Restaura colisÃ£o do alvo
+	if finisherTargetRoot and finisherTargetRoot.Parent then
+		for _, part in ipairs(finisherTargetRoot.Parent:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+			end
+		end
+	end
+	
+	print(" Finisher + NoClip finalizado")
+end
+
+local screenGui = Instance.new("ScreenGui", player.PlayerGui)
+screenGui.Name = "DioStandUniversal"
+screenGui.ResetOnSpawn = false
+
+-- ====================  COMBO COUNTER EM CIMA DO BOTÃO M1 ====================
+local function showComboCounter()
+	for _, tween in ipairs(comboTweens) do
+		if tween then tween:Cancel() end
+	end
+	comboTweens = {}
+	
+	if comboDisplay then
+		comboDisplay:Destroy()
+	end
+	
+	comboDisplay = Instance.new("TextLabel")
+	comboDisplay.Name = "MudaComboHUD"
+	comboDisplay.Size = UDim2.new(0, 60, 0, 25)
+	comboDisplay.Position = UDim2.new(0.6, -30, 0.70, 0)
+	comboDisplay.AnchorPoint = Vector2.new(0.5, 1)
+	comboDisplay.BackgroundTransparency = 1
+	comboDisplay.Text = "x" .. mudaComboCount
+	comboDisplay.TextColor3 = Color3.fromRGB(255, 215, 0)
+	comboDisplay.TextStrokeTransparency = 0
+	comboDisplay.TextStrokeColor3 = Color3.fromRGB(180, 0, 0)
+	comboDisplay.Font = Enum.Font.Bangers
+	comboDisplay.TextSize = 20
+	comboDisplay.ZIndex = 100
+	comboDisplay.Parent = screenGui
+	
+	comboDisplay.TextTransparency = 1
+	local tweenIn = TweenService:Create(comboDisplay, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		TextTransparency = 0,
+		TextSize = 26
+	})
+	tweenIn:Play()
+	table.insert(comboTweens, tweenIn)
+	
+	task.delay(0.15, function()
+		if comboDisplay and comboDisplay.Parent then
+			local tweenBack = TweenService:Create(comboDisplay, TweenInfo.new(0.15), {
+				TextSize = 20
+			})
+			tweenBack:Play()
+		end
+	end)
+	
+	task.delay(1.5, function()
+		if comboDisplay and comboDisplay.Parent then
+			local tweenOut = TweenService:Create(comboDisplay, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				TextTransparency = 1
+			})
+			tweenOut:Play()
+			tweenOut.Completed:Connect(function()
+				if comboDisplay and comboDisplay.Parent then
+					comboDisplay:Destroy()
+					comboDisplay = nil
+				end
+			end)
+		end
+	end)
+end
 
 local function cameraShake(duration, intensity)
 	if not hum then return end
@@ -141,7 +291,7 @@ screenGui.Name = "DioStandUniversal"
 screenGui.ResetOnSpawn = false
 
 local TS_POS = UDim2.new(0.4, 0, 0.78, 0)
-local ROAD_POS = UDim2.new(0.3, 0, 0.78, 0)   -- NOVO: botão do Ultimate à esquerda do Time Stop
+local ROAD_POS = UDim2.new(0.3, 0, 0.79, 0)   -- NOVO: botÃ£o do Ultimate Ã  esquerda do Time Stop
 local ACTIVATE_POS = UDim2.new(0.5, 0, 0.75, 0)
 local M1_POS = UDim2.new(0.6, 0, 0.78, 0)
 local KNIFE_POS_ON = UDim2.new(0.7, 0, 0.78, 0)
@@ -185,15 +335,15 @@ local function createCircularButton(name, pos, text, color, imageId, sizeOffset)
 	return btn, stroke, icon
 end
 
-local tsBtn, tsStroke, tsIcon = createCircularButton("TimeStopBtn", TS_POS, "STOP", nil, ASSETS.TS_IMAGE, 80)     -- 70 → 80 (maior)
+local tsBtn, tsStroke, tsIcon = createCircularButton("TimeStopBtn", TS_POS, "STOP", nil, ASSETS.TS_IMAGE, 80)     -- 70  80 (maior)
 local roadBtn, roadStroke = createCircularButton("RoadRollerBtn", ROAD_POS, "ROAD", Color3.fromRGB(170, 0, 255), nil, 70) -- Road = 70
 local activateBtn, actStroke, standIcon = createCircularButton("ActivateBtn", ACTIVATE_POS, "STAND", nil, ASSETS.STAND_IMAGE, 95) -- Stand = 95
-local m1Btn, m1Stroke = createCircularButton("M1Btn", M1_POS, "M1", nil, nil, 80)          -- 70 → 80 (maior)
-local knifeBtn, knifeStroke, knifeIcon = createCircularButton("KnifeBtn", KNIFE_POS_OFF, "KNIFE", nil, ASSETS.KNIFE_IMAGE, 80) -- 70 → 80 (maior)
+local m1Btn, m1Stroke = createCircularButton("M1Btn", M1_POS, "M1", nil, nil, 80)          -- 70  80 (maior)
+local knifeBtn, knifeStroke, knifeIcon = createCircularButton("KnifeBtn", KNIFE_POS_OFF, "KNIFE", nil, ASSETS.KNIFE_IMAGE, 80) -- 70  80 (maior)
 
 m1Btn.Visible = false
-m1Btn.Position = ACTIVATE_POS         -- Começa na posição do Stand
-m1Btn.Size = UDim2.fromOffset(0, 0)  -- Começa com tamanho 0
+m1Btn.Position = ACTIVATE_POS         -- ComeÃ§a na posiÃ§Ã£o do Stand
+m1Btn.Size = UDim2.fromOffset(0, 0)  -- ComeÃ§a com tamanho 0
 knifeBtn.Visible = true
 roadBtn.Visible = false              
 roadBtn.Position = TS_POS            
@@ -221,8 +371,19 @@ updateIconState(standIcon, false)
 updateIconState(knifeIcon, false)
 
 local function updateKnifePosition(isActive)
-	local targetPos = isActive and KNIFE_POS_ON or KNIFE_POS_OFF
-	TweenService:Create(knifeBtn, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+	if isActive then
+		-- Stand ATIVO: posição normal + tamanho normal
+		TweenService:Create(knifeBtn, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+			Position = UDim2.new(0.7, 0, 0.79, 0), 
+			Size = UDim2.fromOffset(70, 70)
+		}):Play()
+	else
+		-- Stand DESATIVADO: posição menor + tamanho menor
+		TweenService:Create(knifeBtn, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+		    Position = KNIFE_POS_OFF, 
+			Size = UDim2.fromOffset(80, 80)
+		}):Play()
+	end
 end
 
 local function playAnim(target, animId, speed, looped, priority)
@@ -231,19 +392,13 @@ local function playAnim(target, animId, speed, looped, priority)
     a.AnimationId = animId
     local track = target:LoadAnimation(a)
     
+    -- Define loop corretamente
     track.Looped = (looped == true)
+    
     if priority then track.Priority = priority end
     
     track:Play()
     if speed then track:AdjustSpeed(speed) end
-    
-    if looped then
-        track.Stopped:Connect(function()
-            if track and track.Parent then
-                track:Play()
-            end
-        end)
-    end
     
     return track
 end
@@ -257,7 +412,7 @@ local function getStandModel()
     for _, p in ipairs(model:GetDescendants()) do
         if p:IsA("BasePart") then
             p.CanCollide = false
-            p.Transparency = 1 -- <--- Garante que comece invisível
+            p.Transparency = 1 -- <--- Garante que comece invisÃ­vel
             p.CastShadow = false
         elseif p:IsA("Decal") then -- Isso remove faces/texturas extras se houver
             p.Transparency = 1
@@ -288,7 +443,7 @@ local function toggleStand()
 			currentStand = nil
 		end
 		
-		-- 🍑 Esconde M1 de volta
+		--  Esconde M1 de volta
 		TweenService:Create(m1Btn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 			Position = ACTIVATE_POS,
 			Size = UDim2.fromOffset(0, 0)
@@ -302,7 +457,7 @@ local function toggleStand()
 		activateBtn.Text = "OFF"
 		showSpeechBubble(81663476180868, "right", 2.5)
 		
-		-- 🔥 Mostra M1 saindo do Stand
+		--  Mostra M1 saindo do Stand
 		m1Btn.Visible = true
 		TweenService:Create(m1Btn, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Position = M1_POS,
@@ -318,7 +473,7 @@ local function toggleStand()
 			sHum.HipHeight = 0
 			local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
 			if sRoot then sRoot.Anchored = true end
-			idleTrack = playAnim(sHum, ASSETS.STAND_IDLE)
+			idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
 		end
 		for _, p in ipairs(currentStand:GetDescendants()) do
     if p:IsA("BasePart") then
@@ -459,7 +614,7 @@ local function createExplosion(position)
 	fire.Acceleration = Vector3.new(0, -25, 0)
 	fire.SpreadAngle = Vector2.new(30, 30)
 
-	-- Poeira / fumaça
+	-- Poeira / fumaÃ§a
 	local dust = Instance.new("ParticleEmitter", explosionPart)
 	dust.Texture = "rbxassetid://241650899"
 	dust.Color = ColorSequence.new(Color3.fromRGB(170, 170, 170))
@@ -496,7 +651,7 @@ local function createRoadRoller()
 end
 
 local function createGroundCracks(position)
-	-- Cria rachaduras no chão usando partes planas com decalques
+	-- Cria rachaduras no chÃ£o usando partes planas com decalques
 	for i = 1, 8 do
 		local crack = Instance.new("Part")
 		crack.Size = Vector3.new(0.15, 0.01, math.random(3, 8))
@@ -520,7 +675,7 @@ local function createGroundCracks(position)
 		Debris:AddItem(crack, 8)
 	end
 	
-	-- Adiciona um círculo central de impacto
+	-- Adiciona um cÃ­rculo central de impacto
 	local centerCrater = Instance.new("Part")
 	centerCrater.Size = Vector3.new(4, 0.02, 4)
 	centerCrater.Anchored = true
@@ -533,7 +688,7 @@ local function createGroundCracks(position)
 	
 	-- Decalque de rachadura circular
 	local decal = Instance.new("Decal", centerCrater)
-	decal.Texture = "rbxassetid://154292235" -- textura de rachadura genérica
+	decal.Texture = "rbxassetid://154292235" -- textura de rachadura genÃ©rica
 	decal.Face = Enum.NormalId.Top
 	decal.Transparency = 0.3
 	
@@ -547,7 +702,7 @@ local function performRoadRoller()
 	end
 	if not canUse("RoadRoller") then return end
 	
-	-- ===== FLASH PRETO NA ATIVAÇÃO (0.1s fade in, 0.1s fade out) =====
+	-- ===== FLASH PRETO NA ATIVAÃ‡ÃƒO (0.1s fade in, 0.1s fade out) =====
 local activationFlash = Instance.new("Frame")
 activationFlash.Name = "RoadRollerActivationFlash"
 activationFlash.Size = UDim2.fromScale(2, 2)
@@ -557,12 +712,12 @@ activationFlash.BackgroundTransparency = 1
 activationFlash.ZIndex = 100
 activationFlash.Parent = screenGui
 
--- Fade in rápido: 0.1s
+-- Fade in rÃ¡pido: 0.1s
 TweenService:Create(activationFlash, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 	BackgroundTransparency = 0
 }):Play()
 
--- Fade out após 0.1s
+-- Fade out apÃ³s 0.1s
 task.delay(0.1, function()
 	if activationFlash.Parent then
 		TweenService:Create(activationFlash, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -585,7 +740,7 @@ end)
 	local rollerModel = createRoadRoller()
 	local rollerRoot = rollerModel.PrimaryPart
 
-	-- Spawn ALTÍSSIMO (500 studs)
+	-- Spawn ALTÃSSIMO (500 studs)
 	local startHeight = 500
 	local startPos = targetRoot.Position + Vector3.new(0, startHeight, 0)
 	rollerRoot.CFrame = CFrame.new(startPos) * CFrame.Angles(math.rad(85), 0, 90)
@@ -633,19 +788,19 @@ if charRoot then
 	end
 end
 
-	-- ===== FORÇA DE QUEDA VIOLENTA =====
-	-- Usa BodyVelocity para queda ultra rápida em vez de Tween
+	-- ===== FORÃ‡A DE QUEDA VIOLENTA =====
+	-- Usa BodyVelocity para queda ultra rÃ¡pida em vez de Tween
 	local bodyVel = Instance.new("BodyVelocity")
 	bodyVel.Velocity = Vector3.new(0, -450, 0) -- Velocidade de queda MUITO alta
 	bodyVel.MaxForce = Vector3.new(1, 1, 1) * math.huge
 	bodyVel.Parent = rollerRoot
 	
-	-- Força extra pra baixo
+	-- ForÃ§a extra pra baixo
 	local bodyForce = Instance.new("BodyForce")
 	bodyForce.Force = Vector3.new(0, -rollerRoot:GetMass() * 500, 0)
 	bodyForce.Parent = rollerRoot
 	
-	-- Rastreia a distância para detectar quando chegar ao chão
+	-- Rastreia a distÃ¢ncia para detectar quando chegar ao chÃ£o
 	local impactTriggered = false
 	local checkConnection
 	checkConnection = RunService.RenderStepped:Connect(function()
@@ -655,14 +810,14 @@ end
 		end
 		
 		local currentY = rollerRoot.Position.Y
-		local groundY = targetRoot.Position.Y - 3 -- Posição do chão (enterrado)
+		local groundY = targetRoot.Position.Y - 3 -- PosiÃ§Ã£o do chÃ£o (enterrado)
 		
-		-- Verifica se chegou ao chão ou passou
+		-- Verifica se chegou ao chÃ£o ou passou
 		if currentY <= groundY + 5 and not impactTriggered then
 			impactTriggered = true
 			checkConnection:Disconnect()
 			
-			-- Para as forças
+			-- Para as forÃ§as
 			bodyVel:Destroy()
 			bodyForce:Destroy()
 			
@@ -687,7 +842,7 @@ end
 				Debris:AddItem(impactSound2, 5)
 			end)
 			
-			-- Câmera shake BRUTAL
+			-- CÃ¢mera shake BRUTAL
 			cameraShake(1.5, 5.0)
 			
 			-- ===== PERSONAGEM SAI DE CIMA =====
@@ -722,7 +877,7 @@ end
 			-- Rachaduras
 			createGroundCracks(targetRoot.Position)
 
-			-- Explosão
+			-- ExplosÃ£o
 			createExplosion(targetRoot.Position)
 
 			-- Knockback
@@ -731,7 +886,7 @@ end
 				targetRoot:ApplyImpulse(Vector3.new(0, 80000, 0) + knockbackDir * 50000)
 			end
 
-			-- ===== DESINTEGRAÇÃO =====
+			-- ===== DESINTEGRAÃ‡ÃƒO =====
 			local disintegrationDelay = COOLDOWNS.RoadRoller - 4
 			
 			task.delay(disintegrationDelay, function()
@@ -796,7 +951,7 @@ local function performM1()
 	end
 	
 	local targetHum = targetRoot.Parent:FindFirstChildOfClass("Humanoid")
-	if not targetRoot or not targetHum then 
+	if not targetHum then 
 		isAttacking = false 
 		return 
 	end
@@ -825,9 +980,10 @@ local function performM1()
 	
 	for i = 1, 46 do
 		if targetRoot and targetRoot.Parent and targetHum and targetHum.Parent then
-			targetHum:TakeDamage(1)
-			targetRoot:ApplyImpulse((targetRoot.Position - root.Position).Unit * 12000 + Vector3.new(0, 8000, 0))
 			
+			targetHum:TakeDamage(1)
+			
+			-- Hit visual
 			local hit = Instance.new("Part") 
 			hit.Size = Vector3.new(1,1,1) 
 			hit.Color = Color3.fromRGB(255,0,100) 
@@ -839,6 +995,18 @@ local function performM1()
 			TweenService:Create(hit, TweenInfo.new(0.4), {Transparency = 1, Size = Vector3.new(4,4,4)}):Play() 
 			Debris:AddItem(hit, 0.5)
 			
+			-- Atualiza combo counter
+mudaComboCount = mudaComboCount + 1
+if mudaComboCount % 5 == 0 then -- Mostra a cada 5 hits
+	showComboCounter()
+end
+			
+			--  FINISHER: Vida vermelha  Teleport + Fling
+			if targetHum.Health <= FINISHER_HEALTH_THRESHOLD and not isFinisherActive then
+				startFinisher(targetRoot)
+			end
+			
+			-- Stand positioning
 			if sRoot and sRoot.Parent then
 				local basePos = targetRoot.CFrame * CFrame.new(0, 2, -4)
 				local targetCF = CFrame.lookAt(basePos.Position, targetRoot.Position)
@@ -858,10 +1026,7 @@ local function performM1()
 		task.wait(0.065)
 	end
 	
-	if barrageTrack then barrageTrack:Stop() end
-	if playerBarrageTrack then playerBarrageTrack:Stop() end
-	if sHum then idleTrack = playAnim(sHum, ASSETS.STAND_IDLE) end
-	
+	-- Knockback final
 	if targetRoot and targetRoot.Parent then
 		local att = Instance.new("Attachment", targetRoot)
 		local vel = Instance.new("LinearVelocity", att) 
@@ -873,7 +1038,25 @@ local function performM1()
 		Debris:AddItem(att, 0.8)
 	end
 	
-	task.delay(0.5, function()
+	-- Garante que o finisher termine
+	task.delay(3, function()
+		if isFinisherActive then
+			endFinisher()
+		end
+	end)
+	
+	if barrageTrack then barrageTrack:Stop() end
+	if playerBarrageTrack then playerBarrageTrack:Stop() end
+	if sHum then idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle) end
+	
+	-- Reset do combo apÃ³s a barrage
+mudaComboCount = 0
+if comboDisplay then
+	comboDisplay:Destroy()
+	comboDisplay = nil
+end
+	
+	task.delay(0.6, function()
 		if currentStand then
 			local sRoot2 = currentStand:FindFirstChild("HumanoidRootPart")
 			local root2 = character:FindFirstChild("HumanoidRootPart")
@@ -922,7 +1105,7 @@ local function performKnifeThrow()
 	local throwTrack
 	if ASSETS.KNIFE_THROW_ANIM ~= "" then 
 		if isStandAttacking and idleTrack then idleTrack:Stop() end 
-		throwTrack = playAnim(attackerHum, ASSETS.KNIFE_THROW_ANIM, 2, false, Enum.AnimationPriority.Action)
+		throwTrack = playAnim(attackerHum, ASSETS.KNIFE_THROW_ANIM, 3, false, Enum.AnimationPriority.Action)
 		if throwTrack then throwTrack.Looped = false end 
 	end
 	
@@ -930,9 +1113,9 @@ local function performKnifeThrow()
 	throwSound.SoundId = ASSETS.KNIFE_THROW_SOUND 
 	throwSound:Play() 
 	Debris:AddItem(throwSound, 3)
-	if isStandAttacking then showSpeechBubble(92536008979873, "left", 1.5) end
 	
-	for i = 1, 5 do
+	local knifeCount = isStandAttacking and 2 or 1  -- Stand = 2 facas, DIO = 1 faca
+for i = 1, knifeCount do
 		if isStandAttacking and target and target.Parent and attackerRoot then
 			shootDir = (target.Position - attackerRoot.Position).Unit
 			local lookCF = CFrame.lookAt(attackerRoot.Position, target.Position)
@@ -959,16 +1142,60 @@ local function performKnifeThrow()
 		vel.VectorVelocity = shootDir * 280
 		
 		knife.Touched:Connect(function(hitPart)
-			local hitHum = hitPart.Parent:FindFirstChildOfClass("Humanoid")
-			if hitHum and hitHum.Parent ~= character and hitHum.Parent ~= currentStand then
-				hitHum:TakeDamage(18)
-				local hitSound = Instance.new("Sound", workspace) 
-				hitSound.SoundId = ASSETS.KNIFE_HIT_SOUND 
-				hitSound:Play() 
-				Debris:AddItem(hitSound, 2)
-				knife:Destroy()
-			end
-		end)
+    local hitHum = hitPart.Parent:FindFirstChildOfClass("Humanoid")
+    if hitHum and hitHum.Parent ~= character and hitHum.Parent ~= currentStand then
+        hitHum:TakeDamage(18)
+        local hitSound = Instance.new("Sound", workspace) 
+        hitSound.SoundId = ASSETS.KNIFE_HIT_SOUND 
+        hitSound:Play() 
+        Debris:AddItem(hitSound, 2)
+        
+        -- Remove a velocidade da faca
+        if knife:FindFirstChild("LinearVelocity") then
+            knife.LinearVelocity:Destroy()
+        end
+        
+        --- FACA "CRAVADA" (cria uma faca decorativa IGUAL a original)
+local stuckKnife = Instance.new("Part", workspace)
+stuckKnife.Name = "StuckKnife"
+stuckKnife.Size = Vector3.new(1, 1, 1) -- Tamanho base igual ao original
+stuckKnife.CanCollide = false
+stuckKnife.Anchored = false
+stuckKnife.CFrame = knife.CFrame
+stuckKnife.Transparency = 0
+stuckKnife.Color = Color3.fromRGB(255, 255, 255) -- Cor branca pra não interferir na textura
+
+--  MESMA MESH DA FACA ORIGINAL
+local stuckMesh = Instance.new("SpecialMesh", stuckKnife)
+stuckMesh.MeshId = "rbxassetid://15945983658"
+stuckMesh.TextureId = "rbxassetid://15946012483"
+stuckMesh.Scale = Vector3.new(1.2, 1.2, 1.8) -- Mesma escala
+
+-- Faz a faca decorativa grudar no alvo
+local stickWeld = Instance.new("WeldConstraint")
+stickWeld.Part0 = stuckKnife
+stickWeld.Part1 = hitPart
+stickWeld.Parent = stuckKnife
+
+Debris:AddItem(stuckKnife, 3)
+        
+        --  FINISHER: Matou com faca
+        if hitHum.Health <= 0 and knife:GetAttribute("Finished") ~= true then
+            knife:SetAttribute("Finished", true)
+            
+            showSpeechBubble("92536008979873", "right", 3, character.Head)
+            
+            local dioSound = Instance.new("Sound", workspace)
+            dioSound.SoundId = "rbxassetid://110578259527952"
+            dioSound.Volume = 1.5
+            dioSound:Play()
+            Debris:AddItem(dioSound, 3)
+        end
+        
+        -- Destroi a faca original
+        knife:Destroy()
+    end
+end)
 		
 		Debris:AddItem(knife, 4) 
 		task.wait(0.06)
@@ -976,7 +1203,7 @@ local function performKnifeThrow()
 	
 	task.wait(0.2)
 	if throwTrack then throwTrack:Stop() end
-	if isStandAttacking and attackerHum then idleTrack = playAnim(attackerHum, ASSETS.STAND_IDLE) end
+	if isStandAttacking and attackerHum then idleTrack = playAnim(attackerHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle) end
 	isAttacking = false
 end
 
@@ -1013,12 +1240,12 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- ==================== CONEXÕES DOS BOTÕES ====================
+-- ==================== CONEXÃ•ES DOS BOTÃ•ES ====================
 tsBtn.MouseButton1Click:Connect(toggleTime)
 activateBtn.MouseButton1Click:Connect(toggleStand)
 m1Btn.MouseButton1Click:Connect(performM1)
 knifeBtn.MouseButton1Click:Connect(performKnifeThrow)
-roadBtn.MouseButton1Click:Connect(performRoadRoller)   -- NOVO BOTÃO
+roadBtn.MouseButton1Click:Connect(performRoadRoller)   -- NOVO BOTÃƒO
 
 task.spawn(function()
 	local sequence = {COLORS.Yellow, COLORS.Black, COLORS.Green, COLORS.Black, COLORS.Purple, COLORS.Black}
@@ -1039,11 +1266,25 @@ local function applyClickEffect(b, baseSize)
 	end)
 end
 
-applyClickEffect(tsBtn, 70)
-applyClickEffect(roadBtn, 70)
-applyClickEffect(activateBtn, 95)
-applyClickEffect(m1Btn, 70)
-applyClickEffect(knifeBtn, 70)
+applyClickEffect(tsBtn, 80)       -- Time Stop = 80
+applyClickEffect(roadBtn, 70)     -- Road Roller = 70
+applyClickEffect(activateBtn, 95) -- Stand = 95
+applyClickEffect(m1Btn, 80)       -- M1 = 80
+-- Efeito de clique personalizado para o Knife (tamanho dinâmico)
+knifeBtn.MouseButton1Down:Connect(function()
+	local currentSize = knifeBtn.Size.X.Offset -- Pega o tamanho atual
+	TweenService:Create(knifeBtn, TweenInfo.new(0.1), {
+		Size = UDim2.fromOffset(currentSize - 8, currentSize - 8)
+	}):Play()
+end)
+
+knifeBtn.MouseButton1Up:Connect(function()
+	local isActive = isStandActive -- Stand ativo ou não
+	local targetSize = isActive and 70 or 80 -- 70 se ativo, 80 se desativado
+	TweenService:Create(knifeBtn, TweenInfo.new(0.1), {
+		Size = UDim2.fromOffset(targetSize, targetSize)
+	}):Play()
+end)
 
 updateKnifePosition(false)
 
