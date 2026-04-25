@@ -2622,7 +2622,7 @@ if not hasShownNotification then
     messageLabel.Size = UDim2.new(0.85, 0, 0, 60)
     messageLabel.Position = UDim2.new(0.075, 0, 0, 155)
     messageLabel.BackgroundTransparency = 1
-    messageLabel.Text = "By mynameis909 • Mahoawaga VFX 💚 • eusouoamendobobo ⭐ https://discord.gg/K66SwwY98h • https://discord.gg/tfujC5pTp "
+    messageLabel.Text = "By mynameis909 👑 • Mahoawaga VFX 🌟✨ • eusouoamendobobo ⭐ https://discord.gg/K66SwwY98h • https://discord.gg/tfujC5pTp "
     messageLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
     messageLabel.Font = Enum.Font.SourceSans
     messageLabel.TextSize = 16
