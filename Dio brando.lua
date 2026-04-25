@@ -751,7 +751,7 @@ local function cinematicZoom(duration, targetFOV)
 	end)
 end
 
-local COOLDOWNS = {M1 = 0.8, Knife = 1, TimeStop = 3, RoadRoller = 15}
+local COOLDOWNS = {M1 = 3.5, Knife = 1, TimeStop = 10, RoadRoller = 15}
 local lastUsed = {M1 = 0, Knife = 0, TimeStop = 0, RoadRoller = 0}
 
 local function showSpeechBubble(imageId, side, duration, customHead)
@@ -1738,150 +1738,211 @@ local function showCooldownOnButton(button, abilityName)
 	barContainer.Position = UDim2.new(-0.05, 0, -0.15 - (existingBars * 0.12), 0)
 end
 
-local function canUse(abilityName)
-    local currentTime = tick()
-    if currentTime - lastUsed[abilityName] >= COOLDOWNS[abilityName] then
-        return true
-    end
-    return false
+-- ==================== SISTEMA ANTI-SPAM (BLOQUEIO IMEDIATO) ====================
+local isAbilityLocked = {
+    M1 = false,
+    Knife = false,
+    TimeStop = false,
+    RoadRoller = false
+}
+
+-- Função que bloqueia imediatamente e libera após cooldown
+local function lockAbility(abilityName)
+    if isAbilityLocked[abilityName] then return false end
+    
+    -- Bloqueia IMEDIATAMENTE
+    isAbilityLocked[abilityName] = true
+    
+    -- Agenda liberação após o cooldown
+    task.delay(COOLDOWNS[abilityName], function()
+        isAbilityLocked[abilityName] = false
+    end)
+    
+    return true
 end
 
-local function toggleTime()
-	if isTimeStopped then
-		isTimeStopped = false
-tsBtn.Text = "STOP"
+-- Função de verificação aprimorada
+local function canUseStrict(abilityName)
+    -- Verifica se a habilidade está bloqueada
+    if isAbilityLocked[abilityName] then
+        return false
+    end
+    
+    -- Verifica cooldown normal
+    local currentTime = tick()
+    if currentTime - lastUsed[abilityName] < COOLDOWNS[abilityName] then
+        return false
+    end
+    
+    return true
+end
 
--- Descongela as facas e restaura movimento
-for knife, data in pairs(frozenKnives) do
-    if knife and knife.Parent then
-        knife.Anchored = false
+-- ==================== VARIÁVEL DE BLOQUEIO DO TIME STOP (adicione no topo com as outras) ====================
+local isTimeStopLocked = false  -- Bloqueio durante animação inicial
+
+local function toggleTime()
+    -- ========== BLOQUEIO TOTAL DURANTE ANIMAÇÃO INICIAL ==========
+    if isTimeStopLocked then
+        return  -- Ignora qualquer clique durante a animação
+    end
+    
+    if isTimeStopped then
+        -- ========== DESATIVAR TIME STOP ==========
+        isTimeStopped = false
+        tsBtn.Text = "STOP"
         
-        if data.velocity then
-            -- Verifica se o LinearVelocity ainda existe
-            if data.velocity.Parent then
-                data.velocity.Enabled = true
-                data.velocity.VectorVelocity = data.direction * 295
-            else
-                -- Recria o LinearVelocity se foi destruído
-                local newAttachment = data.attachment
-                if not newAttachment or not newAttachment.Parent then
-                    newAttachment = Instance.new("Attachment", knife)
+lastUsed["TimeStop"] = tick()
+lockAbility("TimeStop")
+showCooldownOnButton(tsBtn, "TimeStop")
+
+        -- Descongela as facas e restaura movimento
+        for knife, data in pairs(frozenKnives) do
+            if knife and knife.Parent then
+                knife.Anchored = false
+                
+                if data.velocity then
+                    -- Verifica se o LinearVelocity ainda existe
+                    if data.velocity.Parent then
+                        data.velocity.Enabled = true
+                        data.velocity.VectorVelocity = data.direction * 295
+                    else
+                        -- Recria o LinearVelocity se foi destruído
+                        local newAttachment = data.attachment
+                        if not newAttachment or not newAttachment.Parent then
+                            newAttachment = Instance.new("Attachment", knife)
+                        end
+                        local newVel = Instance.new("LinearVelocity", knife)
+                        newVel.Attachment0 = newAttachment
+                        newVel.MaxForce = math.huge
+                        newVel.VectorVelocity = data.direction * 295
+                        newVel.Parent = knife
+                    end
                 end
-                local newVel = Instance.new("LinearVelocity", knife)
-                newVel.Attachment0 = newAttachment
-                newVel.MaxForce = math.huge
-                newVel.VectorVelocity = data.direction * 295
-                newVel.Parent = knife
+                
+                -- INICIA O PROCESSAMENTO DE HIT DA FACA DESCONGELADA
+                processKnifeMovement(knife, data.direction)
+                
+                -- Define tempo de vida após descongelar
+                Debris:AddItem(knife, 4)
+            end
+        end
+        frozenKnives = {}
+                
+        local bloom = Lighting:FindFirstChild("TS_Bloom")
+        if bloom then
+            TweenService:Create(bloom, TweenInfo.new(0.5), {Intensity = 0}):Play()
+            task.delay(0.5, function() if bloom then bloom:Destroy() end end)
+        end
+                
+        TweenService:Create(roadBtn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Position = TS_POS,
+            Size = UDim2.fromOffset(0, 0)
+        }):Play()
+        task.delay(0.3, function() roadBtn.Visible = false end)
+        
+        local s = Instance.new("Sound", workspace) s.SoundId = ASSETS.TS_END_SFX s:Play() Debris:AddItem(s, 3)
+        for part in pairs(frozenParts) do if part and part.Parent then part.Anchored = false end end
+        frozenParts = {}
+        task.spawn(function()
+            resumeImage.Visible = true
+            resumeImage.ImageTransparency = 1
+            local blinkInfo = TweenInfo.new(0.18, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+            for i = 1, 4 do
+                TweenService:Create(resumeImage, blinkInfo, {ImageTransparency = 0.35}):Play() task.wait(0.22)
+                TweenService:Create(resumeImage, blinkInfo, {ImageTransparency = 0.88}):Play() task.wait(0.22)
+            end
+            TweenService:Create(resumeImage, TweenInfo.new(0.45), {ImageTransparency = 1}):Play()
+            task.delay(0.6, function() resumeImage.Visible = false end)
+        end)
+        local cc = Lighting:FindFirstChild("TS_Effect")
+        if cc then
+            TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.fromRGB(170, 0, 255), Saturation = -1.0, Contrast = 0.7}):Play()
+            task.delay(0.3, function() if not isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.fromRGB(0, 180, 255), Saturation = -0.5, Contrast = 0.6}):Play() end end)
+            task.delay(0.6, function() if not isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.fromRGB(255, 140, 0), Saturation = 1.2, Contrast = 0.8, Brightness = 0.3}):Play() end end)
+            task.delay(0.9, function() if not isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.6), {Saturation = 0, Contrast = 0, Brightness = 0, TintColor = Color3.fromRGB(255,255,255)}):Play() Debris:AddItem(cc, 0.7) end end)
+        end
+        updateIconState(tsIcon, false)
+        
+    else
+        -- ========== ATIVAR TIME STOP ==========
+        if not canUseStrict("TimeStop") then return end
+        
+        isTimeStopped = true
+        tsBtn.Text = "RESUME"
+        
+        -- ========== BLOQUEIA CANCELAMENTO DURANTE 1.5 SEGUNDOS ==========
+        isTimeStopLocked = true
+        
+        -- Congela todas as facas existentes no mapa
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Part") and obj.Name == "DioKnife" and not obj.Anchored then
+                local lv = obj:FindFirstChild("LinearVelocity")
+                local att = obj:FindFirstChild("Attachment")
+                if lv then
+                    lv.Enabled = false
+                end
+                obj.Anchored = true
+                frozenKnives[obj] = {
+                    velocity = lv, 
+                    direction = obj:GetAttribute("ShootDir") or Vector3.new(0,0,0),
+                    attachment = att
+                }
             end
         end
         
-        -- INICIA O PROCESSAMENTO DE HIT DA FACA DESCONGELADA
-        processKnifeMovement(knife, data.direction)
+        roadBtn.Visible = true
+        TweenService:Create(roadBtn, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = ROAD_POS,
+            Size = UDim2.fromOffset(70, 70)
+        }):Play()
         
-        -- Define tempo de vida após descongelar
-        Debris:AddItem(knife, 4)
+        local root = character:FindFirstChild("HumanoidRootPart")
+        local s = Instance.new("Sound", workspace) s.SoundId = ASSETS.TS_START_SFX s.Volume = 2 s:Play() Debris:AddItem(s, 5)
+        
+        local tsTrack = playAnim(hum, ASSETS.ANIM_DIO, 2, false, Enum.AnimationPriority.Action) 
+        
+        if root then root.Anchored = true end
+        showSpeechBubble(106366607174396, "right", 4)
+        
+        -- ========== APÓS 1.5 SEGUNDOS, LIBERA O CANCELAMENTO ==========
+        task.delay(1.5, function()
+            if not isTimeStopped then 
+                isTimeStopLocked = false
+                return 
+            end
+            
+            -- Libera o bloqueio para permitir cancelamento futuro
+            isTimeStopLocked = false
+            
+            EmitTimeStopVFX()
+            
+            cinematicZoom(1, 40)
+            
+            task.delay(0.1, function()
+                cameraShake(2, 3.0)
+            end)
+            
+            if root then root.Anchored = false end
+            
+            local cc = Lighting:FindFirstChild("TS_Effect") or Instance.new("ColorCorrectionEffect", Lighting)
+            cc.Name = "TS_Effect"
+            cc.Saturation = 0 cc.Contrast = 0 cc.Brightness = 0 cc.TintColor = Color3.fromRGB(255, 140, 0)
+            TweenService:Create(cc, TweenInfo.new(0.4), {Saturation = 1.5, Contrast = 0.8, Brightness = 0.2}):Play()
+            task.delay(0.1, function() if isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.fromRGB(0, 180, 255), Saturation = -0.8, Contrast = 0.6, Brightness = 0}):Play() end end)
+            task.delay(0.2, function() if isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.fromRGB(170, 0, 255), Saturation = -1.1, Contrast = 0.7}):Play() end end)
+            task.delay(0.3, function() if isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.5), {Saturation = -1.2, Contrast = 0.5, Brightness = 0, TintColor = Color3.fromRGB(180, 200, 255)}):Play() end end)
+            
+            frozenParts = {}
+            for _, part in ipairs(workspace:GetDescendants()) do
+                if part:IsA("BasePart") and not part:IsDescendantOf(character) and not (currentStand and part:IsDescendantOf(currentStand)) and not part.Anchored then
+                    frozenParts[part] = true
+                    part.Anchored = true
+                end
+            end
+        end)
+        
+       updateIconState(tsIcon, true)
     end
-end
-frozenKnives = {}
-		
-local bloom = Lighting:FindFirstChild("TS_Bloom")
-if bloom then
-    TweenService:Create(bloom, TweenInfo.new(0.5), {Intensity = 0}):Play()
-    task.delay(0.5, function() if bloom then bloom:Destroy() end end)
-end
-		
-		TweenService:Create(roadBtn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			Position = TS_POS,
-			Size = UDim2.fromOffset(0, 0)
-		}):Play()
-		task.delay(0.3, function() roadBtn.Visible = false end)
-		
-		local s = Instance.new("Sound", workspace) s.SoundId = ASSETS.TS_END_SFX s:Play() Debris:AddItem(s, 3)
-		for part in pairs(frozenParts) do if part and part.Parent then part.Anchored = false end end
-		frozenParts = {}
-		task.spawn(function()
-			resumeImage.Visible = true
-			resumeImage.ImageTransparency = 1
-			local blinkInfo = TweenInfo.new(0.18, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-			for i = 1, 4 do
-				TweenService:Create(resumeImage, blinkInfo, {ImageTransparency = 0.35}):Play() task.wait(0.22)
-				TweenService:Create(resumeImage, blinkInfo, {ImageTransparency = 0.88}):Play() task.wait(0.22)
-			end
-			TweenService:Create(resumeImage, TweenInfo.new(0.45), {ImageTransparency = 1}):Play()
-			task.delay(0.6, function() resumeImage.Visible = false end)
-		end)
-		local cc = Lighting:FindFirstChild("TS_Effect")
-		if cc then
-			TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.fromRGB(170, 0, 255), Saturation = -1.0, Contrast = 0.7}):Play()
-			task.delay(0.3, function() if not isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.fromRGB(0, 180, 255), Saturation = -0.5, Contrast = 0.6}):Play() end end)
-			task.delay(0.6, function() if not isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.fromRGB(255, 140, 0), Saturation = 1.2, Contrast = 0.8, Brightness = 0.3}):Play() end end)
-			task.delay(0.9, function() if not isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.6), {Saturation = 0, Contrast = 0, Brightness = 0, TintColor = Color3.fromRGB(255,255,255)}):Play() Debris:AddItem(cc, 0.7) end end)
-		end
-		updateIconState(tsIcon, false)
-	else
-	if not canUse("TimeStop") then return end
-	isTimeStopped = true
-tsBtn.Text = "RESUME"
-
--- Congela todas as facas existentes no mapa
-for _, obj in ipairs(workspace:GetDescendants()) do
-    if obj:IsA("Part") and obj.Name == "DioKnife" and not obj.Anchored then
-        local lv = obj:FindFirstChild("LinearVelocity")
-        local att = obj:FindFirstChild("Attachment")
-        if lv then
-            lv.Enabled = false
-        end
-        obj.Anchored = true
-        frozenKnives[obj] = {
-            velocity = lv, 
-            direction = obj:GetAttribute("ShootDir") or Vector3.new(0,0,0),
-            attachment = att
-        }
-    end
-end
-	
-	roadBtn.Visible = true
-	TweenService:Create(roadBtn, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = ROAD_POS,
-		Size = UDim2.fromOffset(70, 70)
-	}):Play()
-	
-	local root = character:FindFirstChild("HumanoidRootPart")
-		local s = Instance.new("Sound", workspace) s.SoundId = ASSETS.TS_START_SFX s.Volume = 2 s:Play() Debris:AddItem(s, 5)
-		
-		local tsTrack = playAnim(hum, ASSETS.ANIM_DIO, 2, false, Enum.AnimationPriority.Action) 
-		
-		if root then root.Anchored = true end
-		showSpeechBubble(106366607174396, "right", 4)
-		task.delay(1.55, function()
-    if not isTimeStopped then return end
-    
-    EmitTimeStopVFX()
-    
-    cinematicZoom(1, 40)
-    
-    task.delay(0.1, function()
-        cameraShake(2, 3.0)
-    end)
-			if root then root.Anchored = false end
-			local cc = Lighting:FindFirstChild("TS_Effect") or Instance.new("ColorCorrectionEffect", Lighting)
-			cc.Name = "TS_Effect"
-			cc.Saturation = 0 cc.Contrast = 0 cc.Brightness = 0 cc.TintColor = Color3.fromRGB(255, 140, 0)
-			TweenService:Create(cc, TweenInfo.new(0.4), {Saturation = 1.5, Contrast = 0.8, Brightness = 0.2}):Play()
-			task.delay(0.1, function() if isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.fromRGB(0, 180, 255), Saturation = -0.8, Contrast = 0.6, Brightness = 0}):Play() end end)
-			task.delay(0.2, function() if isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.4), {TintColor = Color3.fromRGB(170, 0, 255), Saturation = -1.1, Contrast = 0.7}):Play() end end)
-			task.delay(0.3, function() if isTimeStopped then TweenService:Create(cc, TweenInfo.new(0.5), {Saturation = -1.2, Contrast = 0.5, Brightness = 0, TintColor = Color3.fromRGB(180, 200, 255)}):Play() end end)
-			frozenParts = {}
-			for _, part in ipairs(workspace:GetDescendants()) do
-				if part:IsA("BasePart") and not part:IsDescendantOf(character) and not (currentStand and part:IsDescendantOf(currentStand)) and not part.Anchored then
-					frozenParts[part] = true
-					part.Anchored = true
-				end
-			end
-		end)
-		updateIconState(tsIcon, true)
-		lastUsed["TimeStop"] = tick()
-	end	
 end
 
 local function getClosestTarget(maxDist)
@@ -2008,7 +2069,8 @@ local function performRoadRoller()
 		showSpeechBubble(102362181377695, "right", 2.5)
 		return
 	end
-	if not canUse("RoadRoller") then return end
+	if not canUseStrict("RoadRoller") then return end
+lockAbility("RoadRoller")  -- Bloqueia imediatamente
 	
 local activationFlash = Instance.new("Frame")
 activationFlash.Name = "RoadRollerActivationFlash"
@@ -2225,7 +2287,8 @@ cameraShake(1.5, 5.0)
 end
 
 local function performM1()
-	if not canUse("M1") then return end
+	if not canUseStrict("M1") then return end
+lockAbility("M1")  -- Bloqueia imediatamente
 	if not isStandActive or not currentStand or isAttacking then return end
 	
 	local root = character:FindFirstChild("HumanoidRootPart")
@@ -2358,8 +2421,10 @@ showCooldownOnButton(m1Btn, "M1")
 end
 
 -- ==================== FUNÇÃO DE ARREMESSO DE FACA CORRIGIDA ====================
+-- ==================== FUNÇÃO DE ARREMESSO DE FACA CORRIGIDA ====================
 local function performKnifeThrow()
-    if not canUse("Knife") then return end
+    if not canUseStrict("Knife") then return end
+    lockAbility("Knife")  -- Bloqueia imediatamente
     
     local isStandAttacking = (isStandActive and currentStand ~= nil)
     local attackerModel = isStandAttacking and currentStand or character
@@ -2384,7 +2449,17 @@ local function performKnifeThrow()
     -- Direção do tiro
     local shootDir = (isStandAttacking and target) and (target.Position - attackerRoot.Position).Unit or camera.CFrame.LookVector
     
-    -- Look at suave para o Stand
+    -- ==================== LOOK AT PARA O PLAYER (QUANDO SEM STAND) ====================
+    if not isStandAttacking then
+        -- Player olha na direção do tiro (usando câmera)
+        local lookTarget = charRoot.Position + Vector3.new(shootDir.X, 0, shootDir.Z).Unit * 10
+        local lookCF = CFrame.lookAt(charRoot.Position, lookTarget)
+        TweenService:Create(charRoot, TweenInfo.new(0.15, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            CFrame = lookCF
+        }):Play()
+    end
+    
+    -- ==================== LOOK AT PARA O STAND (QUANDO COM STAND) ====================
     if isStandAttacking then
         local goalCF
         if target then
@@ -2586,32 +2661,62 @@ task.spawn(function()
 	end
 end)
 
-local function applyClickEffect(b, baseSize)
-	b.MouseButton1Down:Connect(function() 
-		TweenService:Create(b, TweenInfo.new(0.1), {Size = UDim2.fromOffset(baseSize - 8, baseSize - 8)}):Play() 
-	end)
-	b.MouseButton1Up:Connect(function() 
-		TweenService:Create(b, TweenInfo.new(0.1), {Size = UDim2.fromOffset(baseSize, baseSize)}):Play() 
-	end)
+-- ==================== EFEITO VISUAL DE BLOQUEIO NOS BOTÕES ====================
+local function applyClickEffect(b, baseSize, abilityName)
+    b.MouseButton1Down:Connect(function()
+        if abilityName and isAbilityLocked[abilityName] then
+            -- Se bloqueado, treme o botão e não diminui
+            TweenService:Create(b, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = b.Position + UDim2.new(0.02, 0, 0, 0)
+            }):Play()
+            task.wait(0.05)
+            TweenService:Create(b, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = b.Position - UDim2.new(0.02, 0, 0, 0)
+            }):Play()
+            return
+        end
+        
+        TweenService:Create(b, TweenInfo.new(0.1), {
+            Size = UDim2.fromOffset(baseSize - 8, baseSize - 8)
+        }):Play()
+    end)
+    
+    b.MouseButton1Up:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.1), {
+            Size = UDim2.fromOffset(baseSize, baseSize)
+        }):Play()
+    end)
 end
 
-applyClickEffect(tsBtn, 80)
-applyClickEffect(roadBtn, 70)
-applyClickEffect(activateBtn, 95)
-applyClickEffect(m1Btn, 80)
+applyClickEffect(tsBtn, 80, "TimeStop")
+applyClickEffect(roadBtn, 70, "RoadRoller")
+applyClickEffect(activateBtn, 95, nil)  -- Activate não tem cooldown
+applyClickEffect(m1Btn, 80, "M1")
 knifeBtn.MouseButton1Down:Connect(function()
-	local currentSize = knifeBtn.Size.X.Offset
-	TweenService:Create(knifeBtn, TweenInfo.new(0.1), {
-		Size = UDim2.fromOffset(currentSize - 8, currentSize - 8)
-	}):Play()
+    if isAbilityLocked["Knife"] then
+        -- Treme se bloqueado
+        TweenService:Create(knifeBtn, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = knifeBtn.Position + UDim2.new(0.02, 0, 0, 0)
+        }):Play()
+        task.wait(0.05)
+        TweenService:Create(knifeBtn, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = knifeBtn.Position - UDim2.new(0.02, 0, 0, 0)
+        }):Play()
+        return
+    end
+    
+    local currentSize = knifeBtn.Size.X.Offset
+    TweenService:Create(knifeBtn, TweenInfo.new(0.1), {
+        Size = UDim2.fromOffset(currentSize - 8, currentSize - 8)
+    }):Play()
 end)
 
 knifeBtn.MouseButton1Up:Connect(function()
-	local isActive = isStandActive
-	local targetSize = isActive and 70 or 80
-	TweenService:Create(knifeBtn, TweenInfo.new(0.1), {
-		Size = UDim2.fromOffset(targetSize, targetSize)
-	}):Play()
+    local isActive = isStandActive
+    local targetSize = isActive and 70 or 80
+    TweenService:Create(knifeBtn, TweenInfo.new(0.1), {
+        Size = UDim2.fromOffset(targetSize, targetSize)
+    }):Play()
 end)
 
 updateKnifePosition(false)
