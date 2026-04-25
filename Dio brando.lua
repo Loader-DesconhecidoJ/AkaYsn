@@ -479,6 +479,7 @@ local currentStand = nil
 local idleTrack = nil
 local walkTrack = nil
 local frozenParts = {}
+local frozenKnives = {} -- Lista de facas congeladas
 local mudaComboCount = 0
 local comboDisplay = nil
 local comboTweens = {}
@@ -751,15 +752,6 @@ end
 
 local COOLDOWNS = {M1 = 0.8, Knife = 1, TimeStop = 3, RoadRoller = 15}
 local lastUsed = {M1 = 0, Knife = 0, TimeStop = 0, RoadRoller = 0}
-
-local function canUse(abilityName)
-	local currentTime = tick()
-	if currentTime - lastUsed[abilityName] >= COOLDOWNS[abilityName] then
-		lastUsed[abilityName] = currentTime
-		return true
-	end
-	return false
-end
 
 local function showSpeechBubble(imageId, side, duration, customHead)
 	if not customHead then
@@ -1666,7 +1658,27 @@ end
 local function toggleTime()
 	if isTimeStopped then
 		isTimeStopped = false
-		tsBtn.Text = "STOP"
+tsBtn.Text = "STOP"
+
+for knife, data in pairs(frozenKnives) do
+    if knife and knife.Parent then
+        knife.Anchored = false
+        if data.velocity and data.velocity.Parent then
+            data.velocity.Enabled = true
+            if not data.velocity.Parent then
+                local newVel = Instance.new("LinearVelocity")
+                newVel.Attachment0 = knife:FindFirstChild("Attachment") or Instance.new("Attachment", knife)
+                newVel.MaxForce = math.huge
+                newVel.VectorVelocity = data.direction * 280
+                newVel.Parent = knife
+            else
+                data.velocity.VectorVelocity = data.direction * 280
+            end
+        end
+        Debris:AddItem(knife, 4)
+    end
+end
+frozenKnives = {}
 		
 local bloom = Lighting:FindFirstChild("TS_Bloom")
 if bloom then
@@ -1705,7 +1717,19 @@ end
 	else
 	if not canUse("TimeStop") then return end
 	isTimeStopped = true
-	tsBtn.Text = "RESUME"
+tsBtn.Text = "RESUME"
+
+-- ⬇️ ADICIONE ISSO - Congela todas as facas existentes ⬇️
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("Part") and obj.Name == "DioKnife" and not obj.Anchored then
+        local lv = obj:FindFirstChild("LinearVelocity")
+        if lv then
+            lv.Enabled = false
+        end
+        obj.Anchored = true
+        frozenKnives[obj] = {velocity = lv, direction = obj:GetAttribute("ShootDir") or Vector3.new(0,0,0)}
+    end
+end
 	
 	roadBtn.Visible = true
 	TweenService:Create(roadBtn, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -2272,23 +2296,35 @@ for i = 1, knifeCount do
 		end
 		
 		local knife = Instance.new("Part") 
-		knife.Name = "DioKnife" 
-		knife.Size = Vector3.new(1,1,1) 
-		knife.CanCollide = false 
-		knife.Parent = workspace
-		
-		local baseCFrame = CFrame.lookAt(attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5), attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5) + shootDir)
-		knife.CFrame = baseCFrame * CFrame.Angles(math.rad(10), math.rad(-180), 0)
-		
-		local mesh = Instance.new("SpecialMesh", knife) 
-		mesh.MeshId = "rbxassetid://15945983658" 
-		mesh.TextureId = "rbxassetid://15946012483" 
-		mesh.Scale = Vector3.new(1.2,1.2,1.8)
-		
-		local vel = Instance.new("LinearVelocity", knife) 
-		vel.Attachment0 = Instance.new("Attachment", knife) 
-		vel.MaxForce = math.huge 
-		vel.VectorVelocity = shootDir * 280
+knife.Name = "DioKnife" 
+knife.Size = Vector3.new(1,1,1) 
+knife.CanCollide = false 
+knife.Parent = workspace
+
+local baseCFrame = CFrame.lookAt(attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5), attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5) + shootDir)
+knife.CFrame = baseCFrame * CFrame.Angles(math.rad(10), math.rad(-180), 0)
+
+local mesh = Instance.new("SpecialMesh", knife) 
+mesh.MeshId = "rbxassetid://15945983658" 
+mesh.TextureId = "rbxassetid://15946012483" 
+mesh.Scale = Vector3.new(1.2,1.2,1.8)
+
+-- Guarda a direção do tiro na faca
+knife:SetAttribute("ShootDir", shootDir) -- ⬅️ Salva a direção
+
+local vel = Instance.new("LinearVelocity", knife) 
+vel.Attachment0 = Instance.new("Attachment", knife) 
+vel.MaxForce = math.huge 
+vel.VectorVelocity = shootDir * 280
+
+-- ⬇️ CONGELA A FACA SE O TIME ESTIVER PARADO ⬇️
+if isTimeStopped then
+    vel.Enabled = false -- Desativa a velocidade
+    knife.Anchored = true -- Ancora a faca no ar
+    frozenKnives[knife] = {velocity = vel, direction = shootDir} -- Salva referência
+else
+    frozenKnives[knife] = nil -- Garante que não está na lista
+end
 		
 		knife.Touched:Connect(function(hitPart)
     local hitHum = hitPart.Parent:FindFirstChildOfClass("Humanoid")
@@ -2347,9 +2383,19 @@ for i = 1, knifeCount do
     end
 end)
 		
-		Debris:AddItem(knife, 4) 
+			if isTimeStopped then
+			-- Não usa Debris durante Time Stop
+			task.delay(999, function()
+				if knife and knife.Parent and not frozenKnives[knife] then
+					knife:Destroy()
+				end
+			end)
+		else
+			Debris:AddItem(knife, 4) -- Comportamento normal
+		end
+		
 		task.wait(0.06)
-	end
+	end -- Fim do for i = 1, knifeCount
 	
 	task.wait(0.2)
 	if throwTrack then throwTrack:Stop() end
