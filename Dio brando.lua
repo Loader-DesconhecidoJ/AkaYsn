@@ -517,8 +517,8 @@ local ASSETS = {
 }
 
 -- ==================== FINISHER VARIABLES ====================
-local FINISHER_HEALTH_THRESHOLD = 20
-local FINISHER_DURATION = 2
+local FINISHER_HEALTH_THRESHOLD = 25
+local FINISHER_DURATION = 1.5
 
 local isFinisherActive = false
 local finisherConnection = nil
@@ -2528,11 +2528,11 @@ player.CharacterAdded:Connect(function(newChar)
 	hum = newChar:WaitForChild("Humanoid") 
 end)
 
--- ==================== NOTIFICAÇÃO DE BOAS-VINDAS MELHORADA ====================
+ -- ==================== NOTIFICAÇÃO DE BOAS-VINDAS (SEM OVERLAY) ====================
 if not hasShownNotification then
     hasShownNotification = true
     
-    -- Container principal da notificação
+    -- Container principal da notificação (fixo no centro, sem overlay)
     local notifFrame = Instance.new("Frame")
     notifFrame.Name = "NotifBox"
     notifFrame.Size = UDim2.fromOffset(400, 220)
@@ -2542,7 +2542,7 @@ if not hasShownNotification then
     notifFrame.BorderSizePixel = 0
     notifFrame.ZIndex = 201
     notifFrame.ClipsDescendants = true
-    notifFrame.Parent = overlay
+    notifFrame.Parent = screenGui  -- ⬅️ Direto no screenGui, sem overlay
     
     -- Gradiente de fundo (efeito de profundidade)
     local gradient = Instance.new("UIGradient")
@@ -2608,7 +2608,7 @@ if not hasShownNotification then
     titleLabel.Size = UDim2.new(0.85, 0, 0, 25)
     titleLabel.Position = UDim2.new(0.075, 0, 0, 120)
     titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = " SCRIPT DIO BRANDO "
+    titleLabel.Text = "⭐ SCRIPT DIO BRANDO ⭐"
     titleLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
     titleLabel.Font = Enum.Font.Bangers
     titleLabel.TextSize = 20
@@ -2618,17 +2618,17 @@ if not hasShownNotification then
     titleLabel.Parent = notifFrame
     
     -- Mensagem
-local messageLabel = Instance.new("TextLabel")
-messageLabel.Size = UDim2.new(0.85, 0, 0, 60) -- Aumentei a altura de 45 para 60
-messageLabel.Position = UDim2.new(0.075, 0, 0, 155)
-messageLabel.BackgroundTransparency = 1
-messageLabel.Text = "By mynameis909 • Mahoawaga VFX  https://discord.gg/K66SwwY98h • https://discord.gg/tfujC5pTp "
-messageLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-messageLabel.Font = Enum.Font.SourceSans
-messageLabel.TextSize = 16 -- Mudei de 13 para 16 (dá pra aumentar mais)
-messageLabel.TextWrapped = true
-messageLabel.ZIndex = 202
-messageLabel.Parent = notifFrame
+    local messageLabel = Instance.new("TextLabel")
+    messageLabel.Size = UDim2.new(0.85, 0, 0, 60)
+    messageLabel.Position = UDim2.new(0.075, 0, 0, 155)
+    messageLabel.BackgroundTransparency = 1
+    messageLabel.Text = "By mynameis909 • Mahoawaga VFX 💚 • eusouoamendobobo ⭐ https://discord.gg/K66SwwY98h • https://discord.gg/tfujC5pTp "
+    messageLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    messageLabel.Font = Enum.Font.SourceSans
+    messageLabel.TextSize = 16
+    messageLabel.TextWrapped = true
+    messageLabel.ZIndex = 202
+    messageLabel.Parent = notifFrame
     
     -- Partículas decorativas de fundo (efeito premium)
     for i = 1, 8 do
@@ -2654,16 +2654,11 @@ messageLabel.Parent = notifFrame
     
     -- ===== ANIMAÇÃO DE ENTRADA (EXPANSÃO ÉPICA) =====
     
-    -- 1. Overlay fade-in
-    TweenService:Create(overlay, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        BackgroundTransparency = 0.5
-    }):Play()
-    
-    -- 2. Frame começa esmagado (achatado verticalmente)
-    notifFrame.Size = UDim2.fromOffset(450, 0.01) -- Começa como uma linha
+    -- Frame começa esmagado (achatado verticalmente)
+    notifFrame.Size = UDim2.fromOffset(450, 0.01)
     notifFrame.BackgroundTransparency = 1
     
-    -- 3. Expansão espetacular
+    -- Expansão espetacular
     local entrySequence = function()
         -- Fade-in rápido do background
         TweenService:Create(notifFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -2717,7 +2712,7 @@ messageLabel.Parent = notifFrame
     -- ===== ANIMAÇÃO DE SAÍDA (ESMAGAMENTO) =====
     
     task.delay(4, function()
-        if not overlay or not overlay.Parent then return end
+        if not notifFrame or not notifFrame.Parent then return end
         
         -- Efeito de "sugar" tudo antes de esmagar
         local suckEffect = function()
@@ -2769,19 +2764,12 @@ messageLabel.Parent = notifFrame
                 Size = UDim2.fromOffset(600, 0.01),
                 BackgroundTransparency = 0.5
             }):Play()
-            
-            -- Simultaneamente, overlay começa a desaparecer
-            task.delay(0.15, function()
-                TweenService:Create(overlay, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                    BackgroundTransparency = 1
-                }):Play()
-            end)
         end)
         
         -- Destruição final após animação completa
         task.delay(0.7, function()
-            if overlay and overlay.Parent then
-                overlay:Destroy()
+            if notifFrame and notifFrame.Parent then
+                notifFrame:Destroy()
             end
         end)
     end)
