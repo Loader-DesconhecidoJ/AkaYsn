@@ -499,8 +499,7 @@ local ASSETS = {
 	TS_RESUME_IMAGE = "rbxassetid://106168449328933",
 	MUDA_SOUND = "rbxassetid://616593932",
 	KNIFE_THROW_SOUND = "rbxassetid://4415007771",
-	KNIFE_THROW_DIO_SFX = "rbxassetid://4415007771",
-    KNIFE_THROW_STAND_SFX = "rbxassetid://118093612783120",
+	KNIFE_HIT_SOUND = "rbxassetid://743521337",
 	BARRAGE_ANIM = "rbxassetid://90073013818806",
 	KNIFE_THROW_ANIM = "rbxassetid://109638015126982",
 	PLAYER_BARRAGE = "rbxassetid://105746954691593",
@@ -975,17 +974,11 @@ local function toggleStand()
 		updateKnifePosition(false)
 		updateIconState(standIcon, false)
 	else
-    isStandActive = true
-    activateBtn.Text = "OFF"
-    showSpeechBubble(81663476180868, "right", 2.5)
-    
-    local standActivateSound = Instance.new("Sound", workspace)
-    standActivateSound.SoundId = "rbxassetid://15081418558"
-    standActivateSound.Volume = 2
-    standActivateSound:Play()
-    Debris:AddItem(standActivateSound, 5)
-    
-    m1Btn.Visible = true
+		isStandActive = true
+		activateBtn.Text = "OFF"
+		showSpeechBubble(81663476180868, "right", 2.5)
+		
+		m1Btn.Visible = true
 		TweenService:Create(m1Btn, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Position = M1_POS,
 			Size = UDim2.fromOffset(80, 80)
@@ -2281,12 +2274,10 @@ local function performKnifeThrow()
 		if throwTrack then throwTrack.Looped = false end 
 	end
 	
-	local throwSoundId = isStandAttacking and ASSETS.KNIFE_THROW_STAND_SFX or ASSETS.KNIFE_THROW_DIO_SFX
-local throwSound = Instance.new("Sound", workspace) 
-throwSound.SoundId = throwSoundId
-throwSound.Volume = isStandAttacking and 1.5 or 1.0  -- Opcional: volume diferente
-throwSound:Play() 
-Debris:AddItem(throwSound, 3)
+	local throwSound = Instance.new("Sound", workspace) 
+	throwSound.SoundId = ASSETS.KNIFE_THROW_SOUND 
+	throwSound:Play() 
+	Debris:AddItem(throwSound, 3)
 	
 	local knifeCount = isStandAttacking and 2 or 1
 for i = 1, knifeCount do
