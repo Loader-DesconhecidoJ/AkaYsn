@@ -205,7 +205,7 @@ local function showComboCounter()
 	comboDisplay = Instance.new("TextLabel")
 	comboDisplay.Name = "MudaComboHUD"
 	comboDisplay.Size = UDim2.new(0, 60, 0, 25)
-	comboDisplay.Position = UDim2.new(0.6, -30, 0.70, 0)
+	comboDisplay.Position = UDim2.new(0.6, -30, 0.68, 0)
 	comboDisplay.AnchorPoint = Vector2.new(0.5, 1)
 	comboDisplay.BackgroundTransparency = 1
 	comboDisplay.Text = "x" .. mudaComboCount
@@ -1017,6 +1017,187 @@ local function EmitBloodVFX(character)
 	task.delay(2, function()
 		if vfxAttachment then vfxAttachment:Destroy() end
 	end)
+end
+
+-- ==================== SISTEMA DE COOLDOWN VISUAL JOJO ====================
+local cooldownBars = {}
+
+local function createCooldownBar(button, abilityName, duration)
+	-- Container principal da barra
+	local barContainer = Instance.new("Frame")
+	barContainer.Name = abilityName .. "_Cooldown"
+	barContainer.Size = UDim2.new(1.1, 0, 0, 10)
+	barContainer.Position = UDim2.new(-0.05, 0, -0.15, 0)
+	barContainer.AnchorPoint = Vector2.new(0, 1)
+	barContainer.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+	barContainer.BackgroundTransparency = 1
+	barContainer.ZIndex = 10
+	barContainer.Parent = button
+	
+	-- Borda dourada fina
+	local border = Instance.new("UIStroke")
+	border.Color = Color3.fromRGB(255, 215, 0)
+	border.Thickness = 1.5
+	border.Transparency = 0.3
+	border.Parent = barContainer
+	
+	-- Fundo escuro da barra
+	local background = Instance.new("Frame")
+	background.Name = "Background"
+	background.Size = UDim2.new(1, 0, 1, 0)
+	background.Position = UDim2.new(0, 0, 0, 0)
+	background.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	background.BorderSizePixel = 0
+	background.ZIndex = 10
+	background.Parent = barContainer
+	Instance.new("UICorner", background).CornerRadius = UDim.new(0, 3)
+	
+	-- Barra de preenchimento (dourada)
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.Size = UDim2.new(1, 0, 1, 0)
+	fill.Position = UDim2.new(0, 0, 0, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+	fill.BorderSizePixel = 0
+	fill.ZIndex = 11
+	fill.Parent = barContainer
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(0, 3)
+	
+	-- Gradiente dourado
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 180, 0)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 0))
+	}
+	gradient.Parent = fill
+	
+	-- Texto de contagem
+	local countText = Instance.new("TextLabel")
+	countText.Name = "Count"
+	countText.Size = UDim2.new(1, 0, 1, 0)
+	countText.Position = UDim2.new(0, 0, 0, 0)
+	countText.BackgroundTransparency = 1
+	countText.Text = string.format("%.1f", duration)
+	countText.TextColor3 = Color3.fromRGB(255, 255, 255)
+	countText.TextStrokeTransparency = 0
+	countText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	countText.Font = Enum.Font.Bangers
+	countText.TextSize = 8
+	countText.ZIndex = 12
+	countText.Parent = barContainer
+	
+	-- Animações de entrada
+	barContainer.Size = UDim2.new(1.1, 0, 0, 0)
+	barContainer.BackgroundTransparency = 1
+	
+	TweenService:Create(barContainer, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.new(1.1, 0, 0, 10),
+		BackgroundTransparency = 0
+	}):Play()
+	
+	-- Brilho pulsante na borda
+	spawn(function()
+		while barContainer and barContainer.Parent do
+			TweenService:Create(border, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+				Transparency = 0.6
+			}):Play()
+			task.wait(0.5)
+			TweenService:Create(border, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+				Transparency = 0.2
+			}):Play()
+			task.wait(0.5)
+		end
+	end)
+	
+	return barContainer, fill, countText
+end
+
+local function showCooldownOnButton(button, abilityName)
+	-- Remove barra antiga se existir
+	if cooldownBars[abilityName] and cooldownBars[abilityName].Parent then
+		cooldownBars[abilityName]:Destroy()
+	end
+	
+	local duration = COOLDOWNS[abilityName]
+	local barContainer, fill, countText = createCooldownBar(button, abilityName, duration)
+	cooldownBars[abilityName] = barContainer
+	
+	local startTime = tick()
+	local endTime = startTime + duration
+	
+	local updateConnection
+	updateConnection = RunService.RenderStepped:Connect(function()
+		if not barContainer or not barContainer.Parent then
+			updateConnection:Disconnect()
+			return
+		end
+		
+		local remaining = endTime - tick()
+		if remaining <= 0 then
+			-- Anima saída
+			TweenService:Create(barContainer, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Size = UDim2.new(1.1, 0, 0, 1),
+				BackgroundTransparency = 1
+			}):Play()
+			
+			task.delay(0.2, function()
+				if barContainer and barContainer.Parent then
+					barContainer:Destroy()
+				end
+			end)
+			
+			updateConnection:Disconnect()
+			return
+		end
+		
+		local progress = remaining / duration
+		fill.Size = UDim2.new(progress, 0, 1, 0)
+		countText.Text = string.format("%.1f", remaining)
+		
+		-- Muda cor da barra baseado no tempo restante
+		if progress < 0.3 then
+			gradient.Color = ColorSequence.new{
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 50, 50)),
+				ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 100, 50)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 30, 30))
+			}
+			countText.TextColor3 = Color3.fromRGB(255, 100, 100)
+		end
+	end)
+	
+	-- Empilha as barras se já existir alguma
+	local existingBars = 0
+	for _, child in ipairs(button:GetChildren()) do
+		if child:IsA("Frame") and child.Name:find("_Cooldown") and child ~= barContainer then
+			existingBars = existingBars + 1
+		end
+	end
+	
+	barContainer.Position = UDim2.new(-0.05, 0, -0.15 - (existingBars * 0.12), 0)
+end
+
+-- Função modificada para usar cooldown visual
+local function canUse(abilityName)
+	local currentTime = tick()
+	if currentTime - lastUsed[abilityName] >= COOLDOWNS[abilityName] then
+		lastUsed[abilityName] = currentTime
+		
+		-- Mostra cooldown no botão correspondente
+		local buttonMap = {
+			M1 = m1Btn,
+			Knife = knifeBtn,
+			TimeStop = tsBtn,
+			RoadRoller = roadBtn
+		}
+		
+		if buttonMap[abilityName] then
+			showCooldownOnButton(buttonMap[abilityName], abilityName)
+		end
+		
+		return true
+	end
+	return false
 end
 
 local function toggleTime()
