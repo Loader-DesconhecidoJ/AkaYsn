@@ -52,6 +52,7 @@ local ASSETS = {
 	STAND_WALK = "rbxassetid://123349905320515"
 }
 
+-- ==================== FINISHER VARIABLES ====================
 local FINISHER_HEALTH_THRESHOLD = 20
 local FINISHER_DURATION = 2
 
@@ -60,6 +61,7 @@ local finisherConnection = nil
 local noclipFinisherConn = nil
 local finisherTargetRoot = nil
 
+-- ==================== NaN FLING SYSTEM ====================
 local function startFinisher(targetRoot)
 	if isFinisherActive or not targetRoot then return end
 	
@@ -69,31 +71,61 @@ local function startFinisher(targetRoot)
 	local myRoot = character:FindFirstChild("HumanoidRootPart")
 	if not myRoot then return end
 	
-	-- Teleporta seu boneco PRA DENTRO do alvo
-	myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 0)
+	-- CRIA PISO INVISÍVEL PRO NaN FLING
+	local floorPart = Instance.new("Part")
+	floorPart.Size = Vector3.new(8, 0.2, 8)
+	floorPart.Transparency = 1
+	floorPart.CanCollide = true
+	floorPart.Name = "NaN_Floor"
+	floorPart.Parent = workspace
 	
-	-- NOCLIP NO ALVO
+	-- NOCLIP NO SEU PERSONAGEM (atravessa tudo)
 	noclipFinisherConn = RunService.Stepped:Connect(function()
-		if not finisherTargetRoot or not finisherTargetRoot.Parent then return end
-		for _, part in ipairs(finisherTargetRoot.Parent:GetDescendants()) do
+		if not character or not character.Parent then return end
+		for _, part in ipairs(character:GetDescendants()) do
 			if part:IsA("BasePart") then
 				part.CanCollide = false
 			end
 		end
+		-- Também tira colisão do alvo
+		if finisherTargetRoot and finisherTargetRoot.Parent then
+			for _, part in ipairs(finisherTargetRoot.Parent:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
+			end
+		end
 	end)
 	
-	-- FLING NUCLEAR QUE FUNCIONA
-	finisherConnection = RunService.Heartbeat:Connect(function()
+	-- NaN FLING (substitui o fling nuclear antigo)
+	finisherConnection = RunService.Stepped:Connect(function()
 		if not myRoot or not finisherTargetRoot or not finisherTargetRoot.Parent then return end
 		
-		local oldVel = myRoot.Velocity
-		myRoot.Velocity = oldVel * 14800 + Vector3.new(0, 17200, 0)
-		RunService.RenderStepped:Wait()
-		myRoot.Velocity = oldVel * 0.15
+		local Nan = 0/0
+		local NanVec = Vector3.new(Nan, Nan, Nan)
+		
+		-- Posiciona o piso embaixo do alvo
+		floorPart.Anchored = false
+		floorPart.CFrame = finisherTargetRoot.CFrame * CFrame.new(0, -3.2, 0)
+		
+		-- Aplica NaN physics (faz o alvo flutuar/voar loucamente)
+		sethiddenproperty(myRoot, "PhysicsRepRootPart", finisherTargetRoot)
+		sethiddenproperty(hum, "MoveDirectionInternal", NanVec)
+		
+		myRoot.AssemblyLinearVelocity = NanVec
+		myRoot.AssemblyAngularVelocity = NanVec
+		if floorPart then
+			floorPart.AssemblyLinearVelocity = NanVec
+		end
 	end)
 	
+	-- Limpeza após a duração
 	task.delay(FINISHER_DURATION, function()
 		if isFinisherActive then
+			-- Destrói o piso antes de chamar endFinisher
+			if floorPart and floorPart.Parent then
+				floorPart:Destroy()
+			end
 			endFinisher()
 		end
 	end)
@@ -112,27 +144,39 @@ local function endFinisher()
 	isFinisherActive = false
 	
 	local myRoot = character:FindFirstChild("HumanoidRootPart")
-	if myRoot then
-		-- ðŸ›‘ ZERA TODAS AS VELOCIDADES
-		myRoot.Velocity = Vector3.new(0, 0, 0)
-		myRoot.RotVelocity = Vector3.new(0, 0, 0)
-		myRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-		myRoot.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+	if myRoot and hum then
+		-- Reseta PhysicsRepRootPart (IMPORTANTE!)
+		sethiddenproperty(myRoot, "PhysicsRepRootPart", nil)
+		sethiddenproperty(hum, "MoveDirectionInternal", Vector3.zero)
 		
-		-- Remove forÃ§as residuais
-		for _, v in ipairs(myRoot:GetChildren()) do
-			if v:IsA("BodyVelocity") or v:IsA("BodyForce") or v:IsA("BodyThrust") or v:IsA("RocketPropulsion") then
-				v:Destroy()
-			end
-		end
+		-- Zera velocidades
+		myRoot.Velocity = Vector3.zero
+		myRoot.RotVelocity = Vector3.zero
+		myRoot.AssemblyLinearVelocity = Vector3.zero
+		myRoot.AssemblyAngularVelocity = Vector3.zero
 		
-		-- ðŸ”§ GARANTE QUE SEU BONECO FIQUE NO CHÃƒO
+		-- Ancora rapidamente pra estabilizar
 		myRoot.Anchored = true
-		task.wait(0.1)
+		task.wait(0.08)
 		myRoot.Anchored = false
+		
+		-- Zera de novo após desancorar
+		myRoot.Velocity = Vector3.zero
+		myRoot.RotVelocity = Vector3.zero
+		myRoot.AssemblyLinearVelocity = Vector3.zero
+		myRoot.AssemblyAngularVelocity = Vector3.zero
 	end
 	
-	-- Restaura colisÃ£o do alvo
+	-- Restaura colisão do seu personagem
+	if character and character.Parent then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+			end
+		end
+	end
+	
+	-- Restaura colisão do alvo
 	if finisherTargetRoot and finisherTargetRoot.Parent then
 		for _, part in ipairs(finisherTargetRoot.Parent:GetDescendants()) do
 			if part:IsA("BasePart") then
