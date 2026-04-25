@@ -67,8 +67,10 @@ local function startFinisher(targetRoot)
 	local myRoot = character:FindFirstChild("HumanoidRootPart")
 	if not myRoot then return end
 	
+	-- Teleporta seu boneco PRA DENTRO do alvo
 	myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 0)
 	
+	-- NOCLIP NO ALVO
 	noclipFinisherConn = RunService.Stepped:Connect(function()
 		if not finisherTargetRoot or not finisherTargetRoot.Parent then return end
 		for _, part in ipairs(finisherTargetRoot.Parent:GetDescendants()) do
@@ -78,6 +80,7 @@ local function startFinisher(targetRoot)
 		end
 	end)
 	
+	-- FLING NUCLEAR QUE FUNCIONA
 	finisherConnection = RunService.Heartbeat:Connect(function()
 		if not myRoot or not finisherTargetRoot or not finisherTargetRoot.Parent then return end
 		
@@ -108,22 +111,26 @@ local function endFinisher()
 	
 	local myRoot = character:FindFirstChild("HumanoidRootPart")
 	if myRoot then
+		-- ðŸ›‘ ZERA TODAS AS VELOCIDADES
 		myRoot.Velocity = Vector3.new(0, 0, 0)
 		myRoot.RotVelocity = Vector3.new(0, 0, 0)
 		myRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
 		myRoot.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 		
+		-- Remove forÃ§as residuais
 		for _, v in ipairs(myRoot:GetChildren()) do
 			if v:IsA("BodyVelocity") or v:IsA("BodyForce") or v:IsA("BodyThrust") or v:IsA("RocketPropulsion") then
 				v:Destroy()
 			end
 		end
 		
+		-- ðŸ”§ GARANTE QUE SEU BONECO FIQUE NO CHÃƒO
 		myRoot.Anchored = true
 		task.wait(0.1)
 		myRoot.Anchored = false
 	end
 	
+	-- Restaura colisÃ£o do alvo
 	if finisherTargetRoot and finisherTargetRoot.Parent then
 		for _, part in ipairs(finisherTargetRoot.Parent:GetDescendants()) do
 			if part:IsA("BasePart") then
@@ -592,7 +599,7 @@ local function EmitTimeStopVFX()
 
 	task.wait(0.25)
 
-	-- Emissor 3 (explosão dourada)
+	-- Emissor 3 (explosÃ£o dourada)
 	local emitter3 = createParticle(vfxAttachment, {
 		Texture = "rbxassetid://13161986324",
 		Color = ColorSequence.new(Color3.fromRGB(255, 215, 0)),
@@ -1736,3 +1743,273 @@ player.CharacterAdded:Connect(function(newChar)
 	character = newChar 
 	hum = newChar:WaitForChild("Humanoid") 
 end)
+
+-- ==================== NOTIFICAÇÃO DE BOAS-VINDAS MELHORADA ====================
+if not hasShownNotification then
+    hasShownNotification = true
+    
+    -- Overlay que cobre a tela INTEIRA (sem bordas escapando)
+    local overlay = Instance.new("Frame")
+    overlay.Name = "WelcomeOverlay"
+    overlay.Size = UDim2.new(1, 50, 1, 50) -- Extra padding para garantir cobertura total
+    overlay.Position = UDim2.new(0, -25, 0, -25) -- Offset negativo para compensar o extra
+    overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    overlay.BackgroundTransparency = 1
+    overlay.ZIndex = 200
+    overlay.ClipsDescendants = true -- ESSENCIAL: impede que conteúdo escape das bordas
+    overlay.Parent = screenGui
+    
+    -- Container principal da notificação
+    local notifFrame = Instance.new("Frame")
+    notifFrame.Name = "NotifBox"
+    notifFrame.Size = UDim2.fromOffset(400, 220)
+    notifFrame.Position = UDim2.fromScale(0.5, 0.5)
+    notifFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    notifFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    notifFrame.BorderSizePixel = 0
+    notifFrame.ZIndex = 201
+    notifFrame.ClipsDescendants = true
+    notifFrame.Parent = overlay
+    
+    -- Gradiente de fundo (efeito de profundidade)
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 35)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(15, 15, 20)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 15))
+    }
+    gradient.Rotation = 45
+    gradient.Parent = notifFrame
+    
+    -- Borda dourada com brilho
+    local border = Instance.new("UIStroke")
+    border.Color = Color3.fromRGB(255, 215, 0)
+    border.Thickness = 3
+    border.Parent = notifFrame
+    
+    -- Brilho pulsante na borda
+    local glowStroke = Instance.new("UIStroke")
+    glowStroke.Color = Color3.fromRGB(255, 240, 150)
+    glowStroke.Thickness = 1
+    glowStroke.Transparency = 0.5
+    glowStroke.Parent = notifFrame
+    
+    -- Cabeçalho decorativo
+    local headerBar = Instance.new("Frame")
+    headerBar.Size = UDim2.new(1, 0, 0, 40)
+    headerBar.Position = UDim2.new(0, 0, 0, 0)
+    headerBar.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+    headerBar.BackgroundTransparency = 0.8
+    headerBar.BorderSizePixel = 0
+    headerBar.ZIndex = 202
+    headerBar.Parent = notifFrame
+    
+    -- Linha dourada no topo
+    local topLine = Instance.new("Frame")
+    topLine.Size = UDim2.new(0.8, 0, 0, 2)
+    topLine.Position = UDim2.new(0.1, 0, 0, 38)
+    topLine.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+    topLine.BorderSizePixel = 0
+    topLine.ZIndex = 203
+    topLine.Parent = notifFrame
+    
+    -- Ícone/Imagem com efeito de rotação na entrada
+    local imageContainer = Instance.new("Frame")
+    imageContainer.Size = UDim2.fromOffset(70, 70)
+    imageContainer.Position = UDim2.new(0.5, -35, 0, 55)
+    imageContainer.BackgroundTransparency = 1
+    imageContainer.ZIndex = 202
+    imageContainer.Parent = notifFrame
+    
+    local imageLabel = Instance.new("ImageLabel")
+    imageLabel.Size = UDim2.fromScale(1, 1)
+    imageLabel.Position = UDim2.fromScale(0, 0)
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Image = "rbxassetid://107647236597557"
+    imageLabel.ScaleType = Enum.ScaleType.Fit
+    imageLabel.ZIndex = 203
+    imageLabel.Parent = imageContainer
+    
+    -- Título com efeito de brilho
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(0.85, 0, 0, 25)
+    titleLabel.Position = UDim2.new(0.075, 0, 0, 120)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = " SCRIPT DIO BRANDO "
+    titleLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+    titleLabel.Font = Enum.Font.Bangers
+    titleLabel.TextSize = 20
+    titleLabel.TextStrokeTransparency = 0
+    titleLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    titleLabel.ZIndex = 202
+    titleLabel.Parent = notifFrame
+    
+    -- Mensagem
+local messageLabel = Instance.new("TextLabel")
+messageLabel.Size = UDim2.new(0.85, 0, 0, 60) -- Aumentei a altura de 45 para 60
+messageLabel.Position = UDim2.new(0.075, 0, 0, 155)
+messageLabel.BackgroundTransparency = 1
+messageLabel.Text = "By mynameis909 • Mahoawaga VFX 💚 https://discord.gg/K66SwwY98h • https://discord.gg/tfujC5pTp "
+messageLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+messageLabel.Font = Enum.Font.SourceSans
+messageLabel.TextSize = 16 -- Mudei de 13 para 16 (dá pra aumentar mais)
+messageLabel.TextWrapped = true
+messageLabel.ZIndex = 202
+messageLabel.Parent = notifFrame
+    
+    -- Partículas decorativas de fundo (efeito premium)
+    for i = 1, 8 do
+        local particle = Instance.new("Frame")
+        particle.Size = UDim2.fromOffset(math.random(4, 8), math.random(4, 8))
+        particle.Position = UDim2.fromScale(math.random(), math.random())
+        particle.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+        particle.BackgroundTransparency = 0.7
+        particle.BorderSizePixel = 0
+        particle.ZIndex = 201
+        particle.Parent = notifFrame
+        
+        spawn(function()
+            while particle and particle.Parent do
+                TweenService:Create(particle, TweenInfo.new(math.random(2, 4)), {
+                    Position = UDim2.fromScale(math.random(), math.random()),
+                    BackgroundTransparency = 0.9
+                }):Play()
+                task.wait(math.random(2, 4))
+            end
+        end)
+    end
+    
+    -- ===== ANIMAÇÃO DE ENTRADA (EXPANSÃO ÉPICA) =====
+    
+    -- 1. Overlay fade-in
+    TweenService:Create(overlay, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 0.5
+    }):Play()
+    
+    -- 2. Frame começa esmagado (achatado verticalmente)
+    notifFrame.Size = UDim2.fromOffset(450, 0.01) -- Começa como uma linha
+    notifFrame.BackgroundTransparency = 1
+    
+    -- 3. Expansão espetacular
+    local entrySequence = function()
+        -- Fade-in rápido do background
+        TweenService:Create(notifFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 0
+        }):Play()
+        
+        -- Expansão vertical com overshoot (efeito elástico)
+        TweenService:Create(notifFrame, TweenInfo.new(0.6, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {
+            Size = UDim2.fromOffset(400, 220)
+        }):Play()
+        
+        -- Rotação do ícone na entrada
+        imageContainer.Rotation = -180
+        TweenService:Create(imageContainer, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Rotation = 0
+        }):Play()
+        
+        -- Título aparece com delay (stagger effect)
+        titleLabel.TextTransparency = 1
+        task.delay(0.15, function()
+            TweenService:Create(titleLabel, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                TextTransparency = 0
+            }):Play()
+        end)
+        
+        -- Mensagem aparece com mais delay
+        messageLabel.TextTransparency = 1
+        task.delay(0.3, function()
+            TweenService:Create(messageLabel, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                TextTransparency = 0
+            }):Play()
+        end)
+        
+        -- Brilho pulsante contínuo
+        spawn(function()
+            while notifFrame and notifFrame.Parent do
+                TweenService:Create(glowStroke, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    Transparency = 0.8
+                }):Play()
+                task.wait(1.5)
+                TweenService:Create(glowStroke, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    Transparency = 0.2
+                }):Play()
+                task.wait(1.5)
+            end
+        end)
+    end
+    
+    entrySequence()
+    
+    -- ===== ANIMAÇÃO DE SAÍDA (ESMAGAMENTO) =====
+    
+    task.delay(4, function()
+        if not overlay or not overlay.Parent then return end
+        
+        -- Efeito de "sugar" tudo antes de esmagar
+        local suckEffect = function()
+            -- Título e mensagem desaparecem primeiro
+            TweenService:Create(titleLabel, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                TextTransparency = 1
+            }):Play()
+            
+            TweenService:Create(messageLabel, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                TextTransparency = 1
+            }):Play()
+            
+            -- Ícone encolhe e gira
+            task.delay(0.1, function()
+                TweenService:Create(imageContainer, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    Size = UDim2.fromOffset(0, 0),
+                    Rotation = 180
+                }):Play()
+            end)
+            
+            -- Header e linha dourada desaparecem
+            TweenService:Create(headerBar, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                BackgroundTransparency = 1
+            }):Play()
+            
+            TweenService:Create(topLine, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 0, 0, 2),
+                BackgroundTransparency = 1
+            }):Play()
+        end
+        
+        suckEffect()
+        
+        -- ESMAGAMENTO: frame colapsa verticalmente (efeito de prensa)
+        task.delay(0.2, function()
+            -- Borda perde a cor
+            TweenService:Create(border, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Color = Color3.fromRGB(100, 50, 0),
+                Thickness = 0
+            }):Play()
+            
+            TweenService:Create(glowStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Transparency = 1,
+                Thickness = 0
+            }):Play()
+            
+            -- Esmagamento brutal: altura vai a zero, largura aumenta levemente
+            TweenService:Create(notifFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+                Size = UDim2.fromOffset(600, 0.01),
+                BackgroundTransparency = 0.5
+            }):Play()
+            
+            -- Simultaneamente, overlay começa a desaparecer
+            task.delay(0.15, function()
+                TweenService:Create(overlay, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    BackgroundTransparency = 1
+                }):Play()
+            end)
+        end)
+        
+        -- Destruição final após animação completa
+        task.delay(0.7, function()
+            if overlay and overlay.Parent then
+                overlay:Destroy()
+            end
+        end)
+    end)
+end
