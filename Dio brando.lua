@@ -1632,27 +1632,12 @@ local function showCooldownOnButton(button, abilityName)
 	barContainer.Position = UDim2.new(-0.05, 0, -0.15 - (existingBars * 0.12), 0)
 end
 
--- Função modificada para usar cooldown visual
 local function canUse(abilityName)
-	local currentTime = tick()
-	if currentTime - lastUsed[abilityName] >= COOLDOWNS[abilityName] then
-		lastUsed[abilityName] = currentTime
-		
-		-- Mostra cooldown no botão correspondente
-		local buttonMap = {
-			M1 = m1Btn,
-			Knife = knifeBtn,
-			TimeStop = tsBtn,
-			RoadRoller = roadBtn
-		}
-		
-		if buttonMap[abilityName] then
-			showCooldownOnButton(buttonMap[abilityName], abilityName)
-		end
-		
-		return true
-	end
-	return false
+    local currentTime = tick()
+    if currentTime - lastUsed[abilityName] >= COOLDOWNS[abilityName] then
+        return true
+    end
+    return false
 end
 
 local function toggleTime()
@@ -1771,6 +1756,7 @@ end
 			end
 		end)
 		updateIconState(tsIcon, true)
+		lastUsed["TimeStop"] = tick()
 	end	
 end
 
@@ -2023,7 +2009,10 @@ end
 				Debris:AddItem(impactSound2, 5)
 			end)
 			
-			cameraShake(1.5, 5.0)
+			lastUsed["RoadRoller"] = tick()
+showCooldownOnButton(roadBtn, "RoadRoller")
+
+cameraShake(1.5, 5.0)
 			
 			if charRoot and charRoot.Parent then
 				if weld then weld:Destroy() end
@@ -2237,6 +2226,9 @@ end
 				TweenService:Create(sRoot2, TweenInfo.new(0.4), {CFrame = root2.CFrame * CFrame.new(STAND_OFFSET)}):Play() 
 			end
 		end
+		lastUsed["M1"] = tick()
+-- Mostra cooldown
+showCooldownOnButton(m1Btn, "M1")
 		isAttacking = false
 	end)
 end
@@ -2400,6 +2392,9 @@ end)
 	task.wait(0.2)
 	if throwTrack then throwTrack:Stop() end
 	if isStandAttacking and attackerHum then idleTrack = playAnim(attackerHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle) end
+	lastUsed["Knife"] = tick()
+-- Mostra cooldown
+showCooldownOnButton(knifeBtn, "Knife")
 	isAttacking = false
 end
 
