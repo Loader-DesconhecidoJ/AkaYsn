@@ -1,5 +1,3 @@
-Melhorar o Target Do Stand Quando Joga As Knife
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
