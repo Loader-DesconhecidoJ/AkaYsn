@@ -498,7 +498,6 @@ local ASSETS = {
 	STAND_IDLE = "rbxassetid://133330377145015",
 	TS_RESUME_IMAGE = "rbxassetid://106168449328933",
 	MUDA_SOUND = "rbxassetid://616593932",
-	KNIFE_THROW_SOUND = "rbxassetid://4415007771",
 	KNIFE_HIT_SOUND = "rbxassetid://743521337",
 	BARRAGE_ANIM = "rbxassetid://90073013818806",
 	KNIFE_THROW_ANIM = "rbxassetid://109638015126982",
@@ -513,7 +512,9 @@ local ASSETS = {
 	ROAD_ROLLER_IMPACT_SFX1 = "rbxassetid://122293342039104",
 	ROAD_ROLLER_IMPACT_SFX2 = "rbxassetid://138680390593747",
 	ROAD_ROLLER_RIDE_ANIM = "rbxassetid://140327538515031",
-	STAND_WALK = "rbxassetid://123349905320515"
+	STAND_WALK = "rbxassetid://123349905320515",
+	KNIFE_THROW_DIO_SFX = "rbxassetid://4415007771", 
+KNIFE_THROW_STAND_SFX = "rbxassetid://118093612783120"
 }
 
 -- ==================== FINISHER VARIABLES ====================
@@ -974,9 +975,15 @@ local function toggleStand()
 		updateKnifePosition(false)
 		updateIconState(standIcon, false)
 	else
-		isStandActive = true
-		activateBtn.Text = "OFF"
-		showSpeechBubble(81663476180868, "right", 2.5)
+    isStandActive = true
+    activateBtn.Text = "OFF"
+    showSpeechBubble(81663476180868, "right", 2.5)
+    
+    local standActivateSound = Instance.new("Sound", workspace)
+    standActivateSound.SoundId = "rbxassetid://15081418558"
+    standActivateSound.Volume = 2
+    standActivateSound:Play()
+    Debris:AddItem(standActivateSound, 5)
 		
 		m1Btn.Visible = true
 		TweenService:Create(m1Btn, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -1474,6 +1481,105 @@ local function EmitBloodVFX(character)
 	end)
 end
 
+-- ==================== PROCESSAMENTO DE MOVIMENTO DA FACA ====================
+local function processKnifeMovement(knife, shootDir)
+    if not knife or not knife.Parent then return end
+    
+    local lastPosition = knife.Position
+    
+    local movementConnection
+    movementConnection = RunService.RenderStepped:Connect(function()
+        if not knife or not knife.Parent then
+            movementConnection:Disconnect()
+            return
+        end
+        
+        -- Se a faca está ancorada (Time Stop), pausa o processamento
+        if knife.Anchored then
+            lastPosition = knife.Position
+            return
+        end
+        
+        local currentPosition = knife.Position
+        local direction = (currentPosition - lastPosition)
+        local distance = direction.Magnitude
+        
+        if distance > 0.05 then
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterDescendantsInstances = {character, currentStand}
+            raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+            
+            local steps = math.ceil(distance / 0.5)
+            local stepDirection = direction.Unit * (distance / steps)
+            
+            for step = 1, steps do
+                local rayOrigin = lastPosition + (stepDirection * (step - 1))
+                local rayResult = workspace:Raycast(rayOrigin, stepDirection, raycastParams)
+                
+                if rayResult then
+                    local hitPart = rayResult.Instance
+                    local hitPosition = rayResult.Position
+                    local hitHum = hitPart.Parent:FindFirstChildOfClass("Humanoid")
+                    
+                    if hitHum and hitHum.Parent ~= character and hitHum.Parent ~= currentStand then
+                        -- Aplica dano
+                        hitHum:TakeDamage(18)
+                        
+                        -- Som de hit
+                        local hitSound = Instance.new("Sound", workspace)
+                        hitSound.SoundId = ASSETS.KNIFE_HIT_SOUND
+                        hitSound.Volume = 1.0
+                        hitSound:Play()
+                        Debris:AddItem(hitSound, 2)
+                        
+                        -- Cria faca cravada
+                        local stuckKnife = Instance.new("Part", workspace)
+                        stuckKnife.Name = "StuckKnife"
+                        stuckKnife.Size = Vector3.new(1, 1, 1)
+                        stuckKnife.CanCollide = false
+                        stuckKnife.Anchored = true
+                        stuckKnife.CFrame = CFrame.lookAt(hitPosition, hitPosition + direction.Unit) * CFrame.Angles(math.rad(12), math.rad(-175), 0)
+                        stuckKnife.Transparency = 0
+                        stuckKnife.Color = Color3.fromRGB(255, 255, 255)
+                        
+                        local stuckMesh = Instance.new("SpecialMesh", stuckKnife)
+                        stuckMesh.MeshId = "rbxassetid://15945983658"
+                        stuckMesh.TextureId = "rbxassetid://15946012483"
+                        stuckMesh.Scale = Vector3.new(1.25, 1.25, 1.85)
+                        
+                        local stickWeld = Instance.new("WeldConstraint")
+                        stickWeld.Part0 = stuckKnife
+                        stickWeld.Part1 = hitPart
+                        stickWeld.Parent = stuckKnife
+                        
+                        Debris:AddItem(stuckKnife, 3.5)
+                        
+                        -- Kill confirm
+                        if hitHum.Health <= 0 then
+                            showSpeechBubble("92536008979873", "right", 3, character.Head)
+                            local dioSound = Instance.new("Sound", workspace)
+                            dioSound.SoundId = "rbxassetid://110578259527952"
+                            dioSound.Volume = 1.6
+                            dioSound:Play()
+                            Debris:AddItem(dioSound, 4)
+                            cameraShake(0.6, 2.5)
+                        end
+                        
+                        EmitBloodVFX(hitPart.Parent)
+                        
+                        -- Remove faca original
+                        movementConnection:Disconnect()
+                        knife:Destroy()
+                        return
+                    end
+                end
+            end
+        end
+        
+        lastPosition = currentPosition
+    end)
+end
+
 -- ==================== SISTEMA DE COOLDOWN VISUAL JOJO ====================
 local cooldownBars = {}
 
@@ -1645,21 +1751,34 @@ local function toggleTime()
 		isTimeStopped = false
 tsBtn.Text = "STOP"
 
+-- Descongela as facas e restaura movimento
 for knife, data in pairs(frozenKnives) do
     if knife and knife.Parent then
         knife.Anchored = false
-        if data.velocity and data.velocity.Parent then
-            data.velocity.Enabled = true
-            if not data.velocity.Parent then
-                local newVel = Instance.new("LinearVelocity")
-                newVel.Attachment0 = knife:FindFirstChild("Attachment") or Instance.new("Attachment", knife)
-                newVel.MaxForce = math.huge
-                newVel.VectorVelocity = data.direction * 280
-                newVel.Parent = knife
+        
+        if data.velocity then
+            -- Verifica se o LinearVelocity ainda existe
+            if data.velocity.Parent then
+                data.velocity.Enabled = true
+                data.velocity.VectorVelocity = data.direction * 295
             else
-                data.velocity.VectorVelocity = data.direction * 280
+                -- Recria o LinearVelocity se foi destruído
+                local newAttachment = data.attachment
+                if not newAttachment or not newAttachment.Parent then
+                    newAttachment = Instance.new("Attachment", knife)
+                end
+                local newVel = Instance.new("LinearVelocity", knife)
+                newVel.Attachment0 = newAttachment
+                newVel.MaxForce = math.huge
+                newVel.VectorVelocity = data.direction * 295
+                newVel.Parent = knife
             end
         end
+        
+        -- INICIA O PROCESSAMENTO DE HIT DA FACA DESCONGELADA
+        processKnifeMovement(knife, data.direction)
+        
+        -- Define tempo de vida após descongelar
         Debris:AddItem(knife, 4)
     end
 end
@@ -1704,15 +1823,20 @@ end
 	isTimeStopped = true
 tsBtn.Text = "RESUME"
 
--- ⬇️ ADICIONE ISSO - Congela todas as facas existentes ⬇️
+-- Congela todas as facas existentes no mapa
 for _, obj in ipairs(workspace:GetDescendants()) do
     if obj:IsA("Part") and obj.Name == "DioKnife" and not obj.Anchored then
         local lv = obj:FindFirstChild("LinearVelocity")
+        local att = obj:FindFirstChild("Attachment")
         if lv then
             lv.Enabled = false
         end
         obj.Anchored = true
-        frozenKnives[obj] = {velocity = lv, direction = obj:GetAttribute("ShootDir") or Vector3.new(0,0,0)}
+        frozenKnives[obj] = {
+            velocity = lv, 
+            direction = obj:GetAttribute("ShootDir") or Vector3.new(0,0,0),
+            attachment = att
+        }
     end
 end
 	
@@ -2233,188 +2357,131 @@ showCooldownOnButton(m1Btn, "M1")
 	end)
 end
 
+-- ==================== FUNÇÃO DE ARREMESSO DE FACA CORRIGIDA ====================
 local function performKnifeThrow()
-	if not canUse("Knife") then return end
-	local isStandAttacking = (isStandActive and currentStand ~= nil)
-	local attackerModel = isStandAttacking and currentStand or character
-	local attackerRoot = attackerModel:FindFirstChild("HumanoidRootPart")
-	local attackerHum = attackerModel:FindFirstChildOfClass("Humanoid")
-	local charRoot = character:FindFirstChild("HumanoidRootPart")
-	local camera = workspace.CurrentCamera
-	if not attackerRoot or not attackerHum or not charRoot then return end
-	
-	local target = nil
-	if isStandAttacking then 
-		target = getClosestTarget(50) 
-		if not target then 
-			showSpeechBubble(102362181377695, "right", 2.5) 
-			return 
-		end 
-	end
-	
-	isAttacking = true
-	local shootDir = (isStandAttacking and target) and (target.Position - attackerRoot.Position).Unit or camera.CFrame.LookVector
-	
-	if not isStandAttacking then
-		local lookTarget = charRoot.Position + Vector3.new(shootDir.X, 0, shootDir.Z)
-		TweenService:Create(charRoot, TweenInfo.new(0.15, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {CFrame = CFrame.lookAt(charRoot.Position, lookTarget)}):Play()
-	end
-	
-	if isStandAttacking then
-		local goalCF = target and CFrame.lookAt(charRoot.Position + (target.Position - charRoot.Position).Unit * 3.5, target.Position) or charRoot.CFrame * CFrame.new(0,0,-3.5)
-		local tweenMove = TweenService:Create(attackerRoot, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {CFrame = goalCF})
-		tweenMove:Play() 
-		tweenMove.Completed:Wait()
-	end
-	
-	local throwTrack
-	if ASSETS.KNIFE_THROW_ANIM ~= "" then 
-		if isStandAttacking and idleTrack then idleTrack:Stop() end 
-		throwTrack = playAnim(attackerHum, ASSETS.KNIFE_THROW_ANIM, 3, false, Enum.AnimationPriority.Action)
-		if throwTrack then throwTrack.Looped = false end 
-	end
-	
-	local throwSound = Instance.new("Sound", workspace) 
-	throwSound.SoundId = ASSETS.KNIFE_THROW_SOUND 
-	throwSound:Play() 
-	Debris:AddItem(throwSound, 3)
-	
-	local knifeCount = isStandAttacking and 2 or 1
-for i = 1, knifeCount do
-		if isStandAttacking and target and target.Parent and attackerRoot then
-			shootDir = (target.Position - attackerRoot.Position).Unit
-			local lookCF = CFrame.lookAt(attackerRoot.Position, target.Position)
-			attackerRoot.CFrame = attackerRoot.CFrame:Lerp(lookCF, 0.5)
-		end
-		
-		local knife = Instance.new("Part") 
-knife.Name = "DioKnife" 
-knife.Size = Vector3.new(1,1,1) 
-knife.CanCollide = false 
-knife.Parent = workspace
-
-local baseCFrame = CFrame.lookAt(attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5), attackerRoot.Position + Vector3.new((i-3)*0.8, 0.5, -1.5) + shootDir)
-knife.CFrame = baseCFrame * CFrame.Angles(math.rad(10), math.rad(-180), 0)
-
-local mesh = Instance.new("SpecialMesh", knife) 
-mesh.MeshId = "rbxassetid://15945983658" 
-mesh.TextureId = "rbxassetid://15946012483" 
-mesh.Scale = Vector3.new(1.2,1.2,1.8)
-
--- Guarda a direção do tiro na faca
-knife:SetAttribute("ShootDir", shootDir) 
-
-local vel = Instance.new("LinearVelocity", knife) 
-vel.Attachment0 = Instance.new("Attachment", knife) 
-vel.MaxForce = math.huge 
-vel.VectorVelocity = shootDir * 280
-
-if isTimeStopped then
-    vel.Enabled = false -- Desativa a velocidade
-    knife.Anchored = true -- Ancora a faca no ar
-    frozenKnives[knife] = {velocity = vel, direction = shootDir} -- Salva referência
-else
-    frozenKnives[knife] = nil -- Garante que não está na lista
-end
-		
-		task.spawn(function()
-    local lastPosition = knife.Position
+    if not canUse("Knife") then return end
     
-    while knife and knife.Parent and not knife.Anchored do
-        local currentPosition = knife.Position
-        local direction = (currentPosition - lastPosition)
-        local distance = direction.Magnitude
-        
-        if distance > 0.05 then 
-            local raycastParams = RaycastParams.new()
-            raycastParams.FilterDescendantsInstances = {character, currentStand}
-            raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-            
-            -- Divide o trajeto em vários mini-raycasts
-            local steps = math.ceil(distance / 0.5)  -- Verifica a cada 0.5 studs
-            local stepDirection = direction.Unit * (distance / steps)
-            
-            for step = 1, steps do
-                local rayOrigin = lastPosition + (stepDirection * (step - 1))
-                local rayResult = workspace:Raycast(rayOrigin, stepDirection, raycastParams)
-                
-                if rayResult then
-                    local hitPart = rayResult.Instance
-                    local hitPosition = rayResult.Position
-                    local hitHum = hitPart.Parent:FindFirstChildOfClass("Humanoid")
-                    
-                    if hitHum and hitHum.Parent ~= character and hitHum.Parent ~= currentStand then
-                        hitHum:TakeDamage(18)
-                        local hitSound = Instance.new("Sound", workspace)
-                        hitSound.SoundId = ASSETS.KNIFE_HIT_SOUND
-                        hitSound:Play()
-                        Debris:AddItem(hitSound, 2)
-                        
-                        local stuckKnife = Instance.new("Part", workspace)
-                        stuckKnife.Name = "StuckKnife"
-                        stuckKnife.Size = Vector3.new(1, 1, 1)
-                        stuckKnife.CanCollide = false
-                        stuckKnife.Anchored = true
-                        stuckKnife.CFrame = knife.CFrame - knife.Position + hitPosition
-                        stuckKnife.Transparency = 0
-                        stuckKnife.Color = Color3.fromRGB(255, 255, 255)
-                        
-                        local stuckMesh = Instance.new("SpecialMesh", stuckKnife)
-                        stuckMesh.MeshId = "rbxassetid://15945983658"
-                        stuckMesh.TextureId = "rbxassetid://15946012483"
-                        stuckMesh.Scale = Vector3.new(1.2, 1.2, 1.8)
-                        
-                        local stickWeld = Instance.new("WeldConstraint")
-                        stickWeld.Part0 = stuckKnife
-                        stickWeld.Part1 = hitPart
-                        stickWeld.Parent = stuckKnife
-                        
-                        Debris:AddItem(stuckKnife, 3)
-                        
-                        if hitHum.Health <= 0 then
-                            showSpeechBubble("92536008979873", "right", 3, character.Head)
-                            local dioSound = Instance.new("Sound", workspace)
-                            dioSound.SoundId = "rbxassetid://110578259527952"
-                            dioSound.Volume = 1.5
-                            dioSound:Play()
-                            Debris:AddItem(dioSound, 3)
-                        end
-                        
-                        EmitBloodVFX(hitPart.Parent)
-                        
-                        knife:Destroy()
-                        return  -- Sai do loop
-                    end
-                end
-            end
+    local isStandAttacking = (isStandActive and currentStand ~= nil)
+    local attackerModel = isStandAttacking and currentStand or character
+    local attackerRoot = attackerModel:FindFirstChild("HumanoidRootPart")
+    local attackerHum = attackerModel:FindFirstChildOfClass("Humanoid")
+    local charRoot = character:FindFirstChild("HumanoidRootPart")
+    local camera = workspace.CurrentCamera
+    
+    if not attackerRoot or not attackerHum or not charRoot then return end
+    
+    local target = nil
+    if isStandAttacking then 
+        target = getClosestTarget(50) 
+        if not target then 
+            showSpeechBubble(102362181377695, "right", 2.5) 
+            return 
+        end 
+    end
+    
+    isAttacking = true
+    
+    -- Direção do tiro
+    local shootDir = (isStandAttacking and target) and (target.Position - attackerRoot.Position).Unit or camera.CFrame.LookVector
+    
+    -- Look at suave para o Stand
+    if isStandAttacking then
+        local goalCF
+        if target then
+            local basePos = charRoot.Position + (target.Position - charRoot.Position).Unit * 3.8
+            goalCF = CFrame.lookAt(basePos, target.Position)
+        else
+            goalCF = charRoot.CFrame * CFrame.new(0, 0, -3.8)
         end
         
-        lastPosition = currentPosition
-        task.wait(0.01) 
+        local tweenLook = TweenService:Create(attackerRoot, 
+            TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+            {CFrame = goalCF}
+        )
+        tweenLook:Play()
+        tweenLook.Completed:Wait()
     end
-end)
-		
-			if isTimeStopped then
-			-- Não usa Debris durante Time Stop
-			task.delay(999, function()
-				if knife and knife.Parent and not frozenKnives[knife] then
-					knife:Destroy()
-				end
-			end)
-		else
-			Debris:AddItem(knife, 4) -- Comportamento normal
-		end
-		
-		task.wait(0.06)
-	end -- Fim do for i = 1, knifeCount
-	
-	task.wait(0.2)
-	if throwTrack then throwTrack:Stop() end
-	if isStandAttacking and attackerHum then idleTrack = playAnim(attackerHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle) end
-	lastUsed["Knife"] = tick()
--- Mostra cooldown
-showCooldownOnButton(knifeBtn, "Knife")
-	isAttacking = false
+    
+    -- Animação de arremesso
+    local throwTrack
+    if ASSETS.KNIFE_THROW_ANIM ~= "" then 
+        if isStandAttacking and idleTrack and idleTrack.IsPlaying then 
+            idleTrack:Stop(0.1) 
+        end 
+        throwTrack = playAnim(attackerHum, ASSETS.KNIFE_THROW_ANIM, 3.2, false, Enum.AnimationPriority.Action)
+        if throwTrack then throwTrack.Looped = false end 
+    end
+
+    -- Som
+    local throwSoundId = isStandAttacking and ASSETS.KNIFE_THROW_STAND_SFX or ASSETS.KNIFE_THROW_DIO_SFX
+    local throwSound = Instance.new("Sound", workspace) 
+    throwSound.SoundId = throwSoundId
+    throwSound.Volume = isStandAttacking and 1.6 or 1.1 
+    throwSound:Play() 
+    Debris:AddItem(throwSound, 3)
+    
+    -- Criar facas
+    local knifeCount = isStandAttacking and 2 or 1
+    for i = 1, knifeCount do
+        if isStandAttacking and target and target.Parent and attackerRoot then
+            shootDir = (target.Position - attackerRoot.Position).Unit
+        end
+        
+        local knife = Instance.new("Part") 
+        knife.Name = "DioKnife" 
+        knife.Size = Vector3.new(1, 1, 1) 
+        knife.CanCollide = false 
+        knife.Parent = workspace
+
+        local baseCFrame = CFrame.lookAt(
+            attackerRoot.Position + Vector3.new((i-3)*0.9, 0.6, -1.6), 
+            attackerRoot.Position + Vector3.new((i-3)*0.9, 0.6, -1.6) + shootDir
+        )
+        knife.CFrame = baseCFrame * CFrame.Angles(math.rad(12), math.rad(-175), 0)
+
+        local mesh = Instance.new("SpecialMesh", knife) 
+        mesh.MeshId = "rbxassetid://15945983658" 
+        mesh.TextureId = "rbxassetid://15946012483" 
+        mesh.Scale = Vector3.new(1.25, 1.25, 1.85)
+
+        knife:SetAttribute("ShootDir", shootDir)
+
+        -- Sistema de velocidade
+        local velAttachment = Instance.new("Attachment", knife)
+        local linearVel = Instance.new("LinearVelocity", knife) 
+        linearVel.Attachment0 = velAttachment
+        linearVel.MaxForce = math.huge 
+        linearVel.VectorVelocity = shootDir * 295
+
+        -- Se estiver em Time Stop, congela a faca
+        if isTimeStopped then
+            linearVel.Enabled = false
+            knife.Anchored = true
+            frozenKnives[knife] = {
+                velocity = linearVel, 
+                direction = shootDir,
+                attachment = velAttachment
+            }
+        else
+            -- Se NÃO está em Time Stop, inicia o processamento de hit IMEDIATAMENTE
+            processKnifeMovement(knife, shootDir)
+            Debris:AddItem(knife, 4.2)
+        end
+        
+        task.wait(0.055)
+    end
+    
+    -- Finalização
+    task.wait(0.25)
+    if throwTrack then throwTrack:Stop(0.15) end
+    
+    if isStandAttacking and attackerHum then 
+        idleTrack = playAnim(attackerHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle) 
+    end
+    
+    lastUsed["Knife"] = tick()
+    showCooldownOnButton(knifeBtn, "Knife")
+    isAttacking = false
 end
 
 local function freezeCharacterOnSpawn(plr, char)
@@ -2440,39 +2507,65 @@ Players.PlayerAdded:Connect(function(plr)
 	if plr ~= player then plr.CharacterAdded:Connect(function(char) freezeCharacterOnSpawn(plr, char) end) end
 end)
 
+-- ==================== SISTEMA DE ANIMAÇÃO DO STAND (CORRIGIDO E ROBUSTO) ====================
+local lastStandState = "Idle"  -- "Idle" ou "Walk"
+
 RunService.RenderStepped:Connect(function()
-	if isStandActive and currentStand and not isAttacking then
-		local root = character:FindFirstChild("HumanoidRootPart")
-		local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
-		local sHum = currentStand:FindFirstChildOfClass("Humanoid")
-		
-		if root and sRoot and sHum then
-			-- Posição do Stand (segue o player com offset)
-			local targetPos = root.CFrame * CFrame.new(STAND_OFFSET)
-			sRoot.CFrame = sRoot.CFrame:Lerp(targetPos, 0.1)
+	if not isStandActive or not currentStand or isAttacking then 
+		return 
+	end
+	
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
+	local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+	
+	if not root or not sRoot or not sHum then return end
+	
+	-- Posicionamento suave do Stand
+	local targetPos = root.CFrame * CFrame.new(STAND_OFFSET)
+	sRoot.CFrame = sRoot.CFrame:Lerp(targetPos, 0.12)
+	
+	-- ====================== DETECÇÃO DE MOVIMENTO MELHORADA ======================
+	local velocity = root.Velocity
+	local horizSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+	
+	local shouldWalk = horizSpeed > 3.5   -- Threshold mais confiável
+	
+	if isAttacking then
+		-- Durante ataque, força idle (ou deixa a animação de ataque assumir)
+		if walkTrack and walkTrack.IsPlaying then
+			walkTrack:Stop(0.2)
+		end
+		if (not idleTrack or not idleTrack.IsPlaying) and sHum then
+			idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
+		end
+		lastStandState = "Idle"
+		return
+	end
+	
+	-- ====================== CONTROLE DE ANIMAÇÕES ======================
+	if shouldWalk then
+		if lastStandState ~= "Walk" then
+			lastStandState = "Walk"
 			
-			-- Verifica se o player está se movendo
-			local velocity = root.Velocity
-			local isMoving = velocity.Magnitude > 2 -- Threshold de movimento
-			
-			if isMoving then
-				-- Se está andando e a animação de caminhada não está tocando
-				if (not walkTrack or not walkTrack.IsPlaying) then
-					if idleTrack and idleTrack.IsPlaying then
-						idleTrack:Stop()
-					end
-					-- Usa a mesma animação de idle para caminhada (ou troque por um ID de animação de walk)
-					walkTrack = playAnim(sHum, ASSETS.STAND_WALK, 1.5, true, Enum.AnimationPriority.Movement)
-				end
-			else
-				-- Se parou de andar, volta para idle normal
-				if (not idleTrack or not idleTrack.IsPlaying) then
-					if walkTrack and walkTrack.IsPlaying then
-						walkTrack:Stop()
-					end
-					idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
-				end
+			if idleTrack and idleTrack.IsPlaying then
+				idleTrack:Stop(0.15)
 			end
+			
+			if walkTrack then walkTrack:Stop(0) end
+			walkTrack = playAnim(sHum, ASSETS.STAND_WALK, 1.5, true, Enum.AnimationPriority.Movement)
+		end
+	else
+		-- Parado
+		if lastStandState ~= "Idle" then
+			lastStandState = "Idle"
+			
+			if walkTrack and walkTrack.IsPlaying then
+				walkTrack:Stop(0.2)
+			end
+			
+			if idleTrack then idleTrack:Stop(0) end
+			idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
 		end
 	end
 end)
