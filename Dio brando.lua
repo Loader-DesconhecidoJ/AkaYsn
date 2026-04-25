@@ -14,6 +14,7 @@ local isStandActive = false
 local isAttacking = false
 local currentStand = nil
 local idleTrack = nil
+local walkTrack = nil
 local frozenParts = {}
 local mudaComboCount = 0
 local comboDisplay = nil
@@ -30,7 +31,7 @@ local ASSETS = {
 	TS_START_SFX = "rbxassetid://7514417921",
 	TS_END_SFX = "rbxassetid://97139043906890",
 	ANIM_DIO = "rbxassetid://84289147684815",
-	STAND_IDLE = "rbxassetid://123349905320515",
+	STAND_IDLE = "rbxassetid://75433127093697",
 	TS_RESUME_IMAGE = "rbxassetid://106168449328933",
 	MUDA_SOUND = "rbxassetid://616593932",
 	KNIFE_THROW_SOUND = "rbxassetid://4415007771",
@@ -47,7 +48,8 @@ local ASSETS = {
 	ROAD_ROLLER_SPAWN_SFX = "rbxassetid://6273171415",
 	ROAD_ROLLER_IMPACT_SFX1 = "rbxassetid://122293342039104",
 	ROAD_ROLLER_IMPACT_SFX2 = "rbxassetid://138680390593747",
-	ROAD_ROLLER_RIDE_ANIM = "rbxassetid://140327538515031"
+	ROAD_ROLLER_RIDE_ANIM = "rbxassetid://140327538515031",
+	STAND_WALK = "rbxassetid://123349905320515"
 }
 
 local FINISHER_HEALTH_THRESHOLD = 20
@@ -450,6 +452,7 @@ local function toggleStand()
 		isAttacking = false
 		activateBtn.Text = "STAND"
 		if idleTrack then idleTrack:Stop() end
+		if walkTrack then walkTrack:Stop() end -- PARA ANIMAÇÃO DE CAMINHADA
 		if currentStand then
 			local root = currentStand:FindFirstChild("HumanoidRootPart")
 			if root then
@@ -1693,8 +1696,35 @@ RunService.RenderStepped:Connect(function()
 	if isStandActive and currentStand and not isAttacking then
 		local root = character:FindFirstChild("HumanoidRootPart")
 		local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
-		if root and sRoot then 
-			sRoot.CFrame = sRoot.CFrame:Lerp(root.CFrame * CFrame.new(STAND_OFFSET), 0.1) 
+		local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+		
+		if root and sRoot and sHum then
+			-- Posição do Stand (segue o player com offset)
+			local targetPos = root.CFrame * CFrame.new(STAND_OFFSET)
+			sRoot.CFrame = sRoot.CFrame:Lerp(targetPos, 0.1)
+			
+			-- Verifica se o player está se movendo
+			local velocity = root.Velocity
+			local isMoving = velocity.Magnitude > 2 -- Threshold de movimento
+			
+			if isMoving then
+				-- Se está andando e a animação de caminhada não está tocando
+				if (not walkTrack or not walkTrack.IsPlaying) then
+					if idleTrack and idleTrack.IsPlaying then
+						idleTrack:Stop()
+					end
+					-- Usa a mesma animação de idle para caminhada (ou troque por um ID de animação de walk)
+					walkTrack = playAnim(sHum, ASSETS.STAND_WALK, 1.5, true, Enum.AnimationPriority.Movement)
+				end
+			else
+				-- Se parou de andar, volta para idle normal
+				if (not idleTrack or not idleTrack.IsPlaying) then
+					if walkTrack and walkTrack.IsPlaying then
+						walkTrack:Stop()
+					end
+					idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
+				end
+			end
 		end
 	end
 end)
