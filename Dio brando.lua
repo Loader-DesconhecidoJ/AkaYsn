@@ -688,7 +688,7 @@ local function EmitTimeStopVFX()
 end
 
 -- ==================== VFX COMPLETO DE SANGUE NO ALVO (18 EMISSORES - COMPLETO) ====================
-local function EmitKnifeVFX(character)
+local function EmitBloodVFX(character)
 	if not character then return end
 	local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
 	if not torso then return end
@@ -1029,7 +1029,7 @@ end
 		
 		if root then root.Anchored = true end
 		showSpeechBubble(106366607174396, "right", 4)
-		task.delay(1.85, function()
+		task.delay(1.55, function()
     if not isTimeStopped then return end
     
     EmitTimeStopVFX()
@@ -1442,6 +1442,12 @@ local function performM1()
 			
 			targetHum:TakeDamage(1)
 			
+			-- ========== VFX DE SANGUE NO FINISHER ==========
+			if i % 3 == 0 then 
+				EmitBloodVFX(targetRoot.Parent)
+			end
+			-- ===============================================
+			
 			local hit = Instance.new("Part") 
 			hit.Size = Vector3.new(1,1,1) 
 			hit.Color = Color3.fromRGB(255,0,100) 
@@ -1644,7 +1650,7 @@ for i = 1, knifeCount do
             Debris:AddItem(dioSound, 3)
         end
         
-        EmitKnifeVFX(hitPart.Parent)
+        EmitBloodVFX(hitPart.Parent)
         
         knife:Destroy()
     end
@@ -1849,7 +1855,7 @@ local messageLabel = Instance.new("TextLabel")
 messageLabel.Size = UDim2.new(0.85, 0, 0, 60) -- Aumentei a altura de 45 para 60
 messageLabel.Position = UDim2.new(0.075, 0, 0, 155)
 messageLabel.BackgroundTransparency = 1
-messageLabel.Text = "By mynameis909 • Mahoawaga VFX 💚 https://discord.gg/K66SwwY98h • https://discord.gg/tfujC5pTp "
+messageLabel.Text = "By mynameis909 • Mahoawaga VFX  https://discord.gg/K66SwwY98h • https://discord.gg/tfujC5pTp "
 messageLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 messageLabel.Font = Enum.Font.SourceSans
 messageLabel.TextSize = 16 -- Mudei de 13 para 16 (dá pra aumentar mais)
