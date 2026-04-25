@@ -1,3 +1,5 @@
+Melhorar o Target Do Stand Quando Joga As Knife
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -2302,14 +2304,13 @@ mesh.TextureId = "rbxassetid://15946012483"
 mesh.Scale = Vector3.new(1.2,1.2,1.8)
 
 -- Guarda a direção do tiro na faca
-knife:SetAttribute("ShootDir", shootDir) -- ⬅️ Salva a direção
+knife:SetAttribute("ShootDir", shootDir) 
 
 local vel = Instance.new("LinearVelocity", knife) 
 vel.Attachment0 = Instance.new("Attachment", knife) 
 vel.MaxForce = math.huge 
 vel.VectorVelocity = shootDir * 280
 
--- ⬇️ CONGELA A FACA SE O TIME ESTIVER PARADO ⬇️
 if isTimeStopped then
     vel.Enabled = false -- Desativa a velocidade
     knife.Anchored = true -- Ancora a faca no ar
@@ -2318,60 +2319,80 @@ else
     frozenKnives[knife] = nil -- Garante que não está na lista
 end
 		
-		knife.Touched:Connect(function(hitPart)
-    local hitHum = hitPart.Parent:FindFirstChildOfClass("Humanoid")
-    if hitHum and hitHum.Parent ~= character and hitHum.Parent ~= currentStand then
-        hitHum:TakeDamage(18)
-        local hitSound = Instance.new("Sound", workspace) 
-        hitSound.SoundId = ASSETS.KNIFE_HIT_SOUND 
-        hitSound:Play() 
-        Debris:AddItem(hitSound, 2)
+		task.spawn(function()
+    local lastPosition = knife.Position
+    
+    while knife and knife.Parent and not knife.Anchored do
+        local currentPosition = knife.Position
+        local direction = (currentPosition - lastPosition)
+        local distance = direction.Magnitude
         
-        knife.Velocity = Vector3.new(0, 0, 0)
-        knife.Anchored = true
-        knife.CFrame = CFrame.new(hitPart.Position)
-        
-        if knife:FindFirstChild("LinearVelocity") then
-            knife.LinearVelocity:Destroy()
+        if distance > 0.05 then 
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterDescendantsInstances = {character, currentStand}
+            raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+            
+            -- Divide o trajeto em vários mini-raycasts
+            local steps = math.ceil(distance / 0.5)  -- Verifica a cada 0.5 studs
+            local stepDirection = direction.Unit * (distance / steps)
+            
+            for step = 1, steps do
+                local rayOrigin = lastPosition + (stepDirection * (step - 1))
+                local rayResult = workspace:Raycast(rayOrigin, stepDirection, raycastParams)
+                
+                if rayResult then
+                    local hitPart = rayResult.Instance
+                    local hitPosition = rayResult.Position
+                    local hitHum = hitPart.Parent:FindFirstChildOfClass("Humanoid")
+                    
+                    if hitHum and hitHum.Parent ~= character and hitHum.Parent ~= currentStand then
+                        hitHum:TakeDamage(18)
+                        local hitSound = Instance.new("Sound", workspace)
+                        hitSound.SoundId = ASSETS.KNIFE_HIT_SOUND
+                        hitSound:Play()
+                        Debris:AddItem(hitSound, 2)
+                        
+                        local stuckKnife = Instance.new("Part", workspace)
+                        stuckKnife.Name = "StuckKnife"
+                        stuckKnife.Size = Vector3.new(1, 1, 1)
+                        stuckKnife.CanCollide = false
+                        stuckKnife.Anchored = true
+                        stuckKnife.CFrame = knife.CFrame - knife.Position + hitPosition
+                        stuckKnife.Transparency = 0
+                        stuckKnife.Color = Color3.fromRGB(255, 255, 255)
+                        
+                        local stuckMesh = Instance.new("SpecialMesh", stuckKnife)
+                        stuckMesh.MeshId = "rbxassetid://15945983658"
+                        stuckMesh.TextureId = "rbxassetid://15946012483"
+                        stuckMesh.Scale = Vector3.new(1.2, 1.2, 1.8)
+                        
+                        local stickWeld = Instance.new("WeldConstraint")
+                        stickWeld.Part0 = stuckKnife
+                        stickWeld.Part1 = hitPart
+                        stickWeld.Parent = stuckKnife
+                        
+                        Debris:AddItem(stuckKnife, 3)
+                        
+                        if hitHum.Health <= 0 then
+                            showSpeechBubble("92536008979873", "right", 3, character.Head)
+                            local dioSound = Instance.new("Sound", workspace)
+                            dioSound.SoundId = "rbxassetid://110578259527952"
+                            dioSound.Volume = 1.5
+                            dioSound:Play()
+                            Debris:AddItem(dioSound, 3)
+                        end
+                        
+                        EmitBloodVFX(hitPart.Parent)
+                        
+                        knife:Destroy()
+                        return  -- Sai do loop
+                    end
+                end
+            end
         end
-        if knife:FindFirstChild("BodyVelocity") then
-            knife.BodyVelocity:Destroy()
-        end
         
-        local stuckKnife = Instance.new("Part", workspace)
-        stuckKnife.Name = "StuckKnife"
-        stuckKnife.Size = Vector3.new(1, 1, 1)
-        stuckKnife.CanCollide = false
-        stuckKnife.Anchored = false
-        stuckKnife.CFrame = knife.CFrame
-        stuckKnife.Transparency = 0
-        stuckKnife.Color = Color3.fromRGB(255, 255, 255)
-        
-        local stuckMesh = Instance.new("SpecialMesh", stuckKnife)
-        stuckMesh.MeshId = "rbxassetid://15945983658"
-        stuckMesh.TextureId = "rbxassetid://15946012483"
-        stuckMesh.Scale = Vector3.new(1.2, 1.2, 1.8)
-        
-        local stickWeld = Instance.new("WeldConstraint")
-        stickWeld.Part0 = stuckKnife
-        stickWeld.Part1 = hitPart
-        stickWeld.Parent = stuckKnife
-        
-        Debris:AddItem(stuckKnife, 3)
-        
-        if hitHum.Health <= 0 and knife:GetAttribute("Finished") ~= true then
-            knife:SetAttribute("Finished", true)
-            showSpeechBubble("92536008979873", "right", 3, character.Head)
-            local dioSound = Instance.new("Sound", workspace)
-            dioSound.SoundId = "rbxassetid://110578259527952"
-            dioSound.Volume = 1.5
-            dioSound:Play()
-            Debris:AddItem(dioSound, 3)
-        end
-        
-        EmitBloodVFX(hitPart.Parent)
-        
-        knife:Destroy()
+        lastPosition = currentPosition
+        task.wait(0.01) 
     end
 end)
 		
@@ -2512,17 +2533,6 @@ end)
 -- ==================== NOTIFICAÇÃO DE BOAS-VINDAS MELHORADA ====================
 if not hasShownNotification then
     hasShownNotification = true
-    
-    -- Overlay que cobre a tela INTEIRA (sem bordas escapando)
-    local overlay = Instance.new("Frame")
-    overlay.Name = "WelcomeOverlay"
-    overlay.Size = UDim2.new(1, 50, 1, 50) -- Extra padding para garantir cobertura total
-    overlay.Position = UDim2.new(0, -25, 0, -25) -- Offset negativo para compensar o extra
-    overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    overlay.BackgroundTransparency = 1
-    overlay.ZIndex = 200
-    overlay.ClipsDescendants = true -- ESSENCIAL: impede que conteúdo escape das bordas
-    overlay.Parent = screenGui
     
     -- Container principal da notificação
     local notifFrame = Instance.new("Frame")
