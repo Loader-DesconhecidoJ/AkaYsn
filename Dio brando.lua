@@ -8,6 +8,8 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local hum = character:WaitForChild("Humanoid")
 
+local ACCESSORY_TAG = "DioAccessory"
+
 -- =========================================================
 -- SISTEMA DE ANIMAÇÕES CUSTOMIZADAS (CORRIGIDO)
 -- =========================================================
@@ -928,32 +930,43 @@ local function playAnim(target, animId, speed, looped, priority)
     return track
 end
 
--- ==================== NOVA FUNÇÃO GET STAND MODEL (SEMPRE R15) ====================
+-- ==================== NOVA FUNÇÃO GET STAND MODEL (IGNORA APENAS ACESSÓRIOS DO SCRIPT) ====================
+local ACCESSORY_TAG = "DioAccessory"  -- Mesma tag do script de acessórios
+
 local function getStandModel()
     local targetUserId = customStandUserId or player.UserId
 
     local success, model = pcall(function()
-        -- 1. Pega a descrição completa do avatar (roupas, cores, escalas, etc.)
         local description = Players:GetHumanoidDescriptionFromUserId(targetUserId)
-
-        -- 2. Cria um modelo NOVO forçando R15
         local standModel = Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
-
         return standModel
     end)
 
     if not success or not model then
         warn("❌ Falha ao criar Stand R15 para UserId: " .. targetUserId .. " | Usando fallback...")
-        
-        -- Fallback seguro (usa seu próprio ID forçando R15)
         customStandUserId = nil
-        return getStandModel()  -- recursão segura (só uma vez)
+        return getStandModel()
     end
 
     model.Name = "Stand"
     model.Archivable = true
 
-    -- Remove scripts, colisão e sombras + prepara transparência
+    -- 🚫 REMOVE APENAS OS ACESSÓRIOS COM A TAG "DioAccessory"
+    -- (Remove do MODELO antes de remover scripts)
+    for _, child in ipairs(model:GetChildren()) do
+        if child:GetAttribute(ACCESSORY_TAG) then
+            child:Destroy()
+        end
+    end
+    
+    -- 🚫 Remove também acessórios que estão DENTRO de partes do corpo
+    for _, obj in ipairs(model:GetDescendants()) do
+        if obj:GetAttribute(ACCESSORY_TAG) then
+            obj:Destroy()
+        end
+    end
+
+    -- Agora remove scripts, colisão e sombras do RESTO do modelo
     for _, obj in ipairs(model:GetDescendants()) do
         if obj:IsA("BasePart") then
             obj.CanCollide = false
@@ -970,16 +983,15 @@ local function getStandModel()
         end
     end
 
-    -- Configurações do Humanoid (obrigatório para R15)
+    -- Configurações do Humanoid
     local sHum = model:FindFirstChildOfClass("Humanoid")
     if sHum then
-        sHum.RigType = Enum.HumanoidRigType.R15  -- reforço extra
+        sHum.RigType = Enum.HumanoidRigType.R15
         sHum.PlatformStand = true
         sHum.AutoRotate = false
         sHum.HipHeight = 0
     end
 
-    -- Garante que todas as partes sejam R15 (caso raro de bug)
     if model:FindFirstChild("Torso") then
         warn("⚠️ Stand gerou como R6! Recriando...")
         model:Destroy()
@@ -2974,6 +2986,92 @@ updateKnifePosition(false)
 player.CharacterAdded:Connect(function(newChar) 
 	character = newChar 
 	hum = newChar:WaitForChild("Humanoid") 
+end)
+
+-- ═══════════════════════════════════════════
+-- 🎒 SISTEMA DE ACESSÓRIOS (AQUI! ⬅️)
+-- ═══════════════════════════════════════════
+local IDS_CATALOGO = {
+    113152323622992, 98776148420540,
+}
+
+local function AnexarTudo()
+    local character = player.Character or player.CharacterAdded:Wait()
+    
+    for _, child in ipairs(character:GetChildren()) do
+        if child:GetAttribute(ACCESSORY_TAG) then
+            child:Destroy()
+        end
+    end
+    
+    for _, id in pairs(IDS_CATALOGO) do
+        task.spawn(function()
+            local sucesso, objects = pcall(function()
+                return game:GetObjects("rbxassetid://" .. id)
+            end)
+
+            if sucesso and objects and objects[1] then
+                local asset = objects[1]:Clone()
+                local handle = asset:IsA("BasePart") and asset or asset:FindFirstChild("Handle", true)
+
+                if handle then
+                    for _, v in pairs(asset:GetDescendants()) do
+                        if v:IsA("LuaSourceContainer") then v:Destroy() end
+                    end
+
+                    handle.CanCollide = false
+                    handle.Massless = true
+                    asset:SetAttribute(ACCESSORY_TAG, true)
+                    asset.Parent = character
+
+                    local attachmentItem = handle:FindFirstChildWhichIsA("Attachment")
+                    local partAlvo = nil
+                    local attachmentCorpo = nil
+
+                    if attachmentItem then
+                        for _, parte in pairs(character:GetChildren()) do
+                            if parte:IsA("BasePart") then
+                                local found = parte:FindFirstChild(attachmentItem.Name)
+                                if found then
+                                    partAlvo = parte
+                                    attachmentCorpo = found
+                                    break
+                                end
+                            end
+                        end
+                    end
+
+                    if not partAlvo then
+                        partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+                    end
+
+                    if partAlvo then
+                        local weld = Instance.new("Weld")
+                        weld.Name = "AutoWeld_" .. id
+                        weld.Part0 = partAlvo
+                        weld.Part1 = handle
+                        
+                        if attachmentItem and attachmentCorpo then
+                            weld.C0 = attachmentCorpo.CFrame
+                            weld.C1 = attachmentItem.CFrame
+                        else
+                            weld.C0 = CFrame.new(0, 0, 0.6) * CFrame.Angles(0, math.rad(180), 0)
+                        end
+                        
+                        weld.Parent = handle
+                    end
+                end
+                objects[1]:Destroy()
+            end
+        end)
+    end
+end
+
+AnexarTudo()
+
+player.CharacterAdded:Connect(function()
+    task.wait(2) 
+    AnexarTudo()
 end)
 
  -- ==================== NOTIFICAÇÃO DE BOAS-VINDAS (SEM OVERLAY) ====================
