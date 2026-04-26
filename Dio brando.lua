@@ -483,6 +483,9 @@ local frozenKnives = {} -- Lista de facas congeladas
 local mudaComboCount = 0
 local comboDisplay = nil
 local comboTweens = {}
+-- ==================== SISTEMA STAND CHANGER ====================
+local customStandUserId = nil  -- ID do usuário cujo personagem será o Stand
+local standChangerGui = nil    -- Interface gráfica
 
 local COLORS = {
 	Yellow = Color3.fromRGB(255, 215, 0),
@@ -925,98 +928,328 @@ local function playAnim(target, animId, speed, looped, priority)
     return track
 end
 
+-- ==================== NOVA FUNÇÃO GET STAND MODEL (SEMPRE R15) ====================
 local function getStandModel()
-    character.Archivable = true
-    local model = character:Clone()
-    character.Archivable = false
+    local targetUserId = customStandUserId or player.UserId
+
+    local success, model = pcall(function()
+        -- 1. Pega a descrição completa do avatar (roupas, cores, escalas, etc.)
+        local description = Players:GetHumanoidDescriptionFromUserId(targetUserId)
+
+        -- 2. Cria um modelo NOVO forçando R15
+        local standModel = Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
+
+        return standModel
+    end)
+
+    if not success or not model then
+        warn("❌ Falha ao criar Stand R15 para UserId: " .. targetUserId .. " | Usando fallback...")
+        
+        -- Fallback seguro (usa seu próprio ID forçando R15)
+        customStandUserId = nil
+        return getStandModel()  -- recursão segura (só uma vez)
+    end
+
     model.Name = "Stand"
-    
-    for _, p in ipairs(model:GetDescendants()) do
-        if p:IsA("BasePart") then
-            p.CanCollide = false
-            p.Transparency = 1
-            p.CastShadow = false
-        elseif p:IsA("Decal") then
-            p.Transparency = 1
-        elseif p:IsA("LocalScript") or p:IsA("Script") then
-            p:Destroy()
+    model.Archivable = true
+
+    -- Remove scripts, colisão e sombras + prepara transparência
+    for _, obj in ipairs(model:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            obj.CanCollide = false
+            obj.CastShadow = false
+            if obj.Name ~= "HumanoidRootPart" then
+                obj.Transparency = 1
+            else
+                obj.Transparency = 1
+            end
+        elseif obj:IsA("Decal") then
+            obj.Transparency = 1
+        elseif obj:IsA("LocalScript") or obj:IsA("Script") or obj:IsA("ModuleScript") then
+            obj:Destroy()
         end
     end
-    
+
+    -- Configurações do Humanoid (obrigatório para R15)
+    local sHum = model:FindFirstChildOfClass("Humanoid")
+    if sHum then
+        sHum.RigType = Enum.HumanoidRigType.R15  -- reforço extra
+        sHum.PlatformStand = true
+        sHum.AutoRotate = false
+        sHum.HipHeight = 0
+    end
+
+    -- Garante que todas as partes sejam R15 (caso raro de bug)
+    if model:FindFirstChild("Torso") then
+        warn("⚠️ Stand gerou como R6! Recriando...")
+        model:Destroy()
+        return getStandModel()
+    end
+
     return model
+end
+
+-- ==================== INTERFACE STAND CHANGER (SEM OVERLAY) ====================
+local function createStandChangerGui()
+    if standChangerGui and standChangerGui.Parent then
+        standChangerGui:Destroy()
+        standChangerGui = nil
+        return
+    end
+    
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "StandChangerGUI"
+    gui.ResetOnSpawn = false
+    gui.Parent = player.PlayerGui
+    
+    -- Container principal (sem fundo escuro full screen)
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.fromOffset(400, 280)
+    mainFrame.Position = UDim2.fromScale(0.5, 0.45)
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = gui
+    
+    -- Borda dourada premium
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(255, 215, 0)
+    stroke.Thickness = 4
+    stroke.Parent = mainFrame
+    
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 16)
+    
+    -- Título
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 50)
+    title.BackgroundTransparency = 1
+    title.Text = "🌟 STAND CHANGER 🌟"
+    title.TextColor3 = Color3.fromRGB(255, 215, 0)
+    title.Font = Enum.Font.Bangers
+    title.TextSize = 28
+    title.TextStrokeTransparency = 0
+    title.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    title.Parent = mainFrame
+    
+    -- Caixa de ID
+    local idBox = Instance.new("TextBox")
+    idBox.Size = UDim2.new(0.85, 0, 0, 45)
+    idBox.Position = UDim2.new(0.075, 0, 0.28, 0)
+    idBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+    idBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    idBox.PlaceholderText = "Cole o User ID aqui..."
+    idBox.PlaceholderColor3 = Color3.fromRGB(140, 140, 160)
+    idBox.Text = customStandUserId and tostring(customStandUserId) or ""
+    idBox.Font = Enum.Font.SourceSans
+    idBox.TextSize = 18
+    idBox.Parent = mainFrame
+    Instance.new("UICorner", idBox).CornerRadius = UDim.new(0, 10)
+    
+    local idStroke = Instance.new("UIStroke")
+    idStroke.Color = Color3.fromRGB(255, 215, 0)
+    idStroke.Thickness = 2
+    idStroke.Parent = idBox
+    
+    -- Botão ADD
+    local addBtn = Instance.new("TextButton")
+    addBtn.Size = UDim2.new(0.4, 0, 0, 50)
+    addBtn.Position = UDim2.new(0.075, 0, 0.55, 0)
+    addBtn.BackgroundColor3 = Color3.fromRGB(255, 180, 0)
+    addBtn.Text = "ADD STAND"
+    addBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    addBtn.Font = Enum.Font.Bangers
+    addBtn.TextSize = 22
+    addBtn.Parent = mainFrame
+    Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 10)
+    
+    -- Botão RESET
+    local resetBtn = Instance.new("TextButton")
+    resetBtn.Size = UDim2.new(0.4, 0, 0, 50)
+    resetBtn.Position = UDim2.new(0.525, 0, 0.55, 0)
+    resetBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+    resetBtn.Text = "RESET"
+    resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    resetBtn.Font = Enum.Font.Bangers
+    resetBtn.TextSize = 22
+    resetBtn.Parent = mainFrame
+    Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 10)
+    
+    -- Hover effects
+    addBtn.MouseEnter:Connect(function()
+        TweenService:Create(addBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 230, 80)}):Play()
+    end)
+    addBtn.MouseLeave:Connect(function()
+        TweenService:Create(addBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 180, 0)}):Play()
+    end)
+    
+    resetBtn.MouseEnter:Connect(function()
+        TweenService:Create(resetBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 60, 60)}):Play()
+    end)
+    resetBtn.MouseLeave:Connect(function()
+        TweenService:Create(resetBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200, 40, 40)}):Play()
+    end)
+    
+    -- Botão ADD
+    addBtn.MouseButton1Click:Connect(function()
+        local input = idBox.Text:match("%d+")
+        local inputId = tonumber(input)
+        
+        if inputId and inputId > 0 then
+            customStandUserId = inputId
+            print("✅ Stand alterado para UserId: " .. inputId)
+            
+            if isStandActive then
+                toggleStand()
+                task.wait(0.25)
+                toggleStand()
+            end
+            
+            gui:Destroy()
+            standChangerGui = nil
+        else
+            idBox.Text = ""
+            idBox.PlaceholderText = "ID inválido! Use apenas números."
+        end
+    end)
+    
+    -- Botão RESET
+    resetBtn.MouseButton1Click:Connect(function()
+        customStandUserId = nil
+        print("✅ Stand resetado para o padrão!")
+        
+        if isStandActive then
+            toggleStand()
+            task.wait(0.3)
+            toggleStand()
+        end
+        
+        gui:Destroy()
+        standChangerGui = nil
+    end)
+    
+    -- Fecha ao clicar fora do painel
+    gui.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local mousePos = input.Position
+            if not mainFrame then return end
+            local framePos = mainFrame.AbsolutePosition
+            local frameSize = mainFrame.AbsoluteSize
+            
+            if not (mousePos.X >= framePos.X and mousePos.X <= framePos.X + frameSize.X and
+                    mousePos.Y >= framePos.Y and mousePos.Y <= framePos.Y + frameSize.Y) then
+                gui:Destroy()
+                standChangerGui = nil
+            end
+        end
+    end)
+    
+    standChangerGui = gui
 end
 
 local function toggleStand()
 	if isStandActive then
+		-- === DESATIVAR STAND ===
 		isStandActive = false
 		isAttacking = false
 		activateBtn.Text = "STAND"
-		if idleTrack then idleTrack:Stop() end
-		if walkTrack then walkTrack:Stop() end -- PARA ANIMAÇÃO DE CAMINHADA
+
+		if idleTrack then idleTrack:Stop(0.1) end
+		if walkTrack then walkTrack:Stop(0.1) end
+
 		if currentStand then
 			local root = currentStand:FindFirstChild("HumanoidRootPart")
 			if root then
 				root.Anchored = false
-				TweenService:Create(root, TweenInfo.new(0.5), {CFrame = character.HumanoidRootPart.CFrame}):Play()
+				TweenService:Create(root, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {CFrame = character.HumanoidRootPart.CFrame}):Play()
 			end
 			for _, p in ipairs(currentStand:GetDescendants()) do
-				if p:IsA("BasePart") then TweenService:Create(p, TweenInfo.new(0.5), {Transparency = 1}):Play() end
+				if p:IsA("BasePart") then
+					TweenService:Create(p, TweenInfo.new(0.4), {Transparency = 1}):Play()
+				end
 			end
-			Debris:AddItem(currentStand, 0.5)
+			Debris:AddItem(currentStand, 0.6)
 			currentStand = nil
 		end
-		
-		TweenService:Create(m1Btn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+
+		-- Animação do botão M1 saindo
+		TweenService:Create(m1Btn, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 			Position = ACTIVATE_POS,
 			Size = UDim2.fromOffset(0, 0)
 		}):Play()
 		task.delay(0.3, function() m1Btn.Visible = false end)
-		
+
 		updateKnifePosition(false)
 		updateIconState(standIcon, false)
+
 	else
-    isStandActive = true
-    activateBtn.Text = "OFF"
-    showSpeechBubble(81663476180868, "right", 2.5)
-    
-    local standActivateSound = Instance.new("Sound", workspace)
-    standActivateSound.SoundId = "rbxassetid://15081418558"
-    standActivateSound.Volume = 2
-    standActivateSound:Play()
-    Debris:AddItem(standActivateSound, 5)
-		
+		-- === ATIVAR STAND (otimizado) ===
+		isStandActive = true
+		activateBtn.Text = "OFF"
+
+		-- Som e speech bubble primeiro (não bloqueia nada)
+		showSpeechBubble(81663476180868, "right", 2.5)
+		local standActivateSound = Instance.new("Sound", workspace)
+		standActivateSound.SoundId = "rbxassetid://15081418558"
+		standActivateSound.Volume = 2
+		standActivateSound:Play()
+		Debris:AddItem(standActivateSound, 5)
+
+		-- Animação dos botões (M1 e Knife) em paralelo
 		m1Btn.Visible = true
-		TweenService:Create(m1Btn, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		TweenService:Create(m1Btn, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Position = M1_POS,
 			Size = UDim2.fromOffset(80, 80)
 		}):Play()
-		
-		currentStand = getStandModel()
-		currentStand.Parent = workspace
-		local sHum = currentStand:FindFirstChildOfClass("Humanoid")
-		if sHum then
-			sHum.PlatformStand = true
-			sHum.AutoRotate = false
-			sHum.HipHeight = 0
-			local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
-			if sRoot then sRoot.Anchored = true end
-			idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
-		end
-		for _, p in ipairs(currentStand:GetDescendants()) do
-    if p:IsA("BasePart") then
-        p.Color = Color3.new(1,1,1)
-        
-        if p.Name == "HumanoidRootPart" then
-            p.Transparency = 1
-            p.CastShadow = false
-        else
-            TweenService:Create(p, TweenInfo.new(0.4), {Transparency = 0}):Play()
-        end
-    end
-end
 
 		updateKnifePosition(true)
 		updateIconState(standIcon, true)
+
+		-- Cria o Stand com task.spawn para NÃO travar o clique
+		task.spawn(function()
+			currentStand = getStandModel()
+			if not currentStand then return end
+
+			currentStand.Parent = workspace
+
+			local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+			local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
+
+			if sHum then
+				sHum.PlatformStand = true
+				sHum.AutoRotate = false
+				sHum.HipHeight = 0
+			end
+			if sRoot then
+				sRoot.Anchored = true
+				sRoot.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(STAND_OFFSET)
+			end
+
+			-- === REVELA O STAND MANTENDO AS CORES ORIGINAIS ===
+			for _, p in ipairs(currentStand:GetDescendants()) do
+				if p:IsA("BasePart") then
+					-- NÃO força branco! Mantém a cor original do avatar
+					if p.Name == "HumanoidRootPart" then
+						p.Transparency = 1
+						p.CastShadow = false
+					else
+						p.Transparency = 1  -- Começa invisível
+						-- Tween suave para aparecer mantendo cor original
+						TweenService:Create(p, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							Transparency = 0
+						}):Play()
+					end
+				elseif p:IsA("Decal") then
+					p.Transparency = 1
+					TweenService:Create(p, TweenInfo.new(0.45), {Transparency = 0}):Play()
+				end
+			end
+
+			-- Idle animation
+			if sHum then
+				idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
+			end
+		end)
 	end
 end
 
@@ -2421,7 +2654,6 @@ showCooldownOnButton(m1Btn, "M1")
 end
 
 -- ==================== FUNÇÃO DE ARREMESSO DE FACA CORRIGIDA ====================
--- ==================== FUNÇÃO DE ARREMESSO DE FACA CORRIGIDA ====================
 local function performKnifeThrow()
     if not canUseStrict("Knife") then return end
     lockAbility("Knife")  -- Bloqueia imediatamente
@@ -2650,6 +2882,24 @@ activateBtn.MouseButton1Click:Connect(toggleStand)
 m1Btn.MouseButton1Click:Connect(performM1)
 knifeBtn.MouseButton1Click:Connect(performKnifeThrow)
 roadBtn.MouseButton1Click:Connect(performRoadRoller)
+
+-- ==================== COMANDOS DO CHAT ====================
+player.Chatted:Connect(function(message)
+    local msg = message:lower()
+    
+    if msg == "-changer" then
+        -- Se já estiver aberto, FECHA
+        if standChangerGui and standChangerGui.Parent then
+            standChangerGui:Destroy()
+            standChangerGui = nil
+            print("🔒 Stand Changer fechado!")
+        else
+            -- Se não estiver aberto, ABRE
+            createStandChangerGui()
+            print("🔓 Stand Changer aberto!")
+        end
+    end
+end)
 
 task.spawn(function()
 	local sequence = {COLORS.Yellow, COLORS.Black, COLORS.Green, COLORS.Black, COLORS.Purple, COLORS.Black}
