@@ -11,7 +11,7 @@ local hum = character:WaitForChild("Humanoid")
 local ACCESSORY_TAG = "DioAccessory"
 
 -- =========================================================
--- SISTEMA DE ANIMAÇÕES CUSTOMIZADAS (CORRIGIDO)
+-- SISTEMA DE ANIMAÇÕES CUSTOMIZADAS (CORRIGIDO E MELHORADO)
 -- =========================================================
 
 local CUSTOM_ANIMS = {
@@ -83,34 +83,44 @@ local function safeSetAnim(animate, path, id)
     end
 end
 
+-- ====================== SISTEMA IDLE VARIANT (TOTALMENTE CORRIGIDO) ======================
 local function resetIdleVariant_anim()
     if idleVariantTrack_anim then
-        pcall(function() if idleVariantTrack_anim.IsPlaying then idleVariantTrack_anim:Stop(0.2) end end)
+        pcall(function()
+            if idleVariantTrack_anim.IsPlaying then
+                idleVariantTrack_anim:Stop(0.2)
+            end
+        end)
         idleVariantTrack_anim = nil
     end
-    if idleTimer_anim then task.cancel(idleTimer_anim) idleTimer_anim = nil end
+    if idleTimer_anim then
+        task.cancel(idleTimer_anim)
+        idleTimer_anim = nil
+    end
 end
 
 local function playIdleVariant_anim()
     if not hum or not character or not SETTINGS.Enabled then return end
+    
     resetIdleVariant_anim()
+    
     idleVariantTrack_anim = loadCustomAnim(CUSTOM_ANIMS.IdleVariant)
     if not idleVariantTrack_anim then return end
+    
     idleVariantTrack_anim.Looped = false
     idleVariantTrack_anim.Priority = Enum.AnimationPriority.Idle
     idleVariantTrack_anim:Play(0.3)
-    
     idleVariantTrack_anim:AdjustSpeed(1.7)
     
-    -- Tocar som do DIO
+    -- Som do DIO
     local idleSound = Instance.new("Sound")
     idleSound.SoundId = IDLE_VARIANT_SFX
     idleSound.Volume = IDLE_VARIANT_SFX_VOLUME
     idleSound.Parent = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart") or workspace
     idleSound:Play()
-    Debris:AddItem(idleSound, 3)
-    
-    -- Mostrar speech bubble
+    Debris:AddItem(idleSound, 5)
+
+    -- Speech Bubble
     local head = character:FindFirstChild("Head")
     if head then
         local billboard = Instance.new("BillboardGui")
@@ -132,11 +142,10 @@ local function playIdleVariant_anim()
         imageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
         imageLabel.Parent = billboard
 
-        local tweenIn = TweenService:Create(imageLabel, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        TweenService:Create(imageLabel, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
             Size = UDim2.new(1, 0, 1, 0),
             ImageTransparency = 0
-        })
-        tweenIn:Play()
+        }):Play()
 
         task.delay(IDLE_VARIANT_SPEECH_DURATION, function()
             if billboard and billboard.Parent then
@@ -145,25 +154,25 @@ local function playIdleVariant_anim()
                     ImageTransparency = 1
                 })
                 tweenOut:Play()
-                tweenOut.Completed:Connect(function(playbackState)
-                    if playbackState == Enum.PlaybackState.Completed then
-                        if billboard and billboard.Parent then
-                            billboard:Destroy()
-                        end
-                    end
+                tweenOut.Completed:Connect(function()
+                    if billboard and billboard.Parent then billboard:Destroy() end
                 end)
             end
         end)
     end
     
+    -- Quando a animação especial acabar, reinicia o timer se ainda estiver idle
     idleVariantTrack_anim.Stopped:Once(function()
         idleVariantTrack_anim = nil
-        if isIdle_anim then startIdleTimer_anim() end
+        if isIdle_anim and SETTINGS.Enabled then
+            startIdleTimer_anim()
+        end
     end)
 end
 
 local function startIdleTimer_anim()
-    resetIdleVariant_anim()
+    resetIdleVariant_anim() -- Cancela qualquer timer anterior
+    
     idleTimer_anim = task.delay(10, function()
         idleTimer_anim = nil
         if isIdle_anim and SETTINGS.Enabled then
@@ -174,19 +183,33 @@ end
 
 local function updateIdleStatus_anim()
     if not SETTINGS.Enabled or not hum or not character then
-        if isIdle_anim then isIdle_anim = false resetIdleVariant_anim() end
+        if isIdle_anim then 
+            isIdle_anim = false 
+            resetIdleVariant_anim() 
+        end
         return
     end
+
     local root = character:FindFirstChild("HumanoidRootPart")
     if not root then return end
+
     local horizSpeed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
     local currentlyIdle = horizSpeed < 2
+
     if currentlyIdle then
-        if not isIdle_anim then isIdle_anim = true startIdleTimer_anim() end
+        if not isIdle_anim then
+            isIdle_anim = true
+            startIdleTimer_anim()  -- Inicia o contador de 10 segundos
+        end
     else
-        if isIdle_anim then isIdle_anim = false resetIdleVariant_anim() end
+        if isIdle_anim then
+            isIdle_anim = false
+            resetIdleVariant_anim()  -- Reseta tudo quando o jogador se move
+        end
     end
 end
+
+-- ====================== OUTRAS FUNÇÕES DE ANIMAÇÃO ======================
 
 local function updateNormalRunSpeed_anim()
     if not hum or not SETTINGS.Enabled then return end
@@ -201,7 +224,10 @@ end
 
 local function updateRunAnimation_anim()
     if not hum or not character or not SETTINGS.Enabled then
-        if sRunTrack_anim then pcall(function() sRunTrack_anim:Stop(0.2) end) sRunTrack_anim = nil end
+        if sRunTrack_anim then 
+            pcall(function() sRunTrack_anim:Stop(0.2) end) 
+            sRunTrack_anim = nil 
+        end
         return
     end
 
@@ -241,6 +267,7 @@ local function spawnFootprint_anim(root)
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
     if not result then return end
+
     local hitPos = result.Position
     local hitNormal = result.Normal
     local groundColor = Color3.fromRGB(80, 80, 80)
@@ -249,15 +276,19 @@ local function spawnFootprint_anim(root)
     elseif result.Instance:IsA("BasePart") then
         groundColor = result.Instance.Color
     end
+
     local darkenedColor = Color3.new(groundColor.R * 0.65, groundColor.G * 0.65, groundColor.B * 0.65)
     local footprint = Instance.new("Part")
     local footSize = Vector3.new(1.2, 0.08, 2.2)
+
     if character then
-        local footPart = alternateFoot_anim and (character:FindFirstChild("RightFoot") or character:FindFirstChild("Right Leg")) or (character:FindFirstChild("LeftFoot") or character:FindFirstChild("Left Leg"))
+        local footPart = alternateFoot_anim and (character:FindFirstChild("RightFoot") or character:FindFirstChild("Right Leg")) 
+                        or (character:FindFirstChild("LeftFoot") or character:FindFirstChild("Left Leg"))
         if footPart and footPart:IsA("BasePart") then
             footSize = Vector3.new(footPart.Size.X * 1.1, 0.08, footPart.Size.Z * 1.15)
         end
     end
+
     footprint.Size = footSize
     footprint.Color = darkenedColor
     footprint.Transparency = 0
@@ -265,9 +296,11 @@ local function spawnFootprint_anim(root)
     footprint.CanCollide = false
     footprint.Material = Enum.Material.SmoothPlastic
     footprint.Parent = workspace
+
     local rightVector = root.CFrame.RightVector
     local sideOffset = alternateFoot_anim and (rightVector * 0.65) or (-rightVector * 0.65)
     footprint.CFrame = CFrame.new(hitPos + hitNormal * 0.06 + sideOffset) * CFrame.Angles(0, root.CFrame.Rotation.Y, 0)
+
     local fadeTween = TweenService:Create(footprint, TweenInfo.new(2.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 1})
     fadeTween:Play()
     fadeTween.Completed:Connect(function() footprint:Destroy() end)
@@ -277,7 +310,10 @@ local function cleanupCustomAnims()
     resetIdleVariant_anim()
     isIdle_anim = false
 
-    if sRunTrack_anim then pcall(function() sRunTrack_anim:Stop() end) sRunTrack_anim = nil end
+    if sRunTrack_anim then 
+        pcall(function() sRunTrack_anim:Stop() end) 
+        sRunTrack_anim = nil 
+    end
     lastSRunTime_anim = 0
 
     if footprintConnection_anim then footprintConnection_anim:Disconnect() footprintConnection_anim = nil end
@@ -292,23 +328,27 @@ local function setCustomAnims()
     if not character then return end
     local animate = character:FindFirstChild("Animate")
     if not animate then return end
+
     local ids
     if not SETTINGS.Enabled then
         ids = originalIDs_anim
     else
         ids = {
-            Idle = CUSTOM_ANIMS.Idle, Idle2 = CUSTOM_ANIMS.Idle,
-            Walk = CUSTOM_ANIMS.Walk, Run = CUSTOM_ANIMS.Run,
+            Idle = CUSTOM_ANIMS.Idle, 
+            Idle2 = CUSTOM_ANIMS.Idle,
+            Walk = CUSTOM_ANIMS.Walk, 
+            Run = CUSTOM_ANIMS.Run,
             Fall = CUSTOM_ANIMS.Fall
         }
     end
+
     safeSetAnim(animate, {"idle", "Animation1"}, ids.Idle)
     safeSetAnim(animate, {"idle", "Animation2"}, ids.Idle2 or ids.Idle)
     safeSetAnim(animate, {"walk", "WalkAnim"}, ids.Walk)
     safeSetAnim(animate, {"run", "RunAnim"}, ids.Run)
     safeSetAnim(animate, {"fall", "FallAnim"}, ids.Fall)
     
-    -- Refresh
+    -- Refresh animations
     if character and hum then
         for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
             track:Stop(0)
@@ -338,10 +378,14 @@ local function onCharacterAddedCustomAnims(char)
     animate:WaitForChild("fall")
     
     local anim2Id = animate.idle.Animation1.AnimationId
-    if animate.idle:FindFirstChild("Animation2") then anim2Id = animate.idle.Animation2.AnimationId end
+    if animate.idle:FindFirstChild("Animation2") then 
+        anim2Id = animate.idle.Animation2.AnimationId 
+    end
     
     local fallId = ""
-    if animate.fall and animate.fall:FindFirstChild("FallAnim") then fallId = animate.fall.FallAnim.AnimationId end
+    if animate.fall and animate.fall:FindFirstChild("FallAnim") then 
+        fallId = animate.fall.FallAnim.AnimationId 
+    end
     
     originalIDs_anim = {
         Idle  = animate.idle.Animation1.AnimationId,
@@ -354,6 +398,7 @@ local function onCharacterAddedCustomAnims(char)
     hum.JumpPower = SETTINGS.JumpPower
     setCustomAnims()
 
+    -- Conexões de Jumping
     if jumpingConnection_anim then jumpingConnection_anim:Disconnect() end
     jumpingConnection_anim = hum.Jumping:Connect(function()
         if not SETTINGS.Enabled then return end
@@ -361,7 +406,11 @@ local function onCharacterAddedCustomAnims(char)
         if not root then return end
         local speed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
         local animId = speed >= 8 and CUSTOM_ANIMS.JumpRunning or CUSTOM_ANIMS.JumpStanding
-        if activeJumpTrack_anim and activeJumpTrack_anim.IsPlaying then activeJumpTrack_anim:Stop(0.2) end
+        
+        if activeJumpTrack_anim and activeJumpTrack_anim.IsPlaying then 
+            activeJumpTrack_anim:Stop(0.2) 
+        end
+        
         activeJumpTrack_anim = loadCustomAnim(animId)
         if not activeJumpTrack_anim then return end
         activeJumpTrack_anim.Looped = false
@@ -379,14 +428,17 @@ local function onCharacterAddedCustomAnims(char)
         end
     end)
 
+    -- Heartbeat principal
     if footprintConnection_anim then footprintConnection_anim:Disconnect() end
     footprintConnection_anim = RunService.Heartbeat:Connect(function()
         updateIdleStatus_anim()
         updateRunAnimation_anim()
         updateNormalRunSpeed_anim()
+
         if not character or not hum then return end
         local root = character:FindFirstChild("HumanoidRootPart")
         if not root then return end
+
         local horizSpeed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
         if horizSpeed >= 15 and (os.clock() - lastFootprintTime_anim >= SETTINGS.FootprintInterval) then
             spawnFootprint_anim(root)
