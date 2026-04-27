@@ -135,7 +135,7 @@ local IDLE_VARIANT_SETTINGS = {
     SpeechId = "107413276128350",                 -- Imagem do balão
     WaitTime = 10,                                 -- Segundos parado
     SoundVolume = 1.8,
-    SpeechDuration = 3.2,
+    SpeechDuration = 3,
     SpeechSide = "right"
 }
 
@@ -163,7 +163,7 @@ if idleVariant_Track then
     idleVariant_Track.Looped = false      
     idleVariant_Track.Priority = Enum.AnimationPriority.Idle
     idleVariant_Track:Play(0.3)
-    idleVariant_Track:AdjustSpeed(3)      
+    idleVariant_Track:AdjustSpeed(1.4)      
 end
     
     -- 🔊 SOM
@@ -665,14 +665,15 @@ end
 -- ============================================================
 
 local COLORS = {
-    Yellow      = Color3.fromRGB(255, 215, 0),     -- Dourado clássico DIO
-    Gold        = Color3.fromRGB(255, 235, 100),   -- Dourado mais brilhante
-    Purple      = Color3.fromRGB(170, 0, 255),     -- Roxo DIO (ZA WARUDO)
-    DeepPurple  = Color3.fromRGB(100, 0, 180),     -- Roxo mais escuro
-    Black       = Color3.fromRGB(10, 10, 15),      -- Preto quase total (mais premium)
-    DarkGray    = Color3.fromRGB(25, 25, 35),      -- Fundo escuro premium
-    BloodRed    = Color3.fromRGB(180, 0, 20),      -- Vermelho sangue (pra hits)
-    White       = Color3.fromRGB(255, 255, 255)
+    Yellow      = Color3.fromRGB(255, 215, 0),
+    Gold        = Color3.fromRGB(255, 235, 100),
+    Purple      = Color3.fromRGB(170, 0, 255),
+    DeepPurple  = Color3.fromRGB(100, 0, 180),
+    Black       = Color3.fromRGB(10, 10, 15),
+    DarkGray    = Color3.fromRGB(25, 25, 35),
+    BloodRed    = Color3.fromRGB(180, 0, 20),
+    White       = Color3.fromRGB(255, 255, 255),
+    Green       = Color3.fromRGB(0, 255, 100),  
 }
 
 local ASSETS = {
