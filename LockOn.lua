@@ -16,7 +16,7 @@ local CamSmooth     = 0.85       -- suavidade da câmera (padrão)
 local CharSmooth    = 1          -- suavidade do character (padrão)
 
 -- ====================== PREDICTION (NOVO) ======================
-local PREDICTION_STRENGTH = 0.12  -- Força da predição (0 a 1, recomendado 0.1 - 0.2)
+local PREDICTION_STRENGTH = 0.15  -- Força da predição (0 a 1, recomendado 0.1 - 0.2)
 local lastTargetPos = nil         -- Última posição conhecida do alvo
 local targetVelocity = Vector3.zero  -- Velocidade estimada do alvo
 
