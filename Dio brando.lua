@@ -10,6 +10,54 @@ local hum = character:WaitForChild("Humanoid")
 
 local ACCESSORY_TAG = "DioAccessory"
 
+local httpService = game:GetService("HttpService")
+local ARQUIVO_CONFIG = "dio_stand_config.json"
+
+-- Função para salvar o último ID usado
+local function salvarStandId(userId)
+    local config = {
+        lastUserId = userId,
+        lastUsed = os.time()
+    }
+    local sucesso, erro = pcall(function()
+        local jsonData = httpService:JSONEncode(config)
+        writefile(ARQUIVO_CONFIG, jsonData)
+    end)
+    if sucesso then
+        print("💾 ID do Stand salvo: " .. tostring(userId))
+    else
+        warn("❌ Erro ao salvar: " .. tostring(erro))
+    end
+end
+
+-- Função para carregar o último ID salvo
+local function carregarStandId()
+    if not isfile(ARQUIVO_CONFIG) then
+        print("📄 Nenhum arquivo de configuração encontrado.")
+        return nil
+    end
+    
+    local sucesso, conteudo = pcall(function()
+        return readfile(ARQUIVO_CONFIG)
+    end)
+    
+    if not sucesso or not conteudo then
+        warn("⚠️ Erro ao ler arquivo")
+        return nil
+    end
+    
+    local sucesso2, config = pcall(function()
+        return httpService:JSONDecode(conteudo)
+    end)
+    
+    if sucesso2 and config and config.lastUserId then
+        print("📂 ID do Stand carregado: " .. tostring(config.lastUserId))
+        return config.lastUserId
+    end
+    
+    return nil
+end
+
 -- =========================================================
 -- SISTEMA DE ANIMAÇÕES CUSTOMIZADAS (CORRIGIDO E MELHORADO)
 -- =========================================================
@@ -601,10 +649,20 @@ local frozenKnives = {} -- Lista de facas congeladas
 local mudaComboCount = 0
 local comboDisplay = nil
 local comboTweens = {}
-local customStandUserId = nil  
 local standChangerGui = nil    
 local lastKillConfirmTime = 0
 local KILL_CONFIRM_COOLDOWN = 1
+
+-- ============================================================
+local idSalvo = carregarStandId()
+local customStandUserId = nil
+if idSalvo and idSalvo > 0 then
+    customStandUserId = idSalvo
+    print("🎮 Stand carregado automaticamente do arquivo!")
+else
+    print("👤 Nenhum ID salvo. Usando stand padrão.")
+end
+-- ============================================================
 
 local COLORS = {
     Yellow      = Color3.fromRGB(255, 215, 0),     -- Dourado clássico DIO
@@ -1118,7 +1176,9 @@ local function getStandModel()
     return model
 end
 
--- ==================== INTERFACE STAND CHANGER (SEM OVERLAY) ====================
+-- ============================================================
+-- 🔴 SUBSTITUA TODA A FUNÇÃO createStandChangerGui POR ISSO:
+-- ============================================================
 local function createStandChangerGui()
     if standChangerGui and standChangerGui.Parent then
         standChangerGui:Destroy()
@@ -1131,17 +1191,17 @@ local function createStandChangerGui()
     gui.ResetOnSpawn = false
     gui.Parent = player.PlayerGui
     
-    -- Container principal (sem fundo escuro full screen)
+    -- Container principal
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.fromOffset(400, 280)
+    mainFrame.Size = UDim2.fromOffset(400, 320)  -- Aumentado para caber o botão SALVAR
     mainFrame.Position = UDim2.fromScale(0.5, 0.45)
     mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = gui
     
-    -- Borda dourada premium
+    -- Borda dourada
     local stroke = Instance.new("UIStroke")
     stroke.Color = Color3.fromRGB(255, 215, 0)
     stroke.Thickness = 4
@@ -1161,10 +1221,21 @@ local function createStandChangerGui()
     title.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
     title.Parent = mainFrame
     
+    -- 🔴 NOVO: Status do ID salvo
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(0.85, 0, 0, 25)
+    statusLabel.Position = UDim2.new(0.075, 0, 0.2, 0)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = customStandUserId and "⚡ Stand Customizado Ativo" or "👤 Stand Padrão"
+    statusLabel.TextColor3 = customStandUserId and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(150, 150, 150)
+    statusLabel.Font = Enum.Font.SourceSansBold
+    statusLabel.TextSize = 16
+    statusLabel.Parent = mainFrame
+    
     -- Caixa de ID
     local idBox = Instance.new("TextBox")
     idBox.Size = UDim2.new(0.85, 0, 0, 45)
-    idBox.Position = UDim2.new(0.075, 0, 0.28, 0)
+    idBox.Position = UDim2.new(0.075, 0, 0.33, 0)
     idBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
     idBox.TextColor3 = Color3.fromRGB(255, 255, 255)
     idBox.PlaceholderText = "Cole o User ID aqui..."
@@ -1183,7 +1254,7 @@ local function createStandChangerGui()
     -- Botão ADD
     local addBtn = Instance.new("TextButton")
     addBtn.Size = UDim2.new(0.4, 0, 0, 50)
-    addBtn.Position = UDim2.new(0.075, 0, 0.55, 0)
+    addBtn.Position = UDim2.new(0.075, 0, 0.6, 0)
     addBtn.BackgroundColor3 = Color3.fromRGB(255, 180, 0)
     addBtn.Text = "ADD STAND"
     addBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
@@ -1195,7 +1266,7 @@ local function createStandChangerGui()
     -- Botão RESET
     local resetBtn = Instance.new("TextButton")
     resetBtn.Size = UDim2.new(0.4, 0, 0, 50)
-    resetBtn.Position = UDim2.new(0.525, 0, 0.55, 0)
+    resetBtn.Position = UDim2.new(0.525, 0, 0.6, 0)
     resetBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
     resetBtn.Text = "RESET"
     resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1203,6 +1274,18 @@ local function createStandChangerGui()
     resetBtn.TextSize = 22
     resetBtn.Parent = mainFrame
     Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 10)
+    
+    -- 🔴 NOVO: Botão SALVAR
+    local saveBtn = Instance.new("TextButton")
+    saveBtn.Size = UDim2.new(0.85, 0, 0, 35)
+    saveBtn.Position = UDim2.new(0.075, 0, 0.78, 0)
+    saveBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 80)
+    saveBtn.Text = "💾 SALVAR ID ATUAL"
+    saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    saveBtn.Font = Enum.Font.Bangers
+    saveBtn.TextSize = 18
+    saveBtn.Parent = mainFrame
+    Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0, 10)
     
     -- Hover effects
     addBtn.MouseEnter:Connect(function()
@@ -1219,7 +1302,14 @@ local function createStandChangerGui()
         TweenService:Create(resetBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200, 40, 40)}):Play()
     end)
     
-    -- Botão ADD
+    saveBtn.MouseEnter:Connect(function()
+        TweenService:Create(saveBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70, 220, 110)}):Play()
+    end)
+    saveBtn.MouseLeave:Connect(function()
+        TweenService:Create(saveBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 180, 80)}):Play()
+    end)
+    
+    -- 🔴 MODIFICADO: Botão ADD agora SALVA automaticamente
     addBtn.MouseButton1Click:Connect(function()
         local input = idBox.Text:match("%d+")
         local inputId = tonumber(input)
@@ -1227,6 +1317,13 @@ local function createStandChangerGui()
         if inputId and inputId > 0 then
             customStandUserId = inputId
             print("✅ Stand alterado para UserId: " .. inputId)
+            
+            -- Atualiza status na GUI
+            statusLabel.Text = "⚡ Stand Customizado Ativo"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+            
+            -- 🔴 SALVA AUTOMATICAMENTE NO ARQUIVO
+            salvarStandId(inputId)
             
             if isStandActive then
                 toggleStand()
@@ -1242,10 +1339,16 @@ local function createStandChangerGui()
         end
     end)
     
-    -- Botão RESET
+    -- 🔴 MODIFICADO: Botão RESET agora salva padrão
     resetBtn.MouseButton1Click:Connect(function()
         customStandUserId = nil
         print("✅ Stand resetado para o padrão!")
+        
+        statusLabel.Text = "👤 Stand Padrão"
+        statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        
+        -- 🔴 SALVA NO ARQUIVO
+        salvarStandId(0)
         
         if isStandActive then
             toggleStand()
@@ -1257,21 +1360,65 @@ local function createStandChangerGui()
         standChangerGui = nil
     end)
     
-    -- Fecha ao clicar fora do painel
-    gui.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            local mousePos = input.Position
-            if not mainFrame then return end
-            local framePos = mainFrame.AbsolutePosition
-            local frameSize = mainFrame.AbsoluteSize
-            
-            if not (mousePos.X >= framePos.X and mousePos.X <= framePos.X + frameSize.X and
-                    mousePos.Y >= framePos.Y and mousePos.Y <= framePos.Y + frameSize.Y) then
-                gui:Destroy()
-                standChangerGui = nil
-            end
+    -- 🔴 NOVO: Função do botão SALVAR
+    saveBtn.MouseButton1Click:Connect(function()
+        if customStandUserId then
+            salvarStandId(customStandUserId)
+            saveBtn.Text = "✅ SALVO!"
+            saveBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+            task.delay(1.5, function()
+                if saveBtn and saveBtn.Parent then
+                    saveBtn.Text = "💾 SALVAR ID ATUAL"
+                    saveBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 80)
+                end
+            end)
+        else
+            salvarStandId(player.UserId)
+            saveBtn.Text = "✅ PADRÃO SALVO!"
+            saveBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+            task.delay(1.5, function()
+                if saveBtn and saveBtn.Parent then
+                    saveBtn.Text = "💾 SALVAR ID ATUAL"
+                    saveBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 80)
+                end
+            end)
         end
     end)
+    
+    -- ==================== FECHAR AO CLICAR FORA (CORRIGIDO) ====================
+local userInputService = game:GetService("UserInputService")
+
+local function onInputBegan(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+    
+    if not gui or not gui.Parent then
+        userInputService.InputBegan:Disconnect(onInputBegan)
+        return
+    end
+    
+    if not mainFrame or not mainFrame.Parent then return end
+    
+    local mousePos = userInputService:GetMouseLocation()
+    local framePos = mainFrame.AbsolutePosition
+    local frameSize = mainFrame.AbsoluteSize
+    
+    local isInsideX = mousePos.X >= framePos.X and mousePos.X <= framePos.X + frameSize.X
+    local isInsideY = mousePos.Y >= framePos.Y and mousePos.Y <= framePos.Y + frameSize.Y
+    
+    if not (isInsideX and isInsideY) then
+        userInputService.InputBegan:Disconnect(onInputBegan)
+        gui:Destroy()
+        standChangerGui = nil
+    end
+end
+
+-- Aguarda um frame para não detectar o clique que abriu a GUI
+task.delay(0.2, function()
+    if gui and gui.Parent then
+        userInputService.InputBegan:Connect(onInputBegan)
+    end
+end)
     
     standChangerGui = gui
 end
@@ -3440,3 +3587,12 @@ if not hasShownNotification then
         end)
     end)
 end
+
+-- ============================================================
+game:BindToClose(function()
+    if customStandUserId then
+        salvarStandId(customStandUserId)
+        print("💾 Backup: ID do Stand salvo ao fechar o jogo!")
+    end
+end)
+-- ============================================================
