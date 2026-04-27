@@ -15,6 +15,11 @@ local lockMode      = 0          -- 1 = Camera | 2 = Camera+Character | 3 = Char
 local CamSmooth     = 0.85       -- suavidade da câmera (padrão)
 local CharSmooth    = 1          -- suavidade do character (padrão)
 
+-- ====================== PREDICTION (NOVO) ======================
+local PREDICTION_STRENGTH = 0.12  -- Força da predição (0 a 1, recomendado 0.1 - 0.2)
+local lastTargetPos = nil         -- Última posição conhecida do alvo
+local targetVelocity = Vector3.zero  -- Velocidade estimada do alvo
+
 local MAX_DISTANCE  = 1000
 local SEARCH_DISTANCE = 55
 local CAMERA_LEFT_OFFSET = -1.27
@@ -128,6 +133,8 @@ local function setupDeathHandler(character)
         humanoid.Died:Connect(function()
             Enabled = false
             LockedTarget = nil
+            lastTargetPos = nil        -- Reset prediction
+            targetVelocity = Vector3.zero
             if isCameraMode then
                 forceInstantReset()
             end
@@ -203,6 +210,44 @@ local function forceInstantReset()
         Camera.CameraSubject = char.Humanoid
         Camera.CameraType = Enum.CameraType.Custom
     end
+end
+
+-- ====================== FUNÇÃO DE PREDICTION (NOVO) ======================
+local function updateTargetPrediction(targetPart)
+    if not targetPart then
+        lastTargetPos = nil
+        targetVelocity = Vector3.zero
+        return
+    end
+    
+    local currentPos = getNeckPosition(targetPart)
+    if not currentPos then
+        lastTargetPos = nil
+        targetVelocity = Vector3.zero
+        return
+    end
+    
+    if lastTargetPos then
+        -- Calcula a velocidade baseado na diferença de posição
+        local delta = currentPos - lastTargetPos
+        
+        -- Suaviza a velocidade para evitar tremores
+        -- Ajuste: 0.3 = mais suave, 0.7 = mais responsivo
+        targetVelocity = targetVelocity:Lerp(delta, 0.4)
+    end
+    
+    lastTargetPos = currentPos
+end
+
+local function getPredictedPosition(targetPart)
+    if not targetPart then return nil end
+    
+    local currentPos = getNeckPosition(targetPart)
+    if not currentPos then return nil end
+    
+    -- Retorna posição atual + (velocidade * força de predição)
+    -- Quanto maior PREDICTION_STRENGTH, mais à frente do alvo vai mirar
+    return currentPos + (targetVelocity * PREDICTION_STRENGTH)
 end
 
 local toggleBtn
@@ -398,6 +443,8 @@ local function createToggleAndUI()
             LockedTarget = findClosestTarget()
         else
             LockedTarget = nil
+            lastTargetPos = nil
+            targetVelocity = Vector3.zero
             if isCameraMode then
                 forceInstantReset()
             end
@@ -634,7 +681,8 @@ RunService.RenderStepped:Connect(function()
                     humanoid.AutoRotate = false
                     local rootPart = character:FindFirstChild("HumanoidRootPart")
                     if rootPart then
-                        local neckPos = getNeckPosition(LockedTarget)
+                        -- ===== USA PREDICTION NO CHARACTER =====
+                        local neckPos = getPredictedPosition(LockedTarget)
                         if neckPos then
                             local direction = neckPos - rootPart.Position
                             local horizontalDir = Vector3.new(direction.X, 0, direction.Z)
@@ -667,15 +715,23 @@ RunService.RenderStepped:Connect(function()
     if now - lastSearchTime > SEARCH_RATE then
         if not isValidTarget(LockedTarget) then
             LockedTarget = findClosestTarget()
+            lastTargetPos = nil
+            targetVelocity = Vector3.zero
         end
         lastSearchTime = now
     end
 
-    -- ====================== CÂMERA (Modos 1 e 2) ======================
+    -- ====================== ATUALIZA PREDICTION ======================
+    if LockedTarget and LockedTarget.Parent then
+        updateTargetPrediction(LockedTarget)
+    end
+
+    -- ====================== CÂMERA (Modos 1 e 2) COM PREDICTION ======================
     if LockedTarget and LockedTarget.Parent and isCameraMode then
         forceInstantReset()
 
-        local lockPos = getCameraLockPosition(LockedTarget)
+        -- ===== USA PREDICTION NA CÂMERA =====
+        local lockPos = getPredictedPosition(LockedTarget)
         if lockPos then
             local rightVec = Camera.CFrame.RightVector
             local targetPos = lockPos - (rightVec * CAMERA_LEFT_OFFSET)
