@@ -107,14 +107,16 @@ local function playIdleVariant()
     end
     
     -- Toca a animação
-    local anim = Instance.new("Animation")
-    anim.AnimationId = IDLE_VARIANT_SETTINGS.AnimId
-    idleVariant_Track = hum:LoadAnimation(anim)
-    
-    if idleVariant_Track then
-        idleVariant_Track.Priority = Enum.AnimationPriority.Idle
-        idleVariant_Track:Play(0.3)
-    end
+local anim = Instance.new("Animation")
+anim.AnimationId = IDLE_VARIANT_SETTINGS.AnimId
+idleVariant_Track = hum:LoadAnimation(anim)
+
+if idleVariant_Track then
+    idleVariant_Track.Looped = false      
+    idleVariant_Track.Priority = Enum.AnimationPriority.Idle
+    idleVariant_Track:Play(0.3)
+    idleVariant_Track:AdjustSpeed(1.5)      
+end
     
     -- 🔊 SOM
     local head = character:FindFirstChild("Head")
@@ -393,7 +395,6 @@ local function onCharacterAddedCustomAnims(char)
     character = char
     hum = char:WaitForChild("Humanoid")
     
-    
     originalWalkSpeed_anim = hum.WalkSpeed
 
     local animate = char:WaitForChild("Animate")
@@ -453,26 +454,23 @@ local function onCharacterAddedCustomAnims(char)
         end
     end)
 
+    -- Heartbeat para pegadas e animações
+    if footprintConnection_anim then footprintConnection_anim:Disconnect() end
     footprintConnection_anim = RunService.Heartbeat:Connect(function()
         updateRunAnimation_anim()
         updateNormalRunSpeed_anim()
-    end)
-    
-    if not character or not hum then return end
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+        
+        if not character or not hum then return end
+        local root = character:FindFirstChild("HumanoidRootPart")
+        if not root then return end
 
-    local horizSpeed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
-    if horizSpeed >= 15 and (os.clock() - lastFootprintTime_anim >= SETTINGS.FootprintInterval) then
-        spawnFootprint_anim(root)
-        lastFootprintTime_anim = os.clock()
-        alternateFoot_anim = not alternateFoot_anim
-    end
-end)
-    
-    -- Limpeza extra do Idle Variant ao recriar personagem
-    resetIdleVariant()
-    isIdle = false
+        local horizSpeed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
+        if horizSpeed >= 15 and (os.clock() - lastFootprintTime_anim >= SETTINGS.FootprintInterval) then
+            spawnFootprint_anim(root)
+            lastFootprintTime_anim = os.clock()
+            alternateFoot_anim = not alternateFoot_anim
+        end
+    end)
 end
 
 player.CharacterRemoving:Connect(cleanupCustomAnims)
