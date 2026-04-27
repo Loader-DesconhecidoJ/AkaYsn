@@ -226,17 +226,20 @@ end
 
 local function updateMovementStats()
     if not Humanoid then return end
-    if isDrinking or isMusicOpen then
-        Humanoid.WalkSpeed = 0
-        return
-    end
-
+    
     local baseSpeed = originalWalkSpeed
-    if os.clock() < drinkBoostEndTime then baseSpeed = SETTINGS.BoostSpeed end
-    Humanoid.WalkSpeed = baseSpeed
+    if isDrinking then
+        baseSpeed = originalWalkSpeed * 16
+    elseif os.clock() < drinkBoostEndTime then 
+        baseSpeed = SETTINGS.BoostSpeed 
+    end
+    
+    Humanoid.WalkSpeed = baseSpeed  -- ← LINHA CRÍTICA
     
     local baseJump = SETTINGS.JumpPower
-    if os.clock() < drinkBoostEndTime then baseJump = SETTINGS.JumpPower + SETTINGS.BoostJump end
+    if os.clock() < drinkBoostEndTime then 
+        baseJump = SETTINGS.JumpPower + SETTINGS.BoostJump 
+    end
     Humanoid.JumpPower = baseJump
 end
 
