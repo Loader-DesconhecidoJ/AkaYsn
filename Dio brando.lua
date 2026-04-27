@@ -11,29 +11,43 @@ local hum = character:WaitForChild("Humanoid")
 local ACCESSORY_TAG = "DioAccessory"
 
 local httpService = game:GetService("HttpService")
+
+-- ============================================================
+-- SISTEMA DE SALVAMENTO JSON MELHORADO (Corrigido)
+-- ============================================================
+
 local ARQUIVO_CONFIG = "dio_stand_config.json"
 
--- Função para salvar o último ID usado
+-- Função para salvar o ID (versão mais confiável)
 local function salvarStandId(userId)
+    userId = tonumber(userId) or 0
+    
     local config = {
         lastUserId = userId,
         lastUsed = os.time()
     }
+    
     local sucesso, erro = pcall(function()
         local jsonData = httpService:JSONEncode(config)
         writefile(ARQUIVO_CONFIG, jsonData)
     end)
+    
     if sucesso then
-        print("💾 ID do Stand salvo: " .. tostring(userId))
+        print("💾 ID do Stand salvo com sucesso: " .. tostring(userId))
+        customStandUserId = userId > 0 and userId or nil
     else
-        warn("❌ Erro ao salvar: " .. tostring(erro))
+        warn("❌ Erro ao salvar JSON: " .. tostring(erro))
+        -- Tentativa de fallback
+        pcall(function()
+            writefile(ARQUIVO_CONFIG, '{"lastUserId":' .. userId .. ',"lastUsed":' .. os.time() .. '}')
+        end)
     end
 end
 
--- Função para carregar o último ID salvo
+-- Função para carregar o ID
 local function carregarStandId()
     if not isfile(ARQUIVO_CONFIG) then
-        print("📄 Nenhum arquivo de configuração encontrado.")
+        print("📄 Nenhum arquivo de configuração encontrado. Usando padrão.")
         return nil
     end
     
@@ -42,7 +56,7 @@ local function carregarStandId()
     end)
     
     if not sucesso or not conteudo then
-        warn("⚠️ Erro ao ler arquivo")
+        warn("⚠️ Erro ao ler o arquivo JSON")
         return nil
     end
     
@@ -50,12 +64,27 @@ local function carregarStandId()
         return httpService:JSONDecode(conteudo)
     end)
     
-    if sucesso2 and config and config.lastUserId then
+    if sucesso2 and config and config.lastUserId ~= nil then
         print("📂 ID do Stand carregado: " .. tostring(config.lastUserId))
-        return config.lastUserId
+        return tonumber(config.lastUserId)
+    else
+        warn("⚠️ JSON inválido ou corrompido. Usando padrão.")
+        return nil
     end
-    
-    return nil
+end
+
+-- Função para deletar o arquivo (usada no RESET)
+local function deletarArquivoConfig()
+    if isfile(ARQUIVO_CONFIG) then
+        local sucesso = pcall(function()
+            delfile(ARQUIVO_CONFIG)
+        end)
+        if sucesso then
+            print("🗑️ Arquivo de configuração deletado com sucesso!")
+        else
+            warn("⚠️ Não foi possível deletar o arquivo JSON")
+        end
+    end
 end
 
 -- =========================================================
@@ -484,11 +513,16 @@ local function onCharacterAddedCustomAnims(char)
     
     originalWalkSpeed_anim = hum.WalkSpeed
 
-    local animate = char:WaitForChild("Animate")
-    animate:WaitForChild("idle")
-    animate:WaitForChild("walk")
-    animate:WaitForChild("run")
-    animate:WaitForChild("fall")
+    local animate = char:WaitForChild("Animate", 5)  -- espera no máximo 5 segundos
+
+if animate then
+    animate:WaitForChild("idle", 3)
+    animate:WaitForChild("walk", 3)
+    animate:WaitForChild("run", 3)
+    animate:WaitForChild("fall", 3)
+else
+    warn("[DioStand] Animate não encontrado no personagem!")
+end
     
     local anim2Id = animate.idle.Animation1.AnimationId
     if animate.idle:FindFirstChild("Animation2") then 
@@ -1310,56 +1344,54 @@ local function createStandChangerGui()
         TweenService:Create(saveBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 180, 80)}):Play()
     end)
     
-    -- 🔴 MODIFICADO: Botão ADD agora SALVA automaticamente
     addBtn.MouseButton1Click:Connect(function()
-        local input = idBox.Text:match("%d+")
-        local inputId = tonumber(input)
-        
-        if inputId and inputId > 0 then
-            customStandUserId = inputId
-            print("✅ Stand alterado para UserId: " .. inputId)
-            
-            -- Atualiza status na GUI
-            statusLabel.Text = "⚡ Stand Customizado Ativo"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-            
-            -- 🔴 SALVA AUTOMATICAMENTE NO ARQUIVO
-            salvarStandId(inputId)
-            
-            if isStandActive then
-                toggleStand()
-                task.wait(0.25)
-                toggleStand()
-            end
-            
-            gui:Destroy()
-            standChangerGui = nil
-        else
-            idBox.Text = ""
-            idBox.PlaceholderText = "ID inválido! Use apenas números."
-        end
-    end)
+    local input = idBox.Text:match("%d+")
+    local inputId = tonumber(input)
     
-    -- 🔴 MODIFICADO: Botão RESET agora salva padrão
-    resetBtn.MouseButton1Click:Connect(function()
-        customStandUserId = nil
-        print("✅ Stand resetado para o padrão!")
+    if inputId and inputId > 0 then
+        customStandUserId = inputId
+        print("✅ Stand alterado para UserId: " .. inputId)
         
-        statusLabel.Text = "👤 Stand Padrão"
-        statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        statusLabel.Text = "⚡ Stand Customizado Ativo"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
         
-        -- 🔴 SALVA NO ARQUIVO
-        salvarStandId(0)
+        -- Salva o ID
+        salvarStandId(inputId)
         
         if isStandActive then
             toggleStand()
-            task.wait(0.3)
+            task.wait(0.25)
             toggleStand()
         end
         
         gui:Destroy()
         standChangerGui = nil
-    end)
+    else
+        idBox.Text = ""
+        idBox.PlaceholderText = "ID inválido! Use apenas números."
+    end
+end)
+    
+    -- Dentro da função createStandChangerGui(), substitua o botão RESET por isso:
+resetBtn.MouseButton1Click:Connect(function()
+    customStandUserId = nil
+    print("✅ Stand resetado para o padrão!")
+    
+    statusLabel.Text = "👤 Stand Padrão"
+    statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    
+    -- Deleta o arquivo físico
+    deletarArquivoConfig()
+    
+    if isStandActive then
+        toggleStand()
+        task.wait(0.3)
+        toggleStand()
+    end
+    
+    gui:Destroy()
+    standChangerGui = nil
+end)
     
     -- 🔴 NOVO: Função do botão SALVAR
     saveBtn.MouseButton1Click:Connect(function()
@@ -3590,10 +3622,139 @@ if not hasShownNotification then
 end
 
 -- ============================================================
-game:BindToClose(function()
+
+player.CharacterRemoving:Connect(function()
     if customStandUserId then
         salvarStandId(customStandUserId)
-        print("💾 Backup: ID do Stand salvo ao fechar o jogo!")
+        print("💾 ID do Stand salvo ao remover personagem!")
     end
 end)
--- ============================================================
+
+-- Salvamento extra quando o script é destruído
+script.AncestryChanged:Connect(function()
+    if not script.Parent then
+        if customStandUserId then
+            salvarStandId(customStandUserId)
+            print("💾 Backup de emergência: ID salvo!")
+        end
+    end
+end)
+
+-- =============================================
+
+local UI_NAME = "DioStandUniversal"
+
+local function recreateUI()
+    if screenGui and screenGui.Parent then return end
+
+    print("🔄 [DioStand NUCLEAR] UI deletada! Recriando AGORA...")
+
+    -- Prioridade máxima de parent: gethui() > CoreGui > PlayerGui
+    local success, hui = pcall(function() return gethui() end)
+    local parent = (success and hui) or 
+                   (pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui")) or 
+                   player:WaitForChild("PlayerGui")
+
+    screenGui = Instance.new("ScreenGui")
+    screenGui.Name = UI_NAME
+    screenGui.ResetOnSpawn = false
+    screenGui.DisplayOrder = 9999  -- Fica por cima de quase tudo
+    screenGui.Parent = parent
+
+    -- ===================== RECRIAÇÃO COMPLETA =====================
+    tsBtn, tsStroke, tsIcon = createCircularButton("TimeStopBtn", TS_POS, "STOP", nil, ASSETS.TS_IMAGE, 80)
+    roadBtn, roadStroke = createCircularButton("RoadRollerBtn", ROAD_POS, "ROAD", Color3.fromRGB(170, 0, 255), nil, 70)
+    activateBtn, actStroke, standIcon = createCircularButton("ActivateBtn", ACTIVATE_POS, "STAND", nil, ASSETS.STAND_IMAGE, 95)
+    m1Btn, m1Stroke = createCircularButton("M1Btn", M1_POS, "M1", nil, nil, 80)
+    knifeBtn, knifeStroke, knifeIcon = createCircularButton("KnifeBtn", KNIFE_POS_OFF, "KNIFE", nil, ASSETS.KNIFE_IMAGE, 80)
+
+    resumeImage = Instance.new("ImageLabel", screenGui)
+    resumeImage.Name = "TSResumeImage"
+    resumeImage.Size = UDim2.fromScale(0.85, 0.85)
+    resumeImage.Position = UDim2.fromScale(0.5, 0.5)
+    resumeImage.AnchorPoint = Vector2.new(0.5, 0.5)
+    resumeImage.BackgroundTransparency = 1
+    resumeImage.Image = ASSETS.TS_RESUME_IMAGE
+    resumeImage.ImageTransparency = 1
+    resumeImage.Visible = false
+    resumeImage.ZIndex = 100
+    resumeImage.ScaleType = Enum.ScaleType.Fit
+
+    -- Reaplica estados
+    updateIconState(tsIcon, isTimeStopped)
+    updateIconState(standIcon, isStandActive)
+    updateIconState(knifeIcon, isStandActive)
+
+    m1Btn.Visible = isStandActive
+    roadBtn.Visible = isTimeStopped
+
+    if isStandActive then
+        updateKnifePosition(true)
+        m1Btn.Position = M1_POS
+        m1Btn.Size = UDim2.fromOffset(80, 80)
+    else
+        updateKnifePosition(false)
+    end
+
+    -- Reconecta cliques
+    tsBtn.MouseButton1Click:Connect(toggleTime)
+    activateBtn.MouseButton1Click:Connect(toggleStand)
+    m1Btn.MouseButton1Click:Connect(performM1)
+    knifeBtn.MouseButton1Click:Connect(performKnifeThrow)
+    roadBtn.MouseButton1Click:Connect(performRoadRoller)
+
+    -- Reaplica efeitos
+    applyClickEffect(tsBtn, 80, "TimeStop")
+    applyClickEffect(roadBtn, 70, "RoadRoller")
+    applyClickEffect(activateBtn, 95, nil)
+    applyClickEffect(m1Btn, 80, "M1")
+
+    print("✅ [DioStand NUCLEAR] UI recriada com sucesso!")
+end
+
+-- ==================== PROTEÇÃO NUCLEAR ====================
+
+local function startUIProtector()
+    -- Verificação em TODOS os frames possíveis
+    RunService.RenderStepped:Connect(function()
+        if not screenGui or not screenGui.Parent then
+            recreateUI()
+        end
+    end)
+
+    RunService.Heartbeat:Connect(function()
+        if not screenGui or not screenGui.Parent then
+            recreateUI()
+        end
+    end)
+
+    -- Detecção de destruição imediata
+    local function onDescendantRemoving(desc)
+        if desc.Name == UI_NAME or desc == screenGui then
+            task.delay(0.01, recreateUI)  -- Quase instantâneo
+        end
+    end
+
+    player.PlayerGui.DescendantRemoving:Connect(onDescendantRemoving)
+
+    pcall(function()
+        game:GetService("CoreGui").DescendantRemoving:Connect(onDescendantRemoving)
+    end)
+
+    -- Loop super agressivo (0.15s)
+    task.spawn(function()
+        while true do
+            task.wait(0.15)
+            if not screenGui or not screenGui.Parent then
+                recreateUI()
+            end
+        end
+    end)
+end
+
+-- Inicialização
+task.spawn(function()
+    task.wait(0.5)
+    recreateUI()
+    startUIProtector()
+end)
