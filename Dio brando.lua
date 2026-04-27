@@ -34,13 +34,6 @@ local SETTINGS = {
     SRunRestartInterval = 1.3
 }
 
--- Configurações do Idle Variant
-local IDLE_VARIANT_SFX = "rbxassetid://119056579190272"
-local IDLE_VARIANT_SPEECH = "107413276128350"
-local IDLE_VARIANT_SFX_VOLUME = 1.5
-local IDLE_VARIANT_SPEECH_DURATION = 3
-local IDLE_VARIANT_SPEECH_SIDE = "right"
-
 local originalIDs_anim = {}
 local originalWalkSpeed_anim = 16
 local jumpingConnection_anim = nil
@@ -83,51 +76,65 @@ local function safeSetAnim(animate, path, id)
     end
 end
 
--- ====================== SISTEMA IDLE VARIANT (TOTALMENTE CORRIGIDO) ======================
-local function resetIdleVariant_anim()
-    if idleVariantTrack_anim then
-        pcall(function()
-            if idleVariantTrack_anim.IsPlaying then
-                idleVariantTrack_anim:Stop(0.2)
-            end
-        end)
-        idleVariantTrack_anim = nil
-    end
-    if idleTimer_anim then
-        task.cancel(idleTimer_anim)
-        idleTimer_anim = nil
-    end
-end
+-- =========================================================
+-- SISTEMA IDLE VARIANT - VERSÃO LIMPA E CORRIGIDA
+-- =========================================================
 
-local function playIdleVariant_anim()
-    if not hum or not character or not SETTINGS.Enabled then return end
-    
-    resetIdleVariant_anim()
-    
-    idleVariantTrack_anim = loadCustomAnim(CUSTOM_ANIMS.IdleVariant)
-    if not idleVariantTrack_anim then return end
-    
-    idleVariantTrack_anim.Looped = false
-    idleVariantTrack_anim.Priority = Enum.AnimationPriority.Idle
-    idleVariantTrack_anim:Play(0.3)
-    idleVariantTrack_anim:AdjustSpeed(1.7)
-    
-    -- Som do DIO
-    local idleSound = Instance.new("Sound")
-    idleSound.SoundId = IDLE_VARIANT_SFX
-    idleSound.Volume = IDLE_VARIANT_SFX_VOLUME
-    idleSound.Parent = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart") or workspace
-    idleSound:Play()
-    Debris:AddItem(idleSound, 5)
+-- CONFIGURAÇÕES (troque os IDs pelos seus)
+local IDLE_VARIANT_SETTINGS = {
+    AnimId = "rbxassetid://133201196209194",      -- Animação
+    SoundId = "rbxassetid://119056579190272",     -- Som
+    SpeechId = "107413276128350",                 -- Imagem do balão
+    WaitTime = 10,                                 -- Segundos parado
+    SoundVolume = 1.8,
+    SpeechDuration = 3.2,
+    SpeechSide = "right"
+}
 
-    -- Speech Bubble
+-- VARIÁVEIS INTERNAS
+local idleVariant_Track = nil
+local idleVariant_Timer = 0
+local idleVariant_Active = false
+
+-- ==================== FUNÇÃO PRINCIPAL ====================
+local function playIdleVariant()
+    if not hum or not character then return end
+    
+    -- Para animação anterior se existir
+    if idleVariant_Track then
+        pcall(function() idleVariant_Track:Stop() end)
+        idleVariant_Track = nil
+    end
+    
+    -- Toca a animação
+    local anim = Instance.new("Animation")
+    anim.AnimationId = IDLE_VARIANT_SETTINGS.AnimId
+    idleVariant_Track = hum:LoadAnimation(anim)
+    
+    if idleVariant_Track then
+        idleVariant_Track.Priority = Enum.AnimationPriority.Idle
+        idleVariant_Track:Play(0.3)
+    end
+    
+    -- 🔊 SOM
     local head = character:FindFirstChild("Head")
+    local sound = Instance.new("Sound")
+    sound.SoundId = IDLE_VARIANT_SETTINGS.SoundId
+    sound.Volume = IDLE_VARIANT_SETTINGS.SoundVolume
+    sound.Parent = head or character:FindFirstChild("HumanoidRootPart") or workspace
+    sound:Play()
+    game.Debris:AddItem(sound, 6)
+    
+    -- 💬 BALÃO DE FALA
     if head then
         local billboard = Instance.new("BillboardGui")
-        billboard.Name = "IdleVariantSpeech"
         billboard.Adornee = head
         billboard.Size = UDim2.new(3.5, 0, 3.5, 0)
-        billboard.StudsOffset = Vector3.new(IDLE_VARIANT_SPEECH_SIDE == "right" and 1.8 or -1.8, 1.5, 0)
+        billboard.StudsOffset = Vector3.new(
+            IDLE_VARIANT_SETTINGS.SpeechSide == "right" and 1.8 or -1.8,
+            1.5,
+            0
+        )
         billboard.AlwaysOnTop = true
         billboard.LightInfluence = 0
         billboard.MaxDistance = 100
@@ -135,79 +142,91 @@ local function playIdleVariant_anim()
 
         local imageLabel = Instance.new("ImageLabel")
         imageLabel.BackgroundTransparency = 1
-        imageLabel.Image = "rbxassetid://" .. IDLE_VARIANT_SPEECH
-        imageLabel.ImageTransparency = 1
-        imageLabel.Size = UDim2.new(0.2, 0, 0.2, 0)
+        imageLabel.Image = "rbxassetid://" .. IDLE_VARIANT_SETTINGS.SpeechId
+        imageLabel.Size = UDim2.new(1, 0, 1, 0)
         imageLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
         imageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
         imageLabel.Parent = billboard
-
+        
+        -- Animação de entrada do balão
+        imageLabel.ImageTransparency = 1
         TweenService:Create(imageLabel, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(1, 0, 1, 0),
             ImageTransparency = 0
         }):Play()
 
-        task.delay(IDLE_VARIANT_SPEECH_DURATION, function()
+        -- Remove o balão depois do tempo
+        task.delay(IDLE_VARIANT_SETTINGS.SpeechDuration, function()
             if billboard and billboard.Parent then
-                local tweenOut = TweenService:Create(imageLabel, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                    Size = UDim2.new(0.2, 0, 0.2, 0),
-                    ImageTransparency = 1
-                })
-                tweenOut:Play()
-                tweenOut.Completed:Connect(function()
-                    if billboard and billboard.Parent then billboard:Destroy() end
-                end)
+                billboard:Destroy()
             end
         end)
     end
     
-    -- Quando a animação especial acabar, reinicia o timer se ainda estiver idle
-    idleVariantTrack_anim.Stopped:Once(function()
-        idleVariantTrack_anim = nil
-        if isIdle_anim and SETTINGS.Enabled then
-            startIdleTimer_anim()
-        end
-    end)
+    -- Quando a animação terminar, avisa que pode resetar
+    if idleVariant_Track then
+        idleVariant_Track.Stopped:Once(function()
+            idleVariant_Track = nil
+            -- Se ainda estiver parado, reseta o timer para tocar de novo
+            if idleVariant_Active then
+                idleVariant_Timer = 0
+            end
+        end)
+    end
 end
 
-local function startIdleTimer_anim()
-    resetIdleVariant_anim() -- Cancela qualquer timer anterior
+-- ==================== VERIFICAÇÃO DE IDLE ====================
+local function checkIdleStatus(deltaTime)
+    if not hum or not character then return end
     
-    idleTimer_anim = task.delay(10, function()
-        idleTimer_anim = nil
-        if isIdle_anim and SETTINGS.Enabled then
-            playIdleVariant_anim()
-        end
-    end)
-end
-
-local function updateIdleStatus_anim()
-    if not SETTINGS.Enabled or not hum or not character then
-        if isIdle_anim then 
-            isIdle_anim = false 
-            resetIdleVariant_anim() 
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    -- Velocidade horizontal
+    local speed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
+    
+    -- Se estiver se movendo, reseta TUDO
+    if speed > 2 then
+        idleVariant_Timer = 0
+        idleVariant_Active = false
+        
+        -- Para a animação se estiver tocando
+        if idleVariant_Track then
+            pcall(function() idleVariant_Track:Stop() end)
+            idleVariant_Track = nil
         end
         return
     end
-
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    local horizSpeed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
-    local currentlyIdle = horizSpeed < 2
-
-    if currentlyIdle then
-        if not isIdle_anim then
-            isIdle_anim = true
-            startIdleTimer_anim()  -- Inicia o contador de 10 segundos
-        end
-    else
-        if isIdle_anim then
-            isIdle_anim = false
-            resetIdleVariant_anim()  -- Reseta tudo quando o jogador se move
-        end
+    
+    -- Se está parado, acumula tempo
+    idleVariant_Timer = idleVariant_Timer + deltaTime
+    
+    -- Se atingiu o tempo e não está ativo
+    if idleVariant_Timer >= IDLE_VARIANT_SETTINGS.WaitTime and not idleVariant_Active then
+        idleVariant_Active = true
+        playIdleVariant()
+    end
+    
+    -- Se a animação já terminou e ainda está parado, permite tocar de novo
+    if idleVariant_Timer >= IDLE_VARIANT_SETTINGS.WaitTime and idleVariant_Active and not idleVariant_Track then
+        idleVariant_Active = false
+        idleVariant_Timer = 0
     end
 end
+
+-- ==================== CONECTAR AO LOOP ====================
+RunService.Heartbeat:Connect(function(deltaTime)
+    checkIdleStatus(deltaTime)
+end)
+
+-- ==================== RESETAR AO MORRER ====================
+player.CharacterAdded:Connect(function(newChar)
+    idleVariant_Timer = 0
+    idleVariant_Active = false
+    if idleVariant_Track then
+        pcall(function() idleVariant_Track:Stop() end)
+        idleVariant_Track = nil
+    end
+end)
 
 -- ====================== OUTRAS FUNÇÕES DE ANIMAÇÃO ======================
 
@@ -307,8 +326,13 @@ local function spawnFootprint_anim(root)
 end
 
 local function cleanupCustomAnims()
-    resetIdleVariant_anim()
-    isIdle_anim = false
+    -- Reseta o IdleVariant
+    idleVariant_Timer = 0
+    idleVariant_Active = false
+    if idleVariant_Track then
+        pcall(function() idleVariant_Track:Stop() end)
+        idleVariant_Track = nil
+    end
 
     if sRunTrack_anim then 
         pcall(function() sRunTrack_anim:Stop() end) 
@@ -369,6 +393,7 @@ local function onCharacterAddedCustomAnims(char)
     character = char
     hum = char:WaitForChild("Humanoid")
     
+    
     originalWalkSpeed_anim = hum.WalkSpeed
 
     local animate = char:WaitForChild("Animate")
@@ -428,24 +453,26 @@ local function onCharacterAddedCustomAnims(char)
         end
     end)
 
-    -- Heartbeat principal
-    if footprintConnection_anim then footprintConnection_anim:Disconnect() end
     footprintConnection_anim = RunService.Heartbeat:Connect(function()
-        updateIdleStatus_anim()
         updateRunAnimation_anim()
         updateNormalRunSpeed_anim()
-
-        if not character or not hum then return end
-        local root = character:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-
-        local horizSpeed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
-        if horizSpeed >= 15 and (os.clock() - lastFootprintTime_anim >= SETTINGS.FootprintInterval) then
-            spawnFootprint_anim(root)
-            lastFootprintTime_anim = os.clock()
-            alternateFoot_anim = not alternateFoot_anim
-        end
     end)
+    
+    if not character or not hum then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local horizSpeed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
+    if horizSpeed >= 15 and (os.clock() - lastFootprintTime_anim >= SETTINGS.FootprintInterval) then
+        spawnFootprint_anim(root)
+        lastFootprintTime_anim = os.clock()
+        alternateFoot_anim = not alternateFoot_anim
+    end
+end)
+    
+    -- Limpeza extra do Idle Variant ao recriar personagem
+    resetIdleVariant()
+    isIdle = false
 end
 
 player.CharacterRemoving:Connect(cleanupCustomAnims)
@@ -537,15 +564,20 @@ local frozenKnives = {} -- Lista de facas congeladas
 local mudaComboCount = 0
 local comboDisplay = nil
 local comboTweens = {}
--- ==================== SISTEMA STAND CHANGER ====================
-local customStandUserId = nil  -- ID do usuário cujo personagem será o Stand
-local standChangerGui = nil    -- Interface gráfica
+local customStandUserId = nil  
+local standChangerGui = nil    
+local lastKillConfirmTime = 0
+local KILL_CONFIRM_COOLDOWN = 1
 
 local COLORS = {
-	Yellow = Color3.fromRGB(255, 215, 0),
-	Green = Color3.fromRGB(0, 0, 0),
-	Purple = Color3.fromRGB(0, 0, 0),
-	Black = Color3.fromRGB(0, 0, 0)
+    Yellow      = Color3.fromRGB(255, 215, 0),     -- Dourado clássico DIO
+    Gold        = Color3.fromRGB(255, 235, 100),   -- Dourado mais brilhante
+    Purple      = Color3.fromRGB(170, 0, 255),     -- Roxo DIO (ZA WARUDO)
+    DeepPurple  = Color3.fromRGB(100, 0, 180),     -- Roxo mais escuro
+    Black       = Color3.fromRGB(10, 10, 15),      -- Preto quase total (mais premium)
+    DarkGray    = Color3.fromRGB(25, 25, 35),      -- Fundo escuro premium
+    BloodRed    = Color3.fromRGB(180, 0, 20),      -- Vermelho sangue (pra hits)
+    White       = Color3.fromRGB(255, 255, 255)
 }
 
 local ASSETS = {
@@ -867,10 +899,6 @@ local function showSpeechBubble(imageId, side, duration, customHead)
 		end
 	end)
 end
-
-local screenGui = Instance.new("ScreenGui", player.PlayerGui)
-screenGui.Name = "DioStandUniversal"
-screenGui.ResetOnSpawn = false
 
 local TS_POS = UDim2.new(0.4, 0, 0.78, 0)
 local ROAD_POS = UDim2.new(0.3, 0, 0.79, 0)
@@ -1778,20 +1806,18 @@ local function EmitBloodVFX(character)
 	end)
 end
 
--- ==================== PROCESSAMENTO DE MOVIMENTO DA FACA ====================
+-- ==================== PROCESSAMENTO DE MOVIMENTO DA FACA (ANTI-DUPLICADO FORTE) ====================
 local function processKnifeMovement(knife, shootDir)
     if not knife or not knife.Parent then return end
     
     local lastPosition = knife.Position
-    
     local movementConnection
     movementConnection = RunService.RenderStepped:Connect(function()
         if not knife or not knife.Parent then
-            movementConnection:Disconnect()
+            if movementConnection then movementConnection:Disconnect() end
             return
         end
         
-        -- Se a faca está ancorada (Time Stop), pausa o processamento
         if knife.Anchored then
             lastPosition = knife.Position
             return
@@ -1803,7 +1829,7 @@ local function processKnifeMovement(knife, shootDir)
         
         if distance > 0.05 then
             local raycastParams = RaycastParams.new()
-            raycastParams.FilterDescendantsInstances = {character, currentStand}
+            raycastParams.FilterDescendantsInstances = {character, currentStand or {}}
             raycastParams.FilterType = Enum.RaycastFilterType.Exclude
             
             local steps = math.ceil(distance / 0.5)
@@ -1815,27 +1841,25 @@ local function processKnifeMovement(knife, shootDir)
                 
                 if rayResult then
                     local hitPart = rayResult.Instance
-                    local hitPosition = rayResult.Position
                     local hitHum = hitPart.Parent:FindFirstChildOfClass("Humanoid")
                     
                     if hitHum and hitHum.Parent ~= character and hitHum.Parent ~= currentStand then
-                        -- Aplica dano
                         hitHum:TakeDamage(18)
                         
-                        -- Som de hit
+                        -- Som normal de acerto
                         local hitSound = Instance.new("Sound", workspace)
                         hitSound.SoundId = ASSETS.KNIFE_HIT_SOUND
                         hitSound.Volume = 1.0
                         hitSound:Play()
                         Debris:AddItem(hitSound, 2)
-                        
-                        -- Cria faca cravada
+
+                        -- Faca cravada
                         local stuckKnife = Instance.new("Part", workspace)
                         stuckKnife.Name = "StuckKnife"
                         stuckKnife.Size = Vector3.new(1, 1, 1)
                         stuckKnife.CanCollide = false
                         stuckKnife.Anchored = true
-                        stuckKnife.CFrame = CFrame.lookAt(hitPosition, hitPosition + direction.Unit) * CFrame.Angles(math.rad(12), math.rad(-175), 0)
+                        stuckKnife.CFrame = CFrame.lookAt(rayResult.Position, rayResult.Position + direction.Unit) * CFrame.Angles(math.rad(12), math.rad(-175), 0)
                         stuckKnife.Transparency = 0
                         stuckKnife.Color = Color3.fromRGB(255, 255, 255)
                         
@@ -1844,28 +1868,32 @@ local function processKnifeMovement(knife, shootDir)
                         stuckMesh.TextureId = "rbxassetid://15946012483"
                         stuckMesh.Scale = Vector3.new(1.25, 1.25, 1.85)
                         
-                        local stickWeld = Instance.new("WeldConstraint")
+                        local stickWeld = Instance.new("WeldConstraint", stuckKnife)
                         stickWeld.Part0 = stuckKnife
                         stickWeld.Part1 = hitPart
-                        stickWeld.Parent = stuckKnife
                         
                         Debris:AddItem(stuckKnife, 3.5)
                         
-                        -- Kill confirm
-                        if hitHum.Health <= 0 then
+                        -- ====================== KILL CONFIRM ANTI-DUPLICADO ======================
+                        local now = tick()
+                        if hitHum.Health <= 0 and (now - lastKillConfirmTime) > KILL_CONFIRM_COOLDOWN then
+                            lastKillConfirmTime = now
+                            
                             showSpeechBubble("92536008979873", "right", 3, character.Head)
-                            local dioSound = Instance.new("Sound", workspace)
-                            dioSound.SoundId = "rbxassetid://110578259527952"
-                            dioSound.Volume = 1.6
-                            dioSound:Play()
-                            Debris:AddItem(dioSound, 4)
+                            
+                            local dioKillSound = Instance.new("Sound", workspace)
+                            dioKillSound.SoundId = "rbxassetid://110578259527952"
+                            dioKillSound.Volume = 1.6
+                            dioKillSound:Play()
+                            Debris:AddItem(dioKillSound, 4)
+                            
                             cameraShake(0.6, 2.5)
                         end
+                        -- =========================================================================
                         
                         EmitBloodVFX(hitPart.Parent)
                         
-                        -- Remove faca original
-                        movementConnection:Disconnect()
+                        if movementConnection then movementConnection:Disconnect() end
                         knife:Destroy()
                         return
                     end
