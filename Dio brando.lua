@@ -87,7 +87,7 @@ local IDLE_VARIANT_SETTINGS = {
     SpeechId = "107413276128350",                 -- Imagem do balão
     WaitTime = 10,                                 -- Segundos parado
     SoundVolume = 1.8,
-    SpeechDuration = 3,
+    SpeechDuration = 3.2,
     SpeechSide = "right"
 }
 
@@ -2785,7 +2785,10 @@ end
 -- ==================== FUNÇÃO DE ARREMESSO DE FACA CORRIGIDA ====================
 local function performKnifeThrow()
     if not canUseStrict("Knife") then return end
-    lockAbility("Knife")  -- Bloqueia imediatamente
+    
+    if isAttacking then return end
+    
+    lockAbility("Knife") 
     
     local isStandAttacking = (isStandActive and currentStand ~= nil)
     local attackerModel = isStandAttacking and currentStand or character
