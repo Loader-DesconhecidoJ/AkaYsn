@@ -87,7 +87,7 @@ local IDLE_VARIANT_SETTINGS = {
     SpeechId = "107413276128350",                 -- Imagem do balão
     WaitTime = 10,                                 -- Segundos parado
     SoundVolume = 1.8,
-    SpeechDuration = 3.2,
+    SpeechDuration = 3,
     SpeechSide = "right"
 }
 
@@ -115,7 +115,7 @@ if idleVariant_Track then
     idleVariant_Track.Looped = false      
     idleVariant_Track.Priority = Enum.AnimationPriority.Idle
     idleVariant_Track:Play(0.3)
-    idleVariant_Track:AdjustSpeed(1.5)      
+    idleVariant_Track:AdjustSpeed(3)      
 end
     
     -- 🔊 SOM
