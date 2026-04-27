@@ -127,42 +127,81 @@ end
     sound:Play()
     game.Debris:AddItem(sound, 6)
     
-    -- 💬 BALÃO DE FALA
-    if head then
-        local billboard = Instance.new("BillboardGui")
-        billboard.Adornee = head
-        billboard.Size = UDim2.new(3.5, 0, 3.5, 0)
-        billboard.StudsOffset = Vector3.new(
-            IDLE_VARIANT_SETTINGS.SpeechSide == "right" and 1.8 or -1.8,
-            1.5,
-            0
-        )
-        billboard.AlwaysOnTop = true
-        billboard.LightInfluence = 0
-        billboard.MaxDistance = 100
-        billboard.Parent = head
+    -- 💬 BALÃO DE FALA COM ANIMAÇÃO
+if head then
+    local billboard = Instance.new("BillboardGui")
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(3.5, 0, 3.5, 0)
+    billboard.StudsOffset = Vector3.new(
+        IDLE_VARIANT_SETTINGS.SpeechSide == "right" and 1.8 or -1.8,
+        1.5,
+        0
+    )
+    billboard.AlwaysOnTop = true
+    billboard.LightInfluence = 0
+    billboard.MaxDistance = 100
+    billboard.Parent = head
 
-        local imageLabel = Instance.new("ImageLabel")
-        imageLabel.BackgroundTransparency = 1
-        imageLabel.Image = "rbxassetid://" .. IDLE_VARIANT_SETTINGS.SpeechId
-        imageLabel.Size = UDim2.new(1, 0, 1, 0)
-        imageLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
-        imageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-        imageLabel.Parent = billboard
-        
-        -- Animação de entrada do balão
-        imageLabel.ImageTransparency = 1
-        TweenService:Create(imageLabel, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            ImageTransparency = 0
-        }):Play()
-
-        -- Remove o balão depois do tempo
-        task.delay(IDLE_VARIANT_SETTINGS.SpeechDuration, function()
-            if billboard and billboard.Parent then
-                billboard:Destroy()
+    local imageLabel = Instance.new("ImageLabel")
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Image = "rbxassetid://" .. IDLE_VARIANT_SETTINGS.SpeechId
+    imageLabel.Size = UDim2.new(0.1, 0, 0.1, 0)  -- Começa pequeno
+    imageLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+    imageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+    imageLabel.ImageTransparency = 1  -- Começa invisível
+    imageLabel.Rotation = -15  -- Começa levemente inclinado
+    imageLabel.Parent = billboard
+    
+    -- ANIMAÇÃO DE ENTRADA: cresce, aparece, gira e balança
+    TweenService:Create(imageLabel, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(1.1, 0, 1.1, 0),  -- Cresce um pouco maior
+        ImageTransparency = 0,
+        Rotation = 0
+    }):Play()
+    
+    -- Depois de crescer, volta ao tamanho normal (efeito de "pop")
+    task.delay(0.4, function()
+        if imageLabel and imageLabel.Parent then
+            TweenService:Create(imageLabel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(1, 0, 1, 0)  -- Volta ao normal
+            }):Play()
+        end
+    end)
+    
+    -- Efeito de pulsar suave enquanto está visível
+    task.delay(0.6, function()
+        if imageLabel and imageLabel.Parent then
+            -- Pulsa 3 vezes
+            for i = 1, 3 do
+                TweenService:Create(imageLabel, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    Size = UDim2.new(1.05, 0, 1.05, 0)
+                }):Play()
+                task.wait(0.3)
+                TweenService:Create(imageLabel, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    Size = UDim2.new(1, 0, 1, 0)
+                }):Play()
+                task.wait(0.3)
             end
-        end)
-    end
+        end
+    end)
+
+    -- Remove o balão com animação de saída
+    task.delay(IDLE_VARIANT_SETTINGS.SpeechDuration - 0.4, function()
+        if billboard and billboard.Parent then
+            TweenService:Create(imageLabel, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Size = UDim2.new(0.1, 0, 0.1, 0),  -- Encolhe
+                ImageTransparency = 1,  -- Desaparece
+                Rotation = 15  -- Gira ao sair
+            }):Play()
+            
+            task.delay(0.4, function()
+                if billboard and billboard.Parent then
+                    billboard:Destroy()
+                end
+            end)
+        end
+    end)
+end
     
     -- Quando a animação terminar, avisa que pode resetar
     if idleVariant_Track then
