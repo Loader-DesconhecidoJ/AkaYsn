@@ -918,6 +918,255 @@ local function shakeCamera()
 	Humanoid.CameraOffset = Vector3.new((math.random() - 0.5) * intensity, (math.random() - 0.5) * intensity, (math.random() - 0.5) * intensity)
 end
 
+-- Efeito de desmembramento estilo Jump Showdown
+local function BodyDismemberEffect()
+    if not Character then return end
+    
+    local bodyParts = {}
+    local partNames = {
+        "Head", "Right Arm", "Left Arm", "Right Leg", "Left Leg",
+        "RightUpperArm", "LeftUpperArm", "RightLowerArm", "LeftLowerArm",
+        "RightUpperLeg", "LeftUpperLeg", "RightLowerLeg", "LeftLowerLeg",
+        "UpperTorso", "LowerTorso", "RightHand", "LeftHand", "RightFoot", "LeftFoot"
+    }
+    
+    -- Coletar partes existentes do corpo
+    for _, partName in ipairs(partNames) do
+        local part = Character:FindFirstChild(partName)
+        if part and part:IsA("BasePart") then
+            -- Criar uma cópia fantasma da parte
+            local ghostPart = part:Clone()
+            ghostPart.Anchored = true
+            ghostPart.CanCollide = false
+            ghostPart.Material = Enum.Material.Neon
+            ghostPart.Transparency = 0.4
+            ghostPart.Color = Color3.fromRGB(255, 30, 30)
+            ghostPart.Size = part.Size
+            
+            -- Remover scripts, attachments, etc
+            for _, child in ipairs(ghostPart:GetChildren()) do
+                if not child:IsA("SpecialMesh") and not child:IsA("BlockMesh") and not child:IsA("CylinderMesh") then
+                    child:Destroy()
+                end
+            end
+            
+            -- Posição inicial (mesma do corpo)
+            ghostPart.CFrame = part.CFrame
+            ghostPart.Parent = Workspace
+            
+            -- Posição alvo aleatória ao redor
+            local randomOffset = Vector3.new(
+                math.random(-8, 8),
+                math.random(-3, 6),
+                math.random(-8, 8)
+            )
+            local targetCFrame = CFrame.new(HRP.Position + randomOffset) * CFrame.Angles(
+                math.rad(math.random(-180, 180)),
+                math.rad(math.random(-180, 180)),
+                math.rad(math.random(-180, 180))
+            )
+            
+            table.insert(bodyParts, {
+                Part = ghostPart,
+                OriginCFrame = ghostPart.CFrame,
+                TargetCFrame = targetCFrame,
+                FloatOffset = math.random(),
+                SpinSpeed = math.random(0.5, 2)
+            })
+            
+            -- Auto-destruir após a duração
+            Debris:AddItem(ghostPart, Constants.CYBERPSYCHOSIS.Duration + 1)
+        end
+    end
+    
+    -- Animar as partes flutuando
+    task.spawn(function()
+        local startTime = tick()
+        while tick() - startTime < Constants.CYBERPSYCHOSIS.Duration do
+            local elapsed = tick() - startTime
+            
+            for _, data in ipairs(bodyParts) do
+                if data.Part and data.Part.Parent then
+                    -- Movimento de flutuação senoidal
+                    local floatY = math.sin(elapsed * 2 + data.FloatOffset) * 1.5
+                    local currentTarget = data.TargetCFrame.Position + Vector3.new(0, floatY, 0)
+                    
+                    -- Rotação giratória
+                    local spin = CFrame.Angles(0, elapsed * data.SpinSpeed, 0)
+                    
+                    -- Interpolar entre origem e alvo
+                    local progress = math.min(1, elapsed / 0.8)  -- 0.8s para separar
+                    local currentPos = data.OriginCFrame.Position:Lerp(currentTarget, progress)
+                    
+                    data.Part.CFrame = CFrame.new(currentPos) * spin
+                    
+                    -- Pulsação de transparência
+                    data.Part.Transparency = 0.3 + math.sin(elapsed * 3) * 0.2
+                end
+            end
+            
+            RunService.Heartbeat:Wait()
+        end
+        
+        -- Recolher partes de volta (último 0.5s)
+        for _, data in ipairs(bodyParts) do
+            if data.Part and data.Part.Parent then
+                TweenService:Create(data.Part, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    CFrame = data.OriginCFrame,
+                    Transparency = 1
+                }):Play()
+            end
+        end
+    end)
+end
+
+-- Efeito de ilusões de clones aparecendo e sumindo
+local function PhantomCloneEffect()
+    if not Character or not HRP then return end
+    
+    local activePhantoms = {}
+    local maxPhantoms = 8
+    
+    task.spawn(function()
+        local startTime = tick()
+        
+        while tick() - startTime < Constants.CYBERPSYCHOSIS.Duration do
+            local elapsed = tick() - startTime
+            
+            -- Intensidade aumenta com o tempo
+            local intensity = math.min(1, elapsed / (Constants.CYBERPSYCHOSIS.Duration * 0.5))
+            local spawnChance = 0.25 + (intensity * 0.4)  -- 25% a 65% de chance
+            
+            -- Tentar spawnar novo fantasma se abaixo do máximo
+            if #activePhantoms < maxPhantoms and math.random() < spawnChance then
+                -- Criar clone fantasma rápido
+                local phantom = Character:Clone()
+                phantom.Name = "PsychoPhantom"
+                
+                -- Limpar scripts e sons
+                for _, obj in ipairs(phantom:GetDescendants()) do
+                    if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("Sound") or obj:IsA("Animator") then
+                        obj:Destroy()
+                    end
+                end
+                
+                -- Destruir Humanoid
+                local hum = phantom:FindFirstChildOfClass("Humanoid")
+                if hum then hum:Destroy() end
+                
+                -- Posição aleatória ao redor
+                local angle = math.random() * math.pi * 2
+                local distance = math.random(3, 10)
+                local heightOffset = math.random(-3, 5)
+                
+                local phantomHRP = phantom:FindFirstChild("HumanoidRootPart")
+                if phantomHRP then
+                    local randomPos = HRP.Position + Vector3.new(
+                        math.cos(angle) * distance,
+                        heightOffset,
+                        math.sin(angle) * distance
+                    )
+                    
+                    -- Pose aleatória (rotação)
+                    local randomRotation = CFrame.Angles(
+                        math.rad(math.random(-30, 30)),
+                        math.rad(math.random(0, 360)),
+                        math.rad(math.random(-20, 20))
+                    )
+                    
+                    phantomHRP.CFrame = CFrame.new(randomPos) * randomRotation
+                    
+                    -- Configurar aparência fantasmagórica
+                    for _, part in ipairs(phantom:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.Anchored = true
+                            part.CanCollide = false
+                            part.Transparency = 0.6 + math.random() * 0.3
+                            part.Color = Color3.fromRGB(255, 30, 30)
+                            part.Material = Enum.Material.Glass
+                        elseif part:IsA("Decal") or part:IsA("Texture") then
+                            part.Transparency = 0.8
+                        end
+                    end
+                    
+                    phantom.Parent = Workspace
+                    
+                    -- Dados do fantasma
+                    local phantomData = {
+                        Model = phantom,
+                        SpawnTime = tick(),
+                        Lifetime = math.random(0.3, 1.2),  -- Dura curto tempo
+                        FadeStart = 0  -- Quando começar a sumir
+                    }
+                    
+                    table.insert(activePhantoms, phantomData)
+                    
+                    -- Agendar destruição
+                    task.delay(phantomData.Lifetime, function()
+                        if phantom and phantom.Parent then
+                            -- Fade out rápido
+                            for _, part in ipairs(phantom:GetDescendants()) do
+                                if part:IsA("BasePart") then
+                                    TweenService:Create(part, TweenInfo.new(0.2), {
+                                        Transparency = 1
+                                    }):Play()
+                                end
+                            end
+                            task.delay(0.25, function()
+                                phantom:Destroy()
+                            end)
+                        end
+                    end)
+                end
+            end
+            
+            -- Animar fantasmas existentes (tremer/glitchar)
+            for _, data in ipairs(activePhantoms) do
+                if data.Model and data.Model.Parent then
+                    local phantomHRP = data.Model:FindFirstChild("HumanoidRootPart")
+                    if phantomHRP then
+                        -- Pequeno tremor aleatório
+                        local shake = Vector3.new(
+                            math.random(-2, 2) * 0.1,
+                            math.random(-1, 1) * 0.1,
+                            math.random(-2, 2) * 0.1
+                        )
+                        phantomHRP.CFrame = phantomHRP.CFrame + shake
+                        
+                        -- Piscar transparência (efeito glitch)
+                        local timeAlive = tick() - data.SpawnTime
+                        if timeAlive > data.Lifetime * 0.7 then
+                            -- Começar a piscar mais rápido perto do fim
+                            for _, part in ipairs(data.Model:GetDescendants()) do
+                                if part:IsA("BasePart") then
+                                    part.Transparency = math.random(0.5, 1)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- Limpar fantasmas mortos da lista
+            for i = #activePhantoms, 1, -1 do
+                if not activePhantoms[i].Model or not activePhantoms[i].Model.Parent then
+                    table.remove(activePhantoms, i)
+                end
+            end
+            
+            RunService.Heartbeat:Wait()
+        end
+        
+        -- Limpar todos os fantasmas restantes
+        for _, data in ipairs(activePhantoms) do
+            if data.Model and data.Model.Parent then
+                data.Model:Destroy()
+            end
+        end
+        activePhantoms = {}
+    end)
+end
+
 local function ExecCyberpsychosis()
     PlaySFX(Sounds.PSYCHOSIS)
     PlaySFX(Sounds.PSYCHOSIS2)
@@ -979,6 +1228,13 @@ local function ExecCyberpsychosis()
     end)
 
     if Humanoid then Humanoid.WalkSpeed = 0 Humanoid.JumpPower = 0 end
+    
+    -- Efeito de desmembramento corporal
+BodyDismemberEffect()
+    
+    -- Efeito de ilusões de clones fantasmas
+PhantomCloneEffect()
+    
     if Lighting:FindFirstChild("SandiEffect") then Lighting.SandiEffect:Destroy() end
     local cc, blur = createLightingEffects()
     local startTime = tick()
