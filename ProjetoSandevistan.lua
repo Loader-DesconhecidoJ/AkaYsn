@@ -111,7 +111,7 @@ local Constants = {
     },
     SANDEVISTAN_FAILURE_CHANCE = 0.2,
     CYBERPSYCHOSIS = {
-        Duration = 5,
+        Duration = 6.7,
         PopupRate = 0.08,
         Radius = 7,
         ShakeIntensity = 0.6,
@@ -265,7 +265,7 @@ local Sounds = {
     SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1.5, pitch = 1, looped = false},
     SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1.5, pitch = 1, looped = false},
     SANDI_LOOP = {id = "rbxassetid://74707394872868", volume = 1.5, pitch = 1, looped = true},
-    PSYCHOSIS = {id = "rbxassetid://116261614561232", volume = 2, pitch = 1, looped = false},
+    PSYCHOSIS = {id = "rbxassetid://87597277352254", volume = 2, pitch = 1, looped = false},
     PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
     OPTICAL_CAMO = {id = "rbxassetid://115981406751041", volume = 1, pitch = 1, looped = false},
     SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 5, pitch = 1, looped = false},
@@ -1217,154 +1217,69 @@ local function SystemRestorePopup()
     end)
 end
 
--- Função para criar clones de vibração ilusórica (Cyberpsychosis)
-local function SpawnPsychosisClone()
-    if not Character or not HRP then return end
-
-    Character.Archivable = true
-    local Ilusao = Character:Clone()
-    Character.Archivable = false
-    
-    -- COR VERMELHO SANGUE
-    local CorDoClone = Color3.fromRGB(255, 0, 0)
-    local distanciaMedia = 5  -- 5 metros
-    
-    -- Configurar o Clone (EXATAMENTE como seu script original)
-    for _, obj in pairs(Ilusao:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            obj.CanCollide = false
-            obj.CanTouch = false
-            obj.Anchored = true
-            obj.CastShadow = false
-            
-            if obj.Name == "HumanoidRootPart" then
-                obj.Transparency = 1
-            else
-                obj.Transparency = 0.6
-                obj.Color = CorDoClone
-                obj.Material = Enum.Material.ForceField
-            end
-            
-            if obj:IsA("MeshPart") then obj.TextureID = "" end
-        elseif obj:IsA("Decal") or obj:IsA("Texture") then
-            obj:Destroy()
-        elseif obj:IsA("LuaSourceContainer") or obj:IsA("Sound") then
-            obj:Destroy()
-        end
-    end
-    
-    -- Destruir Humanoid e Animate
-    local humanoid = Ilusao:FindFirstChildOfClass("Humanoid")
-    if humanoid then humanoid:Destroy() end
-    local animateFolder = Ilusao:FindFirstChild("Animate")
-    if animateFolder then animateFolder:Destroy() end
-    
-    -- Posicionamento (EXATAMENTE como seu script original)
-    local angulo = math.rad(math.random(0, 360))
-    local offsetZ = math.cos(angulo) * distanciaMedia
-    local offsetX = math.sin(angulo) * distanciaMedia
-    
-    local posicaoFinal = HRP.CFrame * CFrame.new(offsetX, 0, offsetZ)
-    Ilusao:SetPrimaryPartCFrame(posicaoFinal)
-    
-    -- Highlight
-    local highlight = Instance.new("Highlight")
-    highlight.Adornee = Ilusao
-    highlight.FillTransparency = 0.8
-    highlight.OutlineTransparency = 0.3
-    highlight.FillColor = CorDoClone
-    highlight.OutlineColor = CorDoClone
-    highlight.Parent = Ilusao
-    
-    Ilusao.Parent = workspace
-    
-    -- Efeito de sumir (EXATAMENTE como seu script original)
-    task.spawn(function()
-        for i = 0.6, 1, 0.1 do
-            task.wait(0.05)
-            for _, p in pairs(Ilusao:GetDescendants()) do
-                if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then 
-                    p.Transparency = i 
-                end
-            end
-        end
-        Ilusao:Destroy()
-    end)
-end
-
 -- ═══════════ EXECCYBERPSYCHOSIS ═══════════
 local function ExecCyberpsychosis()
     PlaySFX(Sounds.PSYCHOSIS)
     PlaySFX(Sounds.PSYCHOSIS2)
     
-        -- ═══════════ THREAD DE CLONES ═══════════
-task.spawn(function()
-    local duracaoTotal = 5.5
-    local taxaCriacao = 1 
-    local tempoPassado = 0
-    
-    while tempoPassado < duracaoTotal do
-        if not Character or not HRP then break end
-        SpawnPsychosisClone()
-        task.wait(taxaCriacao)
-        tempoPassado = tempoPassado + taxaCriacao
-    end
-end)
--- ═══════════════════════════════════════
-    
-    -- Janelas sincronizadas (APENAS POPUPS, SEM CLONES EXTRAS)
+    -- Janelas sincronizadas (SOMENTE POPUPS, SEM CLONES)
 task.spawn(function()
     -- "I'M" (0.0s)
     spawnPopup()
-    task.wait(0.15)
-    -- "GONNA" (0.15s)
-    spawnPopup()
-    task.wait(0.15)
-    -- "RIP" (0.3s)
-    spawnPopup()
-    spawnPopup()
-    task.wait(0.12)
-    -- "OUT" (0.42s)
-    spawnPopup()
-    task.wait(0.12)
-    -- "HIS" (0.54s)
-    spawnPopup()
-    task.wait(0.1)
-    -- "SPINE!" (0.64s)
-    for i = 1, 4 do
-        spawnPopup()
-        task.wait(0.06)
-    end
-    task.wait(0.3)
+    task.wait(0.35)
     
-    -- "YOU'RE" (1.18s)
+    -- "GONNA" (0.35s)
+    spawnPopup()
+    task.wait(0.30)
+    
+    -- "RIP" (0.65s)
+    spawnPopup()
+    spawnPopup()
+    task.wait(0.30)
+    
+    -- "OUT" (1.0s)
+    spawnPopup()
+    task.wait(0.30)
+    
+    -- "HIS" (1.3s)
+    spawnPopup()
+    task.wait(0.25)
+    
+    -- "SPINE!" (1.55s)
+    for i = 1, 6 do
+        spawnPopup()
+        task.wait(0.07)
+    end
+    task.wait(0.40)
+    
+    -- "YOU'RE" (2.5s)
     for i = 1, 3 do
+        spawnPopup()
+        task.wait(0.15)
+    end
+    task.wait(0.35)
+    
+    -- "DEAD," (3.35s)
+    spawnPopup()
+    spawnPopup()
+    task.wait(0.40)
+    
+    -- "DEAD..." (3.9s)
+    spawnPopup()
+    spawnPopup()
+    task.wait(0.45)
+    
+    -- "DEAD!" (4.5s)
+    for i = 1, 5 do
         spawnPopup()
         task.wait(0.08)
     end
-    task.wait(0.12)
+    task.wait(0.40)
     
-    -- "DEAD," (1.54s)
-    spawnPopup()
-    spawnPopup()
-    task.wait(0.2)
-    
-    -- "DEAD..." (1.74s)
-    spawnPopup()
-    spawnPopup()
-    task.wait(0.15)
-    
-    -- "DEAD.!" (1.89s)
-    for i = 1, 3 do
+    -- "DEAAD!!!" (5.5s)
+    for i = 1, 12 do
         spawnPopup()
         task.wait(0.05)
-    end
-    task.wait(0.15)
-    
-    -- "DEAAD!!!" (2.24s) - climax
-    for i = 1, 8 do
-        spawnPopup()
-        task.wait(0.04)
     end
 end)
 
