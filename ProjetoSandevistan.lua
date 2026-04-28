@@ -1485,10 +1485,12 @@ local function ExecKiroshi()
     PlaySFX(Sounds.KIROSHI_ON)
     ScreenFade(0.3, 0.2, 0.6, Colors.KIROSHI_RED, 0.7, 0.25)
     local kiroshiCC = Create("ColorCorrectionEffect", {Name = "KiroshiCC", TintColor = Colors.KIROSHI_RED, Saturation = 0.5, Contrast = 0.2, Parent = Lighting})
+    
     for _, p in Players:GetPlayers() do
         if p ~= Player then
             local char = p.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
+                -- Highlight padrão
                 local highlight = Create("Highlight", {
                     OutlineColor = Colors.KIROSHI_RED,
                     FillColor = Colors.KIROSHI_RED,
@@ -1497,37 +1499,245 @@ local function ExecKiroshi()
                     Parent = char
                 })
                 table.insert(activeHighlights, highlight)
+                
+                -- Billboard principal com informações
                 local billboard = Create("BillboardGui", {
-                    Size = UDim2.new(0, 120, 0, 52),
-                    StudsOffset = Vector3.new(0, 3, 0),
+                    Size = UDim2.new(0, 150, 0, 115),
+                    StudsOffset = Vector3.new(0, 4, 0),
                     AlwaysOnTop = true,
                     Parent = char
                 })
-                local frame = Create("Frame", {Size = UDim2.new(1,0,1,0), BackgroundTransparency = 0.4, BackgroundColor3 = Color3.new(0,0,0), Parent = billboard})
-                Create("UICorner", {CornerRadius = UDim.new(0,6), Parent = frame})
-                local hpBarBG = Create("Frame", {Size = UDim2.new(0.88,0,0.16,0), Position = UDim2.new(0.06,0,0.12,0), BackgroundColor3 = Color3.new(0.1,0.1,0.1), Parent = frame})
-                Create("UICorner", {Parent = hpBarBG})
-                local hpBar = Create("Frame", {Size = UDim2.new(1,0,1,0), BackgroundColor3 = Colors.KIROSHI_RED, Parent = hpBarBG})
-                Create("UICorner", {Parent = hpBar})
-                local nameLabel = Create("TextLabel", {Size = UDim2.new(1,0,0.38,0), Position = UDim2.new(0,0,0.28,0), BackgroundTransparency = 1, Text = p.DisplayName:upper(), TextColor3 = Colors.KIROSHI_RED, Font = Enum.Font.SciFi, TextSize = 12, Parent = frame})
-                local distLabel = Create("TextLabel", {Size = UDim2.new(1,0,0.28,0), Position = UDim2.new(0,0,0.68,0), BackgroundTransparency = 1, Text = "DIST: 00m", TextColor3 = Color3.new(1,1,1), Font = Enum.Font.Code, TextSize = 10, Parent = frame})
+                
+                local frame = Create("Frame", {
+                    Size = UDim2.new(1,0,1,0), 
+                    BackgroundTransparency = 0.35, 
+                    BackgroundColor3 = Color3.new(0,0,0), 
+                    Parent = billboard
+                })
+                Create("UICorner", {CornerRadius = UDim.new(0,8), Parent = frame})
+                Create("UIStroke", {Color = Colors.KIROSHI_RED, Thickness = 1.5, Transparency = 0.3, Parent = frame})
+                
+                -- Nome do jogador
+                local nameLabel = Create("TextLabel", {
+                    Size = UDim2.new(1, -10, 0, 18),
+                    Position = UDim2.new(0, 5, 0, 3),
+                    BackgroundTransparency = 1,
+                    Text = "⬤ " .. p.DisplayName:upper(),
+                    TextColor3 = Colors.KIROSHI_RED,
+                    Font = Enum.Font.SciFi,
+                    TextSize = 13,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = frame
+                })
+                
+                -- Barra de HP
+                local hpBarBG = Create("Frame", {
+                    Size = UDim2.new(0.9, 0, 0, 8),
+                    Position = UDim2.new(0.05, 0, 0, 22),
+                    BackgroundColor3 = Color3.new(0.1,0.1,0.1),
+                    Parent = frame
+                })
+                Create("UICorner", {CornerRadius = UDim.new(0,3), Parent = hpBarBG})
+                
+                local hpBar = Create("Frame", {
+                    Size = UDim2.new(1, 0, 1, 0),
+                    BackgroundColor3 = Colors.KIROSHI_RED,
+                    Parent = hpBarBG
+                })
+                Create("UICorner", {CornerRadius = UDim.new(0,3), Parent = hpBar})
+                
+                -- Distância
+                local distLabel = Create("TextLabel", {
+                    Size = UDim2.new(1, -10, 0, 14),
+                    Position = UDim2.new(0, 5, 0, 32),
+                    BackgroundTransparency = 1,
+                    Text = "DIST: 00m",
+                    TextColor3 = Color3.fromRGB(180, 180, 180),
+                    Font = Enum.Font.Code,
+                    TextSize = 11,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = frame
+                })
+                
+                -- Separador
+                local separator = Create("Frame", {
+                    Size = UDim2.new(0.9, 0, 0, 1),
+                    Position = UDim2.new(0.05, 0, 0, 48),
+                    BackgroundColor3 = Colors.KIROSHI_RED,
+                    BackgroundTransparency = 0.5,
+                    Parent = frame
+                })
+                
+                -- ===== FERRAMENTA EM MÃOS (DESTAQUE VERMELHO SANGUE) =====
+                local toolLabel = Create("TextLabel", {
+                    Size = UDim2.new(1, -10, 0, 16),
+                    Position = UDim2.new(0, 5, 0, 51),
+                    BackgroundTransparency = 1,
+                    Text = "🔧 NADA",
+                    TextColor3 = Color3.fromRGB(255, 60, 60),  -- Vermelho sangue
+                    Font = Enum.Font.SciFi,
+                    TextSize = 12,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = frame
+                })
+                
+                -- Ícone da ferramenta (usando ImageLabel)
+                local toolIcon = Create("ImageLabel", {
+                    Size = UDim2.new(0, 20, 0, 20),
+                    Position = UDim2.new(0, 5, 0, 68),
+                    BackgroundTransparency = 1,
+                    Image = "rbxassetid://0",  -- Placeholder
+                    Parent = frame
+                })
+                
+                -- ===== LISTA DE TODOS OS ITENS =====
+                local itemsScroll = Create("ScrollingFrame", {
+                    Size = UDim2.new(0.9, 0, 0, 34),
+                    Position = UDim2.new(0.05, 0, 0, 78),
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                    ScrollBarThickness = 4,
+                    ScrollBarImageColor3 = Colors.KIROSHI_RED,
+                    CanvasSize = UDim2.new(0, 0, 0, 0),
+                    Parent = frame
+                })
+                
+                local itemsLayout = Create("UIListLayout", {
+                    Padding = UDim.new(0, 3),
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Parent = itemsScroll
+                })
+                
                 table.insert(activeHighlights, billboard)
+                
+                -- ===== THREAD DE ATUALIZAÇÃO =====
                 task.spawn(function()
                     while State.IsKiroshiActive and char.Parent do
                         local hum = char:FindFirstChildOfClass("Humanoid")
                         if hum and HRP then
+                            -- Distância
                             local dist = math.floor((HRP.Position - char.HumanoidRootPart.Position).Magnitude)
                             distLabel.Text = string.format("DIST: %dm", dist)
+                            
+                            -- HP
                             local hpPercent = hum.Health / hum.MaxHealth
                             hpBar.Size = UDim2.new(hpPercent, 0, 1, 0)
-                            if hpPercent < 0.4 then nameLabel.Text = "THREAT HIGH" end
+                            
+                            -- Mudar cor do nome se HP baixo
+                            if hpPercent < 0.4 then
+                                nameLabel.Text = "⚠ " .. p.DisplayName:upper()
+                                nameLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+                            else
+                                nameLabel.Text = "⬤ " .. p.DisplayName:upper()
+                                nameLabel.TextColor3 = Colors.KIROSHI_RED
+                            end
+                            
+                            -- ===== FERRAMENTA EM MÃOS =====
+                            local backpack = p:FindFirstChild("Backpack")
+                            local character = p.Character
+                            local toolInHand = nil
+                            local toolTextureId = "rbxassetid://0"
+                            
+                            -- Verifica ferramenta na mão (Character)
+                            if character then
+                                for _, child in pairs(character:GetChildren()) do
+                                    if child:IsA("Tool") then
+                                        toolInHand = child
+                                        break
+                                    end
+                                end
+                            end
+                            
+                            -- Se encontrou ferramenta na mão
+                            if toolInHand then
+                                toolLabel.Text = "🔴 " .. toolInHand.Name:upper()
+                                toolLabel.TextColor3 = Color3.fromRGB(255, 30, 30)  -- Vermelho sangue intenso
+                                toolLabel.TextStrokeTransparency = 0.5
+                                toolLabel.TextStrokeColor3 = Color3.fromRGB(200, 0, 0)
+                                
+                                -- Tentar pegar textura da ferramenta
+                                local handle = toolInHand:FindFirstChild("Handle")
+                                if handle then
+                                    local texture = handle:FindFirstChildOfClass("Texture") or handle:FindFirstChildOfClass("Decal")
+                                    if texture then
+                                        toolTextureId = texture.Texture or "rbxassetid://0"
+                                    end
+                                end
+                                toolIcon.Image = toolTextureId
+                            else
+                                toolLabel.Text = "🔧 VAZIO"
+                                toolLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
+                                toolLabel.TextStrokeTransparency = 1
+                                toolIcon.Image = "rbxassetid://0"
+                            end
+                            
+                            -- ===== LISTA DE TODOS OS ITENS =====
+                            -- Limpar itens antigos
+                            for _, child in pairs(itemsScroll:GetChildren()) do
+                                if child:IsA("TextLabel") then
+                                    child:Destroy()
+                                end
+                            end
+                            
+                            local allItems = {}
+                            
+                            -- Coletar itens do Backpack
+                            if backpack then
+                                for _, item in pairs(backpack:GetChildren()) do
+                                    if item:IsA("Tool") then
+                                        table.insert(allItems, {name = item.Name, equipped = false})
+                                    end
+                                end
+                            end
+                            
+                            -- Coletar itens do Character (equipados)
+                            if character then
+                                for _, item in pairs(character:GetChildren()) do
+                                    if item:IsA("Tool") then
+                                        table.insert(allItems, {name = item.Name, equipped = true})
+                                    end
+                                end
+                            end
+                            
+                            -- Exibir itens
+                            if #allItems == 0 then
+                                local noItemLabel = Create("TextLabel", {
+                                    Size = UDim2.new(1, 0, 0, 16),
+                                    BackgroundTransparency = 1,
+                                    Text = "Nenhum item",
+                                    TextColor3 = Color3.fromRGB(100, 100, 100),
+                                    Font = Enum.Font.Code,
+                                    TextSize = 10,
+                                    TextXAlignment = Enum.TextXAlignment.Left,
+                                    Parent = itemsScroll
+                                })
+                            else
+                                for _, itemData in ipairs(allItems) do
+                                    local itemLabel = Create("TextLabel", {
+                                        Size = UDim2.new(1, 0, 0, 16),
+                                        BackgroundTransparency = 1,
+                                        Text = (itemData.equipped and "⚠ " or "• ") .. itemData.name,
+                                        TextColor3 = itemData.equipped and Color3.fromRGB(255, 60, 60) or Color3.fromRGB(180, 180, 180),
+                                        Font = Enum.Font.Code,
+                                        TextSize = 10,
+                                        TextXAlignment = Enum.TextXAlignment.Left,
+                                        Parent = itemsScroll
+                                    })
+                                end
+                            end
+                            
+                            -- Atualizar CanvasSize do Scroll
+                            itemsScroll.CanvasSize = UDim2.new(0, 0, 0, itemsLayout.AbsoluteContentSize.Y + 5)
                         end
-                        task.wait(0.08)
+                        
+                        task.wait(0.1)
                     end
                 end)
             end
         end
     end
+    
+    -- Auto-desligar após 5 segundos
     task.spawn(function()
         task.wait(5)
         if not State.IsKiroshiActive then return end
@@ -1536,8 +1746,13 @@ local function ExecKiroshi()
         State.IsKiroshiActive = false
         State.Cooldowns.KIROSHI = os.clock() + Constants.COOLDOWNS.KIROSHI
         ShowCooldownText("KIROSHI OPTICS", Constants.COOLDOWNS.KIROSHI, Colors.KIROSHI)
-        if kiroshiCC then TweenService:Create(kiroshiCC, TweenInfo.new(0.6), {Saturation = 0, Contrast = 0}):Play() task.delay(0.7, function() kiroshiCC:Destroy() end) end
-        for _, h in ipairs(activeHighlights) do if h then h:Destroy() end end
+        if kiroshiCC then 
+            TweenService:Create(kiroshiCC, TweenInfo.new(0.6), {Saturation = 0, Contrast = 0}):Play() 
+            task.delay(0.7, function() kiroshiCC:Destroy() end) 
+        end
+        for _, h in ipairs(activeHighlights) do 
+            if h then h:Destroy() end 
+        end
         activeHighlights = {}
     end)
 end
