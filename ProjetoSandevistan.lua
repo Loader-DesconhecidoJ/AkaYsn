@@ -918,252 +918,260 @@ local function shakeCamera()
 	Humanoid.CameraOffset = Vector3.new((math.random() - 0.5) * intensity, (math.random() - 0.5) * intensity, (math.random() - 0.5) * intensity)
 end
 
--- Efeito de desmembramento estilo Jump Showdown
-local function BodyDismemberEffect()
-    if not Character then return end
+-- Popup de "System Restore" - Billboard 3D estilo janela Windows
+local function SystemRestorePopup()
+    if not HRP then return end
     
-    local bodyParts = {}
-    local partNames = {
-        "Head", "Right Arm", "Left Arm", "Right Leg", "Left Leg",
-        "RightUpperArm", "LeftUpperArm", "RightLowerArm", "LeftLowerArm",
-        "RightUpperLeg", "LeftUpperLeg", "RightLowerLeg", "LeftLowerLeg",
-        "UpperTorso", "LowerTorso", "RightHand", "LeftHand", "RightFoot", "LeftFoot"
-    }
+    -- Criar a parte 3D (igual à SpawnRebootWindow)
+    local part = Instance.new("Part")
+    part.Name = "SystemRestoreWindow"
+    part.Size = Vector3.new(0, 0, 0.08)
+    part.Color = Color3.fromRGB(0, 40, 0)
+    part.Material = Enum.Material.Neon
+    part.Transparency = 0.03
+    part.CanCollide = false
+    part.Anchored = true
+    part.CastShadow = false
     
-    -- Coletar partes existentes do corpo
-    for _, partName in ipairs(partNames) do
-        local part = Character:FindFirstChild(partName)
-        if part and part:IsA("BasePart") then
-            -- Criar uma cópia fantasma da parte
-            local ghostPart = part:Clone()
-            ghostPart.Anchored = true
-            ghostPart.CanCollide = false
-            ghostPart.Material = Enum.Material.Neon
-            ghostPart.Transparency = 0.4
-            ghostPart.Color = Color3.fromRGB(255, 30, 30)
-            ghostPart.Size = part.Size
-            
-            -- Remover scripts, attachments, etc
-            for _, child in ipairs(ghostPart:GetChildren()) do
-                if not child:IsA("SpecialMesh") and not child:IsA("BlockMesh") and not child:IsA("CylinderMesh") then
-                    child:Destroy()
-                end
-            end
-            
-            -- Posição inicial (mesma do corpo)
-            ghostPart.CFrame = part.CFrame
-            ghostPart.Parent = Workspace
-            
-            -- Posição alvo aleatória ao redor
-            local randomOffset = Vector3.new(
-                math.random(-8, 8),
-                math.random(-3, 6),
-                math.random(-8, 8)
-            )
-            local targetCFrame = CFrame.new(HRP.Position + randomOffset) * CFrame.Angles(
-                math.rad(math.random(-180, 180)),
-                math.rad(math.random(-180, 180)),
-                math.rad(math.random(-180, 180))
-            )
-            
-            table.insert(bodyParts, {
-                Part = ghostPart,
-                OriginCFrame = ghostPart.CFrame,
-                TargetCFrame = targetCFrame,
-                FloatOffset = math.random(),
-                SpinSpeed = math.random(0.5, 2)
-            })
-            
-            -- Auto-destruir após a duração
-            Debris:AddItem(ghostPart, Constants.CYBERPSYCHOSIS.Duration + 1)
+    -- Posicionar na frente do jogador
+    local frontOffset = HRP.CFrame.LookVector * 7 + Vector3.new(0, 1.5, 0)
+    part.CFrame = CFrame.lookAt(HRP.Position + frontOffset, HRP.Position)
+    part.Parent = Workspace
+    
+    -- SurfaceGui
+    local sgui = Instance.new("SurfaceGui", part)
+    sgui.Face = Enum.NormalId.Front
+    sgui.LightInfluence = 0
+    sgui.PixelsPerStud = 65
+    
+    -- Frame principal
+    local frame = Instance.new("Frame", sgui)
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(0, 12, 0)
+    frame.BackgroundTransparency = 1
+    
+    local frameCorner = Instance.new("UICorner", frame)
+    frameCorner.CornerRadius = UDim.new(0, 8)
+    
+    -- Stroke verde
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.fromRGB(0, 220, 0)
+    stroke.Thickness = 5
+    stroke.Transparency = 1
+    
+    -- Barra de título (verde escuro)
+    local titleBar = Instance.new("Frame", frame)
+    titleBar.Size = UDim2.new(1, 0, 0, 35)
+    titleBar.BackgroundColor3 = Color3.fromRGB(0, 50, 0)
+    titleBar.BackgroundTransparency = 1
+    titleBar.BorderSizePixel = 0
+    
+    local titleCorner = Instance.new("UICorner", titleBar)
+    titleCorner.CornerRadius = UDim.new(0, 6)
+    
+    -- Ícone checkmark
+    local icon = Instance.new("TextLabel", titleBar)
+    icon.Size = UDim2.new(0, 26, 0, 26)
+    icon.Position = UDim2.new(0, 10, 0, 4)
+    icon.BackgroundTransparency = 1
+    icon.Text = "✓"
+    icon.TextColor3 = Color3.fromRGB(0, 255, 0)
+    icon.Font = Enum.Font.GothamBold
+    icon.TextSize = 20
+    icon.TextTransparency = 1
+    
+    -- Título
+    local titleText = Instance.new("TextLabel", titleBar)
+    titleText.Size = UDim2.new(1, -80, 1, 0)
+    titleText.Position = UDim2.new(0, 40, 0, 0)
+    titleText.BackgroundTransparency = 1
+    titleText.Text = "SYSTEM RESTORE"
+    titleText.TextColor3 = Color3.fromRGB(0, 255, 0)
+    titleText.Font = Enum.Font.SciFi
+    titleText.TextSize = 17
+    titleText.TextXAlignment = Enum.TextXAlignment.Left
+    titleText.TextTransparency = 1
+    
+    -- Botão X
+    local closeBtn = Instance.new("TextButton", titleBar)
+    closeBtn.Size = UDim2.new(0, 26, 0, 26)
+    closeBtn.Position = UDim2.new(1, -32, 0, 4)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(0, 70, 0)
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.Text = "✕"
+    closeBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 14
+    closeBtn.TextTransparency = 1
+    
+    local closeCorner = Instance.new("UICorner", closeBtn)
+    closeCorner.CornerRadius = UDim.new(0, 4)
+    
+    -- Mensagem principal
+    local message = Instance.new("TextLabel", frame)
+    message.Size = UDim2.new(1, -30, 0, 55)
+    message.Position = UDim2.new(0, 15, 0, 55)
+    message.BackgroundTransparency = 1
+    message.Text = "SUCESSO AO\nRESTABELECER\nO SYSTEMA"
+    message.TextColor3 = Color3.fromRGB(0, 255, 0)
+    message.Font = Enum.Font.SciFi
+    message.TextSize = 42
+    message.TextTransparency = 1
+    message.TextStrokeTransparency = 0.4
+    message.TextStrokeColor3 = Color3.fromRGB(0, 100, 0)
+    
+    -- Detalhes
+    local details = Instance.new("TextLabel", frame)
+    details.Size = UDim2.new(1, -30, 0, 30)
+    details.Position = UDim2.new(0, 15, 0, 130)
+    details.BackgroundTransparency = 1
+    details.Text = "NEURAL INTERFACE RESTORED\nALL SYSTEMS OPERATIONAL"
+    details.TextColor3 = Color3.fromRGB(100, 255, 100)
+    details.Font = Enum.Font.Code
+    details.TextSize = 18
+    details.TextTransparency = 1
+    
+    -- Barra de progresso
+    local progressBg = Instance.new("Frame", frame)
+    progressBg.Size = UDim2.new(0.85, 0, 0, 10)
+    progressBg.Position = UDim2.new(0.075, 0, 0, 175)
+    progressBg.BackgroundColor3 = Color3.fromRGB(0, 15, 0)
+    progressBg.BackgroundTransparency = 1
+    progressBg.BorderSizePixel = 0
+    
+    local progressCorner = Instance.new("UICorner", progressBg)
+    progressCorner.CornerRadius = UDim.new(0, 5)
+    
+    local progressFill = Instance.new("Frame", progressBg)
+    progressFill.Size = UDim2.new(0, 0, 1, 0)
+    progressFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    progressFill.BackgroundTransparency = 1
+    progressFill.BorderSizePixel = 0
+    
+    local fillCorner = Instance.new("UICorner", progressFill)
+    fillCorner.CornerRadius = UDim.new(0, 5)
+    
+    -- Porcentagem
+    local percentText = Instance.new("TextLabel", frame)
+    percentText.Size = UDim2.new(1, 0, 0, 22)
+    percentText.Position = UDim2.new(0, 0, 0, 190)
+    percentText.BackgroundTransparency = 1
+    percentText.Text = "0%"
+    percentText.TextColor3 = Color3.fromRGB(0, 255, 0)
+    percentText.Font = Enum.Font.Code
+    percentText.TextSize = 16
+    percentText.TextTransparency = 1
+    
+    -- Scanline verde
+    local scanline = Instance.new("Frame", frame)
+    scanline.Size = UDim2.new(1, 0, 0, 2)
+    scanline.Position = UDim2.new(0, 0, -1, 0)
+    scanline.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    scanline.BackgroundTransparency = 0.6
+    scanline.BorderSizePixel = 0
+    
+    -- ===== FUNÇÃO DE ATUALIZAR POSIÇÃO (seguir o jogador) =====
+    local function updatePosition()
+        if HRP and part.Parent then
+            local frontOffset = HRP.CFrame.LookVector * 7 + Vector3.new(0, 1.5, 0)
+            part.CFrame = CFrame.lookAt(HRP.Position + frontOffset, HRP.Position)
         end
     end
+    updatePosition()
     
-    -- Animar as partes flutuando
-    task.spawn(function()
-        local startTime = tick()
-        while tick() - startTime < Constants.CYBERPSYCHOSIS.Duration do
-            local elapsed = tick() - startTime
-            
-            for _, data in ipairs(bodyParts) do
-                if data.Part and data.Part.Parent then
-                    -- Movimento de flutuação senoidal
-                    local floatY = math.sin(elapsed * 2 + data.FloatOffset) * 1.5
-                    local currentTarget = data.TargetCFrame.Position + Vector3.new(0, floatY, 0)
-                    
-                    -- Rotação giratória
-                    local spin = CFrame.Angles(0, elapsed * data.SpinSpeed, 0)
-                    
-                    -- Interpolar entre origem e alvo
-                    local progress = math.min(1, elapsed / 0.8)  -- 0.8s para separar
-                    local currentPos = data.OriginCFrame.Position:Lerp(currentTarget, progress)
-                    
-                    data.Part.CFrame = CFrame.new(currentPos) * spin
-                    
-                    -- Pulsação de transparência
-                    data.Part.Transparency = 0.3 + math.sin(elapsed * 3) * 0.2
-                end
-            end
-            
-            RunService.Heartbeat:Wait()
-        end
+    -- ===== ABRIR COM ANIMAÇÃO =====
+    TweenService:Create(part, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = Vector3.new(5.5, 3.2, 0.08)
+    }):Play()
+    
+    -- Aparecer elementos
+    task.delay(0.15, function()
+        TweenService:Create(frame, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+        TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 0}):Play()
+        TweenService:Create(titleBar, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+        TweenService:Create(icon, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+        TweenService:Create(titleText, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+        TweenService:Create(closeBtn, TweenInfo.new(0.3), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
+        TweenService:Create(message, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+        TweenService:Create(details, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+        TweenService:Create(progressBg, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+        TweenService:Create(progressFill, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+        TweenService:Create(percentText, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+    end)
+    
+    -- Seguir o jogador
+    local followConn = RunService.Heartbeat:Connect(updatePosition)
+    
+    -- Barra de progresso
+    task.delay(0.6, function()
+        TweenService:Create(progressFill, TweenInfo.new(2, Enum.EasingStyle.Linear), {
+            Size = UDim2.new(1, 0, 1, 0)
+        }):Play()
         
-        -- Recolher partes de volta (último 0.5s)
-        for _, data in ipairs(bodyParts) do
-            if data.Part and data.Part.Parent then
-                TweenService:Create(data.Part, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                    CFrame = data.OriginCFrame,
-                    Transparency = 1
-                }):Play()
+        for i = 0, 100, 2 do
+            task.wait(0.04)
+            if percentText and percentText.Parent then
+                percentText.Text = i .. "%"
             end
         end
     end)
-end
-
--- Efeito de ilusões de clones aparecendo e sumindo
-local function PhantomCloneEffect()
-    if not Character or not HRP then return end
     
-    local activePhantoms = {}
-    local maxPhantoms = 8
-    
+    -- Scanline animada
     task.spawn(function()
+        while scanline.Parent do
+            TweenService:Create(scanline, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {
+                Position = UDim2.new(0, 0, 1, 0)
+            }):Play()
+            task.wait(1.5)
+            scanline.Position = UDim2.new(0, 0, -1, 0)
+        end
+    end)
+    
+    -- ===== RECUPERAR VIDA E ENERGIA =====
+    task.spawn(function()
+        task.wait(1.5)
+        
+        if Humanoid then
+            TweenService:Create(Humanoid, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Health = Humanoid.MaxHealth
+            }):Play()
+        end
+        
+        local targetEnergy = math.min(Constants.MAX_ENERGY, State.Energy + 50)
+        local startEnergy = State.Energy
+        local duration = 1.5
         local startTime = tick()
         
-        while tick() - startTime < Constants.CYBERPSYCHOSIS.Duration do
-            local elapsed = tick() - startTime
-            
-            -- Intensidade aumenta com o tempo
-            local intensity = math.min(1, elapsed / (Constants.CYBERPSYCHOSIS.Duration * 0.5))
-            local spawnChance = 0.25 + (intensity * 0.4)  -- 25% a 65% de chance
-            
-            -- Tentar spawnar novo fantasma se abaixo do máximo
-            if #activePhantoms < maxPhantoms and math.random() < spawnChance then
-                -- Criar clone fantasma rápido
-                local phantom = Character:Clone()
-                phantom.Name = "PsychoPhantom"
-                
-                -- Limpar scripts e sons
-                for _, obj in ipairs(phantom:GetDescendants()) do
-                    if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("Sound") or obj:IsA("Animator") then
-                        obj:Destroy()
-                    end
-                end
-                
-                -- Destruir Humanoid
-                local hum = phantom:FindFirstChildOfClass("Humanoid")
-                if hum then hum:Destroy() end
-                
-                -- Posição aleatória ao redor
-                local angle = math.random() * math.pi * 2
-                local distance = math.random(3, 10)
-                local heightOffset = math.random(-3, 5)
-                
-                local phantomHRP = phantom:FindFirstChild("HumanoidRootPart")
-                if phantomHRP then
-                    local randomPos = HRP.Position + Vector3.new(
-                        math.cos(angle) * distance,
-                        heightOffset,
-                        math.sin(angle) * distance
-                    )
-                    
-                    -- Pose aleatória (rotação)
-                    local randomRotation = CFrame.Angles(
-                        math.rad(math.random(-30, 30)),
-                        math.rad(math.random(0, 360)),
-                        math.rad(math.random(-20, 20))
-                    )
-                    
-                    phantomHRP.CFrame = CFrame.new(randomPos) * randomRotation
-                    
-                    -- Configurar aparência fantasmagórica
-                    for _, part in ipairs(phantom:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.Anchored = true
-                            part.CanCollide = false
-                            part.Transparency = 0.6 + math.random() * 0.3
-                            part.Color = Color3.fromRGB(255, 30, 30)
-                            part.Material = Enum.Material.Glass
-                        elseif part:IsA("Decal") or part:IsA("Texture") then
-                            part.Transparency = 0.8
-                        end
-                    end
-                    
-                    phantom.Parent = Workspace
-                    
-                    -- Dados do fantasma
-                    local phantomData = {
-                        Model = phantom,
-                        SpawnTime = tick(),
-                        Lifetime = math.random(0.3, 1.2),  -- Dura curto tempo
-                        FadeStart = 0  -- Quando começar a sumir
-                    }
-                    
-                    table.insert(activePhantoms, phantomData)
-                    
-                    -- Agendar destruição
-                    task.delay(phantomData.Lifetime, function()
-                        if phantom and phantom.Parent then
-                            -- Fade out rápido
-                            for _, part in ipairs(phantom:GetDescendants()) do
-                                if part:IsA("BasePart") then
-                                    TweenService:Create(part, TweenInfo.new(0.2), {
-                                        Transparency = 1
-                                    }):Play()
-                                end
-                            end
-                            task.delay(0.25, function()
-                                phantom:Destroy()
-                            end)
-                        end
-                    end)
-                end
+        task.spawn(function()
+            while tick() - startTime < duration do
+                local alpha = (tick() - startTime) / duration
+                State.Energy = startEnergy + (targetEnergy - startEnergy) * alpha
+                RunService.Heartbeat:Wait()
             end
-            
-            -- Animar fantasmas existentes (tremer/glitchar)
-            for _, data in ipairs(activePhantoms) do
-                if data.Model and data.Model.Parent then
-                    local phantomHRP = data.Model:FindFirstChild("HumanoidRootPart")
-                    if phantomHRP then
-                        -- Pequeno tremor aleatório
-                        local shake = Vector3.new(
-                            math.random(-2, 2) * 0.1,
-                            math.random(-1, 1) * 0.1,
-                            math.random(-2, 2) * 0.1
-                        )
-                        phantomHRP.CFrame = phantomHRP.CFrame + shake
-                        
-                        -- Piscar transparência (efeito glitch)
-                        local timeAlive = tick() - data.SpawnTime
-                        if timeAlive > data.Lifetime * 0.7 then
-                            -- Começar a piscar mais rápido perto do fim
-                            for _, part in ipairs(data.Model:GetDescendants()) do
-                                if part:IsA("BasePart") then
-                                    part.Transparency = math.random(0.5, 1)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            
-            -- Limpar fantasmas mortos da lista
-            for i = #activePhantoms, 1, -1 do
-                if not activePhantoms[i].Model or not activePhantoms[i].Model.Parent then
-                    table.remove(activePhantoms, i)
-                end
-            end
-            
-            RunService.Heartbeat:Wait()
-        end
+            State.Energy = targetEnergy
+        end)
         
-        -- Limpar todos os fantasmas restantes
-        for _, data in ipairs(activePhantoms) do
-            if data.Model and data.Model.Parent then
-                data.Model:Destroy()
-            end
+        ScreenFade(0.2, 0, 0.5, Color3.fromRGB(0, 255, 0), 0.4, 0.2)
+    end)
+    
+    -- ===== FECHAR APÓS 4 SEGUNDOS =====
+    local function closeWindow()
+        if followConn then followConn:Disconnect() end
+        if part and part.Parent then
+            TweenService:Create(part, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Size = Vector3.new(0.1, 0.1, 0.08)
+            }):Play()
+            TweenService:Create(frame, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+            task.delay(0.5, function()
+                part:Destroy()
+            end)
         end
-        activePhantoms = {}
+    end
+    
+    task.delay(4, function()
+        if part and part.Parent then
+            closeWindow()
+        end
     end)
 end
 
@@ -1229,16 +1237,11 @@ local function ExecCyberpsychosis()
 
     if Humanoid then Humanoid.WalkSpeed = 0 Humanoid.JumpPower = 0 end
     
-    -- Efeito de desmembramento corporal
-BodyDismemberEffect()
-    
-    -- Efeito de ilusões de clones fantasmas
-PhantomCloneEffect()
-    
     if Lighting:FindFirstChild("SandiEffect") then Lighting.SandiEffect:Destroy() end
     local cc, blur = createLightingEffects()
     local startTime = tick()
     local connection
+    
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
     local vignette = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 0.5, BackgroundColor3 = Color3.new(0, 0, 0), Parent = gui})
     local vignetteGradient = Create("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.5), NumberSequenceKeypoint.new(1, 1)}), Rotation = 0, Parent = vignette})
@@ -1322,46 +1325,87 @@ PhantomCloneEffect()
         end)
     end
     connection = RunService.RenderStepped:Connect(function(dt)
-        local elapsed = tick() - startTime
-        if elapsed > Constants.CYBERPSYCHOSIS.Duration then
-            if Humanoid then Humanoid.WalkSpeed = 16 Humanoid.JumpPower = 50 Humanoid.CameraOffset = Vector3.zero end
-            TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0}):Play()
-            TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
-            Debris:AddItem(cc, 0.5)
-            Debris:AddItem(blur, 0.5)
-            connection:Disconnect()
-            vignette:Destroy()
-            psychosisText:Destroy()
-            redOverlay:Destroy()
-            blueOverlay:Destroy()
-            for _, crack in ipairs(gui:GetChildren()) do if crack:IsA("ImageLabel") then crack:Destroy() end end
-            for _, emitter in ipairs(emitters) do emitter.Enabled = false Debris:AddItem(emitter.Parent, 1) end
-            return
-        end
+    local elapsed = tick() - startTime
+    if elapsed > Constants.CYBERPSYCHOSIS.Duration then
+    if Humanoid then Humanoid.WalkSpeed = 16 Humanoid.JumpPower = 50 Humanoid.CameraOffset = Vector3.zero end
+    TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0}):Play()
+    TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
+    Debris:AddItem(cc, 0.5)
+    Debris:AddItem(blur, 0.5)
+    connection:Disconnect()
+    
+    -- ===== CHANCE DE SYSTEM RESTORE (30%) =====
+    if math.random(1, 100) <= 30 then
+        task.delay(0.5, function()
+            SystemRestorePopup()
+        end)
+    end
+    
+    vignette:Destroy()
+    psychosisText:Destroy()
+    redOverlay:Destroy()
+    blueOverlay:Destroy()
+    for _, crack in ipairs(gui:GetChildren()) do if crack:IsA("ImageLabel") then crack:Destroy() end end
+    for _, emitter in ipairs(emitters) do emitter.Enabled = false Debris:AddItem(emitter.Parent, 1) end
+    return
+end
+    
+    -- ===== DRENAR VIDA SUAVEMENTE =====
+    if Humanoid and Humanoid.Health > 0 then
+        -- Calcular dreno baseado na fase
+        local drainRate = 0
+        
         if elapsed < phaseDuration then
+            -- Fase 1: Dreno leve (5% da vida máxima por segundo)
             currentPhase = 1
+            drainRate = Humanoid.MaxHealth * 0.05 * dt
             Constants.CYBERPSYCHOSIS.ShakeIntensity = 0.2
             Constants.CYBERPSYCHOSIS.PopupRate = 0.05
             blur.Size = math.random(2, 6)
+            
         elseif elapsed < phaseDuration * 2 then
+            -- Fase 2: Dreno médio (8% da vida máxima por segundo)
             currentPhase = 2
+            drainRate = Humanoid.MaxHealth * 0.08 * dt
             Constants.CYBERPSYCHOSIS.ShakeIntensity = 0.6
             Constants.CYBERPSYCHOSIS.PopupRate = 0.1
             blur.Size = math.random(8, 16)
+            
         else
+            -- Fase 3: Dreno intenso (12% da vida máxima por segundo) + velocidade
             currentPhase = 3
+            drainRate = Humanoid.MaxHealth * 0.12 * dt
             Constants.CYBERPSYCHOSIS.ShakeIntensity = 1.0
             Constants.CYBERPSYCHOSIS.PopupRate = 0.15
             blur.Size = math.random(12, 20)
+            
             if Humanoid then
                 Humanoid.WalkSpeed = 50
-                if Humanoid.Health > Humanoid.MaxHealth * 0.5 then Humanoid.Health -= 1 * dt end
             end
         end
-        blur.Size = math.random(4, 12)
-        shakeCamera()
-        if math.random() < Constants.CYBERPSYCHOSIS.PopupRate then spawnPopup() end
-    end)
+        
+        -- Aplicar dreno (mínimo de 1 de vida para não matar instantaneamente)
+        local newHealth = math.max(1, Humanoid.Health - drainRate)
+        Humanoid.Health = newHealth
+        
+        -- Efeito visual de dano no corpo (piscar vermelho)
+        if Character then
+            for _, part in ipairs(cyberParts) do
+                if part then
+                    -- Piscar entre vermelho sangue e rosa escuro
+                    local r = 0.8 + math.sin(elapsed * 15) * 0.2
+                    local g = 0.05 + math.sin(elapsed * 10) * 0.05
+                    local b = 0.1 + math.sin(elapsed * 12) * 0.1
+                    part.Color = Color3.new(r, g, b)
+                end
+            end
+        end
+    end
+    
+    blur.Size = math.random(4, 12)
+    shakeCamera()
+    if math.random() < Constants.CYBERPSYCHOSIS.PopupRate then spawnPopup() end
+end)
 end
 
 local function ToggleNoclip()
