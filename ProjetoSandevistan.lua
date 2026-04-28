@@ -11,6 +11,45 @@ local Player = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local Character, HRP, Humanoid
 
+local HttpService = game:GetService("HttpService")
+local CONFIG_FILE = "CyberRebuilt_2077_Config.json"
+
+-- Configurações padrão (primeira execução)
+local DefaultConfig = {
+    -- Posições dos botões (salvas como Scale/Offset)
+    UIPositions = {
+        EnergyBar = {ScaleX = 0, OffsetX = 28, ScaleY = 0.5, OffsetY = -155},
+        DashBtn = {ScaleX = 0.93, OffsetX = 0, ScaleY = 0.25, OffsetY = 0},
+        SandiBtn = {ScaleX = 0.93, OffsetX = 0, ScaleY = 0.35, OffsetY = 0},
+        KiroshiBtn = {ScaleX = 0.93, OffsetX = 0, ScaleY = 0.45, OffsetY = 0},
+        OpticalBtn = {ScaleX = 0.93, OffsetX = 0, ScaleY = 0.55, OffsetY = 0},
+        DodgeBtn = {ScaleX = 0.93, OffsetX = 0, ScaleY = 0.65, OffsetY = 0}
+    },
+    -- Estados dos botões ON/OFF
+    EnabledAbilities = {
+        Dash = true,
+        Sandi = true,
+        Kiroshi = true,
+        Optical = true,
+        Dodge = true
+    },
+    -- Keybinds (salvos como número do Enum)
+    Keybinds = {
+        Dash = "Q",
+        Sandi = "E",
+        Kiroshi = "K",
+        Optical = "O",
+        Dodge = "N"
+    },
+    -- Configurações gerais
+    Settings = {
+        DodgeMode = "Counter",  -- "Counter" ou "Auto"
+        LiteMode = false,
+        CurrentSet = 1,  -- 1, 2 ou 3
+        CloneColorIndex = 34
+    }
+}
+
 type Cooldowns = {
     SANDI: number,
     DASH: number,
@@ -2066,6 +2105,125 @@ local function CreateEnergyBar(gui)
     return container
 end
 
+-- ========== SISTEMA DE CONFIGURAÇÃO JSON ==========
+
+-- Carrega configurações do arquivo
+local function LoadConfig()
+    local success, result = pcall(function()
+        if isfile(CONFIG_FILE) then
+            local content = readfile(CONFIG_FILE)
+            return HttpService:JSONDecode(content)
+        else
+            -- Primeira execução: criar arquivo com defaults
+            local json = HttpService:JSONEncode(DefaultConfig)
+            writefile(CONFIG_FILE, json)
+            return DefaultConfig
+        end
+    end)
+    
+    if success and result then
+        return result
+    else
+        warn("Erro ao carregar config, usando padrão:", result)
+        return DefaultConfig
+    end
+end
+
+-- Salva configurações no arquivo
+local function SaveConfig()
+    local config = {
+        UIPositions = {},
+        EnabledAbilities = EnabledAbilities,
+        Keybinds = {},
+        Settings = {
+            DodgeMode = DodgeMode,
+            LiteMode = LiteMode,
+            CurrentSet = currentSet,
+            CloneColorIndex = cloneColorIndex
+        }
+    }
+    
+    -- Salvar posições da UI
+    for name, pos in pairs(savedPositions) do
+        config.UIPositions[name] = {
+            ScaleX = pos.X.Scale,
+            OffsetX = pos.X.Offset,
+            ScaleY = pos.Y.Scale,
+            OffsetY = pos.Y.Offset
+        }
+    end
+    
+    -- Se não tiver posições salvas ainda, usar defaults
+    if next(config.UIPositions) == nil then
+        config.UIPositions = DefaultConfig.UIPositions
+    end
+    
+    -- Salvar keybinds como string
+    for ab, key in pairs(CurrentKeybinds) do
+        config.Keybinds[ab] = key.Name
+    end
+    
+    local success, err = pcall(function()
+        local json = HttpService:JSONEncode(config)
+        writefile(CONFIG_FILE, json)
+    end)
+    
+    if not success then
+        warn("Erro ao salvar configurações:", err)
+    end
+end
+
+-- Aplica configurações carregadas
+local function ApplyConfig(config)
+    if not config then return end
+    
+    -- Aplicar posições da UI
+    if config.UIPositions then
+        for name, posData in pairs(config.UIPositions) do
+            savedPositions[name] = UDim2.new(posData.ScaleX, posData.OffsetX, posData.ScaleY, posData.OffsetY)
+        end
+    end
+    
+    -- Aplicar habilidades ativas
+    if config.EnabledAbilities then
+        for ab, state in pairs(config.EnabledAbilities) do
+            if EnabledAbilities[ab] ~= nil then
+                EnabledAbilities[ab] = state
+            end
+        end
+    end
+    
+    -- Aplicar keybinds
+    if config.Keybinds then
+        for ab, keyName in pairs(config.Keybinds) do
+            local success, keycode = pcall(function()
+                return Enum.KeyCode[keyName]
+            end)
+            if success and keycode and CurrentKeybinds[ab] ~= nil then
+                CurrentKeybinds[ab] = keycode
+            end
+        end
+    end
+    
+    -- Aplicar settings
+    if config.Settings then
+        if config.Settings.DodgeMode then
+            DodgeMode = config.Settings.DodgeMode
+        end
+        if config.Settings.LiteMode ~= nil then
+            LiteMode = config.Settings.LiteMode
+        end
+        if config.Settings.CurrentSet then
+            currentSet = config.Settings.CurrentSet
+        end
+        if config.Settings.CloneColorIndex then
+            cloneColorIndex = config.Settings.CloneColorIndex
+        end
+    end
+    
+    print("✅ Configurações carregadas com sucesso!")
+end
+
 local function BuildUI()
     if Player.PlayerGui:FindFirstChild("CyberRebuilt") then Player.PlayerGui.CyberRebuilt:Destroy() end
     local gui = Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
@@ -2188,17 +2346,18 @@ local function BuildUI()
         Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = tog})
 
         tog.MouseButton1Click:Connect(function()
-            EnabledAbilities[ab.key] = not EnabledAbilities[ab.key]
-            tog.Text = EnabledAbilities[ab.key] and "ON" or "OFF"
-            tog.BackgroundColor3 = EnabledAbilities[ab.key] and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
-            if ab.key == "Dodge" and not EnabledAbilities.Dodge then State.IsDodgeReady = false end
-            local btnName = AbilityMap[ab.key]
-            if btnName and SkillContainers[btnName] then
-                local visible = EnabledAbilities[ab.key]
-                if btnName == "DodgeBtn" then visible = visible and DodgeMode == "Counter" end
-                SkillContainers[btnName].Visible = visible
-            end
-        end)
+    EnabledAbilities[ab.key] = not EnabledAbilities[ab.key]
+    tog.Text = EnabledAbilities[ab.key] and "ON" or "OFF"
+    tog.BackgroundColor3 = EnabledAbilities[ab.key] and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
+    if ab.key == "Dodge" and not EnabledAbilities.Dodge then State.IsDodgeReady = false end
+    local btnName = AbilityMap[ab.key]
+    if btnName and SkillContainers[btnName] then
+        local visible = EnabledAbilities[ab.key]
+        if btnName == "DodgeBtn" then visible = visible and DodgeMode == "Counter" end
+        SkillContainers[btnName].Visible = visible
+    end
+    SaveConfig()
+end)
     end
 
     local modeRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 54), BackgroundColor3 = Colors.UI_BG, BorderSizePixel = 0, Parent = scroll})
@@ -2207,17 +2366,18 @@ local function BuildUI()
     local modeToggle = Create("TextButton", {Size = UDim2.new(0.29, 0, 0.78, 0), Position = UDim2.new(0.68, 0, 0.11, 0), Text = DodgeMode == "Counter" and "COUNTER" or "AUTO", BackgroundColor3 = DodgeMode == "Counter" and Color3.fromRGB(255, 165, 0) or Color3.fromRGB(0, 255, 255), TextColor3 = Color3.new(1,1,1), Font = Enum.Font.SciFi, TextSize = 17, Parent = modeRow})
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = modeToggle})
     modeToggle.MouseButton1Click:Connect(function()
-        if DodgeMode == "Counter" then
-            DodgeMode = "Auto"
-            modeToggle.Text = "AUTO"
-            modeToggle.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
-        else
-            DodgeMode = "Counter"
-            modeToggle.Text = "COUNTER"
-            modeToggle.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
-        end
-        if SkillContainers["DodgeBtn"] then SkillContainers["DodgeBtn"].Visible = (EnabledAbilities.Dodge and DodgeMode == "Counter") end
-    end)
+    if DodgeMode == "Counter" then
+        DodgeMode = "Auto"
+        modeToggle.Text = "AUTO"
+        modeToggle.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+    else
+        DodgeMode = "Counter"
+        modeToggle.Text = "COUNTER"
+        modeToggle.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+    end
+    if SkillContainers["DodgeBtn"] then SkillContainers["DodgeBtn"].Visible = (EnabledAbilities.Dodge and DodgeMode == "Counter") end
+    SaveConfig()
+end)
 
     local liteRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 52), BackgroundColor3 = Colors.UI_BG, BorderSizePixel = 0, Parent = scroll})
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = liteRow})
@@ -2225,10 +2385,11 @@ local function BuildUI()
     local liteToggle = Create("TextButton", {Size = UDim2.new(0.28, 0, 0.75, 0), Position = UDim2.new(0.69, 0, 0.125, 0), Text = LiteMode and "ON" or "OFF", BackgroundColor3 = LiteMode and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40), TextColor3 = Color3.new(1,1,1), Font = Enum.Font.SciFi, TextSize = 17, Parent = liteRow})
     Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = liteToggle})
     liteToggle.MouseButton1Click:Connect(function()
-        LiteMode = not LiteMode
-        liteToggle.Text = LiteMode and "ON" or "OFF"
-        liteToggle.BackgroundColor3 = LiteMode and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
-    end)
+    LiteMode = not LiteMode
+    liteToggle.Text = LiteMode and "ON" or "OFF"
+    liteToggle.BackgroundColor3 = LiteMode and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
+    SaveConfig()
+end)
 
     local noclipRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 52), BackgroundColor3 = Colors.UI_BG, BorderSizePixel = 0, Parent = scroll})
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = noclipRow})
@@ -2265,7 +2426,7 @@ local function BuildUI()
     local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 50), Position = UDim2.new(0.05, 0, 0, 6), Text = " TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 21, Parent = setsRow})
     Create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = setsBtn})
     Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2.5, Parent = setsBtn})
-    setsBtn.MouseButton1Click:Connect(function()
+        setsBtn.MouseButton1Click:Connect(function()
     if currentSet == 1 then
         currentSet = 2
         setsBtn.BackgroundColor3 = setColors[2]
@@ -2279,25 +2440,32 @@ local function BuildUI()
         setsBtn.BackgroundColor3 = setColors[1]
         AplicarSet(SET_1)
     end
+    SaveConfig()
 end)
 
     scroll.CanvasSize = UDim2.new(0, 0, 0, scroll.UIListLayout.AbsoluteContentSize.Y + 160)
 
     MakeDraggable(gui:FindFirstChild("EnergyBar"), gui:FindFirstChild("EnergyBar"))
     lockBtn.MouseButton1Click:Connect(function()
-        State.EditMode = not State.EditMode
-        lockBtn.BackgroundColor3 = State.EditMode and Colors.EDIT_MODE or Colors.UI_DARK
-        lockBtn.TextColor3 = State.EditMode and Colors.UI_DARK or Colors.UI_NEON
-        for _, item in ipairs(UI_Elements) do item.Stroke.Enabled = State.EditMode end
-        if not State.EditMode then
-            savedPositions["EnergyContainer"] = gui:FindFirstChild("EnergyBar").Position
-            savedPositions["DashBtn"] = gui:FindFirstChild("DashBtnContainer").Position
-            savedPositions["SandiBtn"] = gui:FindFirstChild("SandiBtnContainer").Position
-            savedPositions["KiroshiBtn"] = gui:FindFirstChild("KiroshiBtnContainer").Position
-            savedPositions["OpticalBtn"] = gui:FindFirstChild("OpticalBtnContainer").Position
-            savedPositions["DodgeBtn"] = gui:FindFirstChild("DodgeBtnContainer").Position
-        end
-    end)
+    State.EditMode = not State.EditMode
+    lockBtn.BackgroundColor3 = State.EditMode and Colors.EDIT_MODE or Colors.UI_DARK
+    lockBtn.TextColor3 = State.EditMode and Colors.UI_DARK or Colors.UI_NEON
+    for _, item in ipairs(UI_Elements) do item.Stroke.Enabled = State.EditMode end
+    
+    if not State.EditMode then
+        -- Salvar posições atuais
+        savedPositions["EnergyBar"] = gui:FindFirstChild("EnergyBar") and gui:FindFirstChild("EnergyBar").Position or savedPositions["EnergyBar"]
+        savedPositions["DashBtn"] = gui:FindFirstChild("DashBtnContainer") and gui:FindFirstChild("DashBtnContainer").Position or savedPositions["DashBtn"]
+        savedPositions["SandiBtn"] = gui:FindFirstChild("SandiBtnContainer") and gui:FindFirstChild("SandiBtnContainer").Position or savedPositions["SandiBtn"]
+        savedPositions["KiroshiBtn"] = gui:FindFirstChild("KiroshiBtnContainer") and gui:FindFirstChild("KiroshiBtnContainer").Position or savedPositions["KiroshiBtn"]
+        savedPositions["OpticalBtn"] = gui:FindFirstChild("OpticalBtnContainer") and gui:FindFirstChild("OpticalBtnContainer").Position or savedPositions["OpticalBtn"]
+        savedPositions["DodgeBtn"] = gui:FindFirstChild("DodgeBtnContainer") and gui:FindFirstChild("DodgeBtnContainer").Position or savedPositions["DodgeBtn"]
+        
+        -- AUTO-SALVAR APÓS EDITAR UI
+        SaveConfig()
+        print("💾 Configurações salvas automaticamente!")
+    end
+end)
 
     UpdateDashButton()
     UpdateKiroshiButton()
@@ -2533,6 +2701,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
             UpdateKeybind(RebindingAbility)
             if KeybindCurrentTexts[RebindingAbility] then KeybindCurrentTexts[RebindingAbility].Text = input.KeyCode.Name end
             RebindingAbility = nil
+            SaveConfig()
         end
         return
     end
@@ -2602,6 +2771,10 @@ Player.Chatted:Connect(function(message)
 end)
 
 local function Init()
+    -- Carregar configurações salvas
+    local savedConfig = LoadConfig()
+    ApplyConfig(savedConfig)
+    
     if Player.Character then 
         SetupCharacter(Player.Character)
         task.delay(0.3, SpawnAnimation)
