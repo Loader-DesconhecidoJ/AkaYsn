@@ -231,7 +231,7 @@ local Sounds = {
     OPTICAL_CAMO = {id = "rbxassetid://115981406751041", volume = 1, pitch = 1, looped = false},
     SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 5, pitch = 1, looped = false},
     COLLISION_IMPACT = {id = "rbxassetid://86227700557194", volume = 1.7, pitch = 1, looped = false},
-    SPAWN = {id = "rbxassetid://121480304779842", volume = 1.5, pitch = 1, looped = false},
+    SPAWN = {id = "rbxassetid://138566469626743", volume = 1.5, pitch = 1, looped = false},
     KIROSHI_ON = {id = "rbxassetid://101563346734882", volume = 2.2, pitch = 1.05, looped = false},
     KIROSHI_OFF = {id = "rbxassetid://79307196411649", volume = 1.8, pitch = 0.95, looped = false}
 }
@@ -1051,29 +1051,36 @@ local function ExecDodge(enemyPart: BasePart?)
     local dodgeDuration = 0.35
 
     if enemyPart and distance <= Constants.DODGE_CONFIG.VARIANT_THRESHOLD then
-        -- ========== VARIANT: Giro em volta do inimigo (SEM clone inicial) ==========
-        PlaySFX(Sounds.DODGE_VARIANT)
-        task.spawn(function()
-            local duration = Constants.DODGE_CONFIG.VARIANT_DURATION
-            local startTime = tick()
-            local relative = HRP.Position - enemyPart.Position
-            local lastCloneTime = 0
-            while tick() - startTime < duration do
-                local alpha = (tick() - startTime) / duration
-                local angle = alpha * math.pi
-                local rotated = CFrame.Angles(0, angle, 0) * relative
-                local newPos = enemyPart.Position + rotated
-                HRP.CFrame = CFrame.lookAt(newPos, enemyPart.Position)
-                if tick() - lastCloneTime >= Constants.DODGE_CONFIG.VARIANT_CLONE_INTERVAL then
-                    CreateHologramClone(0, Constants.HOLOGRAM_CLONE.DODGE.DURATION, Constants.HOLOGRAM_CLONE.DODGE.END_TRANSPARENCY, 0, 0, 0, "dodge", HRP.CFrame)
-                    lastCloneTime = tick()
-                end
-                RunService.Heartbeat:Wait()
+    -- ========== VARIANT: Giro em volta do inimigo (SEM clone inicial) ==========
+    PlaySFX(Sounds.DODGE_VARIANT)
+    task.spawn(function()
+        local duration = Constants.DODGE_CONFIG.VARIANT_DURATION
+        local startTime = tick()
+        local relative = HRP.Position - enemyPart.Position
+        local lastCloneTime = 0
+        
+        -- ESCOLHA ALEATÓRIA: 1 = direita (sentido horário), -1 = esquerda (anti-horário)
+        local direction = if math.random(1, 2) == 1 then 1 else -1
+        
+        while tick() - startTime < duration do
+            local alpha = (tick() - startTime) / duration
+            local angle = alpha * math.pi * direction  -- Multiplica pela direção escolhida
+            local rotated = CFrame.Angles(0, angle, 0) * relative
+            local newPos = enemyPart.Position + rotated
+            HRP.CFrame = CFrame.lookAt(newPos, enemyPart.Position)
+            if tick() - lastCloneTime >= Constants.DODGE_CONFIG.VARIANT_CLONE_INTERVAL then
+                CreateHologramClone(0, Constants.HOLOGRAM_CLONE.DODGE.DURATION, Constants.HOLOGRAM_CLONE.DODGE.END_TRANSPARENCY, 0, 0, 0, "dodge", HRP.CFrame)
+                lastCloneTime = tick()
             end
-            local finalRelative = CFrame.Angles(0, math.pi, 0) * relative
-            local finalPos = enemyPart.Position + finalRelative
-            HRP.CFrame = CFrame.lookAt(finalPos, enemyPart.Position)
-        end)
+            RunService.Heartbeat:Wait()
+        end
+        
+        -- A posição final também precisa ser invertida se for para esquerda
+        local finalAngle = math.pi * direction
+        local finalRelative = CFrame.Angles(0, finalAngle, 0) * relative
+        local finalPos = enemyPart.Position + finalRelative
+        HRP.CFrame = CFrame.lookAt(finalPos, enemyPart.Position)
+    end)
 
     else
         -- ========== NORMAL: Teleporte + clone na posição inicial ==========
