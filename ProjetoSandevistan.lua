@@ -7,6 +7,9 @@ local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local SoundService = game:GetService("SoundService")
 local ContextActionService = game:GetService("ContextActionService")
+local Player = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local Character, HRP, Humanoid
 
 type Cooldowns = {
     SANDI: number,
@@ -45,7 +48,7 @@ local Constants = {
         OPTICAL = 6.5
     },
     HOLOGRAM_CLONE = {
-        SANDI = {DELAY = 0.075, DURATION = 3, END_TRANSPARENCY = 1},
+        SANDI = {DELAY = 0.075, DURATION = 3, END_TRvolumeANSPARENCY = 1},
         DASH = {DELAY = 0.07, DURATION = 0.35, END_TRANSPARENCY = 0.9},
         DODGE = {DELAY = 0.2, DURATION = 0.5, END_TRANSPARENCY = 0.9}
     },
@@ -212,21 +215,27 @@ local RebindingAbility = nil
 local KeybindCurrentTexts = {}
 
 local Sounds = {
-    DODGE_NORMAL = {id = "rbxassetid://136915991425056", volume = 1.5, pitch = 1, looped = false},
+    DODGE_NORMAL = {id = "rbxassetid://104594227753486", volume = 1.5, pitch = 1, looped = false},
     DODGE_VARIANT = {id = "rbxassetid://136915991425056", volume = 1.5, pitch = 1, looped = false},
     DASH = {id = "rbxassetid://103247005619946", volume = 1.5, pitch = 1, looped = false},
     SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1.5, pitch = 1, looped = false},
     SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1.5, pitch = 1, looped = false},
-    SANDI_LOOP = {id = "rbxassetid://189182", volume = 1.5, pitch = 1, looped = true},
+    SANDI_LOOP = {id = "rbxassetid://74707394872868", volume = 1.5, pitch = 1.5, looped = true},
     PSYCHOSIS = {id = "rbxassetid://116261614561232", volume = 2, pitch = 1, looped = false},
     PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
-    OPTICAL_CAMO = {id = "rbxassetid://76731635249906", volume = 1.5, pitch = 1, looped = false},
+    OPTICAL_CAMO = {id = "rbxassetid://115981406751041", volume = 1, pitch = 1, looped = false},
     SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 5, pitch = 1, looped = false},
-    COLLISION_IMPACT = {id = "rbxassetid://82219914671445", volume = 1.7, pitch = 1, looped = false},
-    SPAWN = {id = "rbxassetid://121480304779842", volume = 1.5, pitch = 1, looped = false},
+    COLLISION_IMPACT = {id = "rbxassetid://86227700557194", volume = 1.7, pitch = 1, looped = false},
+    SPAWN = {id = "rbxassetid://121480304779842",  = 1.5, pitch = 1, looped = false},
     KIROSHI_ON = {id = "rbxassetid://101563346734882", volume = 2.2, pitch = 1.05, looped = false},
     KIROSHI_OFF = {id = "rbxassetid://79307196411649", volume = 1.8, pitch = 0.95, looped = false}
 }
+
+local invisSound = Instance.new("Sound", Player:WaitForChild("PlayerGui"))
+invisSound.SoundId = Sounds.OPTICAL_CAMO.id
+invisSound.Volume = Sounds.OPTICAL_CAMO.volume
+invisSound.PlaybackSpeed = Sounds.OPTICAL_CAMO.pitch
+invisSound.Looped = Sounds.OPTICAL_CAMO.looped
 
 local NOME_ARQUIVO = "I Really Want to Stay at Your House.mp3"
 local VOLUME = 0.9
@@ -236,7 +245,7 @@ local function detectarExecutor()
     if KRNL_LOADED then return "KRNL", getcustomasset
     elseif syn then return "Synapse X", syn.getcustomasset
     elseif fluxus then return "Fluxus", fluxus.getcustomasset
-    elseif getcustomasset then return "Executor Genérico", getcustomasset
+    elseif getcustomasset then return "Executor Gen�rico", getcustomasset
     else return nil, nil end
 end
 
@@ -287,7 +296,7 @@ local function criarGUI()
         Corner.Parent = Frame
         local Titulo = Instance.new("TextLabel")
         Titulo.Size = UDim2.new(1, 0, 0.4, 0)
-        Titulo.Text = "♪ Tocando Agora"
+        Titulo.Text = " Tocando Agora"
         Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
         Titulo.BackgroundTransparency = 1
         Titulo.Font = Enum.Font.GothamBold
@@ -296,7 +305,7 @@ local function criarGUI()
         local BotaoParar = Instance.new("TextButton")
         BotaoParar.Size = UDim2.new(0.8, 0, 0.4, 0)
         BotaoParar.Position = UDim2.new(0.1, 0, 0.5, 0)
-        BotaoParar.Text = "⏹ PARAR MÚSICA"
+        BotaoParar.Text = " PARAR M�SICA"
         BotaoParar.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
         BotaoParar.TextColor3 = Color3.fromRGB(255, 255, 255)
         BotaoParar.Font = Enum.Font.GothamBold
@@ -329,9 +338,6 @@ local State: SystemState = {
     MusicSound = nil
 }
 
-local Player = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-local Character, HRP, Humanoid
 local UI_Elements = {}
 local ActiveCooldownFrames = {}
 local sandiLoopSound: Sound? = nil
@@ -349,12 +355,6 @@ local animationConnections: {RBXScriptConnection} = {}
 local opticalToken = 0
 local energyFill: Frame
 local energyPercentLabel: TextLabel
-
-local invisSound = Instance.new("Sound", Player:WaitForChild("PlayerGui"))
-invisSound.SoundId = Sounds.OPTICAL_CAMO.id
-invisSound.Volume = Sounds.OPTICAL_CAMO.volume
-invisSound.PlaybackSpeed = Sounds.OPTICAL_CAMO.pitch
-invisSound.Looped = Sounds.OPTICAL_CAMO.looped
 
 local function getSafeInvisPosition()
     local offset = Vector3.new(math.random(-5000, 5000), math.random(10000, 15000), math.random(-5000, 5000))
@@ -385,7 +385,7 @@ local function activateInvisibility()
     Seat.Position = invisPos
     local Weld = Instance.new("Weld", Seat)
     Weld.Part0 = Seat
-    Weld.Part1 = Player.Character:FindFirstChild("Torso") or Player.Character.UpperTorso
+    Weld.Part1 = Player.Character:FindFirstChild("UpperTorso") or Player.Character:FindFirstChild("Torso") or Player.Character:FindFirstChild("HumanoidRootPart")
     task.wait()
     Seat.CFrame = savedpos
     setTransparency(Player.Character, 0.5, 0.5)
@@ -446,7 +446,7 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
         Create("UICorner", {CornerRadius = UDim.new(0, 3), Parent = progressBar})
         local fillBar = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = color, BorderSizePixel = 0, Parent = progressBar})
         Create("UICorner", {CornerRadius = UDim.new(0, 3), Parent = fillBar})
-        local timer = Create("TextLabel", {Size = UDim2.new(1, -20, 0.4, 0), Position = UDim2.new(0, 10, 0.55, 0), BackgroundTransparency = 1, TextColor3 = Colors.UI_NEON, Font = Enum.Font.Code, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Right, Text = string.format("%.1fs", duration), Parent = container})
+        local timer = Create("TextLabel", {Size = UDim2.new(0, 50, 1, 0), Position = UDim2.new(1, -55, 0, 0), BackgroundTransparency = 1, TextColor3 = Colors.UI_NEON, Font = Enum.Font.Code, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Right, Text = string.format("%.1fs", duration), Parent = container})
         table.insert(ActiveCooldownFrames, container)
         local startTime = os.clock()
         while os.clock() - startTime < duration do
@@ -512,28 +512,53 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         end
     end
     local thisColor = Colors.RAINBOW_SEQUENCE[cloneColorIndex]
-    cloneColorIndex = (cloneColorIndex % #Colors.RAINBOW_SEQUENCE) + 1
-    for _, part in ipairs(hologramChar:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.Anchored = true
-            part.CanCollide = false
-            part.Material = Configurations.HOLOGRAM_MATERIAL
-            part.Transparency = 0.15
-            part.Color = thisColor
-        elseif part:IsA("Decal") or part:IsA("Texture") then
-            part.Transparency = 0.25
+cloneColorIndex = (cloneColorIndex % #Colors.RAINBOW_SEQUENCE) + 1
+
+-- Pinta TUDO no clone (corpo + acessórios + meshparts)
+for _, part in ipairs(hologramChar:GetDescendants()) do
+    if part:IsA("BasePart") then
+        part.Anchored = true
+        part.CanCollide = false
+        part.Material = Configurations.HOLOGRAM_MATERIAL
+        part.Transparency = 0.15
+        part.Color = thisColor
+    elseif part:IsA("Decal") or part:IsA("Texture") then
+        part.Transparency = 0.25
+    elseif part:IsA("MeshPart") then
+        part.Color = thisColor
+        part.TextureID = ""  -- Remove textura para a cor aparecer
+    end
+    
+    -- Remove textura de SpecialMesh para mostrar a cor sólida
+    if part:IsA("SpecialMesh") then
+        part.TextureId = ""
+    end
+end
+
+-- Segunda passada: pinta MeshParts que estão DENTRO de acessórios
+for _, acc in ipairs(hologramChar:GetDescendants()) do
+    if acc:IsA("Accessory") then
+        for _, child in ipairs(acc:GetDescendants()) do
+            if child:IsA("MeshPart") then
+                child.Color = thisColor
+                child.TextureID = ""
+            elseif child:IsA("BasePart") then
+                child.Color = thisColor
+            end
         end
     end
+end
     if hologramHRP then hologramHRP.Transparency = 1 end
     local rootPart = hologramChar:FindFirstChild("HumanoidRootPart")
     if rootPart then rootPart:Destroy() end
     local highlight = Instance.new("Highlight")
-    highlight.Name = "FullHoloHighlight"
-    highlight.Adornee = hologramChar
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.FillTransparency = 0.38
-    highlight.OutlineTransparency = 0.22
-    highlight.Parent = hologramChar
+highlight.Name = "FullHoloHighlight"
+highlight.Adornee = hologramChar
+highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+highlight.FillTransparency = 0.6          -- Sem preenchimento (100% transparente)
+highlight.OutlineTransparency = 0.3     -- Contorno fraco (60% transparente)
+highlight.OutlineColor = thisColor       -- Cor do contorno
+highlight.Parent = hologramChar
     if cloneType == "sandi" then
         hologramChar.Name = "HologramClone"
         local tag = Instance.new("BoolValue")
@@ -613,7 +638,6 @@ local function TriggerSandevistanFailure()
         end
     end)
     task.delay(0.8, function() errorFrame:Destroy() end)
-    ApplyGlitchEffect()
     if math.random() < 0.15 then task.wait(0.2) ExecCyberpsychosis() end
     State.Cooldowns.SANDI = os.clock() + 9
     State.NoRegenUntil = os.clock() + 9.5
@@ -657,86 +681,133 @@ local function createLightingEffects()
 end
 
 local function spawnPopup()
-	if not HRP then return end
-	local targetWidth = math.random(3.8, 8.2)
-	local targetHeight = math.random(2.3, 5.4)
-	local finalSize = Vector3.new(targetWidth, targetHeight, 0.07)
-	local part = Instance.new("Part")
-	part.Name = "GlitchWindow"
-	part.Size = Vector3.new(0, 0, 0)
-	part.Color = Color3.fromRGB(9, 0, 2)
-	part.Material = Enum.Material.Neon
-	part.Transparency = 0.02
-	part.CanCollide = false
-	part.Anchored = true
-	part.CastShadow = false
-	local randomOffset = Vector3.new(math.random(-Constants.CYBERPSYCHOSIS.Radius, Constants.CYBERPSYCHOSIS.Radius), math.random(1.1, 6.8), math.random(-Constants.CYBERPSYCHOSIS.Radius, Constants.CYBERPSYCHOSIS.Radius))
-	part.Position = HRP.Position + randomOffset
-	local look = CFrame.lookAt(part.Position, HRP.Position)
-	part.CFrame = look * CFrame.Angles(math.rad(math.random(-25,25)), math.rad(math.random(-40,40)), math.rad(math.random(-15,15)))
-	part.Parent = Workspace
-	local sgui = Instance.new("SurfaceGui")
-	sgui.Face = Enum.NormalId.Front
-	sgui.LightInfluence = 0
-	sgui.PixelsPerStud = 50
-	sgui.Parent = part
-	local frame = Instance.new("Frame")
-	frame.Size = UDim2.new(1,0,1,0)
-	frame.BackgroundColor3 = Color3.fromRGB(6,0,1)
-	frame.Parent = sgui
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(255, 25, 60)
-	stroke.Thickness = 4
-	stroke.Parent = frame
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 5)
-	corner.Parent = frame
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1,-16,0.72,0)
-	label.Position = UDim2.new(0,8,0,5)
-	label.BackgroundTransparency = 1
-	label.TextColor3 = Color3.fromRGB(255, 50, 80)
-	label.TextScaled = true
-	label.Font = Enum.Font.SciFi
-	label.Text = Constants.ERROR_TEXTS[math.random(1, #Constants.ERROR_TEXTS)]
-	label.TextStrokeTransparency = 0.4
-	label.TextStrokeColor3 = Color3.fromRGB(255,0,25)
-	label.Parent = frame
-	local sublabel = Instance.new("TextLabel")
-	sublabel.Size = UDim2.new(1,-16,0.28,-8)
-	sublabel.Position = UDim2.new(0,8,0.72,4)
-	sublabel.BackgroundTransparency = 1
-	sublabel.TextColor3 = Color3.fromRGB(255, 125, 140)
-	sublabel.Font = Enum.Font.Code
-	sublabel.TextScaled = true
-	sublabel.Text = "0x"..string.format("%X", math.random(0x8000,0xFFFF)) .. "_NEURAL_CRITICAL"
-	sublabel.Parent = frame
-	task.spawn(function()
-		for i = 1,8 do
-			label.TextTransparency = i%2 == 0 and 0.85 or 0
-			task.wait(0.032)
-		end
-		label.TextTransparency = 0
-	end)
-	TweenService:Create(part, TweenInfo.new(0.14, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = finalSize}):Play()
-	task.delay(Constants.CYBERPSYCHOSIS.WindowLifeTime - 0.25, function()
-		if part.Parent then TweenService:Create(part, TweenInfo.new(0.25), {Size = Vector3.new(0,0,0)}):Play() end
-	end)
-	Debris:AddItem(part, Constants.CYBERPSYCHOSIS.WindowLifeTime + 0.5)
-
-	task.spawn(function()
-		local angle = math.random() * math.pi * 2
-		local radius = Constants.CYBERPSYCHOSIS.Radius
-		local heightOffset = part.Position.Y - HRP.Position.Y
-		local speed = 4.0
-		while part and part.Parent and HRP and HRP.Parent do
-			angle = angle + speed * RunService.Heartbeat:Wait()
-			local offset = Vector3.new(math.cos(angle) * radius, heightOffset, math.sin(angle) * radius)
-			part.Position = HRP.Position + offset
-			local look = CFrame.lookAt(part.Position, HRP.Position)
-			part.CFrame = look * CFrame.Angles(math.rad(math.random(-25,25)), math.rad(math.random(-40,40)), math.rad(math.random(-15,15)))
-		end
-	end)
+    if not HRP then return end
+    
+    -- Posição aleatória em órbita 360° ao redor do personagem
+    local angleHorizontal = math.random() * math.pi * 2  -- Ângulo horizontal (0 a 360°)
+    local angleVertical = math.random(-0.6, 0.6) * math.pi  -- Das pernas até o rosto
+local radius = math.random(5.5, 8)  -- Distância média
+local heightOffset = math.random(-1, 3)  -- Variação para cobrir pernas também
+    
+    local orbitX = math.cos(angleHorizontal) * math.cos(angleVertical) * radius
+    local orbitY = math.sin(angleVertical) * radius + heightOffset
+    local orbitZ = math.sin(angleHorizontal) * math.cos(angleVertical) * radius
+    
+    local targetWidth = math.random(3.2, 5.5)   -- Tamanho médio
+local targetHeight = math.random(2.0, 4.0)  -- Tamanho médio
+    local finalSize = Vector3.new(targetWidth, targetHeight, 0.07)
+    
+    local part = Instance.new("Part")
+    part.Name = "GlitchWindow"
+    part.Size = Vector3.new(0, 0, 0)
+    part.Color = Color3.fromRGB(9, 0, 2)
+    part.Material = Enum.Material.Neon
+    part.Transparency = 0.02
+    part.CanCollide = false
+    part.Anchored = true
+    part.CastShadow = false
+    
+    -- Posiciona em órbita ao redor do personagem
+    part.Position = HRP.Position + Vector3.new(orbitX, orbitY, orbitZ)
+    
+    -- Sempre olhando para o personagem
+    local look = CFrame.lookAt(part.Position, HRP.Position)
+    part.CFrame = look * CFrame.Angles(math.rad(math.random(-15, 15)), math.rad(math.random(-20, 20)), 0)
+    part.Parent = Workspace
+    
+    -- SurfaceGui
+    local sgui = Instance.new("SurfaceGui")
+    sgui.Face = Enum.NormalId.Front
+    sgui.LightInfluence = 0
+    sgui.PixelsPerStud = 50
+    sgui.Parent = part
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1,0,1,0)
+    frame.BackgroundColor3 = Color3.fromRGB(6,0,1)
+    frame.BackgroundTransparency = 1
+    frame.Parent = sgui
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(255, 25, 60)
+    stroke.Thickness = 4
+    stroke.Transparency = 1
+    stroke.Parent = frame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 5)
+    corner.Parent = frame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1,-16,0.72,0)
+    label.Position = UDim2.new(0,8,0,5)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 50, 80)
+    label.TextScaled = true
+    label.Font = Enum.Font.SciFi
+    label.Text = Constants.ERROR_TEXTS[math.random(1, #Constants.ERROR_TEXTS)]
+    label.TextStrokeTransparency = 0.4
+    label.TextStrokeColor3 = Color3.fromRGB(255,0,25)
+    label.TextTransparency = 1
+    label.Parent = frame
+    
+    local sublabel = Instance.new("TextLabel")
+    sublabel.Size = UDim2.new(1,-16,0.28,-8)
+    sublabel.Position = UDim2.new(0,8,0.72,4)
+    sublabel.BackgroundTransparency = 1
+    sublabel.TextColor3 = Color3.fromRGB(255, 125, 140)
+    sublabel.Font = Enum.Font.Code
+    sublabel.TextScaled = true
+    sublabel.Text = "0x"..string.format("%X", math.random(0x8000,0xFFFF)) .. "_NEURAL_CRITICAL"
+    sublabel.TextTransparency = 1
+    sublabel.Parent = frame
+    
+    -- ANIMAÇÃO DE ABRIR
+    TweenService:Create(part, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = finalSize
+    }):Play()
+    
+    TweenService:Create(frame, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 0
+    }):Play()
+    
+    TweenService:Create(stroke, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Transparency = 0
+    }):Play()
+    
+    task.spawn(function()
+        for i = 1, 6 do
+            label.TextTransparency = i % 2 == 0 and 0.7 or 0.1
+            task.wait(0.025)
+        end
+        TweenService:Create(label, TweenInfo.new(0.08), {
+            TextTransparency = 0
+        }):Play()
+    end)
+    
+    task.delay(0.08, function()
+        TweenService:Create(sublabel, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            TextTransparency = 0
+        }):Play()
+    end)
+    
+    -- ANIMAÇÃO DE FECHAR
+    task.delay(Constants.CYBERPSYCHOSIS.WindowLifeTime - 0.3, function()
+        if not part.Parent then return end
+        
+        TweenService:Create(label, TweenInfo.new(0.15), {TextTransparency = 1}):Play()
+        TweenService:Create(sublabel, TweenInfo.new(0.15), {TextTransparency = 1}):Play()
+        TweenService:Create(frame, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
+        
+        local closeTween = TweenService:Create(part, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = Vector3.new(0, 0, 0)
+        })
+        closeTween:Play()
+        closeTween.Completed:Connect(function()
+            part:Destroy()
+        end)
+    end)
 end
 
 local function shakeCamera()
@@ -748,12 +819,63 @@ end
 local function ExecCyberpsychosis()
     PlaySFX(Sounds.PSYCHOSIS)
     PlaySFX(Sounds.PSYCHOSIS2)
+    
+    -- Janelas sincronizadas com "I'M GONNA RIP OUT HIS SPINE! YOU'RE DEAD, DEAD... DEAD.! DEAAD!!!"
     task.spawn(function()
-        local syncTimes = {0.3, 0.8, 1.4, 2.0, 2.7, 3.2, 3.55, 3.8, 4.05, 4.3, 4.55, 4.8, 5.1, 5.4, 5.75}
-        for _, t in ipairs(syncTimes) do task.delay(t, spawnPopup) end
-        task.delay(4.0, function() for i = 1, 3 do spawnPopup() task.wait(0.09) end end)
-        task.delay(5.2, function() for i = 1, 5 do spawnPopup() task.wait(0.06) end end)
+        -- "I'M" (0.0s)
+        spawnPopup()
+        task.wait(0.15)
+        -- "GONNA" (0.15s)
+        spawnPopup()
+        task.wait(0.15)
+        -- "RIP" (0.3s)
+        spawnPopup()
+        spawnPopup()
+        task.wait(0.12)
+        -- "OUT" (0.42s)
+        spawnPopup()
+        task.wait(0.12)
+        -- "HIS" (0.54s)
+        spawnPopup()
+        task.wait(0.1)
+        -- "SPINE!" (0.64s) - explosão de janelas
+        for i = 1, 4 do
+            spawnPopup()
+            task.wait(0.06)
+        end
+        task.wait(0.3)
+        
+        -- "YOU'RE" (1.18s)
+        for i = 1, 3 do
+            spawnPopup()
+            task.wait(0.08)
+        end
+        task.wait(0.12)
+        
+        -- "DEAD," (1.54s)
+        spawnPopup()
+        spawnPopup()
+        task.wait(0.2)
+        
+        -- "DEAD..." (1.74s)
+        spawnPopup()
+        spawnPopup()
+        task.wait(0.15)
+        
+        -- "DEAD.!" (1.89s)
+        for i = 1, 3 do
+            spawnPopup()
+            task.wait(0.05)
+        end
+        task.wait(0.15)
+        
+        -- "DEAAD!!!" (2.24s) - climax
+        for i = 1, 8 do
+            spawnPopup()
+            task.wait(0.04)
+        end
     end)
+
     if Humanoid then Humanoid.WalkSpeed = 0 Humanoid.JumpPower = 0 end
     if Lighting:FindFirstChild("SandiEffect") then Lighting.SandiEffect:Destroy() end
     local cc, blur = createLightingEffects()
@@ -823,7 +945,6 @@ local function ExecCyberpsychosis()
             for _, part in ipairs(cyberParts) do
                 if part then
                     part.Transparency = math.random(0.2, 0.8)
-                    part.Color = Color3.fromHSV(math.random(), 1, 1)
                 end
             end
             task.wait(0.1)
@@ -1066,8 +1187,6 @@ local function ResetSandi()
     UpdateKiroshiButton()
     UpdateOpticalButton()
     if State.MusicSound then State.MusicSound:Destroy() State.MusicSound = nil end
-    local musicaGui = Player.PlayerGui:FindFirstChild("MusicaGUI")
-    if musicaGui then musicaGui:Destroy() end
 end
 
 local function PlayActivationSequence()
@@ -1214,7 +1333,6 @@ local function ExecSandi()
     UpdateKiroshiButton()
     UpdateOpticalButton()
     State.MusicSound = tocarMusica()
-    criarGUI()
 end
 
 local function ExecDash()
@@ -1527,7 +1645,7 @@ local function AplicarSet(listaIds)
                             end
                         end
                     end
-                    if not partAlvo then partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso") end
+                    if not partAlvo then partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso") or character:FindFirstChild("HumanoidRootPart") end
                     if partAlvo then
                         local weld = Instance.new("Weld")
                         weld.Part0 = partAlvo
@@ -1594,10 +1712,11 @@ local function CreateEnergyBar(gui)
     Create("UICorner", {CornerRadius = UDim.new(0, 14), Parent = inner})
 
     energyFill = Create("Frame", {
-        Name = "Fill",
-        Size = UDim2.new(1, -12, 1, -12),
-        Position = UDim2.new(0, 6, 1, -6),
-        AnchorPoint = Vector2.new(0, 1),
+    Name = "Fill",
+    Size = UDim2.new(1, -12, 1, -12),
+    Position = UDim2.new(0, 6, 1, -6),
+    AnchorPoint = Vector2.new(0, 1),
+    ClipsDescendants = true,
         BackgroundColor3 = Colors.LIGHT_GREEN,
         BorderSizePixel = 0,
         Parent = inner
@@ -1739,7 +1858,7 @@ local function BuildUI()
         end
     end
 
-    local settingsBtn = Create("TextButton", {Name = "SettingsBtn", Size = UDim2.new(0, 40, 0, 40), Position = UDim2.new(0, 50, 0.5, -210), BackgroundColor3 = Colors.UI_DARK, TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 26, Text = "≡", Parent = gui})
+    local settingsBtn = Create("TextButton", {Name = "SettingsBtn", Size = UDim2.new(0, 40, 0, 40), Position = UDim2.new(0, 50, 0.5, -210), BackgroundColor3 = Colors.UI_DARK, TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 26, Text = "", Parent = gui})
     Create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = settingsBtn})
     Create("UIStroke", {Color = Colors.CYBER_CHROME, Thickness = 3, Transparency = 0.25, Parent = settingsBtn})
     local settingsGradient = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_DARK, Colors.CYBER_ORANGE), Rotation = 45, Parent = settingsBtn})
@@ -1844,7 +1963,7 @@ local function BuildUI()
     end
 
     local setsRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 64), BackgroundTransparency = 1, Parent = scroll})
-    local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 50), Position = UDim2.new(0.05, 0, 0, 6), Text = "🔄 TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 21, Parent = setsRow})
+    local setsBtn = Create("TextButton", {Size = UDim2.new(0.9, 0, 0, 50), Position = UDim2.new(0.05, 0, 0, 6), Text = " TROCA SET", BackgroundColor3 = setColors[currentSet], TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 21, Parent = setsRow})
     Create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = setsBtn})
     Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2.5, Parent = setsBtn})
     setsBtn.MouseButton1Click:Connect(function()
@@ -1952,32 +2071,54 @@ end
 
 local function InitDirectionalMovement()
     if LiteMode then return end
-    local torso = Character:FindFirstChild("Torso") or Character:FindFirstChild("UpperTorso")
-    Joints = {
-        RootJoint = HRP:WaitForChild("RootJoint"),
-        Neck = torso:WaitForChild("Neck"),
-        RightShoulder = torso:WaitForChild("Right Shoulder"),
-        LeftShoulder = torso:WaitForChild("Left Shoulder"),
-        RightHip = torso:WaitForChild("Right Hip"),
-        LeftHip = torso:WaitForChild("Left Hip")
-    }
-    JointsC0 = {
-        RootJointC0 = Joints.RootJoint.C0,
-        NeckC0 = Joints.Neck.C0,
-        RightShoulderC0 = Joints.RightShoulder.C0,
-        LeftShoulderC0 = Joints.LeftShoulder.C0,
-        RightHipC0 = Joints.RightHip.C0,
-        LeftHipC0 = Joints.LeftHip.C0
-    }
-    JointTilts = {
-        RootJointTilt = CFrame.new(),
-        NeckTilt = CFrame.new(),
-        RightShoulderTilt = CFrame.new(),
-        LeftShoulderTilt = CFrame.new(),
-        RightHipTilt = CFrame.new(),
-        LeftHipTilt = CFrame.new()
-    }
-    RunService.Heartbeat:Connect(UpdateDirectionalMovement)
+    local torso = Character:FindFirstChild("UpperTorso") or Character:FindFirstChild("Torso")
+    if not torso then return end
+    
+    -- Verifica se é R15
+    local isR15 = (torso:FindFirstChild("Neck") ~= nil)
+    
+    if isR15 then
+        -- R15: usa RootJoint, Right Shoulder, Left Shoulder, Right Hip, Left Hip
+        local rootJoint = HRP:FindFirstChild("RootJoint")
+        local neck = torso:FindFirstChild("Neck")
+        local rightShoulder = torso:FindFirstChild("Right Shoulder")
+        local leftShoulder = torso:FindFirstChild("Left Shoulder")
+        local rightHip = torso:FindFirstChild("Right Hip")
+        local leftHip = torso:FindFirstChild("Left Hip")
+        
+        if not rootJoint or not neck or not rightShoulder or not leftShoulder or not rightHip or not leftHip then
+            return -- Faltam juntas, não inicializa
+        end
+        
+        Joints = {
+            RootJoint = rootJoint,
+            Neck = neck,
+            RightShoulder = rightShoulder,
+            LeftShoulder = leftShoulder,
+            RightHip = rightHip,
+            LeftHip = leftHip
+        }
+        
+        JointsC0 = {
+            RootJointC0 = rootJoint.C0,
+            NeckC0 = neck.C0,
+            RightShoulderC0 = rightShoulder.C0,
+            LeftShoulderC0 = leftShoulder.C0,
+            RightHipC0 = rightHip.C0,
+            LeftHipC0 = leftHip.C0
+        }
+        
+        JointTilts = {
+            RootJointTilt = CFrame.new(),
+            NeckTilt = CFrame.new(),
+            RightShoulderTilt = CFrame.new(),
+            LeftShoulderTilt = CFrame.new(),
+            RightHipTilt = CFrame.new(),
+            LeftHipTilt = CFrame.new()
+        }
+        
+        RunService.Heartbeat:Connect(UpdateDirectionalMovement)
+    end
 end
 
 RunService.Heartbeat:Connect(function(dt)
@@ -2045,7 +2186,8 @@ RunService.Heartbeat:Connect(function(dt)
     end
     if energyFill and energyPercentLabel then
         local percent = State.Energy / Constants.MAX_ENERGY
-        energyFill.Size = UDim2.new(1, -10, percent, -10)
+        local safePercent = math.max(0.02, percent)  -- Mínimo de 1% visível
+energyFill.Size = UDim2.new(1, -10, safePercent, -10)
         energyPercentLabel.Text = string.format("%d%%", math.floor(State.Energy))
         local barColor
         if percent > 0.6 then
@@ -2084,6 +2226,16 @@ local function SetupCharacter(character)
     BindAllKeybinds()
     InitWalkEffect()
     InitDirectionalMovement()
+    
+    task.delay(2, function()
+    if Character and Character.Parent then
+        if currentSet == 1 then
+            AplicarSet(SET_1)
+        else
+            AplicarSet(SET_2)
+        end
+    end
+end)
 end
 
 local function Init()
@@ -2096,9 +2248,6 @@ end
 
 Init()
 
-Player.CharacterAdded:Connect(function()
-    task.wait(2)
-    if currentSet == 1 then AplicarSet(SET_1) else AplicarSet(SET_2) end
-end)
-
-AplicarSet(SET_1)
+if Player.Character then
+    AplicarSet(SET_1)
+end
