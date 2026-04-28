@@ -1377,8 +1377,69 @@ end
         end)
     end
     
+    
         connection = RunService.RenderStepped:Connect(function(dt)
         local elapsed = tick() - startTime
+        
+-- ═══════════ FADE OUT NOS ÚLTIMOS 0.5 SEGUNDOS (5.5s - 6.0s) ═══════════
+    local fadeStartTime = 5.5  -- Começa fade aos 5.5s
+    
+    if elapsed > fadeStartTime then
+        local fadeProgress = (elapsed - fadeStartTime) / 0.5  -- 0 a 1 em 0.5s
+        fadeProgress = math.clamp(fadeProgress, 0, 1)
+        
+        -- Suavizar o blur
+        if blur then
+            blur.Size = math.random(4, 12) * (1 - fadeProgress)
+        end
+        
+        -- Suavizar o shake
+        Constants.CYBERPSYCHOSIS.ShakeIntensity = 1.0 * (1 - fadeProgress)
+        
+        -- Suavizar cores de volta ao normal
+        if cc then
+            local normalColor = Color3.fromRGB(255, 80, 80):Lerp(Color3.new(1, 1, 1), fadeProgress)
+            cc.TintColor = normalColor
+            cc.Saturation = 1.3 * (1 - fadeProgress)
+            cc.Contrast = 0.6 * (1 - fadeProgress)
+        end
+        
+        -- Fade do vignette
+        if vignette and vignette.Parent then
+            vignette.BackgroundTransparency = 0.5 + (fadeProgress * 0.5)
+        end
+        
+        -- Fade do texto CYBERPSYCHOSIS
+        if psychosisText and psychosisText.Parent then
+            psychosisText.TextTransparency = fadeProgress
+        end
+        
+        -- Fade dos overlays
+        if redOverlay and redOverlay.Parent then
+            redOverlay.ImageTransparency = 0.8 + (fadeProgress * 0.2)
+        end
+        if blueOverlay and blueOverlay.Parent then
+            blueOverlay.ImageTransparency = 0.8 + (fadeProgress * 0.2)
+        end
+        
+        -- Reduzir partículas
+        for _, emitter in ipairs(emitters) do
+            if emitter and emitter.Parent then
+                emitter.Rate = 50 * (1 - fadeProgress)
+            end
+        end
+        
+        -- Fade do eye glow
+        if head then
+            local eyeGlow = head:FindFirstChild("PsychoEyeGlow")
+            if eyeGlow then
+                eyeGlow.Brightness = 3 * (1 - fadeProgress)
+            end
+        end
+    end
+    
+    -- ═══════════════════════════════════════════════════════
+        
         if elapsed > Constants.CYBERPSYCHOSIS.Duration then
             if Humanoid then Humanoid.WalkSpeed = 16 Humanoid.JumpPower = 50 Humanoid.CameraOffset = Vector3.zero end
             TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0}):Play()
@@ -3026,7 +3087,7 @@ RunService.Heartbeat:Connect(function(dt)
         if State.Energy <= 0 then
             State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_ZERO
             local luck = math.random(1, 100)
-            if luck <= 100 then ExecCyberpsychosis() end
+            if luck <= 30 then ExecCyberpsychosis() end
             ResetSandi()
         end
     else
