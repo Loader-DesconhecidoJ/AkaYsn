@@ -1049,7 +1049,9 @@ local function ExecDodge(enemyPart: BasePart?)
     local startCFrame = HRP.CFrame
     local distance = if enemyPart then (HRP.Position - enemyPart.Position).Magnitude else 0
     local dodgeDuration = 0.35
+
     if enemyPart and distance <= Constants.DODGE_CONFIG.VARIANT_THRESHOLD then
+        -- ========== VARIANT: Giro em volta do inimigo (SEM clone inicial) ==========
         PlaySFX(Sounds.DODGE_VARIANT)
         task.spawn(function()
             local duration = Constants.DODGE_CONFIG.VARIANT_DURATION
@@ -1059,7 +1061,7 @@ local function ExecDodge(enemyPart: BasePart?)
             while tick() - startTime < duration do
                 local alpha = (tick() - startTime) / duration
                 local angle = alpha * math.pi
-                local rotated = CFrame.new(0, 0, 0) * CFrame.Angles(0, angle, 0) * relative
+                local rotated = CFrame.Angles(0, angle, 0) * relative
                 local newPos = enemyPart.Position + rotated
                 HRP.CFrame = CFrame.lookAt(newPos, enemyPart.Position)
                 if tick() - lastCloneTime >= Constants.DODGE_CONFIG.VARIANT_CLONE_INTERVAL then
@@ -1068,17 +1070,26 @@ local function ExecDodge(enemyPart: BasePart?)
                 end
                 RunService.Heartbeat:Wait()
             end
-            local finalRelative = relative * CFrame.Angles(0, math.pi, 0)
+            local finalRelative = CFrame.Angles(0, math.pi, 0) * relative
             local finalPos = enemyPart.Position + finalRelative
             HRP.CFrame = CFrame.lookAt(finalPos, enemyPart.Position)
         end)
+
     else
+        -- ========== NORMAL: Teleporte + clone na posição inicial ==========
         PlaySFX(Sounds.DODGE_NORMAL)
-        local endCFrame = enemyPart and CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, Constants.DODGE_CONFIG.NORMAL_DISTANCE_ENEMY)).Position, enemyPart.Position) or HRP.CFrame * CFrame.new(0, 0, -Constants.DODGE_CONFIG.NORMAL_DISTANCE_NO_ENEMY)
+        local endCFrame
+        if enemyPart then
+            endCFrame = CFrame.lookAt((enemyPart.CFrame * CFrame.new(0, 0, Constants.DODGE_CONFIG.NORMAL_DISTANCE_ENEMY)).Position, enemyPart.Position)
+        else
+            endCFrame = HRP.CFrame * CFrame.new(0, 0, -Constants.DODGE_CONFIG.NORMAL_DISTANCE_NO_ENEMY)
+        end
+        -- Clone fantasma APENAS na posição inicial (dodge normal)
         CreateHologramClone(0, 1, 1, 0, 0, 0, "dodge", startCFrame)
         HRP.CFrame = endCFrame
         dodgeDuration = 0.22
     end
+
     CamShake(0.5, 0.2)
     task.delay(dodgeDuration, function()
         local fadeOut = TweenService:Create(dodgeCC, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TintColor = Color3.new(1, 1, 1), Saturation = 0, Contrast = 0})
