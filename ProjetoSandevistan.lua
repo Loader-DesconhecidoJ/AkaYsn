@@ -523,148 +523,152 @@ end
 
 local function CreateHologramClone(delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, cloneType: string, customCFrame: CFrame?)
     if LiteMode then return end
+    
     local sourceChar = Character
     if not sourceChar then return end
+    
+    -- Clonagem usando o mesmo método do seu script
     sourceChar.Archivable = true
     local hologramChar = sourceChar:Clone()
-    local hologramHRP = hologramChar:FindFirstChild("HumanoidRootPart")
-    if hologramHRP then
-        if customCFrame and typeof(customCFrame) == "CFrame" then
-            hologramHRP.CFrame = customCFrame
-        elseif HRP and typeof(HRP.CFrame) == "CFrame" then
-            hologramHRP.CFrame = HRP.CFrame + Vector3.new(offsetX or 0, offsetY or 0, offsetZ or 0)
-        end
+    sourceChar.Archivable = false
+    
+    -- Pegar a cor baseada no tipo de clone
+    local cloneColor
+    if cloneType == "sandi" then
+        cloneColor = Colors.RAINBOW_SEQUENCE[cloneColorIndex]
+        cloneColorIndex = (cloneColorIndex % #Colors.RAINBOW_SEQUENCE) + 1
+    elseif cloneType == "dash" then
+        cloneColor = Color3.fromRGB(255, 80, 0)
+    elseif cloneType == "dodge" then
+        cloneColor = Colors.DODGE_START
+    else
+        cloneColor = Color3.new(1, 1, 1) -- Branco para glitch
     end
-    local humanoid = hologramChar:FindFirstChildOfClass("Humanoid")
-    if humanoid then humanoid:Destroy() end
-    local animateFolder = hologramChar:FindFirstChild("Animate")
-    if animateFolder then animateFolder:Destroy() end
-    for _, obj in ipairs(hologramChar:GetDescendants()) do
-        if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") or obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") or obj:IsA("BindableEvent") or obj:IsA("BindableFunction") or obj:IsA("Animator") then
+    
+    -- Configurar o Clone (MÉTODO DO SEU SCRIPT)
+    for _, obj in pairs(hologramChar:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            obj.CanCollide = false
+            obj.CanTouch = false
+            obj.Anchored = true
+            obj.CastShadow = false
+            
+            -- Se for o HumanoidRootPart, deixa invisível
+            if obj.Name == "HumanoidRootPart" then
+                obj.Transparency = 1
+            else
+                obj.Transparency = 0.6
+                obj.Color = cloneColor
+                obj.Material = Configurations.HOLOGRAM_MATERIAL
+            end
+            
+            -- Remove textura de MeshParts
+            if obj:IsA("MeshPart") then 
+                obj.TextureID = "" 
+            end
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            obj:Destroy()
+        elseif obj:IsA("LuaSourceContainer") or obj:IsA("Sound") then
             obj:Destroy()
         end
     end
-    for _, sound in ipairs(hologramChar:GetDescendants()) do if sound:IsA("Sound") then sound:Destroy() end end
-    if not Configurations.HOLOGRAM_PRESERVE.FACE then
-        local head = hologramChar:FindFirstChild("Head")
-        if head then local face = head:FindFirstChild("face") if face and face:IsA("Decal") then face:Destroy() end end
-    end
-    for _, acc in ipairs(hologramChar:GetChildren()) do
-        if acc:IsA("Accessory") then
-            local isHair = acc:FindFirstChild("HairAttachment") or string.find(acc.Name:lower(), "hair") ~= nil
-            if isHair and not Configurations.HOLOGRAM_PRESERVE.HAIR then acc:Destroy()
-            elseif not isHair and not Configurations.HOLOGRAM_PRESERVE.ACCESSORIES then acc:Destroy() end
+    
+    -- Destruir Humanoid e Animate
+    local humanoid = hologramChar:FindFirstChildOfClass("Humanoid")
+    if humanoid then humanoid:Destroy() end
+    
+    local animateFolder = hologramChar:FindFirstChild("Animate")
+    if animateFolder then animateFolder:Destroy() end
+    
+    -- Destruir Scripts e outros
+    for _, obj in ipairs(hologramChar:GetChildren()) do
+        if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") or 
+           obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") or 
+           obj:IsA("BindableEvent") or obj:IsA("BindableFunction") or 
+           obj:IsA("Animator") then
+            obj:Destroy()
         end
-    end
-    local thisColor = Colors.RAINBOW_SEQUENCE[cloneColorIndex]
-cloneColorIndex = (cloneColorIndex % #Colors.RAINBOW_SEQUENCE) + 1
-
--- Pinta TUDO no clone (corpo + acessórios + meshparts)
-for _, part in ipairs(hologramChar:GetDescendants()) do
-    if part:IsA("BasePart") then
-        part.Anchored = true
-        part.CanCollide = false
-        part.Material = Configurations.HOLOGRAM_MATERIAL
-        part.Transparency = 0.15
-        part.Color = thisColor
-    elseif part:IsA("Decal") or part:IsA("Texture") then
-        part.Transparency = 0.25
-    elseif part:IsA("MeshPart") then
-        part.Color = thisColor
-        part.TextureID = ""  -- Remove textura para a cor aparecer
     end
     
-    -- Remove textura de SpecialMesh para mostrar a cor sólida
-    if part:IsA("SpecialMesh") then
-        part.TextureId = ""
-    end
-end
-
--- Segunda passada: pinta MeshParts que estão DENTRO de acessórios
-for _, acc in ipairs(hologramChar:GetDescendants()) do
-    if acc:IsA("Accessory") then
-        for _, child in ipairs(acc:GetDescendants()) do
-            if child:IsA("MeshPart") then
-                child.Color = thisColor
-                child.TextureID = ""
-            elseif child:IsA("BasePart") then
-                child.Color = thisColor
-            end
+    -- Posicionar o clone
+    local hologramRoot = hologramChar:FindFirstChild("HumanoidRootPart")
+    if hologramRoot and HRP then
+        if customCFrame and typeof(customCFrame) == "CFrame" then
+            hologramRoot.CFrame = customCFrame
+        else
+            hologramRoot.CFrame = HRP.CFrame * CFrame.new(offsetX or 0, offsetY or 0, offsetZ or 0)
         end
+        hologramChar.PrimaryPart = hologramRoot
     end
-end
-    if hologramHRP then hologramHRP.Transparency = 1 end
-    local rootPart = hologramChar:FindFirstChild("HumanoidRootPart")
-    if rootPart then rootPart:Destroy() end
-    local highlight = Instance.new("Highlight")
-highlight.Name = "FullHoloHighlight"
-highlight.Adornee = hologramChar
-highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-highlight.FillTransparency = 0.6          -- Sem preenchimento (100% transparente)
-highlight.OutlineTransparency = 0.3     -- Contorno fraco (60% transparente)
-highlight.OutlineColor = thisColor       -- Cor do contorno
-highlight.Parent = hologramChar
+    
+    -- ═══════════ ADICIONE APENAS ISSO AQUI ═══════════
+    -- Marcar clone do Sandi para ser destruído instantaneamente
     if cloneType == "sandi" then
-        hologramChar.Name = "HologramClone"
+        hologramChar.Name = "HologramClone"  -- Nome que o ResetSandi procura
         local tag = Instance.new("BoolValue")
         tag.Name = "IsSandiClone"
         tag.Value = true
         tag.Parent = hologramChar
-        highlight.FillColor = thisColor
-        highlight.OutlineColor = thisColor
-    elseif cloneType == "dash" then
-        local palette = {Color3.fromRGB(255, 40, 40), Color3.fromRGB(255, 130, 30), Color3.fromRGB(255, 215, 40)}
-        highlight.FillColor = palette[1]
-        highlight.OutlineColor = palette[2]
-        task.spawn(function()
-            task.wait(delay)
-            local startTime = os.clock()
-            while os.clock() - startTime < duration do
-                local progress = (os.clock() - startTime) / duration
-                local idx = math.floor(progress * (#palette - 1)) + 1
-                local nextIdx = math.min(idx + 1, #palette)
-                local frac = (progress * (#palette - 1)) % 1
-                local current = palette[idx]:Lerp(palette[nextIdx], frac)
-                highlight.FillColor = current
-                highlight.OutlineColor = current
-                RunService.Heartbeat:Wait()
-            end
-        end)
-    elseif cloneType == "dodge" then
-        local palette = {Color3.fromRGB(0, 255, 90), Color3.fromRGB(80, 255, 170), Color3.fromRGB(0, 230, 255)}
-        highlight.FillColor = palette[1]
-        highlight.OutlineColor = palette[2]
-        task.spawn(function()
-            task.wait(delay)
-            local startTime = os.clock()
-            while os.clock() - startTime < duration do
-                local progress = (os.clock() - startTime) / duration
-                local idx = math.floor(progress * (#palette - 1)) + 1
-                local nextIdx = math.min(idx + 1, #palette)
-                local frac = (progress * (#palette - 1)) % 1
-                local current = palette[idx]:Lerp(palette[nextIdx], frac)
-                highlight.FillColor = current
-                highlight.OutlineColor = current
-                RunService.Heartbeat:Wait()
-            end
-        end)
     end
-    task.delay(delay + duration * 0.7, function()
-        if highlight and highlight.Parent then
-            TweenService:Create(highlight, TweenInfo.new(0.4), {FillTransparency = 1, OutlineTransparency = 1}):Play()
-        end
-    end)
-    for _, surf in ipairs(hologramChar:GetDescendants()) do
-        if surf:IsA("Decal") or surf:IsA("Texture") then
+    -- ═══════════════════════════════════════════════
+    
+    -- Adicionar Highlight (personalizado por tipo)
+    if cloneType ~= "glitch" then
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = hologramChar
+        highlight.FillTransparency = 0.7
+        highlight.OutlineTransparency = 0.3
+        highlight.FillColor = cloneColor
+        highlight.OutlineColor = cloneColor
+        highlight.Parent = hologramChar
+        
+        -- Animação de cores para dash e dodge
+        if cloneType == "dash" or cloneType == "dodge" then
             task.spawn(function()
-                task.wait(delay + duration * 0.3)
-                local fadeTween = TweenService:Create(surf, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {Transparency = 1})
-                fadeTween:Play()
+                local palette
+                if cloneType == "dash" then
+                    palette = {Color3.fromRGB(255, 40, 40), Color3.fromRGB(255, 130, 30), Color3.fromRGB(255, 215, 40)}
+                else
+                    palette = {Color3.fromRGB(0, 255, 90), Color3.fromRGB(80, 255, 170), Color3.fromRGB(0, 230, 255)}
+                end
+                
+                local startTime = os.clock()
+                while os.clock() - startTime < duration and highlight.Parent do
+                    local progress = (os.clock() - startTime) / duration
+                    local idx = math.floor(progress * (#palette - 1)) + 1
+                    local nextIdx = math.min(idx + 1, #palette)
+                    local frac = (progress * (#palette - 1)) % 1
+                    local current = palette[idx]:Lerp(palette[nextIdx], frac)
+                    highlight.FillColor = current
+                    highlight.OutlineColor = current
+                    RunService.Heartbeat:Wait()
+                end
             end)
         end
     end
+    
+    -- Colocar no workspace
     hologramChar.Parent = Workspace
-    Debris:AddItem(hologramChar, delay + duration)
+    
+    -- Efeito de fade out (MÉTODO DO SEU SCRIPT)
+    task.spawn(function()
+        task.wait(duration * 0.7) -- Espera 70% da duração antes de começar a sumir
+        
+        local fadeSteps = 10
+        local fadeStepTime = (duration * 0.3) / fadeSteps -- 30% da duração para o fade
+        
+        for i = 0.6, 1, 0.04 do -- 10 steps (0.6 + 10*0.04 = 1.0)
+            task.wait(fadeStepTime)
+            for _, p in pairs(hologramChar:GetDescendants()) do
+                if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then 
+                    p.Transparency = i 
+                end
+            end
+        end
+        
+        -- Destruir o clone
+        hologramChar:Destroy()
+    end)
 end
 
 local function TriggerSandevistanFailure()
