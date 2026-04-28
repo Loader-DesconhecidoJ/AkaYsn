@@ -111,7 +111,7 @@ local Constants = {
     },
     SANDEVISTAN_FAILURE_CHANCE = 0.2,
     CYBERPSYCHOSIS = {
-        Duration = 6.7,
+        Duration = 6,
         PopupRate = 0.08,
         Radius = 7,
         ShakeIntensity = 0.6,
@@ -725,7 +725,10 @@ local function TriggerSandevistanFailure()
         end
     end)
     task.delay(0.8, function() errorFrame:Destroy() end)
-    if math.random() < 0.15 then task.wait(0.2) ExecCyberpsychosis() end
+    if math.random() < 0.15 then 
+    task.wait(0.2) 
+    pcall(function() ExecCyberpsychosis() end)
+end
     State.Cooldowns.SANDI = os.clock() + 9
     State.NoRegenUntil = os.clock() + 9.5
     ShowCooldownText("SANDEVISTAN OVERLOAD", 9, Color3.fromRGB(255, 160, 30))
@@ -754,27 +757,6 @@ local function ApplyGlitchEffect()
 end
 
 -- ========== NOVAS ANIMAÇÕES ==========
-
--- Animação de Scanline (linhas horizontais piscando)
-local function ScanlineEffect(gui)
-    local scanline = Create("Frame", {
-        Size = UDim2.new(1, 0, 0, 2),
-        Position = UDim2.new(0, 0, -1, 0),
-        BackgroundColor3 = Colors.UI_NEON,
-        BackgroundTransparency = 0.5,
-        BorderSizePixel = 0,
-        Parent = gui
-    })
-    task.spawn(function()
-        while scanline.Parent do
-            TweenService:Create(scanline, TweenInfo.new(2, Enum.EasingStyle.Linear), {
-                Position = UDim2.new(0, 0, 1, 0)
-            }):Play()
-            task.wait(2)
-            scanline.Position = UDim2.new(0, 0, -1, 0)
-        end
-    end)
-end
 
 -- Animação de Glitch na tela toda
 local function FullScreenGlitch()
@@ -1222,68 +1204,90 @@ local function ExecCyberpsychosis()
     PlaySFX(Sounds.PSYCHOSIS)
     PlaySFX(Sounds.PSYCHOSIS2)
     
-    -- Janelas sincronizadas (SOMENTE POPUPS, SEM CLONES)
 task.spawn(function()
-    -- "I'M" (0.0s)
-    spawnPopup()
-    task.wait(0.35)
-    
-    -- "GONNA" (0.35s)
+    -- "I'M" (0.00s - 0.30s)
     spawnPopup()
     task.wait(0.30)
     
-    -- "RIP" (0.65s)
-    spawnPopup()
-    spawnPopup()
-    task.wait(0.30)
-    
-    -- "OUT" (1.0s)
-    spawnPopup()
-    task.wait(0.30)
-    
-    -- "HIS" (1.3s)
+    -- "GONNA" (0.30s - 0.55s)
     spawnPopup()
     task.wait(0.25)
     
-    -- "SPINE!" (1.55s)
-    for i = 1, 6 do
-        spawnPopup()
-        task.wait(0.07)
-    end
-    task.wait(0.40)
+    -- "RIP" (0.55s - 0.80s)
+    spawnPopup()
+    spawnPopup()
+    task.wait(0.25)
     
-    -- "YOU'RE" (2.5s)
+    -- "OUT" (0.80s - 1.05s)
+    spawnPopup()
+    task.wait(0.25)
+    
+    -- "HIS" (1.05s - 1.25s)
+    spawnPopup()
+    task.wait(0.20)
+    
+    -- "SPINE!" (1.25s - 1.80s) 
+    for i = 1, 7 do
+        spawnPopup()
+        task.wait(0.06)
+    end
+    task.wait(0.30)
+    
+    -- "YOU'RE" (2.10s - 2.60s)
     for i = 1, 3 do
         spawnPopup()
         task.wait(0.15)
     end
+    task.wait(0.30)
+    
+    -- "DEAD," (2.90s - 3.40s) 
+    spawnPopup()
+    spawnPopup()
     task.wait(0.35)
     
-    -- "DEAD," (3.35s)
+    -- "DEAD..." (3.40s - 4.00s) 
     spawnPopup()
     spawnPopup()
     task.wait(0.40)
     
-    -- "DEAD..." (3.9s)
-    spawnPopup()
-    spawnPopup()
-    task.wait(0.45)
-    
-    -- "DEAD!" (4.5s)
+    -- "DEAD!" (4.00s - 4.60s) 
     for i = 1, 5 do
         spawnPopup()
         task.wait(0.08)
     end
-    task.wait(0.40)
+    task.wait(0.35)
     
-    -- "DEAAD!!!" (5.5s)
-    for i = 1, 12 do
+    -- "DEAAD!!!" (4.95s - 5.80s) 
+    for i = 1, 14 do
         spawnPopup()
-        task.wait(0.05)
+        task.wait(0.04)
     end
 end)
 
     if Humanoid then Humanoid.WalkSpeed = 0 Humanoid.JumpPower = 0 end
+    
+    -- ═══════════ OLHOS BRILHANDO ═══════════
+local head = Character:FindFirstChild("Head")
+if head then
+    local eyeGlow = Instance.new("PointLight")
+    eyeGlow.Name = "PsychoEyeGlow"
+    eyeGlow.Color = Color3.fromRGB(255, 30, 0)
+    eyeGlow.Range = 4
+    eyeGlow.Brightness = 3
+    eyeGlow.Parent = head
+    
+    -- Piscar intenso durante a psicose
+    task.spawn(function()
+        local glowStart = tick()
+        while eyeGlow.Parent and tick() - glowStart < Constants.CYBERPSYCHOSIS.Duration do
+            eyeGlow.Brightness = math.random(2, 5)
+            eyeGlow.Range = math.random(3, 6)
+            task.wait(0.05)
+        end
+        eyeGlow:Destroy()
+    end)
+end
+-- ═══════════════════════════════════════
     
     if Lighting:FindFirstChild("SandiEffect") then Lighting.SandiEffect:Destroy() end
     local cc, blur = createLightingEffects()
@@ -1373,7 +1377,7 @@ end)
         end)
     end
     
-    connection = RunService.RenderStepped:Connect(function(dt)
+        connection = RunService.RenderStepped:Connect(function(dt)
         local elapsed = tick() - startTime
         if elapsed > Constants.CYBERPSYCHOSIS.Duration then
             if Humanoid then Humanoid.WalkSpeed = 16 Humanoid.JumpPower = 50 Humanoid.CameraOffset = Vector3.zero end
@@ -1447,6 +1451,22 @@ end)
         blur.Size = math.random(4, 12)
         shakeCamera()
         if math.random() < Constants.CYBERPSYCHOSIS.PopupRate then spawnPopup() end
+        
+        -- ═══════════ INVERTER CORES (DENTRO DO RenderStepped) ═══════════
+        if math.random() < 0.10 then
+            cc.TintColor = Color3.fromRGB(
+                math.random(200, 255),
+                math.random(0, 60),
+                math.random(0, 60)
+            )
+            task.delay(0.08, function()
+                if cc and cc.Parent then
+                    cc.TintColor = Color3.fromRGB(255, 80, 80)
+                end
+            end)
+        end
+        -- ═══════════════════════════════════════════════════
+        
     end)
 end
 
@@ -2815,7 +2835,6 @@ end)
     if SkillContainers["DodgeBtn"] then SkillContainers["DodgeBtn"].Visible = (EnabledAbilities.Dodge and DodgeMode == "Counter") end
 
     -- ===== APLICAR ANIMAÇÕES =====
-    ScanlineEffect(gui)
     task.delay(0.5, function() FullScreenGlitch() end)
     
     -- Glitch periódico a cada 30 segundos
