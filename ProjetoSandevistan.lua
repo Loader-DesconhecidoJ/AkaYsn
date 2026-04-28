@@ -942,10 +942,20 @@ local function shakeCamera()
 	Humanoid.CameraOffset = Vector3.new((math.random() - 0.5) * intensity, (math.random() - 0.5) * intensity, (math.random() - 0.5) * intensity)
 end
 
--- Popup de "System Restore" - Billboard 3D estilo janela Windows
 local function SystemRestorePopup()
     if not HRP then return end
     
+    -- ═══════════ SOM DA JANELA VERDE ═══════════
+    local restoreSound = Instance.new("Sound")
+    restoreSound.SoundId = "rbxassetid://97097078816969"
+    restoreSound.Volume = 2
+    restoreSound.PlaybackSpeed = 1
+    restoreSound.Parent = HRP or Camera
+    restoreSound:Play()
+    Debris:AddItem(restoreSound, 5)
+    
+    -- ═══════════════════════════════════════════
+
     -- Criar a parte 3D (igual à SpawnRebootWindow)
     local part = Instance.new("Part")
     part.Name = "SystemRestoreWindow"
@@ -1295,6 +1305,52 @@ end
     local connection
     
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
+
+-- ═══════════ IMAGEM DO CYBERPSYCHOSIS (CANTO SUPERIOR DIREITO) ═══════════
+local psychoImage = Instance.new("ImageLabel")
+psychoImage.Name = "PsychoImage"
+psychoImage.Size = UDim2.new(0, 200, 0, 200)
+psychoImage.Position = UDim2.new(1, -220, 0, 10)
+psychoImage.BackgroundTransparency = 1
+psychoImage.Image = "rbxassetid://138778899925146"
+psychoImage.ImageTransparency = 1  -- Começa INVISÍVEL
+psychoImage.ZIndex = 10
+psychoImage.Parent = gui
+
+-- ═══════════ ANIMAÇÃO DE ENTRADA (SLIDE + FADE) ═══════════
+psychoImage.Position = UDim2.new(1.2, 0, 0, 10)  -- Começa fora da tela (direita)
+TweenService:Create(psychoImage, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Position = UDim2.new(1, -220, 0, 10),  -- Desliza para posição final
+    ImageTransparency = 0  -- Fica visível
+}):Play()
+-- ═══════════════════════════════════════════════════════
+
+-- Piscar suavemente durante o Cyberpsychosis
+task.spawn(function()
+    task.wait(0.5)  -- Espera animação de entrada terminar
+    local piscaStart = tick()
+    while psychoImage.Parent and tick() - piscaStart < Constants.CYBERPSYCHOSIS.Duration - 0.7 do
+        local targetTransparency = math.random(20, 55) / 100
+        TweenService:Create(psychoImage, TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            ImageTransparency = targetTransparency
+        }):Play()
+        task.wait(0.35)
+    end
+end)
+
+-- ═══════════ ANIMAÇÃO DE SAÍDA (SLIDE + FADE) ═══════════
+task.delay(Constants.CYBERPSYCHOSIS.Duration - 0.6, function()
+    if psychoImage and psychoImage.Parent then
+        TweenService:Create(psychoImage, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Position = UDim2.new(1.2, 0, 0, 10),  -- Desliza para fora (direita)
+            ImageTransparency = 1  -- Fade out
+        }):Play()
+        task.delay(0.6, function()
+            psychoImage:Destroy()
+        end)
+    end
+end)
+-- ═══════════════════════════════════════════════════════
     local vignette = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 0.5, BackgroundColor3 = Color3.new(0, 0, 0), Parent = gui})
     local vignetteGradient = Create("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.5), NumberSequenceKeypoint.new(1, 1)}), Rotation = 0, Parent = vignette})
     task.spawn(function()
@@ -3087,7 +3143,7 @@ RunService.Heartbeat:Connect(function(dt)
         if State.Energy <= 0 then
             State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_ZERO
             local luck = math.random(1, 100)
-            if luck <= 30 then ExecCyberpsychosis() end
+            if luck <= 100 then ExecCyberpsychosis() end
             ResetSandi()
         end
     else
