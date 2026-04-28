@@ -360,6 +360,7 @@ local animationConnections: {RBXScriptConnection} = {}
 local opticalToken = 0
 local energyFill: Frame
 local energyPercentLabel: TextLabel
+local settingsMenu = nil 
 
 local function getSafeInvisPosition()
     local offset = Vector3.new(math.random(-5000, 5000), math.random(10000, 15000), math.random(-5000, 5000))
@@ -668,6 +669,63 @@ local function ApplyGlitchEffect()
         TweenService:Create(cc, TweenInfo.new(0.6), {Saturation = 0, Contrast = 0}):Play()
         TweenService:Create(blur, TweenInfo.new(0.6), {Size = 0}):Play()
         task.delay(0.7, function() cc:Destroy() blur:Destroy() end)
+    end)
+end
+
+-- ========== NOVAS ANIMAÇÕES ==========
+
+-- Animação de Scanline (linhas horizontais piscando)
+local function ScanlineEffect(gui)
+    local scanline = Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 2),
+        Position = UDim2.new(0, 0, -1, 0),
+        BackgroundColor3 = Colors.UI_NEON,
+        BackgroundTransparency = 0.5,
+        BorderSizePixel = 0,
+        Parent = gui
+    })
+    task.spawn(function()
+        while scanline.Parent do
+            TweenService:Create(scanline, TweenInfo.new(2, Enum.EasingStyle.Linear), {
+                Position = UDim2.new(0, 0, 1, 0)
+            }):Play()
+            task.wait(2)
+            scanline.Position = UDim2.new(0, 0, -1, 0)
+        end
+    end)
+end
+
+-- Animação de Glitch na tela toda
+local function FullScreenGlitch()
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if not gui then return end
+    local glitch = Create("Frame", {
+        Size = UDim2.new(1, 0, 0, math.random(10, 40)),
+        Position = UDim2.new(0, math.random(-5, 5), 0, math.random(0, 100)/100),
+        BackgroundColor3 = Color3.fromRGB(0, 255, 200),
+        BackgroundTransparency = 0.7,
+        BorderSizePixel = 0,
+        Parent = gui
+    })
+    task.delay(0.08, function()
+        TweenService:Create(glitch, TweenInfo.new(0.1), {BackgroundTransparency = 1}):Play()
+        task.delay(0.15, function() glitch:Destroy() end)
+    end)
+end
+
+-- Animação de pulsação (botões)
+local function PulseAnimation(object)
+    task.spawn(function()
+        while object.Parent do
+            TweenService:Create(object, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                Size = UDim2.new(1.05, 0, 1.05, 0)
+            }):Play()
+            task.wait(0.8)
+            TweenService:Create(object, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                Size = UDim2.new(1, 0, 1, 0)
+            }):Play()
+            task.wait(0.8)
+        end
     end)
 end
 
@@ -1881,12 +1939,15 @@ local function BuildUI()
         end
     end
 
-    local settingsBtn = Create("TextButton", {Name = "SettingsBtn", Size = UDim2.new(0, 40, 0, 40), Position = UDim2.new(0, 50, 0.5, -210), BackgroundColor3 = Colors.UI_DARK, TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 26, Text = "", Parent = gui})
-    Create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = settingsBtn})
-    Create("UIStroke", {Color = Colors.CYBER_CHROME, Thickness = 3, Transparency = 0.25, Parent = settingsBtn})
-    local settingsGradient = Create("UIGradient", {Color = ColorSequence.new(Colors.UI_DARK, Colors.CYBER_ORANGE), Rotation = 45, Parent = settingsBtn})
-
-    local settingsMenu = Create("Frame", {Name = "SettingsMenu", Size = UDim2.new(0, 340, 0, 480), Position = UDim2.new(0, 78, 0, 28), BackgroundColor3 = Color3.fromRGB(4,4,8), Visible = false, BorderSizePixel = 0, Parent = gui})
+    local settingsMenu = Create("Frame", {
+    Name = "SettingsMenu", 
+    Size = UDim2.new(0, 0, 0, 0),  -- Tamanho inicial 0
+    Position = UDim2.new(0, 78, 0, 28), 
+    BackgroundColor3 = Color3.fromRGB(4,4,8), 
+    Visible = false,
+    BorderSizePixel = 0, 
+    Parent = gui
+})
     Create("UICorner", {CornerRadius = UDim.new(0, 16), Parent = settingsMenu})
     local menuStroke1 = Create("UIStroke", {Color = Colors.CYBER_CHROME, Thickness = 4, Transparency = 0.2, Parent = settingsMenu})
     local menuStroke2 = Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 1.5, Transparency = 0.55, Parent = settingsMenu})
@@ -2007,8 +2068,6 @@ end)
 
     scroll.CanvasSize = UDim2.new(0, 0, 0, scroll.UIListLayout.AbsoluteContentSize.Y + 160)
 
-    settingsBtn.MouseButton1Click:Connect(function() settingsMenu.Visible = not settingsMenu.Visible end)
-
     MakeDraggable(gui:FindFirstChild("EnergyBar"), gui:FindFirstChild("EnergyBar"))
     lockBtn.MouseButton1Click:Connect(function()
         State.EditMode = not State.EditMode
@@ -2029,6 +2088,29 @@ end)
     UpdateKiroshiButton()
     UpdateOpticalButton()
     if SkillContainers["DodgeBtn"] then SkillContainers["DodgeBtn"].Visible = (EnabledAbilities.Dodge and DodgeMode == "Counter") end
+
+    -- ===== APLICAR ANIMAÇÕES =====
+    ScanlineEffect(gui)
+    task.delay(0.5, function() FullScreenGlitch() end)
+    
+    -- Glitch periódico a cada 30 segundos
+    task.spawn(function()
+        while gui.Parent do
+            task.wait(30)
+            FullScreenGlitch()
+        end
+    end)
+    
+    -- Aplicar pulsação em TODOS os botões de habilidade
+    for _, btnName in pairs({"DashBtn", "SandiBtn", "KiroshiBtn", "OpticalBtn", "DodgeBtn"}) do
+        local container = gui:FindFirstChild(btnName .. "Container")
+        if container then
+            local btn = container:FindFirstChild(btnName)
+            if btn then
+                PulseAnimation(btn)
+            end
+        end
+    end
 end
 
 local function InitWalkEffect()
@@ -2266,6 +2348,43 @@ local function SetupCharacter(character)
         end
     end)
 end
+
+-- ========== COMANDO DE CHAT -Settings ==========
+Player.Chatted:Connect(function(message)
+    local msg = message:lower():gsub("%s+", "")
+    if msg == "-settings" then
+        local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+        if gui then
+            local menu = gui:FindFirstChild("SettingsMenu")
+            if menu then
+                local newState = not menu.Visible
+                
+                if newState then
+                    -- ===== ABRIR COM ANIMAÇÃO =====
+                    menu.Visible = true
+                    menu.Size = UDim2.new(0, 0, 0, 0)
+                    menu.BackgroundTransparency = 1
+                    TweenService:Create(menu, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(0, 340, 0, 480),
+                        BackgroundTransparency = 0
+                    }):Play()
+                    
+                else
+                    -- ===== FECHAR COM ANIMAÇÃO =====
+                    local closeTween = TweenService:Create(menu, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                        Size = UDim2.new(0, 0, 0, 0),
+                        BackgroundTransparency = 1
+                    })
+                    closeTween:Play()
+                    
+                    closeTween.Completed:Connect(function()
+                        menu.Visible = false
+                    end)
+                end
+            end
+        end
+    end
+end)
 
 local function Init()
     if Player.Character then 
