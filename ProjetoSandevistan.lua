@@ -654,8 +654,8 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
     if cloneType ~= "glitch" then
         local highlight = Instance.new("Highlight")
         highlight.Adornee = hologramChar
-        highlight.FillTransparency = 0.7
-        highlight.OutlineTransparency = 0.3
+        highlight.FillTransparency = 0.3
+        highlight.OutlineTransparency = 0.6
         highlight.FillColor = cloneColor
         highlight.OutlineColor = cloneColor
         highlight.Parent = hologramChar
@@ -3143,7 +3143,7 @@ RunService.Heartbeat:Connect(function(dt)
         if State.Energy <= 0 then
             State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_ZERO
             local luck = math.random(1, 100)
-            if luck <= 100 then ExecCyberpsychosis() end
+            if luck <= 30 then ExecCyberpsychosis() end
             ResetSandi()
         end
     else
