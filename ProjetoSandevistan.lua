@@ -48,7 +48,7 @@ local Constants = {
         OPTICAL = 6.5
     },
     HOLOGRAM_CLONE = {
-        SANDI = {DELAY = 0.075, DURATION = 3, END_TRvolumeANSPARENCY = 1},
+        SANDI = {DELAY = 0.075, DURATION = 3, END_TRANSPARENCY = 1},
         DASH = {DELAY = 0.07, DURATION = 0.35, END_TRANSPARENCY = 0.9},
         DODGE = {DELAY = 0.2, DURATION = 0.5, END_TRANSPARENCY = 0.9}
     },
@@ -198,10 +198,15 @@ local AbilityMap = {
 local SkillContainers = {}
 
 local SET_1 = {120005268911290}
-local SET_2 = {18358624045, 18358533023, 18358615215}
+local SET_2 = {84715312484929, 120005268911290}  
+local SET_3 = {18358624045, 18358533023, 18358615215}
 
 local currentSet = 1
-local setColors = {[1] = Color3.fromRGB(45, 45, 45), [2] = Color3.fromRGB(0, 120, 215)}
+local setColors = {
+    [1] = Color3.fromRGB(45, 45, 45),      -- Set 1
+    [2] = Color3.fromRGB(0, 120, 215),     -- Set 2
+    [3] = Color3.fromRGB(200, 50, 50)      -- Set 3 
+}
 
 local DodgeMode = "Counter"
 
@@ -220,13 +225,13 @@ local Sounds = {
     DASH = {id = "rbxassetid://103247005619946", volume = 1.5, pitch = 1, looped = false},
     SANDI_ON = {id = "rbxassetid://123844681344865", volume = 1.5, pitch = 1, looped = false},
     SANDI_OFF = {id = "rbxassetid://118534165523355", volume = 1.5, pitch = 1, looped = false},
-    SANDI_LOOP = {id = "rbxassetid://74707394872868", volume = 1.5, pitch = 1.5, looped = true},
+    SANDI_LOOP = {id = "rbxassetid://74707394872868", volume = 1.5, pitch = 1, looped = true},
     PSYCHOSIS = {id = "rbxassetid://116261614561232", volume = 2, pitch = 1, looped = false},
     PSYCHOSIS2 = {id = "rbxassetid://116079585368153", volume = 2, pitch = 1, looped = false},
     OPTICAL_CAMO = {id = "rbxassetid://115981406751041", volume = 1, pitch = 1, looped = false},
     SANDI_FAILURE = {id = "rbxassetid://132281440773764", volume = 5, pitch = 1, looped = false},
     COLLISION_IMPACT = {id = "rbxassetid://86227700557194", volume = 1.7, pitch = 1, looped = false},
-    SPAWN = {id = "rbxassetid://121480304779842",  = 1.5, pitch = 1, looped = false},
+    SPAWN = {id = "rbxassetid://121480304779842", volume = 1.5, pitch = 1, looped = false},
     KIROSHI_ON = {id = "rbxassetid://101563346734882", volume = 2.2, pitch = 1.05, looped = false},
     KIROSHI_OFF = {id = "rbxassetid://79307196411649", volume = 1.8, pitch = 0.95, looped = false}
 }
@@ -1967,16 +1972,20 @@ local function BuildUI()
     Create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = setsBtn})
     Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2.5, Parent = setsBtn})
     setsBtn.MouseButton1Click:Connect(function()
-        if currentSet == 1 then
-            currentSet = 2
-            setsBtn.BackgroundColor3 = setColors[2]
-            AplicarSet(SET_2)
-        else
-            currentSet = 1
-            setsBtn.BackgroundColor3 = setColors[1]
-            AplicarSet(SET_1)
-        end
-    end)
+    if currentSet == 1 then
+        currentSet = 2
+        setsBtn.BackgroundColor3 = setColors[2]
+        AplicarSet(SET_2)
+    elseif currentSet == 2 then
+        currentSet = 3
+        setsBtn.BackgroundColor3 = setColors[3]
+        AplicarSet(SET_3)
+    else
+        currentSet = 1
+        setsBtn.BackgroundColor3 = setColors[1]
+        AplicarSet(SET_1)
+    end
+end)
 
     scroll.CanvasSize = UDim2.new(0, 0, 0, scroll.UIListLayout.AbsoluteContentSize.Y + 160)
 
@@ -2228,14 +2237,16 @@ local function SetupCharacter(character)
     InitDirectionalMovement()
     
     task.delay(2, function()
-    if Character and Character.Parent then
-        if currentSet == 1 then
-            AplicarSet(SET_1)
-        else
-            AplicarSet(SET_2)
+        if Character and Character.Parent then
+            if currentSet == 1 then
+                AplicarSet(SET_1)
+            elseif currentSet == 2 then
+                AplicarSet(SET_2)
+            else
+                AplicarSet(SET_3)
+            end
         end
-    end
-end)
+    end)
 end
 
 local function Init()
