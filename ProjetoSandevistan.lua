@@ -109,9 +109,9 @@ local Constants = {
         NORMAL_DISTANCE_NO_ENEMY = 12,
         NORMAL_DISTANCE_ENEMY = 6
     },
-    SANDEVISTAN_FAILURE_CHANCE = 0.3,
+    SANDEVISTAN_FAILURE_CHANCE = 0.2,
     CYBERPSYCHOSIS = {
-        Duration = 6,
+        Duration = 5,
         PopupRate = 0.08,
         Radius = 7,
         ShakeIntensity = 0.6,
@@ -545,11 +545,11 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         cloneColor = Color3.new(1, 1, 1) -- Branco para glitch
     end
     
-    -- Configurar o Clone (MÉTODO DO SEU SCRIPT)
+    -- ═══════════ PINTAR TUDO (CORPO + ACESSÓRIOS) ═══════════
+    -- Primeira passada: todas as partes do corpo
     for _, obj in pairs(hologramChar:GetDescendants()) do
         if obj:IsA("BasePart") then
             obj.CanCollide = false
-            obj.CanTouch = false
             obj.Anchored = true
             obj.CastShadow = false
             
@@ -558,11 +558,11 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
                 obj.Transparency = 1
             else
                 obj.Transparency = 0.6
-                obj.Color = cloneColor
+                obj.Color = cloneColor  -- PINTA COM A COR DO CLONE
                 obj.Material = Configurations.HOLOGRAM_MATERIAL
             end
             
-            -- Remove textura de MeshParts
+            -- Remove textura de MeshParts para mostrar a cor sólida
             if obj:IsA("MeshPart") then 
                 obj.TextureID = "" 
             end
@@ -572,6 +572,46 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
             obj:Destroy()
         end
     end
+    
+    -- Segunda passada: PINTAR ACESSÓRIOS (Handle + partes internas)
+    for _, accessory in pairs(hologramChar:GetChildren()) do
+        if accessory:IsA("Accessory") then
+            -- Pintar o Handle do acessório
+            local handle = accessory:FindFirstChild("Handle")
+            if handle then
+                handle.CanCollide = false
+                handle.Anchored = true
+                handle.CastShadow = false
+                handle.Transparency = 0.6
+                handle.Color = cloneColor  -- PINTA A PARTE PRINCIPAL DO ACESSÓRIO
+                handle.Material = Configurations.HOLOGRAM_MATERIAL
+                
+                -- Remove textura se for MeshPart
+                if handle:IsA("MeshPart") then
+                    handle.TextureID = ""
+                end
+            end
+            
+            -- Pintar todas as partes dentro do acessório
+            for _, part in pairs(accessory:GetDescendants()) do
+                if part:IsA("BasePart") and part ~= handle then
+                    part.CanCollide = false
+                    part.Anchored = true
+                    part.CastShadow = false
+                    part.Transparency = 0.6
+                    part.Color = cloneColor  -- PINTA PARTES SECUNDÁRIAS
+                    part.Material = Configurations.HOLOGRAM_MATERIAL
+                    
+                    if part:IsA("MeshPart") then
+                        part.TextureID = ""
+                    end
+                elseif part:IsA("Decal") or part:IsA("Texture") then
+                    part:Destroy()
+                end
+            end
+        end
+    end
+    -- ═══════════════════════════════════════════════════════
     
     -- Destruir Humanoid e Animate
     local humanoid = hologramChar:FindFirstChildOfClass("Humanoid")
@@ -601,16 +641,14 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         hologramChar.PrimaryPart = hologramRoot
     end
     
-    -- ═══════════ ADICIONE APENAS ISSO AQUI ═══════════
     -- Marcar clone do Sandi para ser destruído instantaneamente
     if cloneType == "sandi" then
-        hologramChar.Name = "HologramClone"  -- Nome que o ResetSandi procura
+        hologramChar.Name = "HologramClone"
         local tag = Instance.new("BoolValue")
         tag.Name = "IsSandiClone"
         tag.Value = true
         tag.Parent = hologramChar
     end
-    -- ═══════════════════════════════════════════════
     
     -- Adicionar Highlight (personalizado por tipo)
     if cloneType ~= "glitch" then
@@ -652,13 +690,14 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
     
     -- Efeito de fade out (MÉTODO DO SEU SCRIPT)
     task.spawn(function()
-        task.wait(duration * 0.7) -- Espera 70% da duração antes de começar a sumir
+        task.wait(duration * 0.7)
         
         local fadeSteps = 10
-        local fadeStepTime = (duration * 0.3) / fadeSteps -- 30% da duração para o fade
+        local fadeStepTime = (duration * 0.3) / fadeSteps
         
-        for i = 0.6, 1, 0.04 do -- 10 steps (0.6 + 10*0.04 = 1.0)
+        for i = 0.6, 1, 0.04 do
             task.wait(fadeStepTime)
+            -- Aplica fade em TODAS as partes (incluindo acessórios)
             for _, p in pairs(hologramChar:GetDescendants()) do
                 if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then 
                     p.Transparency = i 
@@ -666,7 +705,6 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
             end
         end
         
-        -- Destruir o clone
         hologramChar:Destroy()
     end)
 end
@@ -1179,65 +1217,156 @@ local function SystemRestorePopup()
     end)
 end
 
+-- Função para criar clones de vibração ilusórica (Cyberpsychosis)
+local function SpawnPsychosisClone()
+    if not Character or not HRP then return end
+
+    Character.Archivable = true
+    local Ilusao = Character:Clone()
+    Character.Archivable = false
+    
+    -- COR VERMELHO SANGUE
+    local CorDoClone = Color3.fromRGB(255, 0, 0)
+    local distanciaMedia = 5  -- 5 metros
+    
+    -- Configurar o Clone (EXATAMENTE como seu script original)
+    for _, obj in pairs(Ilusao:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            obj.CanCollide = false
+            obj.CanTouch = false
+            obj.Anchored = true
+            obj.CastShadow = false
+            
+            if obj.Name == "HumanoidRootPart" then
+                obj.Transparency = 1
+            else
+                obj.Transparency = 0.6
+                obj.Color = CorDoClone
+                obj.Material = Enum.Material.ForceField
+            end
+            
+            if obj:IsA("MeshPart") then obj.TextureID = "" end
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            obj:Destroy()
+        elseif obj:IsA("LuaSourceContainer") or obj:IsA("Sound") then
+            obj:Destroy()
+        end
+    end
+    
+    -- Destruir Humanoid e Animate
+    local humanoid = Ilusao:FindFirstChildOfClass("Humanoid")
+    if humanoid then humanoid:Destroy() end
+    local animateFolder = Ilusao:FindFirstChild("Animate")
+    if animateFolder then animateFolder:Destroy() end
+    
+    -- Posicionamento (EXATAMENTE como seu script original)
+    local angulo = math.rad(math.random(0, 360))
+    local offsetZ = math.cos(angulo) * distanciaMedia
+    local offsetX = math.sin(angulo) * distanciaMedia
+    
+    local posicaoFinal = HRP.CFrame * CFrame.new(offsetX, 0, offsetZ)
+    Ilusao:SetPrimaryPartCFrame(posicaoFinal)
+    
+    -- Highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = Ilusao
+    highlight.FillTransparency = 0.8
+    highlight.OutlineTransparency = 0.3
+    highlight.FillColor = CorDoClone
+    highlight.OutlineColor = CorDoClone
+    highlight.Parent = Ilusao
+    
+    Ilusao.Parent = workspace
+    
+    -- Efeito de sumir (EXATAMENTE como seu script original)
+    task.spawn(function()
+        for i = 0.6, 1, 0.1 do
+            task.wait(0.05)
+            for _, p in pairs(Ilusao:GetDescendants()) do
+                if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then 
+                    p.Transparency = i 
+                end
+            end
+        end
+        Ilusao:Destroy()
+    end)
+end
+
+-- ═══════════ EXECCYBERPSYCHOSIS ═══════════
 local function ExecCyberpsychosis()
     PlaySFX(Sounds.PSYCHOSIS)
     PlaySFX(Sounds.PSYCHOSIS2)
     
-    -- Janelas sincronizadas com "I'M GONNA RIP OUT HIS SPINE! YOU'RE DEAD, DEAD... DEAD.! DEAAD!!!"
-    task.spawn(function()
-        -- "I'M" (0.0s)
+        -- ═══════════ THREAD DE CLONES ═══════════
+task.spawn(function()
+    local duracaoTotal = 5.5
+    local taxaCriacao = 1 
+    local tempoPassado = 0
+    
+    while tempoPassado < duracaoTotal do
+        if not Character or not HRP then break end
+        SpawnPsychosisClone()
+        task.wait(taxaCriacao)
+        tempoPassado = tempoPassado + taxaCriacao
+    end
+end)
+-- ═══════════════════════════════════════
+    
+    -- Janelas sincronizadas (APENAS POPUPS, SEM CLONES EXTRAS)
+task.spawn(function()
+    -- "I'M" (0.0s)
+    spawnPopup()
+    task.wait(0.15)
+    -- "GONNA" (0.15s)
+    spawnPopup()
+    task.wait(0.15)
+    -- "RIP" (0.3s)
+    spawnPopup()
+    spawnPopup()
+    task.wait(0.12)
+    -- "OUT" (0.42s)
+    spawnPopup()
+    task.wait(0.12)
+    -- "HIS" (0.54s)
+    spawnPopup()
+    task.wait(0.1)
+    -- "SPINE!" (0.64s)
+    for i = 1, 4 do
         spawnPopup()
-        task.wait(0.15)
-        -- "GONNA" (0.15s)
+        task.wait(0.06)
+    end
+    task.wait(0.3)
+    
+    -- "YOU'RE" (1.18s)
+    for i = 1, 3 do
         spawnPopup()
-        task.wait(0.15)
-        -- "RIP" (0.3s)
+        task.wait(0.08)
+    end
+    task.wait(0.12)
+    
+    -- "DEAD," (1.54s)
+    spawnPopup()
+    spawnPopup()
+    task.wait(0.2)
+    
+    -- "DEAD..." (1.74s)
+    spawnPopup()
+    spawnPopup()
+    task.wait(0.15)
+    
+    -- "DEAD.!" (1.89s)
+    for i = 1, 3 do
         spawnPopup()
+        task.wait(0.05)
+    end
+    task.wait(0.15)
+    
+    -- "DEAAD!!!" (2.24s) - climax
+    for i = 1, 8 do
         spawnPopup()
-        task.wait(0.12)
-        -- "OUT" (0.42s)
-        spawnPopup()
-        task.wait(0.12)
-        -- "HIS" (0.54s)
-        spawnPopup()
-        task.wait(0.1)
-        -- "SPINE!" (0.64s) - explosão de janelas
-        for i = 1, 4 do
-            spawnPopup()
-            task.wait(0.06)
-        end
-        task.wait(0.3)
-        
-        -- "YOU'RE" (1.18s)
-        for i = 1, 3 do
-            spawnPopup()
-            task.wait(0.08)
-        end
-        task.wait(0.12)
-        
-        -- "DEAD," (1.54s)
-        spawnPopup()
-        spawnPopup()
-        task.wait(0.2)
-        
-        -- "DEAD..." (1.74s)
-        spawnPopup()
-        spawnPopup()
-        task.wait(0.15)
-        
-        -- "DEAD.!" (1.89s)
-        for i = 1, 3 do
-            spawnPopup()
-            task.wait(0.05)
-        end
-        task.wait(0.15)
-        
-        -- "DEAAD!!!" (2.24s) - climax
-        for i = 1, 8 do
-            spawnPopup()
-            task.wait(0.04)
-        end
-    end)
+        task.wait(0.04)
+    end
+end)
 
     if Humanoid then Humanoid.WalkSpeed = 0 Humanoid.JumpPower = 0 end
     
@@ -1328,88 +1457,82 @@ local function ExecCyberpsychosis()
             TweenService:Create(psychosisText, TweenInfo.new(0.1), {TextTransparency = 0.5}):Play()
         end)
     end
+    
     connection = RunService.RenderStepped:Connect(function(dt)
-    local elapsed = tick() - startTime
-    if elapsed > Constants.CYBERPSYCHOSIS.Duration then
-    if Humanoid then Humanoid.WalkSpeed = 16 Humanoid.JumpPower = 50 Humanoid.CameraOffset = Vector3.zero end
-    TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0}):Play()
-    TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
-    Debris:AddItem(cc, 0.5)
-    Debris:AddItem(blur, 0.5)
-    connection:Disconnect()
-    
-    -- ===== CHANCE DE SYSTEM RESTORE (30%) =====
-    if math.random(1, 100) <= 30 then
-        task.delay(0.5, function()
-            SystemRestorePopup()
-        end)
-    end
-    
-    vignette:Destroy()
-    psychosisText:Destroy()
-    redOverlay:Destroy()
-    blueOverlay:Destroy()
-    for _, crack in ipairs(gui:GetChildren()) do if crack:IsA("ImageLabel") then crack:Destroy() end end
-    for _, emitter in ipairs(emitters) do emitter.Enabled = false Debris:AddItem(emitter.Parent, 1) end
-    return
-end
-    
-    -- ===== DRENAR VIDA SUAVEMENTE =====
-    if Humanoid and Humanoid.Health > 0 then
-        -- Calcular dreno baseado na fase
-        local drainRate = 0
-        
-        if elapsed < phaseDuration then
-            -- Fase 1: Dreno leve (5% da vida máxima por segundo)
-            currentPhase = 1
-            drainRate = Humanoid.MaxHealth * 0.05 * dt
-            Constants.CYBERPSYCHOSIS.ShakeIntensity = 0.2
-            Constants.CYBERPSYCHOSIS.PopupRate = 0.05
-            blur.Size = math.random(2, 6)
+        local elapsed = tick() - startTime
+        if elapsed > Constants.CYBERPSYCHOSIS.Duration then
+            if Humanoid then Humanoid.WalkSpeed = 16 Humanoid.JumpPower = 50 Humanoid.CameraOffset = Vector3.zero end
+            TweenService:Create(cc, TweenInfo.new(0.5), {TintColor = Color3.new(1,1,1), Saturation = 0}):Play()
+            TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
+            Debris:AddItem(cc, 0.5)
+            Debris:AddItem(blur, 0.5)
+            connection:Disconnect()
             
-        elseif elapsed < phaseDuration * 2 then
-            -- Fase 2: Dreno médio (8% da vida máxima por segundo)
-            currentPhase = 2
-            drainRate = Humanoid.MaxHealth * 0.08 * dt
-            Constants.CYBERPSYCHOSIS.ShakeIntensity = 0.6
-            Constants.CYBERPSYCHOSIS.PopupRate = 0.1
-            blur.Size = math.random(8, 16)
-            
-        else
-            -- Fase 3: Dreno intenso (12% da vida máxima por segundo) + velocidade
-            currentPhase = 3
-            drainRate = Humanoid.MaxHealth * 0.12 * dt
-            Constants.CYBERPSYCHOSIS.ShakeIntensity = 1.0
-            Constants.CYBERPSYCHOSIS.PopupRate = 0.15
-            blur.Size = math.random(12, 20)
-            
-            if Humanoid then
-                Humanoid.WalkSpeed = 50
+            -- ===== CHANCE DE SYSTEM RESTORE (30%) =====
+            if math.random(1, 100) <= 30 then
+                task.delay(0.5, function()
+                    SystemRestorePopup()
+                end)
             end
+            
+            vignette:Destroy()
+            psychosisText:Destroy()
+            redOverlay:Destroy()
+            blueOverlay:Destroy()
+            for _, crack in ipairs(gui:GetChildren()) do if crack:IsA("ImageLabel") then crack:Destroy() end end
+            for _, emitter in ipairs(emitters) do emitter.Enabled = false Debris:AddItem(emitter.Parent, 1) end
+            return
         end
         
-        -- Aplicar dreno (mínimo de 1 de vida para não matar instantaneamente)
-        local newHealth = math.max(1, Humanoid.Health - drainRate)
-        Humanoid.Health = newHealth
-        
-        -- Efeito visual de dano no corpo (piscar vermelho)
-        if Character then
-            for _, part in ipairs(cyberParts) do
-                if part then
-                    -- Piscar entre vermelho sangue e rosa escuro
-                    local r = 0.8 + math.sin(elapsed * 15) * 0.2
-                    local g = 0.05 + math.sin(elapsed * 10) * 0.05
-                    local b = 0.1 + math.sin(elapsed * 12) * 0.1
-                    part.Color = Color3.new(r, g, b)
+        -- ===== DRENAR VIDA SUAVEMENTE =====
+        if Humanoid and Humanoid.Health > 0 then
+            local drainRate = 0
+            
+            if elapsed < phaseDuration then
+                currentPhase = 1
+                drainRate = Humanoid.MaxHealth * 0.05 * dt
+                Constants.CYBERPSYCHOSIS.ShakeIntensity = 0.2
+                Constants.CYBERPSYCHOSIS.PopupRate = 0.05
+                blur.Size = math.random(2, 6)
+                
+            elseif elapsed < phaseDuration * 2 then
+                currentPhase = 2
+                drainRate = Humanoid.MaxHealth * 0.08 * dt
+                Constants.CYBERPSYCHOSIS.ShakeIntensity = 0.6
+                Constants.CYBERPSYCHOSIS.PopupRate = 0.1
+                blur.Size = math.random(8, 16)
+                
+            else
+                currentPhase = 3
+                drainRate = Humanoid.MaxHealth * 0.12 * dt
+                Constants.CYBERPSYCHOSIS.ShakeIntensity = 1.0
+                Constants.CYBERPSYCHOSIS.PopupRate = 0.15
+                blur.Size = math.random(12, 20)
+                
+                if Humanoid then
+                    Humanoid.WalkSpeed = 50
+                end
+            end
+            
+            local newHealth = math.max(1, Humanoid.Health - drainRate)
+            Humanoid.Health = newHealth
+            
+            if Character then
+                for _, part in ipairs(cyberParts) do
+                    if part then
+                        local r = 0.8 + math.sin(elapsed * 15) * 0.2
+                        local g = 0.05 + math.sin(elapsed * 10) * 0.05
+                        local b = 0.1 + math.sin(elapsed * 12) * 0.1
+                        part.Color = Color3.new(r, g, b)
+                    end
                 end
             end
         end
-    end
-    
-    blur.Size = math.random(4, 12)
-    shakeCamera()
-    if math.random() < Constants.CYBERPSYCHOSIS.PopupRate then spawnPopup() end
-end)
+        
+        blur.Size = math.random(4, 12)
+        shakeCamera()
+        if math.random() < Constants.CYBERPSYCHOSIS.PopupRate then spawnPopup() end
+    end)
 end
 
 local function ToggleNoclip()
@@ -2969,7 +3092,7 @@ RunService.Heartbeat:Connect(function(dt)
         if State.Energy <= 0 then
             State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_ZERO
             local luck = math.random(1, 100)
-            if luck <= 30 then ExecCyberpsychosis() end
+            if luck <= 100 then ExecCyberpsychosis() end
             ResetSandi()
         end
     else
