@@ -557,7 +557,7 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
             if obj.Name == "HumanoidRootPart" then
                 obj.Transparency = 1
             else
-                obj.Transparency = 0.6
+                obj.Transparency = 0.30
                 obj.Color = cloneColor  -- PINTA COM A COR DO CLONE
                 obj.Material = Configurations.HOLOGRAM_MATERIAL
             end
@@ -582,7 +582,7 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
                 handle.CanCollide = false
                 handle.Anchored = true
                 handle.CastShadow = false
-                handle.Transparency = 0.6
+                handle.Transparency = 0.30
                 handle.Color = cloneColor  -- PINTA A PARTE PRINCIPAL DO ACESSÓRIO
                 handle.Material = Configurations.HOLOGRAM_MATERIAL
                 
@@ -598,7 +598,7 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
                     part.CanCollide = false
                     part.Anchored = true
                     part.CastShadow = false
-                    part.Transparency = 0.6
+                    part.Transparency = 0.30
                     part.Color = cloneColor  -- PINTA PARTES SECUNDÁRIAS
                     part.Material = Configurations.HOLOGRAM_MATERIAL
                     
@@ -654,8 +654,8 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
     if cloneType ~= "glitch" then
         local highlight = Instance.new("Highlight")
         highlight.Adornee = hologramChar
-        highlight.FillTransparency = 0.3
-        highlight.OutlineTransparency = 0.6
+        highlight.FillTransparency = 0.6
+        highlight.OutlineTransparency = 0.3
         highlight.FillColor = cloneColor
         highlight.OutlineColor = cloneColor
         highlight.Parent = hologramChar
@@ -3248,6 +3248,146 @@ Player.Chatted:Connect(function(message)
     end
 end)
 
+-- ==================== CYBER SEND NOTIFICATION - ESTILO SANDEVISTAN ====================
+local function CyberSendNotification(title: string, text: string, duration: number?, imageId: string?)
+    duration = duration or 4.8
+    
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if not gui then 
+        gui = Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
+    end
+
+    local notif = Create("Frame", {
+        Name = "CyberNotification",
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(1, -340, 0, 70),
+        BackgroundColor3 = Color3.fromRGB(6, 6, 12),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 999,
+        Parent = gui
+    })
+
+    Create("UICorner", {CornerRadius = UDim.new(0, 16), Parent = notif})
+
+    local strokeOuter = Create("UIStroke", {Color = Colors.SANDI_TINT, Thickness = 4, Transparency = 1, Parent = notif})
+    local strokeInner = Create("UIStroke", {Color = Colors.UI_NEON, Thickness = 2, Transparency = 1, Parent = notif})
+    
+    local glow = Create("UIStroke", {
+        Color = Colors.LIGHT_GREEN,
+        Thickness = 12,
+        Transparency = 0.8,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        Parent = notif
+    })
+
+    -- Imagem principal
+    local image = Create("ImageLabel", {
+        Size = UDim2.new(0, 78, 0, 78),
+        Position = UDim2.new(0, 16, 0.5, -39),
+        BackgroundTransparency = 1,
+        Image = imageId or "rbxassetid://11540569225",
+        ImageTransparency = 1,
+        ZIndex = 1000,
+        Parent = notif
+    })
+    Create("UICorner", {CornerRadius = UDim.new(0, 14), Parent = image})
+
+    -- Título principal
+    local titleLabel = Create("TextLabel", {
+        Size = UDim2.new(1, -110, 0, 32),
+        Position = UDim2.new(0, 106, 0, 18),
+        BackgroundTransparency = 1,
+        Text = title:upper(),
+        TextColor3 = Colors.SANDI_TINT,
+        Font = Enum.Font.SciFi,
+        TextSize = 23,
+        TextStrokeTransparency = 0.4,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTransparency = 1,
+        ZIndex = 1000,
+        Parent = notif
+    })
+
+    -- Texto descritivo
+    local descLabel = Create("TextLabel", {
+        Size = UDim2.new(1, -110, 0, 44),
+        Position = UDim2.new(0, 106, 0, 48),
+        BackgroundTransparency = 1,
+        Text = text,
+        TextColor3 = Color3.fromRGB(180, 255, 205),
+        Font = Enum.Font.Code,
+        TextSize = 15.5,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTransparency = 1,
+        ZIndex = 1000,
+        Parent = notif
+    })
+
+    -- ==================== CRÉDITO: Script By Mini 🍭 mynameis909 ====================
+    local creditLabel = Create("TextLabel", {
+        Size = UDim2.new(1, -110, 0, 18),
+        Position = UDim2.new(0, 106, 1, -24),  -- Posicionado na parte inferior
+        BackgroundTransparency = 1,
+        Text = "Script By Mini 🍭 mynameis909",
+        TextColor3 = Color3.fromRGB(100, 255, 180),
+        Font = Enum.Font.Code,
+        TextSize = 13,
+        TextTransparency = 1,
+        TextStrokeTransparency = 0.7,
+        ZIndex = 1000,
+        Parent = notif
+    })
+
+    -- ==================== ANIMAÇÃO ====================
+    task.spawn(function()
+        TweenService:Create(notif, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 325, 0, 128),  -- Aumentei um pouco a altura por causa do crédito
+            BackgroundTransparency = 0.08
+        }):Play()
+
+        TweenService:Create(strokeOuter, TweenInfo.new(0.5), {Transparency = 0.25}):Play()
+        TweenService:Create(strokeInner, TweenInfo.new(0.55), {Transparency = 0.6}):Play()
+
+        -- Glow pulsante
+        task.spawn(function()
+            while notif.Parent do
+                TweenService:Create(glow, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.55}):Play()
+                task.wait(1.3)
+                TweenService:Create(glow, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.82}):Play()
+                task.wait(1.3)
+            end
+        end)
+
+        task.wait(0.18)
+        TweenService:Create(image, TweenInfo.new(0.45), {ImageTransparency = 0.08}):Play()
+        TweenService:Create(titleLabel, TweenInfo.new(0.4), {TextTransparency = 0}):Play()
+        TweenService:Create(descLabel, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+        TweenService:Create(creditLabel, TweenInfo.new(0.6), {TextTransparency = 0.3}):Play()  -- Crédito aparece mais suave
+    end)
+
+    -- Saída
+    task.delay(duration, function()
+        if not notif or not notif.Parent then return end
+
+        TweenService:Create(notif, TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 60, 0, 70),
+            BackgroundTransparency = 1
+        }):Play()
+
+        TweenService:Create(glow, TweenInfo.new(0.4), {Transparency = 1}):Play()
+        TweenService:Create(image, TweenInfo.new(0.4), {ImageTransparency = 1}):Play()
+        TweenService:Create(titleLabel, TweenInfo.new(0.35), {TextTransparency = 1}):Play()
+        TweenService:Create(descLabel, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
+        TweenService:Create(creditLabel, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
+
+        task.delay(0.65, function()
+            if notif and notif.Parent then notif:Destroy() end
+        end)
+    end)
+end
+
 local function Init()
     -- Carregar configurações salvas
     local savedConfig = LoadConfig()
@@ -3259,6 +3399,15 @@ local function Init()
     end
     Player.CharacterAdded:Connect(SetupCharacter)
 end
+
+-- Notificação de inicialização com crédito
+task.delay(1.2, function()
+    CyberSendNotification(
+        "CYBER REBUILT 2077", 
+        "NEURAL INTERFACE ONLINE\nSANDEVISTAN SYSTEM LOADED",
+        5.5
+    )
+end)
 
 Init()
 
