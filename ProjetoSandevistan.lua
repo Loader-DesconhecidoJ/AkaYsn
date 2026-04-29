@@ -58,6 +58,8 @@ type Cooldowns = {
     OPTICAL: number
 }
 
+local IsDodging = false
+
 type SystemState = {
     Energy: number,
     IsSandiActive: boolean,
@@ -1752,6 +1754,10 @@ local function CleanupSandiSounds()
 end
 
 local function ExecDodge(enemyPart: BasePart?)
+    -- Marca como usado - NÃO vai mais entrar em cooldown automático de 2s
+    State.IsDodgeReady = false
+    
+    IsDodging = true  
     ScreenFade(0.08, 0, 0.25, Colors.LIGHT_GREEN, 0.8, 0.4)
     local dodgeCC = Create("ColorCorrectionEffect", {Name = "DodgeEffect", TintColor = Color3.new(1, 1, 1), Saturation = 0, Contrast = 0, Parent = Lighting})
     TweenService:Create(dodgeCC, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TintColor = Colors.LIGHT_GREEN, Saturation = 0.45, Contrast = 0.25}):Play()
@@ -1760,7 +1766,7 @@ local function ExecDodge(enemyPart: BasePart?)
     local dodgeDuration = 0.35
 
     if enemyPart and distance <= Constants.DODGE_CONFIG.VARIANT_THRESHOLD then
-    -- ========== VARIANT: Giro em volta do inimigo (SEM clone inicial) ==========
+    -- ========== VARIANT: Giro em volta do inimigo ==========
     PlaySFX(Sounds.DODGE_VARIANT)
     task.spawn(function()
         local duration = Constants.DODGE_CONFIG.VARIANT_DURATION
@@ -1768,12 +1774,11 @@ local function ExecDodge(enemyPart: BasePart?)
         local relative = HRP.Position - enemyPart.Position
         local lastCloneTime = 0
         
-        -- ESCOLHA ALEATÓRIA: 1 = direita (sentido horário), -1 = esquerda (anti-horário)
         local direction = if math.random(1, 2) == 1 then 1 else -1
         
         while tick() - startTime < duration do
             local alpha = (tick() - startTime) / duration
-            local angle = alpha * math.pi * direction  -- Multiplica pela direção escolhida
+            local angle = alpha * math.pi * direction
             local rotated = CFrame.Angles(0, angle, 0) * relative
             local newPos = enemyPart.Position + rotated
             HRP.CFrame = CFrame.lookAt(newPos, enemyPart.Position)
@@ -1784,15 +1789,20 @@ local function ExecDodge(enemyPart: BasePart?)
             RunService.Heartbeat:Wait()
         end
         
-        -- A posição final também precisa ser invertida se for para esquerda
         local finalAngle = math.pi * direction
         local finalRelative = CFrame.Angles(0, finalAngle, 0) * relative
         local finalPos = enemyPart.Position + finalRelative
         HRP.CFrame = CFrame.lookAt(finalPos, enemyPart.Position)
+        
+        -- ← COOLDOWN APÓS TERMINAR A ANIMAÇÃO
+        State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
+        ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
+        
+        IsDodging = false
     end)
 
     else
-        -- ========== NORMAL: Teleporte + clone na posição inicial ==========
+        -- ========== NORMAL: Teleporte + clone ==========
         PlaySFX(Sounds.DODGE_NORMAL)
         local endCFrame
         if enemyPart then
@@ -1800,10 +1810,17 @@ local function ExecDodge(enemyPart: BasePart?)
         else
             endCFrame = HRP.CFrame * CFrame.new(0, 0, -Constants.DODGE_CONFIG.NORMAL_DISTANCE_NO_ENEMY)
         end
-        -- Clone fantasma APENAS na posição inicial (dodge normal)
         CreateHologramClone(0, 1, 1, 0, 0, 0, "dodge", startCFrame)
         HRP.CFrame = endCFrame
         dodgeDuration = 0.22
+        
+        task.delay(dodgeDuration, function()
+            -- ← COOLDOWN APÓS TERMINAR A ANIMAÇÃO
+            State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
+            ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
+            
+            IsDodging = false
+        end)
     end
 
     CamShake(0.5, 0.2)
@@ -1822,22 +1839,34 @@ end
 
 local function ActivateDodgeReady()
     if not EnabledAbilities.Dodge then return end
+    if IsDodging then return end
     if os.clock() < State.Cooldowns.DODGE then return end
+    if State.IsDodgeReady then return end  -- Já está pronto, não precisa ativar de novo
+    
     if DodgeMode == "Counter" then
         if State.Energy < Constants.ENERGY_COSTS.DODGE then return end
         State.Energy -= Constants.ENERGY_COSTS.DODGE
         State.Energy = math.max(0, State.Energy)
         State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
+        
+        -- NÃO define cooldown ainda - espera 2s ou ser usado
         State.IsDodgeReady = true
+        
+        -- Timer de 2 segundos: se não for usado, entra em cooldown
         task.spawn(function()
+            local myDodgeReady = true
             task.wait(2)
-            if State.IsDodgeReady and DodgeMode == "Counter" then
+            
+            -- Se ainda está pronto (não foi usado), força cooldown
+            if State.IsDodgeReady and myDodgeReady then
                 State.IsDodgeReady = false
                 State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
                 ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
             end
         end)
     else
+        -- Modo Auto: cooldown imediato
+        State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
         State.IsDodgeReady = true
     end
 end
@@ -3277,32 +3306,30 @@ end
 RunService.Heartbeat:Connect(function(dt)
     if not HRP or not Humanoid then return end
     if Humanoid.Health < State.LastHealth then
-        local dmgDealt = State.LastHealth - Humanoid.Health
-        if dmgDealt > 1 and State.IsDodgeReady and EnabledAbilities.Dodge then
-            local ca = nil
-            local ld = 25
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if obj:IsA("Humanoid") and obj.Parent ~= Character then
-                    local r = obj.Parent:FindFirstChild("HumanoidRootPart")
-                    if r and (HRP.Position - r.Position).Magnitude < ld then 
-                        ld = (HRP.Position - r.Position).Magnitude
-                        ca = r 
-                    end
+    local dmgDealt = State.LastHealth - Humanoid.Health
+    if dmgDealt > 1 and State.IsDodgeReady and EnabledAbilities.Dodge and not IsDodging then
+        local ca = nil
+        local ld = 25
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Humanoid") and obj.Parent ~= Character then
+                local r = obj.Parent:FindFirstChild("HumanoidRootPart")
+                if r and (HRP.Position - r.Position).Magnitude < ld then 
+                    ld = (HRP.Position - r.Position).Magnitude
+                    ca = r 
                 end
             end
-            ExecDodge(ca)
-            if DodgeMode == "Auto" then
-                if State.Energy >= Constants.ENERGY_COSTS.DODGE then
-                    State.Energy -= Constants.ENERGY_COSTS.DODGE
-                    State.Energy = math.max(0, State.Energy)
-                    State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
-                end
+        end
+        -- ExecDodge já define IsDodgeReady = false e o cooldown após animação
+        ExecDodge(ca)
+        if DodgeMode == "Auto" then
+            if State.Energy >= Constants.ENERGY_COSTS.DODGE then
+                State.Energy -= Constants.ENERGY_COSTS.DODGE
+                State.Energy = math.max(0, State.Energy)
+                State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
             end
-            State.IsDodgeReady = false
-            State.Cooldowns.DODGE = os.clock() + Constants.COOLDOWNS.DODGE
-            ShowCooldownText("Neural Dodge", Constants.COOLDOWNS.DODGE, Colors.DODGE_END)
         end
     end
+end
     State.LastHealth = Humanoid.Health
     State.LastVelocityY = HRP.Velocity.Y
     local isMoving = HRP.Velocity.Magnitude > Constants.MOVING_THRESHOLD
@@ -3334,7 +3361,7 @@ RunService.Heartbeat:Connect(function(dt)
             State.Energy = math.min(Constants.MAX_ENERGY, State.Energy + (Constants.REGEN_RATE * dt))
         end
     end
-    if DodgeMode == "Auto" and os.clock() >= State.Cooldowns.DODGE and not State.IsDodgeReady and State.Energy >= Constants.ENERGY_COSTS.DODGE and EnabledAbilities.Dodge then
+    if DodgeMode == "Auto" and os.clock() >= State.Cooldowns.DODGE and not State.IsDodgeReady and not IsDodging and State.Energy >= Constants.ENERGY_COSTS.DODGE and EnabledAbilities.Dodge then
         ActivateDodgeReady()
     end
     if energyFill and energyPercentLabel then
