@@ -698,8 +698,8 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
             local highlight = Instance.new("Highlight")
             
             -- AMBOS 50% VISÍVEIS
-            highlight.FillTransparency = 0.5
-            highlight.OutlineTransparency = 0.5
+            highlight.FillTransparency = 0.7
+            highlight.OutlineTransparency = 0.7
             highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             highlight.OutlineColor = cloneColor
             highlight.FillColor = cloneColor
