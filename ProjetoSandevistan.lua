@@ -751,7 +751,7 @@ end
             highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             
             -- 🔥 OTIMIZAÇÃO 3: Transparências otimizadas
-            highlight.OutlineTransparency = 0.50
+            highlight.OutlineTransparency = 0.35
             highlight.OutlineColor = cloneColor
             
             -- 🔥 OTIMIZAÇÃO 4: Não preencher cor (já que fill=1)
@@ -1019,6 +1019,8 @@ end
 
 local function ToggleScanline()
     ScanlineEnabled = not ScanlineEnabled
+    SaveConfig() 
+    
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
     if not gui then return end
     if ScanlineEnabled then
@@ -2967,7 +2969,8 @@ local function SaveConfig()
             DodgeMode = DodgeMode,
             LiteMode = LiteMode,
             CurrentSet = currentSet,
-            CloneColorIndex = cloneColorIndex
+            CloneColorIndex = cloneColorIndex,
+            ScanlineEnabled = ScanlineEnabled  
         }
     }
     
@@ -3046,6 +3049,9 @@ local function ApplyConfig(config)
         end
         if config.Settings.CloneColorIndex then
             cloneColorIndex = config.Settings.CloneColorIndex
+        end
+        if config.Settings.ScanlineEnabled ~= nil then
+            ScanlineEnabled = config.Settings.ScanlineEnabled
         end
     end
     
