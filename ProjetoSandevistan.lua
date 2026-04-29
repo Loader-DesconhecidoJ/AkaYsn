@@ -254,8 +254,8 @@ local DodgeMode = "Counter"
 local LiteMode = false
 local Noclip = false
 local noclipConnection
-local ScanlineEnabled = false  
-local scanlineObject = nil   
+local lineEnabled = false  
+local lineObject = nil   
 
 local AbilityActions = {Dash = "CyberDash", Sandi = "CyberSandi", Kiroshi = "CyberKiroshi", Optical = "CyberOptical", Dodge = "CyberDodge"}
 local CurrentKeybinds = {Dash = Enum.KeyCode.Q, Sandi = Enum.KeyCode.E, Kiroshi = Enum.KeyCode.K, Optical = Enum.KeyCode.O, Dodge = Enum.KeyCode.N}
@@ -893,14 +893,14 @@ local function ApplyGlitchEffect()
     end)
 end
 
-local function ScanlineEffect(gui)
-    if scanlineObject and scanlineObject.Parent then
-        scanlineObject:Destroy()
+local function lineEffect(gui)
+    if lineObject and lineObject.Parent then
+        lineObject:Destroy()
     end
     
-    if not ScanlineEnabled then return end
+    if not lineEnabled then return end
     
-    scanlineObject = Create("Frame", {
+    lineObject = Create("Frame", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -961,7 +961,7 @@ local function ScanlineEffect(gui)
     
     -- ═══════════ PARTÍCULAS ═══════════
     task.spawn(function()
-        while scanlineObject and scanlineObject.Parent do
+        while lineObject and lineObject.Parent do
             if math.random() < 0.25 then
                 local particle = Create("Frame", {
                     Size = UDim2.new(0, 1.5, 0, 1.5),
@@ -970,7 +970,7 @@ local function ScanlineEffect(gui)
                     BackgroundTransparency = 0.5,
                     BorderSizePixel = 0,
                     ZIndex = 5,
-                    Parent = scanlineObject
+                    Parent = lineObject
                 })
                 Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = particle})
                 
@@ -1017,16 +1017,16 @@ local function ScanlineEffect(gui)
     end)
 end
 
-local function ToggleScanline()
-    ScanlineEnabled = not ScanlineEnabled
+local function Toggleline()
+    lineEnabled = not lineEnabled
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
     if not gui then return end
-    if ScanlineEnabled then
-        ScanlineEffect(gui)
+    if lineEnabled then
+        lineEffect(gui)
     else
-        if scanlineObject and scanlineObject.Parent then
-            scanlineObject:Destroy()
-            scanlineObject = nil
+        if lineObject and lineObject.Parent then
+            lineObject:Destroy()
+            lineObject = nil
         end
     end
 end
