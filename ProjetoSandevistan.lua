@@ -916,7 +916,7 @@ local function lineEffect(gui)
         BackgroundTransparency = 0.45,
         BorderSizePixel = 0,
         ZIndex = 10,
-        Parent = scanlineObject
+        Parent = lineObject
     })
     Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = line})  -- Pontas arredondadas
     
@@ -928,7 +928,7 @@ local function lineEffect(gui)
         BackgroundTransparency = 0.85,
         BorderSizePixel = 0,
         ZIndex = 9,
-        Parent = scanlineObject
+        Parent = lineObject
     })
     Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = glow})
     
@@ -941,7 +941,7 @@ local function lineEffect(gui)
             BackgroundTransparency = 0.9,
             BorderSizePixel = 0,
             ZIndex = 4,
-            Parent = scanlineObject
+            Parent = lineObject
         })
         Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = decorLine})
         
@@ -3230,16 +3230,16 @@ end)
         noclipToggle.BackgroundColor3 = Noclip and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
     end)
 
--- ═══════════ SCANLINE TOGGLE ═══════════
-local scanlineRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 52), BackgroundColor3 = Colors.UI_BG, BorderSizePixel = 0, Parent = scroll})
-Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = scanlineRow})
-Create("TextLabel", {Size = UDim2.new(0.65, 0, 1, 0), BackgroundTransparency = 1, Text = "  SCANLINE", TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left, Parent = scanlineRow})
-local scanlineToggle = Create("TextButton", {Size = UDim2.new(0.28, 0, 0.75, 0), Position = UDim2.new(0.69, 0, 0.125, 0), Text = ScanlineEnabled and "ON" or "OFF", BackgroundColor3 = ScanlineEnabled and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40), TextColor3 = Color3.new(1,1,1), Font = Enum.Font.SciFi, TextSize = 17, Parent = scanlineRow})
-Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = scanlineToggle})
-scanlineToggle.MouseButton1Click:Connect(function()
-    ToggleScanline()
-    scanlineToggle.Text = ScanlineEnabled and "ON" or "OFF"
-    scanlineToggle.BackgroundColor3 = ScanlineEnabled and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
+-- ═══════════ LINE TOGGLE ═══════════
+local lineRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 52), BackgroundColor3 = Colors.UI_BG, BorderSizePixel = 0, Parent = scroll})
+Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = lineRow})
+Create("TextLabel", {Size = UDim2.new(0.65, 0, 1, 0), BackgroundTransparency = 1, Text = "  LINE", TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left, Parent = lineRow})
+local lineToggle = Create("TextButton", {Size = UDim2.new(0.28, 0, 0.75, 0), Position = UDim2.new(0.69, 0, 0.125, 0), Text = lineEnabled and "ON" or "OFF", BackgroundColor3 = lineEnabled and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40), TextColor3 = Color3.new(1,1,1), Font = Enum.Font.SciFi, TextSize = 17, Parent = lineRow})
+Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = lineToggle})
+lineToggle.MouseButton1Click:Connect(function()
+    Toggleline()
+    lineToggle.Text = lineEnabled and "ON" or "OFF"
+    lineToggle.BackgroundColor3 = lineEnabled and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
 end)
 -- ═══════════════════════════════════════
 
