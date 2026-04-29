@@ -3540,7 +3540,7 @@ local function CyberSendNotification(title: string, text: string, duration: numb
         Size = UDim2.new(1, -110, 0, 18),
         Position = UDim2.new(0, 106, 1, -24),  -- Posicionado na parte inferior
         BackgroundTransparency = 1,
-        Text = "Script By Mini https://discord.gg/86Mmpe94cH",
+        Text = "Script By Mini discord.gg/86Mmpe94cH",
         TextColor3 = Color3.fromRGB(100, 255, 180),
         Font = Enum.Font.Code,
         TextSize = 13,
