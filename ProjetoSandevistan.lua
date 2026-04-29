@@ -521,18 +521,16 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
     end)
 end
 
-local function CreateHologramClone(delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, cloneType: string, customCFrame: CFrame?)
+;local function CreateHologramClone(delay: number, duration: number, endTransparency: number, offsetX: number, offsetY: number, offsetZ: number, cloneType: string, customCFrame: CFrame?)
     if LiteMode then return end
     
+    -- ===== PROTEÇÃO ANTI-LAG: Verificações iniciais =====
+    if not Character or not Character.Parent then return end
+    if not HRP or not HRP.Parent then return end
+    
     local sourceChar = Character
-    if not sourceChar then return end
     
-    -- Clonagem usando o mesmo método do seu script
-    sourceChar.Archivable = true
-    local hologramChar = sourceChar:Clone()
-    sourceChar.Archivable = false
-    
-    -- Pegar a cor baseada no tipo de clone
+    -- ===== CORES PRÉ-CALCULADAS (evita criar novas a cada frame) =====
     local cloneColor
     if cloneType == "sandi" then
         cloneColor = Colors.RAINBOW_SEQUENCE[cloneColorIndex]
@@ -545,103 +543,190 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         cloneColor = Color3.new(1, 1, 1) -- Branco para glitch
     end
     
-    --  PINTAR TUDO (CORPO + ACESSÓRIOS) 
-    -- Primeira passada: todas as partes do corpo
-    for _, obj in pairs(hologramChar:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            obj.CanCollide = false
-            obj.Anchored = true
-            obj.CastShadow = false
-            
-            -- Se for o HumanoidRootPart, deixa invisível
-            if obj.Name == "HumanoidRootPart" then
-                obj.Transparency = 1
-            else
-                obj.Transparency = 0.30
-                obj.Color = cloneColor  -- PINTA COM A COR DO CLONE
-                obj.Material = Configurations.HOLOGRAM_MATERIAL
-            end
-            
-            -- Remove textura de MeshParts para mostrar a cor sólida
-            if obj:IsA("MeshPart") then 
-                obj.TextureID = "" 
-            end
-        elseif obj:IsA("Decal") or obj:IsA("Texture") then
-            obj:Destroy()
-        elseif obj:IsA("LuaSourceContainer") or obj:IsA("Sound") then
-            obj:Destroy()
-        end
-    end
+    -- ===== CLONAGEM COM TIMEOUT E FALLBACK =====
+    local hologramChar = nil
+    local cloneSuccess = false
+    local cloneError = nil
     
-    -- Segunda passada: PINTAR ACESSÓRIOS (Handle + partes internas)
-    for _, accessory in pairs(hologramChar:GetChildren()) do
-        if accessory:IsA("Accessory") then
-            -- Pintar o Handle do acessório
-            local handle = accessory:FindFirstChild("Handle")
-            if handle then
-                handle.CanCollide = false
-                handle.Anchored = true
-                handle.CastShadow = false
-                handle.Transparency = 0.30
-                handle.Color = cloneColor  -- PINTA A PARTE PRINCIPAL DO ACESSÓRIO
-                handle.Material = Configurations.HOLOGRAM_MATERIAL
+    task.spawn(function()
+        local startTime = tick()
+        local timeout = 1.5 -- Timeout máximo para clonagem
+        
+        local success, err = pcall(function()
+            sourceChar.Archivable = true
+            hologramChar = sourceChar:Clone()
+            sourceChar.Archivable = false
+        end)
+        
+        if not success or not hologramChar then
+            cloneError = err
+            warn("Hologram clone failed:", err)
+            
+            -- ===== FALLBACK: Clone simples se falhar =====
+            pcall(function()
+                hologramChar = Instance.new("Model")
+                hologramChar.Name = "HologramClone_Fallback"
                 
-                -- Remove textura se for MeshPart
-                if handle:IsA("MeshPart") then
-                    handle.TextureID = ""
-                end
-            end
-            
-            -- Pintar todas as partes dentro do acessório
-            for _, part in pairs(accessory:GetDescendants()) do
-                if part:IsA("BasePart") and part ~= handle then
-                    part.CanCollide = false
-                    part.Anchored = true
-                    part.CastShadow = false
-                    part.Transparency = 0.30
-                    part.Color = cloneColor  -- PINTA PARTES SECUNDÁRIAS
-                    part.Material = Configurations.HOLOGRAM_MATERIAL
-                    
-                    if part:IsA("MeshPart") then
-                        part.TextureID = ""
-                    end
-                elseif part:IsA("Decal") or part:IsA("Texture") then
-                    part:Destroy()
-                end
-            end
+                -- Criar parte central simples
+                local part = Instance.new("Part")
+                part.Size = Vector3.new(2, 5.5, 1)
+                part.Anchored = true
+                part.CanCollide = false
+                part.Transparency = 0.4
+                part.Color = cloneColor
+                part.Material = Configurations.HOLOGRAM_MATERIAL
+                part.CastShadow = false
+                part.Parent = hologramChar
+                
+                -- Garantir que o modelo tenha um PrimaryPart
+                hologramChar.PrimaryPart = part
+            end)
         end
-    end
-    -- 
+        
+        if tick() - startTime > timeout then
+            warn("Hologram clone timed out after", timeout, "seconds")
+        end
+        
+        cloneSuccess = true
+    end)
     
-    -- Destruir Humanoid e Animate
+    -- Aguardar clone com timeout
+    local waitStart = tick()
+    while not cloneSuccess and tick() - waitStart < 2.0 do
+        task.wait(0.05)
+    end
+    
+    if not hologramChar then 
+        warn("Failed to create hologram clone - aborting")
+        return 
+    end
+    
+    -- ===== LIMPEZA DO CLONE (com proteção contra erros) =====
+    local function safeDestroy(obj)
+        pcall(function()
+            if obj and obj.Parent then
+                obj:Destroy()
+            end
+        end)
+    end
+    
+    -- Destruir scripts, sons, etc.
+    for _, obj in pairs(hologramChar:GetDescendants()) do
+        pcall(function()
+            if obj:IsA("LuaSourceContainer") or obj:IsA("Sound") then
+                safeDestroy(obj)
+            elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                safeDestroy(obj)
+            elseif obj:IsA("BasePart") then
+                obj.CanCollide = false
+                obj.Anchored = true
+                obj.CastShadow = false
+                
+                -- HumanoidRootPart fica invisível
+                if obj.Name == "HumanoidRootPart" then
+                    obj.Transparency = 1
+                else
+                    obj.Transparency = 0.30
+                    obj.Color = cloneColor  -- PINTA COM A COR DO CLONE
+                    obj.Material = Configurations.HOLOGRAM_MATERIAL
+                    
+                    -- Remove textura de MeshParts
+                    if obj:IsA("MeshPart") then 
+                        obj.TextureID = "" 
+                    end
+                end
+            end
+        end)
+    end
+    
+    -- ===== PINTAR ACESSÓRIOS =====
+    for _, accessory in pairs(hologramChar:GetChildren()) do
+        pcall(function()
+            if accessory:IsA("Accessory") then
+                local handle = accessory:FindFirstChild("Handle")
+                if handle then
+                    handle.CanCollide = false
+                    handle.Anchored = true
+                    handle.CastShadow = false
+                    handle.Transparency = 0.30
+                    handle.Color = cloneColor
+                    handle.Material = Configurations.HOLOGRAM_MATERIAL
+                    
+                    if handle:IsA("MeshPart") then
+                        handle.TextureID = ""
+                    end
+                end
+                
+                -- Pintar partes internas do acessório
+                for _, part in pairs(accessory:GetDescendants()) do
+                    if part:IsA("BasePart") and part ~= handle then
+                        part.CanCollide = false
+                        part.Anchored = true
+                        part.CastShadow = false
+                        part.Transparency = 0.30
+                        part.Color = cloneColor
+                        part.Material = Configurations.HOLOGRAM_MATERIAL
+                        
+                        if part:IsA("MeshPart") then
+                            part.TextureID = ""
+                        end
+                    elseif part:IsA("Decal") or part:IsA("Texture") then
+                        safeDestroy(part)
+                    end
+                end
+            end
+        end)
+    end
+    
+    -- Destruir Humanoid e Animate (com proteção)
     local humanoid = hologramChar:FindFirstChildOfClass("Humanoid")
-    if humanoid then humanoid:Destroy() end
+    if humanoid then safeDestroy(humanoid) end
     
     local animateFolder = hologramChar:FindFirstChild("Animate")
-    if animateFolder then animateFolder:Destroy() end
+    if animateFolder then safeDestroy(animateFolder) end
     
-    -- Destruir Scripts e outros
+    -- Destruir outros componentes problemáticos
     for _, obj in ipairs(hologramChar:GetChildren()) do
-        if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") or 
-           obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") or 
-           obj:IsA("BindableEvent") or obj:IsA("BindableFunction") or 
-           obj:IsA("Animator") then
-            obj:Destroy()
-        end
+        pcall(function()
+            if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") or 
+               obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") or 
+               obj:IsA("BindableEvent") or obj:IsA("BindableFunction") or 
+               obj:IsA("Animator") then
+                safeDestroy(obj)
+            end
+        end)
     end
     
-    -- Posicionar o clone
+    -- ===== POSICIONAR O CLONE =====
     local hologramRoot = hologramChar:FindFirstChild("HumanoidRootPart")
-    if hologramRoot and HRP then
-        if customCFrame and typeof(customCFrame) == "CFrame" then
-            hologramRoot.CFrame = customCFrame
-        else
-            hologramRoot.CFrame = HRP.CFrame * CFrame.new(offsetX or 0, offsetY or 0, offsetZ or 0)
+    if not hologramRoot then
+        -- Fallback: usar PrimaryPart ou criar um
+        hologramRoot = hologramChar.PrimaryPart
+        if not hologramRoot then
+            local tempRoot = Instance.new("Part")
+            tempRoot.Name = "FakeRoot"
+            tempRoot.Size = Vector3.new(1, 1, 1)
+            tempRoot.Transparency = 1
+            tempRoot.CanCollide = false
+            tempRoot.Anchored = true
+            tempRoot.Parent = hologramChar
+            hologramRoot = tempRoot
+            hologramChar.PrimaryPart = hologramRoot
         end
-        hologramChar.PrimaryPart = hologramRoot
     end
     
-    -- Marcar clone do Sandi para ser destruído instantaneamente
+    if hologramRoot and HRP then
+        pcall(function()
+            if customCFrame and typeof(customCFrame) == "CFrame" then
+                hologramRoot.CFrame = customCFrame
+            else
+                hologramRoot.CFrame = HRP.CFrame * CFrame.new(offsetX or 0, offsetY or 0, offsetZ or 0)
+            end
+            hologramChar.PrimaryPart = hologramRoot
+        end)
+    end
+    
+    -- Marcar clone do Sandi para destruição instantânea
     if cloneType == "sandi" then
         hologramChar.Name = "HologramClone"
         local tag = Instance.new("BoolValue")
@@ -650,62 +735,110 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         tag.Parent = hologramChar
     end
     
-    -- Adicionar Highlight (personalizado por tipo)
+    -- ===== HIGHLIGHT OTIMIZADO (Mantendo Highlight nativo) =====
     if cloneType ~= "glitch" then
-        local highlight = Instance.new("Highlight")
-        highlight.Adornee = hologramChar
-        highlight.FillTransparency = 0.6
-        highlight.OutlineTransparency = 0.3
-        highlight.FillColor = cloneColor
-        highlight.OutlineColor = cloneColor
-        highlight.Parent = hologramChar
-        
-        -- Animação de cores para dash e dodge
-        if cloneType == "dash" or cloneType == "dodge" then
-            task.spawn(function()
-                local palette
-                if cloneType == "dash" then
-                    palette = {Color3.fromRGB(255, 40, 40), Color3.fromRGB(255, 130, 30), Color3.fromRGB(255, 215, 40)}
-                else
-                    palette = {Color3.fromRGB(0, 255, 90), Color3.fromRGB(80, 255, 170), Color3.fromRGB(0, 230, 255)}
-                end
-                
-                local startTime = os.clock()
-                while os.clock() - startTime < duration and highlight.Parent do
-                    local progress = (os.clock() - startTime) / duration
-                    local idx = math.floor(progress * (#palette - 1)) + 1
-                    local nextIdx = math.min(idx + 1, #palette)
-                    local frac = (progress * (#palette - 1)) % 1
-                    local current = palette[idx]:Lerp(palette[nextIdx], frac)
-                    highlight.FillColor = current
-                    highlight.OutlineColor = current
-                    RunService.Heartbeat:Wait()
-                end
-            end)
-        end
+        pcall(function()
+            local highlight = Instance.new("Highlight")
+            
+            -- 🔥 OTIMIZAÇÃO 1: Apenas outline (sem fill)
+            highlight.FillTransparency = 1
+            
+            -- 🔥 OTIMIZAÇÃO 2: Sempre on top (ignora oclusão)
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            
+            -- 🔥 OTIMIZAÇÃO 3: Transparências otimizadas
+            highlight.OutlineTransparency = 0.35
+            highlight.OutlineColor = cloneColor
+            
+            -- 🔥 OTIMIZAÇÃO 4: Não preencher cor (já que fill=1)
+            highlight.FillColor = Color3.new(0, 0, 0)
+            
+            highlight.Parent = hologramChar
+            highlight.Adornee = hologramChar
+            
+            -- ===== ANIMAÇÃO DE CORES PARA DASH E DODGE (otimizada) =====
+            if cloneType == "dash" or cloneType == "dodge" then
+                task.spawn(function()
+                    -- Cores pré-calculadas em tabela local
+                    local palette
+                    if cloneType == "dash" then
+                        palette = {
+                            Color3.fromRGB(255, 40, 40), 
+                            Color3.fromRGB(255, 130, 30), 
+                            Color3.fromRGB(255, 215, 40)
+                        }
+                    else
+                        palette = {
+                            Color3.fromRGB(0, 255, 90), 
+                            Color3.fromRGB(80, 255, 170), 
+                            Color3.fromRGB(0, 230, 255)
+                        }
+                    end
+                    
+                    local startTime = tick()
+                    local lastUpdate = 0
+                    
+                    while highlight.Parent and tick() - startTime < duration do
+                        local currentTime = tick()
+                        
+                        -- 🔥 OTIMIZAÇÃO 5: Throttle de atualização (a cada 0.08s)
+                        if currentTime - lastUpdate > 0.08 then
+                            local progress = (currentTime - startTime) / duration
+                            local idx = math.floor(progress * (#palette - 1)) + 1
+                            local nextIdx = math.min(idx + 1, #palette)
+                            local frac = (progress * (#palette - 1)) % 1
+                            local current = palette[idx]:Lerp(palette[nextIdx], frac)
+                            
+                            pcall(function()
+                                highlight.OutlineColor = current
+                            end)
+                            
+                            lastUpdate = currentTime
+                        end
+                        
+                        -- 🔥 OTIMIZAÇÃO 6: Usar Heartbeat em vez de RenderStepped
+                        RunService.Heartbeat:Wait()
+                    end
+                end)
+            end
+        end)
     end
     
-    -- Colocar no workspace
-    hologramChar.Parent = Workspace
+    -- Colocar no workspace (com proteção)
+    pcall(function()
+        hologramChar.Parent = Workspace
+    end)
     
-    -- Efeito de fade out (MÉTODO DO SEU SCRIPT)
+    -- ===== EFEITO DE FADE OUT OTIMIZADO =====
     task.spawn(function()
         task.wait(duration * 0.7)
         
-        local fadeSteps = 10
+        if not hologramChar or not hologramChar.Parent then return end
+        
+        local fadeSteps = 8  -- Reduzido de 10 para 8 (mais rápido = menos processamento)
         local fadeStepTime = (duration * 0.3) / fadeSteps
         
-        for i = 0.6, 1, 0.04 do
+        for i = 0.6, 0.98, 0.05 do  -- Passos maiores = mais rápido
+            if not hologramChar or not hologramChar.Parent then break end
+            
             task.wait(fadeStepTime)
-            -- Aplica fade em TODAS as partes (incluindo acessórios)
+            
+            -- Aplica fade em TODAS as partes
             for _, p in pairs(hologramChar:GetDescendants()) do
-                if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then 
-                    p.Transparency = i 
-                end
+                pcall(function()
+                    if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then 
+                        p.Transparency = math.min(1, i)
+                    end
+                end)
             end
         end
         
-        hologramChar:Destroy()
+        -- Destruição final (com proteção)
+        pcall(function()
+            if hologramChar and hologramChar.Parent then
+                hologramChar:Destroy()
+            end
+        end)
     end)
 end
 
@@ -1811,65 +1944,115 @@ local function ExecSandi()
     if State.IsSandiActive then ResetSandi() return end
     if State.Energy < Constants.ENERGY_COSTS.SANDI_ACTIVATE then return end
     if math.random() < Constants.SANDEVISTAN_FAILURE_CHANCE then TriggerSandevistanFailure() return end
+    
+    -- ===== PROTEÇÃO ANTI-LAG: Marcar início imediatamente =====
     State.Energy -= Constants.ENERGY_COSTS.SANDI_ACTIVATE
     State.Energy = math.max(0, State.Energy)
     State.NoRegenUntil = os.clock() + Constants.REGEN_DELAY_USE
     State.IsSandiActive = true
-    PlaySFX(Sounds.SANDI_ON)
-    CamShake(1.5, 0.4)
-    TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 115}):Play()
-    local sandiEffect = Create("ColorCorrectionEffect", {Name = "SandiEffect", TintColor = Color3.new(1,1,1), Contrast = 0, Saturation = 0, Parent = Lighting})
-    TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TintColor = Colors.LIGHT_GREEN, Contrast = 0.15, Saturation = 0.3}):Play()
-    PlayActivationSequence()
-    ScreenFade(0.25, 0.1, 0.4, Colors.LIGHT_GREEN, 0.7, 0.3)
+    
+    -- ===== SONS COM TIMEOUT =====
+    task.spawn(function()
+        local success, err = pcall(function()
+            PlaySFX(Sounds.SANDI_ON)
+        end)
+        if not success then
+            warn("Sandevistan intro sound failed:", err)
+        end
+    end)
+    
+    -- ===== CAMERA SHAKE COM TIMEOUT =====
+    task.spawn(function()
+        local success, err = pcall(function()
+            CamShake(1.5, 0.4)
+        end)
+        if not success then
+            warn("Sandevistan camera shake failed:", err)
+        end
+    end)
+    
+    -- ===== FOV COM FALLBACK =====
+    task.spawn(function()
+        local success, err = pcall(function()
+            TweenService:Create(Camera, TweenInfo.new(0.4), {FieldOfView = 115}):Play()
+        end)
+        if not success then
+            -- Fallback: set direto se tween falhar
+            pcall(function() Camera.FieldOfView = 115 end)
+            warn("Sandevistan FOV tween failed, using direct set:", err)
+        end
+    end)
+    
+    -- ===== COLOR CORRECTION COM PROTEÇÃO =====
+    local sandiEffect = nil
+    task.spawn(function()
+        local success, err = pcall(function()
+            sandiEffect = Create("ColorCorrectionEffect", {
+                Name = "SandiEffect", 
+                TintColor = Color3.new(1,1,1), 
+                Contrast = 0, 
+                Saturation = 0, 
+                Parent = Lighting
+            })
+            TweenService:Create(sandiEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                TintColor = Colors.LIGHT_GREEN, 
+                Contrast = 0.15, 
+                Saturation = 0.3
+            }):Play()
+        end)
+        if not success then
+            warn("Sandevistan color correction failed:", err)
+            -- Fallback: aplicar diretamente
+            pcall(function()
+                if sandiEffect then
+                    sandiEffect.TintColor = Colors.LIGHT_GREEN
+                    sandiEffect.Contrast = 0.15
+                    sandiEffect.Saturation = 0.3
+                end
+            end)
+        end
+    end)
+    
+    -- ===== SEQUÊNCIA DE ATIVAÇÃO COM TIMEOUT =====
+    task.spawn(function()
+        local startTime = tick()
+        local timeout = 2.0 -- Timeout de 2 segundos
+        
+        local success, err = pcall(function()
+            PlayActivationSequence()
+        end)
+        if not success then
+            warn("PlayActivationSequence failed:", err)
+            -- Fallback: efeito simples
+            ScreenFade(0.3, 0.1, 0.4, Colors.LIGHT_GREEN, 0.7, 0.3)
+        end
+        
+        -- Verificar timeout
+        if tick() - startTime > timeout then
+            warn("Sandevistan activation sequence timed out")
+        end
+    end)
+    
+    -- ===== SCREEN FADE COM PROTEÇÃO =====
+    task.spawn(function()
+        pcall(function()
+            ScreenFade(0.25, 0.1, 0.4, Colors.LIGHT_GREEN, 0.7, 0.3)
+        end)
+    end)
+    
+    -- ===== MARCADOR DO SANDEVISTAN =====
     local sandiMarker = Instance.new("BoolValue")
     sandiMarker.Name = "CYBER_SANDI_ACTIVE"
     sandiMarker.Parent = Character
+    
     lastSandiClone = 0
+    
+    -- ===== GRAVIDADE COM FALLBACK =====
     originalGravity = Workspace.Gravity
-    Workspace.Gravity = originalGravity * Configurations.SLOW_GRAVITY_MULTIPLIER
-    originalWalkSpeeds = {}
-    originalJumpPowers = {}
-    originalAnimationSpeeds = {}
-    originalSoundSpeeds = {}
-    originalVelocityInstances = {}
-    animationConnections = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= Player then
-            local char = p.Character
-            if char then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    originalWalkSpeeds[hum] = hum.WalkSpeed
-                    hum.WalkSpeed = hum.WalkSpeed * Constants.SLOW_FACTOR
-                    originalJumpPowers[hum] = hum.JumpPower
-                    hum.JumpPower = hum.JumpPower * Constants.SLOW_FACTOR
-                    local animator = hum:FindFirstChild("Animator")
-                    if animator then
-                        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-                            originalAnimationSpeeds[track] = track.Speed
-                            track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
-                        end
-                        local conn = animator.AnimationPlayed:Connect(function(track)
-                            originalAnimationSpeeds[track] = track.Speed / Constants.SLOW_FACTOR
-                            track:AdjustSpeed(track.Speed * Constants.SLOW_FACTOR)
-                        end)
-                        table.insert(animationConnections, conn)
-                    end
-                end
-                for _, sound in ipairs(char:GetDescendants()) do
-                    if sound:IsA("Sound") and sound.Playing then
-                        originalSoundSpeeds[sound] = sound.PlaybackSpeed
-                        sound.PlaybackSpeed = sound.PlaybackSpeed * Constants.SLOW_FACTOR
-                    end
-                end
-            end
-        end
-    end
-    if Humanoid then
-        originalPlayerJumpPower = Humanoid.JumpPower
-        Humanoid.JumpPower = Humanoid.JumpPower / Constants.SLOW_FACTOR
-    end
+    pcall(function()
+        Workspace.Gravity = originalGravity * Configurations.SLOW_GRAVITY_MULTIPLIER
+    end)
+    
     for _, sound in ipairs(Workspace:GetDescendants()) do
         if sound:IsA("Sound") and sound.Playing and not sound:IsDescendantOf(Character) then
             originalSoundSpeeds[sound] = sound.PlaybackSpeed
@@ -3330,7 +3513,7 @@ local function CyberSendNotification(title: string, text: string, duration: numb
         Size = UDim2.new(1, -110, 0, 18),
         Position = UDim2.new(0, 106, 1, -24),  -- Posicionado na parte inferior
         BackgroundTransparency = 1,
-        Text = "Script By Mini  mynameis909 Dc https://discord.gg/86Mmpe94cH",
+        Text = "Script By Mini https://discord.gg/86Mmpe94cH",
         TextColor3 = Color3.fromRGB(100, 255, 180),
         Font = Enum.Font.Code,
         TextSize = 13,
