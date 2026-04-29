@@ -210,7 +210,7 @@ local Colors = {
 local cloneColorIndex = 34
 
 local ButtonConfigs = {
-    LockBtn = {Size = UDim2.new(0, 40, 0, 40), Position = UDim2.new(0, 8, 0.5, -210), BackgroundColor3 = Colors.UI_DARK, TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 22, Text = "⚙️"},
+    LockBtn = {Size = UDim2.new(0, 40, 0, 40), Position = UDim2.new(0, 8, 0.5, -210), BackgroundColor3 = Colors.UI_DARK, TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 22, Text = ""},
     DashBtn = {Key = "D", Color = Color3.fromRGB(255, 80, 0), Position = UDim2.new(0.93, 0, 0.25, 0)},
     SandiBtn = {Key = "S", Color = Color3.new(1,1,1), Position = UDim2.new(0.93, 0, 0.35, 0)},
     KiroshiBtn = {Key = "Ko", Color = Colors.KIROSHI, Position = UDim2.new(0.93, 0, 0.45, 0)},
@@ -289,7 +289,7 @@ local function detectarExecutor()
     if KRNL_LOADED then return "KRNL", getcustomasset
     elseif syn then return "Synapse X", syn.getcustomasset
     elseif fluxus then return "Fluxus", fluxus.getcustomasset
-    elseif getcustomasset then return "Executor Gen�rico", getcustomasset
+    elseif getcustomasset then return "Executor Genrico", getcustomasset
     else return nil, nil end
 end
 
@@ -349,7 +349,7 @@ local function criarGUI()
         local BotaoParar = Instance.new("TextButton")
         BotaoParar.Size = UDim2.new(0.8, 0, 0.4, 0)
         BotaoParar.Position = UDim2.new(0.1, 0, 0.5, 0)
-        BotaoParar.Text = " PARAR M�SICA"
+        BotaoParar.Text = " PARAR MSICA"
         BotaoParar.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
         BotaoParar.TextColor3 = Color3.fromRGB(255, 255, 255)
         BotaoParar.Font = Enum.Font.GothamBold
@@ -545,7 +545,7 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
         cloneColor = Color3.new(1, 1, 1) -- Branco para glitch
     end
     
-    -- ═══════════ PINTAR TUDO (CORPO + ACESSÓRIOS) ═══════════
+    --  PINTAR TUDO (CORPO + ACESSÓRIOS) 
     -- Primeira passada: todas as partes do corpo
     for _, obj in pairs(hologramChar:GetDescendants()) do
         if obj:IsA("BasePart") then
@@ -611,7 +611,7 @@ local function CreateHologramClone(delay: number, duration: number, endTranspare
             end
         end
     end
-    -- ═══════════════════════════════════════════════════════
+    -- 
     
     -- Destruir Humanoid e Animate
     local humanoid = hologramChar:FindFirstChildOfClass("Humanoid")
@@ -945,7 +945,7 @@ end
 local function SystemRestorePopup()
     if not HRP then return end
     
-    -- ═══════════ SOM DA JANELA VERDE ═══════════
+    --  SOM DA JANELA VERDE 
     local restoreSound = Instance.new("Sound")
     restoreSound.SoundId = "rbxassetid://97097078816969"
     restoreSound.Volume = 2
@@ -954,7 +954,7 @@ local function SystemRestorePopup()
     restoreSound:Play()
     Debris:AddItem(restoreSound, 5)
     
-    -- ═══════════════════════════════════════════
+    -- 
 
     -- Criar a parte 3D (igual à SpawnRebootWindow)
     local part = Instance.new("Part")
@@ -1008,7 +1008,7 @@ local function SystemRestorePopup()
     icon.Size = UDim2.new(0, 26, 0, 26)
     icon.Position = UDim2.new(0, 10, 0, 4)
     icon.BackgroundTransparency = 1
-    icon.Text = "✓"
+    icon.Text = ""
     icon.TextColor3 = Color3.fromRGB(0, 255, 0)
     icon.Font = Enum.Font.GothamBold
     icon.TextSize = 20
@@ -1032,7 +1032,7 @@ local function SystemRestorePopup()
     closeBtn.Position = UDim2.new(1, -32, 0, 4)
     closeBtn.BackgroundColor3 = Color3.fromRGB(0, 70, 0)
     closeBtn.BackgroundTransparency = 1
-    closeBtn.Text = "✕"
+    closeBtn.Text = ""
     closeBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
     closeBtn.Font = Enum.Font.GothamBold
     closeBtn.TextSize = 14
@@ -1209,7 +1209,7 @@ local function SystemRestorePopup()
     end)
 end
 
--- ═══════════ EXECCYBERPSYCHOSIS ═══════════
+--  EXECCYBERPSYCHOSIS 
 local function ExecCyberpsychosis()
     PlaySFX(Sounds.PSYCHOSIS)
     PlaySFX(Sounds.PSYCHOSIS2)
@@ -1276,7 +1276,7 @@ end)
 
     if Humanoid then Humanoid.WalkSpeed = 0 Humanoid.JumpPower = 0 end
     
-    -- ═══════════ OLHOS BRILHANDO ═══════════
+    --  OLHOS BRILHANDO 
 local head = Character:FindFirstChild("Head")
 if head then
     local eyeGlow = Instance.new("PointLight")
@@ -1297,7 +1297,7 @@ if head then
         eyeGlow:Destroy()
     end)
 end
--- ═══════════════════════════════════════
+-- 
     
     if Lighting:FindFirstChild("SandiEffect") then Lighting.SandiEffect:Destroy() end
     local cc, blur = createLightingEffects()
@@ -1306,7 +1306,7 @@ end
     
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt") or Create("ScreenGui", {Name = "CyberRebuilt", Parent = Player.PlayerGui, IgnoreGuiInset = true})
 
--- ═══════════ IMAGEM DO CYBERPSYCHOSIS (CANTO SUPERIOR DIREITO) ═══════════
+--  IMAGEM DO CYBERPSYCHOSIS (CANTO SUPERIOR DIREITO) 
 local psychoImage = Instance.new("ImageLabel")
 psychoImage.Name = "PsychoImage"
 psychoImage.Size = UDim2.new(0, 200, 0, 200)
@@ -1317,13 +1317,13 @@ psychoImage.ImageTransparency = 1  -- Começa INVISÍVEL
 psychoImage.ZIndex = 10
 psychoImage.Parent = gui
 
--- ═══════════ ANIMAÇÃO DE ENTRADA (SLIDE + FADE) ═══════════
+--  ANIMAÇÃO DE ENTRADA (SLIDE + FADE) 
 psychoImage.Position = UDim2.new(1.2, 0, 0, 10)  -- Começa fora da tela (direita)
 TweenService:Create(psychoImage, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
     Position = UDim2.new(1, -220, 0, 10),  -- Desliza para posição final
     ImageTransparency = 0  -- Fica visível
 }):Play()
--- ═══════════════════════════════════════════════════════
+-- 
 
 -- Piscar suavemente durante o Cyberpsychosis
 task.spawn(function()
@@ -1338,7 +1338,7 @@ task.spawn(function()
     end
 end)
 
--- ═══════════ ANIMAÇÃO DE SAÍDA (SLIDE + FADE) ═══════════
+--  ANIMAÇÃO DE SAÍDA (SLIDE + FADE) 
 task.delay(Constants.CYBERPSYCHOSIS.Duration - 0.6, function()
     if psychoImage and psychoImage.Parent then
         TweenService:Create(psychoImage, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -1350,7 +1350,7 @@ task.delay(Constants.CYBERPSYCHOSIS.Duration - 0.6, function()
         end)
     end
 end)
--- ═══════════════════════════════════════════════════════
+-- 
     local vignette = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 0.5, BackgroundColor3 = Color3.new(0, 0, 0), Parent = gui})
     local vignetteGradient = Create("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.5), NumberSequenceKeypoint.new(1, 1)}), Rotation = 0, Parent = vignette})
     task.spawn(function()
@@ -1437,7 +1437,7 @@ end)
         connection = RunService.RenderStepped:Connect(function(dt)
         local elapsed = tick() - startTime
         
--- ═══════════ FADE OUT NOS ÚLTIMOS 0.5 SEGUNDOS (5.5s - 6.0s) ═══════════
+--  FADE OUT NOS ÚLTIMOS 0.5 SEGUNDOS (5.5s - 6.0s) 
     local fadeStartTime = 5.5  -- Começa fade aos 5.5s
     
     if elapsed > fadeStartTime then
@@ -1494,7 +1494,7 @@ end)
         end
     end
     
-    -- ═══════════════════════════════════════════════════════
+    -- 
         
         if elapsed > Constants.CYBERPSYCHOSIS.Duration then
             if Humanoid then Humanoid.WalkSpeed = 16 Humanoid.JumpPower = 50 Humanoid.CameraOffset = Vector3.zero end
@@ -1569,7 +1569,7 @@ end)
         shakeCamera()
         if math.random() < Constants.CYBERPSYCHOSIS.PopupRate then spawnPopup() end
         
-        -- ═══════════ INVERTER CORES (DENTRO DO RenderStepped) ═══════════
+        --  INVERTER CORES (DENTRO DO RenderStepped) 
         if math.random() < 0.10 then
             cc.TintColor = Color3.fromRGB(
                 math.random(200, 255),
@@ -1582,7 +1582,7 @@ end)
                 end
             end)
         end
-        -- ═══════════════════════════════════════════════════
+        -- 
         
     end)
 end
@@ -2040,7 +2040,7 @@ local function ExecKiroshi()
                     Size = UDim2.new(1, -10, 0, 18),
                     Position = UDim2.new(0, 5, 0, 3),
                     BackgroundTransparency = 1,
-                    Text = "⬤ " .. p.DisplayName:upper(),
+                    Text = " " .. p.DisplayName:upper(),
                     TextColor3 = Colors.KIROSHI_RED,
                     Font = Enum.Font.SciFi,
                     TextSize = 13,
@@ -2091,7 +2091,7 @@ local function ExecKiroshi()
                     Size = UDim2.new(1, -10, 0, 16),
                     Position = UDim2.new(0, 5, 0, 51),
                     BackgroundTransparency = 1,
-                    Text = "🔧 NADA",
+                    Text = " NADA",
                     TextColor3 = Color3.fromRGB(255, 60, 60),  -- Vermelho sangue
                     Font = Enum.Font.SciFi,
                     TextSize = 12,
@@ -2143,10 +2143,10 @@ local function ExecKiroshi()
                             
                             -- Mudar cor do nome se HP baixo
                             if hpPercent < 0.4 then
-                                nameLabel.Text = "⚠ " .. p.DisplayName:upper()
+                                nameLabel.Text = " " .. p.DisplayName:upper()
                                 nameLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
                             else
-                                nameLabel.Text = "⬤ " .. p.DisplayName:upper()
+                                nameLabel.Text = " " .. p.DisplayName:upper()
                                 nameLabel.TextColor3 = Colors.KIROSHI_RED
                             end
                             
@@ -2168,7 +2168,7 @@ local function ExecKiroshi()
                             
                             -- Se encontrou ferramenta na mão
                             if toolInHand then
-                                toolLabel.Text = "🔴 " .. toolInHand.Name:upper()
+                                toolLabel.Text = " " .. toolInHand.Name:upper()
                                 toolLabel.TextColor3 = Color3.fromRGB(255, 30, 30)  -- Vermelho sangue intenso
                                 toolLabel.TextStrokeTransparency = 0.5
                                 toolLabel.TextStrokeColor3 = Color3.fromRGB(200, 0, 0)
@@ -2183,7 +2183,7 @@ local function ExecKiroshi()
                                 end
                                 toolIcon.Image = toolTextureId
                             else
-                                toolLabel.Text = "🔧 VAZIO"
+                                toolLabel.Text = " VAZIO"
                                 toolLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
                                 toolLabel.TextStrokeTransparency = 1
                                 toolIcon.Image = "rbxassetid://0"
@@ -2234,7 +2234,7 @@ local function ExecKiroshi()
                                     local itemLabel = Create("TextLabel", {
                                         Size = UDim2.new(1, 0, 0, 16),
                                         BackgroundTransparency = 1,
-                                        Text = (itemData.equipped and "⚠ " or "• ") .. itemData.name,
+                                        Text = (itemData.equipped and " " or "• ") .. itemData.name,
                                         TextColor3 = itemData.equipped and Color3.fromRGB(255, 60, 60) or Color3.fromRGB(180, 180, 180),
                                         Font = Enum.Font.Code,
                                         TextSize = 10,
@@ -2700,7 +2700,7 @@ local function ApplyConfig(config)
         end
     end
     
-    print("✅ Configurações carregadas com sucesso!")
+    print(" Configurações carregadas com sucesso!")
 end
 
 local function BuildUI()
@@ -2942,7 +2942,7 @@ end)
         
         -- AUTO-SALVAR APÓS EDITAR UI
         SaveConfig()
-        print("💾 Configurações salvas automaticamente!")
+        print(" Configurações salvas automaticamente!")
     end
 end)
 
@@ -3325,12 +3325,12 @@ local function CyberSendNotification(title: string, text: string, duration: numb
         Parent = notif
     })
 
-    -- ==================== CRÉDITO: Script By Mini 🍭 mynameis909 ====================
+    -- ==================== CRÉDITO: Script By Mini  mynameis909 ====================
     local creditLabel = Create("TextLabel", {
         Size = UDim2.new(1, -110, 0, 18),
         Position = UDim2.new(0, 106, 1, -24),  -- Posicionado na parte inferior
         BackgroundTransparency = 1,
-        Text = "Script By Mini 🍭 mynameis909",
+        Text = "Script By Mini  mynameis909",
         TextColor3 = Color3.fromRGB(100, 255, 180),
         Font = Enum.Font.Code,
         TextSize = 13,
