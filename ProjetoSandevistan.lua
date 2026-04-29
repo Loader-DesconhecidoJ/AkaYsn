@@ -254,6 +254,8 @@ local DodgeMode = "Counter"
 local LiteMode = false
 local Noclip = false
 local noclipConnection
+local ScanlineEnabled = false  
+local scanlineObject = nil   
 
 local AbilityActions = {Dash = "CyberDash", Sandi = "CyberSandi", Kiroshi = "CyberKiroshi", Optical = "CyberOptical", Dodge = "CyberDodge"}
 local CurrentKeybinds = {Dash = Enum.KeyCode.Q, Sandi = Enum.KeyCode.E, Kiroshi = Enum.KeyCode.K, Optical = Enum.KeyCode.O, Dodge = Enum.KeyCode.N}
@@ -749,7 +751,7 @@ end
             highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             
             -- 🔥 OTIMIZAÇÃO 3: Transparências otimizadas
-            highlight.OutlineTransparency = 0.35
+            highlight.OutlineTransparency = 0.50
             highlight.OutlineColor = cloneColor
             
             -- 🔥 OTIMIZAÇÃO 4: Não preencher cor (já que fill=1)
@@ -891,9 +893,144 @@ local function ApplyGlitchEffect()
     end)
 end
 
--- ========== NOVAS ANIMAÇÕES ==========
+local function ScanlineEffect(gui)
+    if scanlineObject and scanlineObject.Parent then
+        scanlineObject:Destroy()
+    end
+    
+    if not ScanlineEnabled then return end
+    
+    scanlineObject = Create("Frame", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 5,
+        Parent = gui
+    })
+    
+    -- ═══════════ LINHA PRINCIPAL ═══════════
+    local line = Create("Frame", {
+        Size = UDim2.new(1, -80, 0, 1.5),
+        Position = UDim2.new(0, 40, -0.02, 0),
+        BackgroundColor3 = Color3.fromRGB(0, 255, 200),
+        BackgroundTransparency = 0.45,
+        BorderSizePixel = 0,
+        ZIndex = 10,
+        Parent = scanlineObject
+    })
+    Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = line})  -- Pontas arredondadas
+    
+    -- ═══════════ GLOW SUAVE ═══════════
+    local glow = Create("Frame", {
+        Size = UDim2.new(1, -60, 0, 5),
+        Position = UDim2.new(0, 30, -0.02, -1.5),
+        BackgroundColor3 = Color3.fromRGB(0, 255, 200),
+        BackgroundTransparency = 0.85,
+        BorderSizePixel = 0,
+        ZIndex = 9,
+        Parent = scanlineObject
+    })
+    Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = glow})
+    
+    -- ═══════════ LINHAS DECORATIVAS ═══════════
+    for i = 1, 4 do
+        local decorLine = Create("Frame", {
+            Size = UDim2.new(1, math.random(-20, 20), 0, 0.5),
+            Position = UDim2.new(0, math.random(10, 30), 0, math.random(10, 90) / 100),
+            BackgroundColor3 = Color3.fromRGB(0, 255, 200),
+            BackgroundTransparency = 0.9,
+            BorderSizePixel = 0,
+            ZIndex = 4,
+            Parent = scanlineObject
+        })
+        Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = decorLine})
+        
+        task.spawn(function()
+            while decorLine and decorLine.Parent do
+                task.wait(math.random(4, 10))
+                TweenService:Create(decorLine, TweenInfo.new(0.08), {
+                    BackgroundTransparency = 0.5
+                }):Play()
+                task.wait(0.08)
+                TweenService:Create(decorLine, TweenInfo.new(0.25), {
+                    BackgroundTransparency = 0.9
+                }):Play()
+            end
+        end)
+    end
+    
+    -- ═══════════ PARTÍCULAS ═══════════
+    task.spawn(function()
+        while scanlineObject and scanlineObject.Parent do
+            if math.random() < 0.25 then
+                local particle = Create("Frame", {
+                    Size = UDim2.new(0, 1.5, 0, 1.5),
+                    Position = UDim2.new(0, math.random(30, 90) / 100 * Camera.ViewportSize.X, 0, math.random(0, 100) / 100 * Camera.ViewportSize.Y),
+                    BackgroundColor3 = Color3.fromRGB(0, 255, 200),
+                    BackgroundTransparency = 0.5,
+                    BorderSizePixel = 0,
+                    ZIndex = 5,
+                    Parent = scanlineObject
+                })
+                Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = particle})
+                
+                TweenService:Create(particle, TweenInfo.new(0.7), {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, particle.Position.X.Offset + math.random(-15, 15), 0, particle.Position.Y.Offset + 25)
+                }):Play()
+                
+                task.delay(0.8, function() particle:Destroy() end)
+            end
+            task.wait(0.06)
+        end
+    end)
+    
+    -- ═══════════ LOOP PRINCIPAL ═══════════
+    task.spawn(function()
+        while line and line.Parent do
+            line.Position = UDim2.new(0, 40, -0.02, 0)
+            glow.Position = UDim2.new(0, 30, -0.02, -1.5)
+            
+            local duration = 5
+            
+            TweenService:Create(line, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+                Position = UDim2.new(0, 40, 1.02, 0)
+            }):Play()
+            
+            TweenService:Create(glow, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+                Position = UDim2.new(0, 30, 1.02, -1.5)
+            }):Play()
+            
+            -- Pulsação suave
+            task.spawn(function()
+                for i = 1, 30 do
+                    if not line.Parent then break end
+                    local pulse = math.sin(i * 0.25) * 0.1
+                    line.BackgroundTransparency = 0.4 + pulse
+                    glow.BackgroundTransparency = 0.82 + pulse
+                    task.wait(0.17)
+                end
+            end)
+            
+            task.wait(duration + 0.2)
+        end
+    end)
+end
 
--- Animação de Glitch na tela toda
+local function ToggleScanline()
+    ScanlineEnabled = not ScanlineEnabled
+    local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
+    if not gui then return end
+    if ScanlineEnabled then
+        ScanlineEffect(gui)
+    else
+        if scanlineObject and scanlineObject.Parent then
+            scanlineObject:Destroy()
+            scanlineObject = nil
+        end
+    end
+end
+
 local function FullScreenGlitch()
     local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
     if not gui then return end
@@ -3092,6 +3229,20 @@ end)
         noclipToggle.Text = Noclip and "ON" or "OFF"
         noclipToggle.BackgroundColor3 = Noclip and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
     end)
+
+-- ═══════════ SCANLINE TOGGLE ═══════════
+local scanlineRow = Create("Frame", {Size = UDim2.new(1, 0, 0, 52), BackgroundColor3 = Colors.UI_BG, BorderSizePixel = 0, Parent = scroll})
+Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = scanlineRow})
+Create("TextLabel", {Size = UDim2.new(0.65, 0, 1, 0), BackgroundTransparency = 1, Text = "  SCANLINE", TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left, Parent = scanlineRow})
+local scanlineToggle = Create("TextButton", {Size = UDim2.new(0.28, 0, 0.75, 0), Position = UDim2.new(0.69, 0, 0.125, 0), Text = ScanlineEnabled and "ON" or "OFF", BackgroundColor3 = ScanlineEnabled and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40), TextColor3 = Color3.new(1,1,1), Font = Enum.Font.SciFi, TextSize = 17, Parent = scanlineRow})
+Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = scanlineToggle})
+scanlineToggle.MouseButton1Click:Connect(function()
+    ToggleScanline()
+    scanlineToggle.Text = ScanlineEnabled and "ON" or "OFF"
+    scanlineToggle.BackgroundColor3 = ScanlineEnabled and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 40, 40)
+end)
+-- ═══════════════════════════════════════
+
 
     local keybindsHeader = Create("TextLabel", {Size = UDim2.new(1, 0, 0, 38), BackgroundTransparency = 1, Text = "  CUSTOM KEYBINDS", TextColor3 = Colors.UI_NEON, Font = Enum.Font.SciFi, TextSize = 21, TextXAlignment = Enum.TextXAlignment.Left, Parent = scroll})
 
