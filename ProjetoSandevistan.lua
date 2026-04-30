@@ -128,13 +128,6 @@ local Constants = {
 local Configurations = {
     SLOW_GRAVITY_MULTIPLIER = Constants.SLOW_FACTOR ^ 2,
     HOLOGRAM_MATERIAL = Enum.Material.Glass,
-    ASSETS = {
-        TEXTURES = {
-            SPARKS = "rbxassetid://6071575297",
-            CRACK1 = "rbxassetid://1439194003",
-            CRACK2 = "rbxassetid://1439194003"
-        }
-    },
     HOLOGRAM_PRESERVE = {
         ACCESSORIES = true,
         HAIR = true,
@@ -400,6 +393,7 @@ local lineEnabled = false
 local lineObject = nil
 local currentSet = DefaultConfig.Settings.CurrentSet
 local cloneColorIndex = DefaultConfig.Settings.CloneColorIndex
+local originalClockTime = nil  -- Para salvar a hora original do jogo
 
 local function getSafeInvisPosition()
     local offset = Vector3.new(math.random(-5000, 5000), math.random(10000, 15000), math.random(-5000, 5000))
@@ -483,40 +477,124 @@ local function ShowCooldownText(name: string, duration: number, color: Color3)
     task.spawn(function()
         local gui = Player.PlayerGui:FindFirstChild("CyberRebuilt")
         if not gui then return end
-        local container = Create("Frame", {Size = UDim2.new(0, 220, 0, 42), Position = UDim2.new(0.5, -110, 0.72, 0), BackgroundColor3 = Color3.fromRGB(8, 8, 12), BackgroundTransparency = 0.05, BorderSizePixel = 0, Parent = gui})
+        
+        local container = Create("Frame", {
+            Size = UDim2.new(0, 220, 0, 42), 
+            Position = UDim2.new(0.5, -110, 0.85, 0),  -- Começa FORA da tela (abaixo)
+            BackgroundColor3 = Color3.fromRGB(8, 8, 12), 
+            BackgroundTransparency = 0.05, 
+            BorderSizePixel = 0, 
+            Parent = gui
+        })
         Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = container})
+        
         local stroke = Create("UIStroke", {Color = color, Thickness = 2, Transparency = 0.2, Parent = container})
-        local label = Create("TextLabel", {Size = UDim2.new(1, -20, 0.55, 0), Position = UDim2.new(0, 10, 0, 4), BackgroundTransparency = 1, TextColor3 = color, Font = Enum.Font.SciFi, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, Text = name:upper(), Parent = container})
-        local progressBar = Create("Frame", {Size = UDim2.new(1, -20, 0, 6), Position = UDim2.new(0, 10, 1, -12), BackgroundColor3 = Color3.fromRGB(20, 20, 25), BorderSizePixel = 0, Parent = container})
+        
+        local label = Create("TextLabel", {
+            Size = UDim2.new(1, -20, 0.55, 0), 
+            Position = UDim2.new(0, 10, 0, 4), 
+            BackgroundTransparency = 1, 
+            TextColor3 = color, 
+            Font = Enum.Font.SciFi, 
+            TextSize = 16, 
+            TextXAlignment = Enum.TextXAlignment.Left, 
+            Text = name:upper(), 
+            Parent = container
+        })
+        
+        local progressBar = Create("Frame", {
+            Size = UDim2.new(1, -20, 0, 6), 
+            Position = UDim2.new(0, 10, 1, -12), 
+            BackgroundColor3 = Color3.fromRGB(20, 20, 25), 
+            BorderSizePixel = 0, 
+            Parent = container
+        })
         Create("UICorner", {CornerRadius = UDim.new(0, 3), Parent = progressBar})
-        local fillBar = Create("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = color, BorderSizePixel = 0, Parent = progressBar})
+        
+        local fillBar = Create("Frame", {
+            Size = UDim2.new(1, 0, 1, 0), 
+            BackgroundColor3 = color, 
+            BorderSizePixel = 0, 
+            Parent = progressBar
+        })
         Create("UICorner", {CornerRadius = UDim.new(0, 3), Parent = fillBar})
-        local timer = Create("TextLabel", {Size = UDim2.new(0, 50, 1, 0), Position = UDim2.new(1, -55, 0, 0), BackgroundTransparency = 1, TextColor3 = Colors.UI_NEON, Font = Enum.Font.Code, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Right, Text = string.format("%.1fs", duration), Parent = container})
+        
+        local timer = Create("TextLabel", {
+            Size = UDim2.new(0, 50, 1, 0), 
+            Position = UDim2.new(1, -55, 0, 0), 
+            BackgroundTransparency = 1, 
+            TextColor3 = Colors.UI_NEON, 
+            Font = Enum.Font.Code, 
+            TextSize = 16, 
+            TextXAlignment = Enum.TextXAlignment.Right, 
+            Text = string.format("%.1fs", duration), 
+            Parent = container
+        })
+        
         table.insert(ActiveCooldownFrames, container)
+        
+        -- ===== ANIMAÇÃO DE ENTRADA: DESLIZAR DE BAIXO PARA CIMA =====
+        local myIndex = 0
+        for i, v in ipairs(ActiveCooldownFrames) do 
+            if v == container then 
+                myIndex = i 
+                break 
+            end 
+        end
+        
+        local targetPos = UDim2.new(0.5, -110, 0.72, -(myIndex - 1) * 50)
+        
+        TweenService:Create(container, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = targetPos
+        }):Play()
+        
         local startTime = os.clock()
         while os.clock() - startTime < duration do
             local remaining = math.max(0, duration - (os.clock() - startTime))
             local progress = remaining / duration
             timer.Text = string.format("%.1fs", remaining)
             fillBar.Size = UDim2.new(1 - progress, 0, 1, 0)
-            local myIndex = 0
-            for i, v in ipairs(ActiveCooldownFrames) do if v == container then myIndex = i break end end
-            if myIndex > 0 then
-                local targetPos = UDim2.new(0.5, -110, 0.72, -(myIndex - 1) * 50)
-                container.Position = container.Position:Lerp(targetPos, 0.2)
+            
+            local currentIndex = 0
+            for i, v in ipairs(ActiveCooldownFrames) do 
+                if v == container then 
+                    currentIndex = i 
+                    break 
+                end 
             end
+            if currentIndex > 0 then
+                local newTarget = UDim2.new(0.5, -110, 0.72, -(currentIndex - 1) * 50)
+                container.Position = container.Position:Lerp(newTarget, 0.3)
+            end
+            
             RunService.RenderStepped:Wait()
         end
-        TweenService:Create(container, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(label, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-        TweenService:Create(timer, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-        TweenService:Create(progressBar, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(fillBar, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
-        task.wait(0.25)
+        
+        -- ===== ANIMAÇÃO DE SAÍDA: DESLIZAR PARA BAIXO =====
+        TweenService:Create(container, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Position = UDim2.new(0.5, -110, 0.85, 0),
+            BackgroundTransparency = 1
+        }):Play()
+        
+        TweenService:Create(label, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+        TweenService:Create(timer, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+        TweenService:Create(progressBar, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(fillBar, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 1}):Play()
+        
+        task.wait(0.4)
+        
         local index = 0
-        for i, v in ipairs(ActiveCooldownFrames) do if v == container then index = i break end end
-        if index > 0 then table.remove(ActiveCooldownFrames, index) end
+        for i, v in ipairs(ActiveCooldownFrames) do 
+            if v == container then 
+                index = i 
+                break 
+            end 
+        end
+        if index > 0 then 
+            table.remove(ActiveCooldownFrames, index) 
+        end
+        
         container:Destroy()
     end)
 end
@@ -1598,17 +1676,7 @@ end)
             task.wait(0.2)
         end
     end)
-    local crackImages = {Configurations.ASSETS.TEXTURES.CRACK1, Configurations.ASSETS.TEXTURES.CRACK2}
-    for i = 1, 5 do
-        local crack = Create("ImageLabel", {Size = UDim2.new(0.3, 0, 0.3, 0), Position = UDim2.new(math.random(), 0, math.random(), 0), BackgroundTransparency = 1, Image = crackImages[math.random(1, #crackImages)], ImageTransparency = 0.5, Parent = gui})
-        task.spawn(function()
-            while crack.Parent do
-                crack.Position = UDim2.new(math.random(), 0, math.random(), 0)
-                TweenService:Create(crack, TweenInfo.new(0.1), {ImageTransparency = math.random(0.2, 0.8)}):Play()
-                task.wait(0.1)
-            end
-        end)
-    end
+    
     local redOverlay = Create("ImageLabel", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ImageColor3 = Color3.fromRGB(255, 0, 0), ImageTransparency = 0.8, Parent = gui})
     local blueOverlay = Create("ImageLabel", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ImageColor3 = Color3.fromRGB(0, 0, 255), ImageTransparency = 0.8, Parent = gui})
     task.spawn(function()
@@ -1626,7 +1694,6 @@ end)
             local emitter = Instance.new("ParticleEmitter", attachment)
             emitter.Color = ColorSequence.new(Color3.fromRGB(255, 0, 0))
             emitter.Size = NumberSequence.new(0.5)
-            emitter.Texture = Configurations.ASSETS.TEXTURES.SPARKS
             emitter.Lifetime = NumberRange.new(0.5, 1)
             emitter.Rate = 50
             emitter.Speed = NumberRange.new(5, 10)
@@ -1743,7 +1810,6 @@ end)
             psychosisText:Destroy()
             redOverlay:Destroy()
             blueOverlay:Destroy()
-            for _, crack in ipairs(gui:GetChildren()) do if crack:IsA("ImageLabel") then crack:Destroy() end end
             for _, emitter in ipairs(emitters) do emitter.Enabled = false Debris:AddItem(emitter.Parent, 1) end
             return
         end
@@ -2041,6 +2107,23 @@ local function ResetSandi()
     UpdateKiroshiButton()
     UpdateOpticalButton()
     if State.MusicSound then State.MusicSound:Destroy() State.MusicSound = nil end
+    
+if originalClockTime then
+    task.spawn(function()
+        local targetTime = originalClockTime  -- USA A HORA SALVA
+        local startTime = Lighting.ClockTime
+        local duration = 3.0
+        local startTick = tick()
+        
+        while tick() - startTick < duration do
+            local alpha = math.min(1, (tick() - startTick) / duration)
+            local eased = 1 - (1 - alpha) ^ 3
+            Lighting.ClockTime = startTime + (targetTime - startTime) * eased
+            RunService.Heartbeat:Wait()
+        end
+        Lighting.ClockTime = targetTime
+    end)
+  end
 end
 
 local function PlayActivationSequence()
@@ -2237,6 +2320,22 @@ local function ExecSandi()
     UpdateKiroshiButton()
     UpdateOpticalButton()
     State.MusicSound = tocarMusica()
+    
+originalClockTime = Lighting.ClockTime  -- SALVA A HORA ORIGINAL
+task.spawn(function()
+    local targetTime = 17
+    local startTime = Lighting.ClockTime
+    local duration = 3.0
+    local startTick = tick()
+    
+    while tick() - startTick < duration do
+        local alpha = math.min(1, (tick() - startTick) / duration)
+        local eased = 1 - (1 - alpha) ^ 3
+        Lighting.ClockTime = startTime + (targetTime - startTime) * eased
+        RunService.Heartbeat:Wait()
+    end
+    Lighting.ClockTime = targetTime
+  end)
 end
 
 local function ExecDash()
