@@ -1512,7 +1512,7 @@ local function toggleStand()
 		-- Som e speech bubble primeiro (não bloqueia nada)
 		showSpeechBubble(81663476180868, "right", 2.5)
 		local standActivateSound = Instance.new("Sound", workspace)
-		standActivateSound.SoundId = "rbxassetid://15081418558"
+		standActivateSound.SoundId = "rbxassetid://136125935634681"
 		standActivateSound.Volume = 2
 		standActivateSound:Play()
 		Debris:AddItem(standActivateSound, 5)
