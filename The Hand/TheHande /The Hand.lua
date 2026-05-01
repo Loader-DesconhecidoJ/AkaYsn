@@ -1596,87 +1596,86 @@ local function performErase()
     )
     fadeOut:Play()
     
-    -- ═══════════════════════════════════════
--- ⚡ ATIVA NOCLIP PRIMEIRO (ANTES do teleporte)
+-- ═══════════════════════════════════════
+-- ⚡ SISTEMA SINCRONIZADO: TELEPORTE + NOCLIP + ÂNCORA + FLING
 -- ═══════════════════════════════════════
 local targetChar = targetRoot.Parent
 local anchoredParts = {}
-local SYNC_DURATION = 1.5
+local SYNC_DURATION = 2  -- Duração total: 2 segundos
 
+-- FASE 1: TELEPORTE
+task.wait(0.1)
+local insidePos = charRoot.Position + charRoot.CFrame.LookVector * 0
+targetRoot.CFrame = CFrame.new(insidePos)
+targetRoot.Velocity = Vector3.new(0, 0, 0)
+targetRoot.RotVelocity = Vector3.new(0, 0, 0)
+
+-- FASE 2: NOCLIP HUMANOID + HUMANOIDROOTPART (IMEDIATAMENTE)
+local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+if targetHum then
+    targetHum.CollisionType = Enum.HumanoidCollisionType.OuterBox
+    targetHum.AutoRotate = false
+    table.insert(flingNoclipHumans, {
+        humanoid = targetHum,
+        originalCollisionType = Enum.HumanoidCollisionType.InnerBox,
+        originalAutoRotate = true
+    })
+end
+
+-- Noclip no seu HumanoidRootPart
+if charRoot then
+    charRoot.CanCollide = false
+    table.insert(anchoredParts, {part = charRoot, originalCanCollide = true})
+end
+
+-- Noclip nas partes do alvo + NoCollisionConstraint
 if targetChar then
-    -- 1️⃣ NOCLIP TOTAL NO ALVO
     for _, part in ipairs(targetChar:GetDescendants()) do
-    if part:IsA("BasePart") then
-        -- Noclip
-        if part.CanCollide == true then
+        if part:IsA("BasePart") and part.CanCollide == true then
             part.CanCollide = false
             table.insert(anchoredParts, {part = part, originalCanCollide = true})
         end
-        -- Âncora
-        if not part.Anchored then
-            part.Anchored = true
-            table.insert(anchoredParts, {part = part, originalCanCollide = part.CanCollide, originalAnchored = false})
-        end
-    end
-end
-    
-    -- 2️⃣ NOCLIP NO SEU HumanoidRootPart
-    if charRoot then
-        charRoot.CanCollide = false
-        table.insert(anchoredParts, {part = charRoot, originalCanCollide = true})
     end
     
-    -- 3️⃣ Humanoid do alvo
-    local targetHum = targetChar:FindFirstChildOfClass("Humanoid")
-    if targetHum then
-        targetHum.CollisionType = Enum.HumanoidCollisionType.OuterBox
-        targetHum.AutoRotate = false
-        table.insert(flingNoclipHumans, {
-            humanoid = targetHum,
-            originalCollisionType = Enum.HumanoidCollisionType.InnerBox,
-            originalAutoRotate = true
-        })
-    end
-    
-    -- 4️⃣ NoCollisionConstraint
     local constraints = forceNoclipBetweenChars(character, targetChar)
     for _, c in ipairs(constraints) do
         table.insert(flingNoclipConstraints, c)
     end
-    
-    print("🔒 Noclip ativado")
 end
 
--- ═══════════════════════════════════════
--- AGORA SIM: TELEPORTE (com noclip já ativo)
--- ═══════════════════════════════════════
-task.wait(0.1)
-local insidePos = charRoot.Position + charRoot.CFrame.LookVector * 1.5
-targetRoot.CFrame = CFrame.new(insidePos)
+-- FASE 3: ÂNCORA O ALVO (pra não voltar)
+if targetChar then
+    for _, part in ipairs(targetChar:GetDescendants()) do
+        if part:IsA("BasePart") and not part.Anchored then
+            part.Anchored = true
+            table.insert(anchoredParts, {part = part, originalAnchored = false})
+        end
+    end
+end
 
--- Zera velocidade do alvo
-targetRoot.Velocity = Vector3.new(0, 0, 0)
-targetRoot.RotVelocity = Vector3.new(0, 0, 0)
+print("🔒 Teleporte + Noclip + Âncora ativados")
 
--- ATIVA O FLING
+-- FASE 4: ATIVA O FLING
 print("💥 NaN Fling iniciado")
 StartFling(targetRoot)
 
--- CRONÔMETRO ÚNICO
+-- FASE 5: CRONÔMETRO ÚNICO (2 SEGUNDOS)
 task.delay(SYNC_DURATION, function()
-    print("⏰ Restaurando tudo...")
+    print("⏰ 2s - Restaurando tudo...")
     CleanUpFling()
     
     for _, data in ipairs(anchoredParts) do
-    if data.part and data.part.Parent then
-        pcall(function() 
-            data.part.CanCollide = data.originalCanCollide
-            if data.originalAnchored ~= nil then
-                data.part.Anchored = data.originalAnchored
-            end
-        end)
+        if data.part and data.part.Parent then
+            pcall(function() 
+                if data.originalCanCollide ~= nil then
+                    data.part.CanCollide = data.originalCanCollide
+                end
+                if data.originalAnchored ~= nil then
+                    data.part.Anchored = data.originalAnchored
+                end
+            end)
+        end
     end
-end
     
     local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
     if targetHum then
@@ -1915,9 +1914,10 @@ task.wait(0.15)
 showSpeechBubble("81663476180868", "right", 2.5)
 
     local sound = Instance.new("Sound", workspace)
-    sound.SoundId = ASSETS.STAND_ACTIVATE_SFX
-    sound.Volume = 2
-    sound:Play()
+sound.SoundId = ASSETS.STAND_ACTIVATE_SFX
+sound.Volume = 2
+sound.PlaybackSpeed = 1.5  
+sound:Play()
     Debris:AddItem(sound, 5)
 
     task.spawn(function()
