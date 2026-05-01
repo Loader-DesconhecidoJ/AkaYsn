@@ -1,4 +1,4 @@
-nlocal Players = game:GetService("Players")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
@@ -513,16 +513,35 @@ local function onCharacterAddedCustomAnims(char)
     
     originalWalkSpeed_anim = hum.WalkSpeed
 
-    local animate = char:WaitForChild("Animate", 5)  -- espera no máximo 5 segundos
-
-if animate then
-    animate:WaitForChild("idle", 3)
-    animate:WaitForChild("walk", 3)
-    animate:WaitForChild("run", 3)
-    animate:WaitForChild("fall", 3)
-else
-    warn("[DioStand] Animate não encontrado no personagem!")
-end
+    local animate = char:FindFirstChild("Animate")
+    if not animate then
+        warn("[DioStand] Animate não encontrado no personagem!")
+        return
+    end
+    
+    -- Garante que as animações existem (cria se necessário)
+    local function ensureAnimationFolder(parent, folderName, animName, defaultId)
+        local folder = parent:FindFirstChild(folderName)
+        if not folder then
+            folder = Instance.new("Folder")
+            folder.Name = folderName
+            folder.Parent = parent
+        end
+        local anim = folder:FindFirstChild(animName)
+        if not anim then
+            anim = Instance.new("Animation")
+            anim.Name = animName
+            anim.AnimationId = defaultId or ""
+            anim.Parent = folder
+        end
+        return anim
+    end
+    
+    ensureAnimationFolder(animate, "idle", "Animation1", "rbxassetid://0")
+    ensureAnimationFolder(animate, "idle", "Animation2", "rbxassetid://0")
+    ensureAnimationFolder(animate, "walk", "WalkAnim", "rbxassetid://0")
+    ensureAnimationFolder(animate, "run", "RunAnim", "rbxassetid://0")
+    ensureAnimationFolder(animate, "fall", "FallAnim", "rbxassetid://0")
     
     local anim2Id = animate.idle.Animation1.AnimationId
     if animate.idle:FindFirstChild("Animation2") then 
@@ -1200,12 +1219,6 @@ local function getStandModel()
         sHum.PlatformStand = true
         sHum.AutoRotate = false
         sHum.HipHeight = 0
-    end
-
-    if model:FindFirstChild("Torso") then
-        warn("⚠️ Stand gerou como R6! Recriando...")
-        model:Destroy()
-        return getStandModel()
     end
 
     return model
