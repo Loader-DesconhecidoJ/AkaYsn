@@ -563,7 +563,7 @@ local ASSETS = {
     ERASE_ANIM = "rbxassetid://139217391004393",
     STAND_IMAGE = "rbxassetid://71063600838165",
     ERASE_IMAGE = "rbxassetid://107526909795121",
-    OI_IMAGE = "107413276128350",
+    OI_IMAGE = "119730997112794",
     KUSO_IMAGE = "83774881013358",
 }
 
@@ -1406,7 +1406,7 @@ local function performErase()
         return
     end
     
-    showSpeechBubble("102362181377695", "right", 3)
+    showSpeechBubble("94794505267303", "right", 1)
     
     -- STAND VAI ATÉ O ALVO
     if idleTrack and idleTrack.IsPlaying then idleTrack:Stop() end
@@ -1911,7 +1911,7 @@ spawnTemporalVFX()
 -- Delay para sincronizar com o VFX
 task.wait(0.15)
 
-showSpeechBubble("81663476180868", "right", 2.5)
+showSpeechBubble(ASSETS.OI_IMAGE, "right", 1)
 
     local sound = Instance.new("Sound", workspace)
 sound.SoundId = ASSETS.STAND_ACTIVATE_SFX
