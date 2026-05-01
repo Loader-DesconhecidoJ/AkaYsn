@@ -635,18 +635,126 @@ local function findRightHand(model)
 end
 
 -- ============================================================
--- SISTEMA DE FLING (NaN Fling)
+-- SISTEMA DE NOCLIP CORRIGIDO (ATRAVESSA HUMANOID) - v2
 -- ============================================================
+local flingNoclipParts = {}  
+local flingNoclipHumans = {}
+local flingNoclipConstraints = {}  -- NOVO: armazena NoCollisionConstraints
+
 local FlingActive = false
 local FlingTargetRoot = nil
 local FloorPart = nil
 local flingConnection = nil
 
+-- ✅ NOVA FUNÇÃO: Força noclip entre dois personagens inteiros
+local function forceNoclipBetweenChars(char1, char2)
+    if not char1 or not char2 then return end
+    
+    local constraintsCreated = {}
+    
+    for _, part1 in ipairs(char1:GetDescendants()) do
+        if part1:IsA("BasePart") and not part1.Anchored then
+            for _, part2 in ipairs(char2:GetDescendants()) do
+                if part2:IsA("BasePart") and not part2.Anchored then
+                    local constraint = Instance.new("NoCollisionConstraint")
+                    constraint.Part0 = part1
+                    constraint.Part1 = part2
+                    constraint.Parent = part1
+                    table.insert(constraintsCreated, constraint)
+                end
+            end
+        end
+    end
+    
+    return constraintsCreated
+end
+
+-- Função para ativar noclip em um modelo (PARTES + HUMANOID)
+local function setNoclip(model, enabled)
+    if not model then return end
+    
+    -- Noclip nas partes físicas
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") and part.CanCollide == true then
+            if enabled then
+                part.CanCollide = false
+                part.Massless = true
+                table.insert(flingNoclipParts, {
+                    part = part, 
+                    originalCanCollide = true, 
+                    originalMassless = false
+                })
+            end
+        end
+    end
+    
+    -- NOCLIP NO HUMANOID
+    local targetHumanoid = model:FindFirstChildOfClass("Humanoid")
+    if targetHumanoid then
+        if enabled then
+            local originalState = targetHumanoid:GetState()
+            table.insert(flingNoclipHumans, {
+                humanoid = targetHumanoid,
+                originalCollisionType = targetHumanoid.CollisionType,
+                originalState = originalState
+            })
+            
+            -- ⚡ Tenta OuterBox (mais agressivo que InnerBox)
+            targetHumanoid.CollisionType = Enum.HumanoidCollisionType.OuterBox
+        end
+    end
+    
+    -- ✅ FORÇA NOCOLISÃO ENTRE OS DOIS PERSONAGENS INTEIROS
+    if enabled and character then
+        local constraints = forceNoclipBetweenChars(character, model)
+        for _, c in ipairs(constraints) do
+            table.insert(flingNoclipConstraints, c)
+        end
+    end
+end
+
+-- Função para restaurar noclip (ATUALIZADA)
+local function restoreNoclip()
+    -- Restaura partes físicas
+    for _, data in ipairs(flingNoclipParts) do
+        if data.part and data.part.Parent then
+            pcall(function()
+                data.part.CanCollide = data.originalCanCollide
+                data.part.Massless = data.originalMassless
+            end)
+        end
+    end
+    flingNoclipParts = {}
+    
+    -- Restaura Humanoids
+    for _, data in ipairs(flingNoclipHumans) do
+        if data.humanoid and data.humanoid.Parent then
+            pcall(function()
+                data.humanoid.CollisionType = data.originalCollisionType
+            end)
+        end
+    end
+    flingNoclipHumans = {}
+    
+    -- ✅ Remove NoCollisionConstraints
+    for _, constraint in ipairs(flingNoclipConstraints) do
+        if constraint and constraint.Parent then
+            pcall(function()
+                constraint:Destroy()
+            end)
+        end
+    end
+    flingNoclipConstraints = {}
+end
+
 local function CleanUpFling()
     FlingActive = false
     FlingTargetRoot = nil
     
-    -- ✅ Destruição segura do piso fantasma
+    -- ✅ Restaura noclip de todas as partes e humanoids
+    restoreNoclip()
+    
+    -- Destruição segura do piso fantasma
     if FloorPart then
         pcall(function()
             if FloorPart.Parent then
@@ -656,7 +764,7 @@ local function CleanUpFling()
         FloorPart = nil
     end
     
-    -- ✅ Limpeza adicional: remove qualquer FloorPart órfão
+    -- Limpeza adicional: remove qualquer FloorPart órfão
     for _, obj in ipairs(workspace:GetChildren()) do
         if obj.Name == "SimFloor_Fling" or obj:GetAttribute("TheHand_FlingPart") then
             pcall(function() obj:Destroy() end)
@@ -668,7 +776,7 @@ local function CleanUpFling()
         flingConnection = nil
     end
     
-    -- ✅ Verificação segura do sethiddenproperty
+    -- Verificação segura do sethiddenproperty
     if character and character:FindFirstChild("HumanoidRootPart") then
         pcall(function()
             sethiddenproperty(character.HumanoidRootPart, "PhysicsRepRootPart", nil)
@@ -686,10 +794,11 @@ local function StartFling(targetRoot)
     local charRoot = character:FindFirstChild("HumanoidRootPart")
     if not charRoot or not hum or hum.Health <= 0 then return end
     
-    CleanUpFling()
-    
     FlingActive = true
     FlingTargetRoot = targetRoot
+    
+    if targetRoot and targetRoot.Parent then
+end
     
     FloorPart = Instance.new("Part")
     FloorPart.Size = Vector3.new(8, 0.2, 8)
@@ -1487,23 +1596,112 @@ local function performErase()
     )
     fadeOut:Play()
     
-    -- TELEPORTE DO ALVO
-    task.wait(0.1)
-    local insidePos = charRoot.Position + charRoot.CFrame.LookVector * 0.5
-    targetRoot.CFrame = CFrame.new(insidePos)
+    -- ═══════════════════════════════════════
+-- ⚡ ATIVA NOCLIP PRIMEIRO (ANTES do teleporte)
+-- ═══════════════════════════════════════
+local targetChar = targetRoot.Parent
+local anchoredParts = {}
+local SYNC_DURATION = 1.5
+
+if targetChar then
+    -- 1️⃣ NOCLIP TOTAL NO ALVO
+    for _, part in ipairs(targetChar:GetDescendants()) do
+    if part:IsA("BasePart") then
+        -- Noclip
+        if part.CanCollide == true then
+            part.CanCollide = false
+            table.insert(anchoredParts, {part = part, originalCanCollide = true})
+        end
+        -- Âncora
+        if not part.Anchored then
+            part.Anchored = true
+            table.insert(anchoredParts, {part = part, originalCanCollide = part.CanCollide, originalAnchored = false})
+        end
+    end
+end
     
-    -- ATIVA O FLING
-    print("NaN Fling Should Be Loaded Now")
-    StartFling(targetRoot)
+    -- 2️⃣ NOCLIP NO SEU HumanoidRootPart
+    if charRoot then
+        charRoot.CanCollide = false
+        table.insert(anchoredParts, {part = charRoot, originalCanCollide = true})
+    end
     
-    task.delay(1.5, function()
-        CleanUpFling()
-    end)
+    -- 3️⃣ Humanoid do alvo
+    local targetHum = targetChar:FindFirstChildOfClass("Humanoid")
+    if targetHum then
+        targetHum.CollisionType = Enum.HumanoidCollisionType.OuterBox
+        targetHum.AutoRotate = false
+        table.insert(flingNoclipHumans, {
+            humanoid = targetHum,
+            originalCollisionType = Enum.HumanoidCollisionType.InnerBox,
+            originalAutoRotate = true
+        })
+    end
     
+    -- 4️⃣ NoCollisionConstraint
+    local constraints = forceNoclipBetweenChars(character, targetChar)
+    for _, c in ipairs(constraints) do
+        table.insert(flingNoclipConstraints, c)
+    end
+    
+    print("🔒 Noclip ativado")
+end
+
+-- ═══════════════════════════════════════
+-- AGORA SIM: TELEPORTE (com noclip já ativo)
+-- ═══════════════════════════════════════
+task.wait(0.1)
+local insidePos = charRoot.Position + charRoot.CFrame.LookVector * 1.5
+targetRoot.CFrame = CFrame.new(insidePos)
+
+-- Zera velocidade do alvo
+targetRoot.Velocity = Vector3.new(0, 0, 0)
+targetRoot.RotVelocity = Vector3.new(0, 0, 0)
+
+-- ATIVA O FLING
+print("💥 NaN Fling iniciado")
+StartFling(targetRoot)
+
+-- CRONÔMETRO ÚNICO
+task.delay(SYNC_DURATION, function()
+    print("⏰ Restaurando tudo...")
+    CleanUpFling()
+    
+    for _, data in ipairs(anchoredParts) do
+    if data.part and data.part.Parent then
+        pcall(function() 
+            data.part.CanCollide = data.originalCanCollide
+            if data.originalAnchored ~= nil then
+                data.part.Anchored = data.originalAnchored
+            end
+        end)
+    end
+end
+    
+    local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+    if targetHum then
+        pcall(function()
+            targetHum.CollisionType = Enum.HumanoidCollisionType.InnerBox
+            targetHum.AutoRotate = true
+        end)
+    end
+    
+    for _, constraint in ipairs(flingNoclipConstraints) do
+        if constraint and constraint.Parent then
+            pcall(function() constraint:Destroy() end)
+        end
+    end
+    flingNoclipConstraints = {}
+    
+    print("✅ Tudo restaurado")
+end)
+    
+        -- Restauração do highlight
     task.delay(0.3, function()
         if highlight and highlight.Parent then highlight:Destroy() end
     end)
     
+    -- Restauração da animação do stand
     task.wait(0.2)
     if eraseTrack then eraseTrack:Stop() end
     idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
