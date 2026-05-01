@@ -3292,12 +3292,13 @@ end)
 -- 🎒 SISTEMA DE ACESSÓRIOS (AQUI! ⬅️)
 -- ═══════════════════════════════════════════
 local IDS_CATALOGO = {
-    113152323622992, 98776148420540,
+    113152323622992, 98776148420540, 14908061685,
 }
 
 local function AnexarTudo()
     local character = player.Character or player.CharacterAdded:Wait()
     
+    -- Limpa os itens antigos que o script colocou
     for _, child in ipairs(character:GetChildren()) do
         if child:GetAttribute(ACCESSORY_TAG) then
             child:Destroy()
@@ -3312,55 +3313,74 @@ local function AnexarTudo()
 
             if sucesso and objects and objects[1] then
                 local asset = objects[1]:Clone()
-                local handle = asset:IsA("BasePart") and asset or asset:FindFirstChild("Handle", true)
+                
+                -- Limpa scripts maliciosos do asset
+                for _, v in pairs(asset:GetDescendants()) do
+                    if v:IsA("LuaSourceContainer") then v:Destroy() end
+                end
 
-                if handle then
-                    for _, v in pairs(asset:GetDescendants()) do
-                        if v:IsA("LuaSourceContainer") then v:Destroy() end
+                asset:SetAttribute(ACCESSORY_TAG, true)
+
+                -- 👕 SE FOR ROUPA (Shirt, Pants, T-Shirt)
+                if asset:IsA("Shirt") or asset:IsA("Pants") or asset:IsA("ShirtGraphic") then
+                    -- Remove a roupa padrão do personagem para a nova aparecer
+                    for _, oldCloth in ipairs(character:GetChildren()) do
+                        if oldCloth.ClassName == asset.ClassName then
+                            oldCloth:Destroy()
+                        end
                     end
-
-                    handle.CanCollide = false
-                    handle.Massless = true
-                    asset:SetAttribute(ACCESSORY_TAG, true)
+                    -- Aplica a roupa nova no personagem
                     asset.Parent = character
 
-                    local attachmentItem = handle:FindFirstChildWhichIsA("Attachment")
-                    local partAlvo = nil
-                    local attachmentCorpo = nil
+                -- 🎒 SE FOR ACESSÓRIO (Chapéus, espadas, etc)
+                else
+                    local handle = asset:IsA("BasePart") and asset or asset:FindFirstChild("Handle", true)
 
-                    if attachmentItem then
-                        for _, parte in pairs(character:GetChildren()) do
-                            if parte:IsA("BasePart") then
-                                local found = parte:FindFirstChild(attachmentItem.Name)
-                                if found then
-                                    partAlvo = parte
-                                    attachmentCorpo = found
-                                    break
+                    if handle then
+                        handle.CanCollide = false
+                        handle.Massless = true
+                        
+                        asset.Parent = character
+
+                        local attachmentItem = handle:FindFirstChildWhichIsA("Attachment")
+                        local partAlvo = nil
+                        local attachmentCorpo = nil
+
+                        if attachmentItem then
+                            for _, parte in pairs(character:GetChildren()) do
+                                if parte:IsA("BasePart") then
+                                    local found = parte:FindFirstChild(attachmentItem.Name)
+                                    if found then
+                                        partAlvo = parte
+                                        attachmentCorpo = found
+                                        break
+                                    end
                                 end
                             end
                         end
-                    end
 
-                    if not partAlvo then
-                        partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
-                    end
-
-                    if partAlvo then
-                        local weld = Instance.new("Weld")
-                        weld.Name = "AutoWeld_" .. id
-                        weld.Part0 = partAlvo
-                        weld.Part1 = handle
-                        
-                        if attachmentItem and attachmentCorpo then
-                            weld.C0 = attachmentCorpo.CFrame
-                            weld.C1 = attachmentItem.CFrame
-                        else
-                            weld.C0 = CFrame.new(0, 0, 0.6) * CFrame.Angles(0, math.rad(180), 0)
+                        if not partAlvo then
+                            partAlvo = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
                         end
-                        
-                        weld.Parent = handle
+
+                        if partAlvo then
+                            local weld = Instance.new("Weld")
+                            weld.Name = "AutoWeld_" .. id
+                            weld.Part0 = partAlvo
+                            weld.Part1 = handle
+                            
+                            if attachmentItem and attachmentCorpo then
+                                weld.C0 = attachmentCorpo.CFrame
+                                weld.C1 = attachmentItem.CFrame
+                            else
+                                weld.C0 = CFrame.new(0, 0, 0.6) * CFrame.Angles(0, math.rad(180), 0)
+                            end
+                            
+                            weld.Parent = handle
+                        end
                     end
                 end
+                
                 objects[1]:Destroy()
             end
         end)
