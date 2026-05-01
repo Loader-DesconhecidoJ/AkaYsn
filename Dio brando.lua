@@ -1,4 +1,4 @@
-local Players = game:GetService("Players")
+nlocal Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
@@ -192,7 +192,7 @@ if idleVariant_Track then
     idleVariant_Track.Looped = false      
     idleVariant_Track.Priority = Enum.AnimationPriority.Idle
     idleVariant_Track:Play(0.3)
-    idleVariant_Track:AdjustSpeed(1.4)      
+    idleVariant_Track:AdjustSpeed(1.7)      
 end
     
     -- 🔊 SOM
