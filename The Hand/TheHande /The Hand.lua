@@ -555,7 +555,7 @@ if player.Character then onCharacterAddedCustomAnims(player.Character) end
 -- ASSETS DO THE HAND
 -- ============================================================
 local ASSETS = {
-    STAND_ACTIVATE_SFX = "rbxassetid://9114330698",
+    STAND_ACTIVATE_SFX = "rbxassetid://125886305197484",
     ERASE_SOUND = "rbxassetid://140225325762905",
     STAND_IDLE = "rbxassetid://98789048056989",
     STAND_WALK = "rbxassetid://139307201297469",
@@ -591,7 +591,7 @@ local runTrack = nil
 local standChangerGui = nil
 
 local COOLDOWNS = {
-    Erase = 1.5,
+    Erase = 1.7,
 }
 
 local lastUsed = {Erase = 0}
@@ -1916,7 +1916,7 @@ showSpeechBubble("81663476180868", "right", 2.5)
     local sound = Instance.new("Sound", workspace)
 sound.SoundId = ASSETS.STAND_ACTIVATE_SFX
 sound.Volume = 2
-sound.PlaybackSpeed = 1.5  
+sound.PlaybackSpeed = 2 
 sound:Play()
     Debris:AddItem(sound, 5)
 
