@@ -89,7 +89,6 @@ local jumpStateConnection_anim = nil
 local footprintConnection_anim = nil
 local lastFootprintTime_anim = 0
 local alternateFoot_anim = true
-local idleVariantTrack_anim = nil
 local idleTimer_anim = nil
 local isIdle_anim = false
 local sRunTrack_anim = nil
@@ -555,15 +554,15 @@ if player.Character then onCharacterAddedCustomAnims(player.Character) end
 -- ASSETS DO THE HAND
 -- ============================================================
 local ASSETS = {
-    STAND_ACTIVATE_SFX = "rbxassetid://125886305197484",
-    ERASE_SOUND = "rbxassetid://140225325762905",
+    STAND_ACTIVATE_SFX = "rbxassetid://1228344855",
+    ERASE_SOUND = "rbxassetid://129674320502853",
     STAND_IDLE = "rbxassetid://98789048056989",
     STAND_WALK = "rbxassetid://132783162476851",
     STAND_RUN = "rbxassetid://99823081022996",  
     ERASE_ANIM = "rbxassetid://139217391004393",
     STAND_IMAGE = "rbxassetid://71063600838165",
     ERASE_IMAGE = "rbxassetid://107526909795121",
-    OI_IMAGE = "119730997112794",
+    OI_IMAGE = "94794505267303",
     KUSO_IMAGE = "83774881013358",
 }
 
@@ -588,14 +587,16 @@ local currentStand = nil
 local idleTrack = nil
 local walkTrack = nil
 local runTrack = nil  
-local standChangerGui = nil
+local standChangerGui = nil   
+local buttonDebounce = false
 
 local COOLDOWNS = {
     Erase = 1.7,
+    SelfErase = 2.5,
 }
 
-local lastUsed = {Erase = 0}
-local isAbilityLocked = {Erase = false}
+local lastUsed = {Erase = 0, SelfErase = 0}
+local isAbilityLocked = {Erase = false, SelfErase = false}
 
 -- ============================================================
 -- FUNÇÃO AUXILIAR: ENCONTRAR MÃO DIREITA (CORRIGIDO)
@@ -1144,8 +1145,8 @@ local function createCooldownBar(button, abilityName, duration)
         BackgroundTransparency = 0
     }):Play()
     
-    spawn(function()
-        while barContainer and barContainer.Parent do
+    task.spawn(function()
+    while barContainer and barContainer.Parent do
             TweenService:Create(border, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
                 Transparency = 0.6
             }):Play()
@@ -1351,6 +1352,15 @@ end
 
 local activateBtn, actStroke, actGlow = createButton("ActivateBtn", UDim2.new(0.5, 0, 0.75, 0), "STAND", COLORS.Blue, 95)
 local eraseBtn, eraseStroke, eraseGlow = createButton("EraseBtn", UDim2.new(0.63, 0, 0.78, 0), "ERASE", Color3.fromRGB(255, 255, 100), 80)
+local selfEraseBtn, seStroke, seGlow = createButton("SelfEraseBtn", UDim2.new(0.37, 0, 0.78, 0), "DASH", Color3.fromRGB(0, 255, 200), 70)
+
+selfEraseBtn.ZIndex = 100
+selfEraseBtn.Active = true
+selfEraseBtn.TextSize = 16
+selfEraseBtn.TextColor3 = Color3.fromRGB(200, 255, 255)
+selfEraseBtn.Visible = false
+selfEraseBtn.Size = UDim2.fromOffset(0, 0)
+selfEraseBtn.BackgroundTransparency = 1
 
 activateBtn.ZIndex = 100  
 activateBtn.Active = true 
@@ -1368,6 +1378,174 @@ eraseBtn.Size = UDim2.fromOffset(0, 0)
 eraseBtn.BackgroundTransparency = 1
 
 -- ============================================================
+-- HABILIDADE SELF ERASE (DASH DE APAGAMENTO)
+-- ============================================================
+
+local function performSelfErase()
+    if not canUseStrict("SelfErase") then return end
+    if not isStandActive or not currentStand or isAttacking then return end
+    
+    lockAbility("SelfErase")
+    isAttacking = true
+    
+    local charRoot = character:FindFirstChild("HumanoidRootPart")
+    if not charRoot then isAttacking = false return end
+    
+    -- 🔊 Som de dash
+    local dashSound = Instance.new("Sound", workspace)
+    dashSound.SoundId = "rbxassetid://140225325762905"
+    dashSound.Volume = 1.5
+    dashSound.PlaybackSpeed = 1.5
+    dashSound:Play()
+    Debris:AddItem(dashSound, 2)
+    
+    -- 🗯️ Balão de fala
+    showSpeechBubble("94794505267303", "right", 1)
+    
+    -- 💥 Camera shake
+    cameraShake(0.4, 2)
+    
+    -- 🌌 VFX DE APAGAMENTO NA POSIÇÃO ATUAL (antes do dash)
+    local startPos = charRoot.Position
+    local vfxPart = Instance.new("Part")
+    vfxPart.Name = "SelfEraseVFX"
+    vfxPart.Size = Vector3.new(0.5, 0.5, 0.5)
+    vfxPart.Position = startPos
+    vfxPart.Anchored = true
+    vfxPart.CanCollide = false
+    vfxPart.Transparency = 1
+    vfxPart.Parent = workspace
+    Debris:AddItem(vfxPart, 2)
+    
+    -- Partículas de onde você saiu
+    local attach1 = Instance.new("Attachment", vfxPart)
+    local pe1 = Instance.new("ParticleEmitter", attach1)
+    pe1.Texture = "rbxassetid://14317181033"
+    pe1.Color = ColorSequence.new(Color3.fromRGB(0, 150, 255))
+    pe1.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 3), NumberSequenceKeypoint.new(1, 0)})
+    pe1.Lifetime = NumberRange.new(0.3, 0.6)
+    pe1.Rate = 80
+    pe1.Speed = NumberRange.new(1, 3)
+    pe1.SpreadAngle = Vector2.new(180, 180)
+    pe1.LightEmission = 1
+    pe1.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
+    task.delay(0.5, function() pe1.Enabled = false end)
+    
+    -- 🔸 Highlight com animação pulsante no seu personagem
+    local selfHighlight = Instance.new("Highlight", character)
+    selfHighlight.Name = "SelfEraseHighlight"
+    selfHighlight.OutlineColor = Color3.fromRGB(0, 200, 255)
+    selfHighlight.OutlineTransparency = 1
+    selfHighlight.FillColor = Color3.fromRGB(0, 150, 255)
+    selfHighlight.FillTransparency = 1
+
+    -- Animação de entrada (aparece)
+    TweenService:Create(selfHighlight, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        OutlineTransparency = 0.3,
+        FillTransparency = 0.7
+    }):Play()
+
+    -- Remove após o dash
+    task.delay(0.8, function()
+        if selfHighlight and selfHighlight.Parent then
+            -- Animação de saída (desaparece)
+            TweenService:Create(selfHighlight, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                OutlineTransparency = 1,
+                FillTransparency = 1
+            }):Play()
+            task.delay(0.35, function()
+                if selfHighlight and selfHighlight.Parent then
+                    selfHighlight:Destroy()
+                end
+            end)
+        end
+    end)
+    
+    task.wait(0.1)  -- Pequena espera pro VFX
+    
+    -- ⚡ DASH NA DIREÇÃO QUE O BONECO ESTÁ OLHANDO
+    local moveDirection = charRoot.CFrame.LookVector
+    
+    local dashDistance = 20  -- Distância do dash em studs
+    local targetPos = startPos + (moveDirection * dashDistance)
+    
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+rayParams.FilterDescendantsInstances = {character}
+
+local rayResult = workspace:Raycast(startPos, moveDirection * dashDistance, rayParams)
+if rayResult then
+    targetPos = rayResult.Position - (moveDirection * 2)
+end
+    
+    -- ❄️ Congela o personagem por um frame (efeito de apagamento)
+    local freezeConnection
+    freezeConnection = RunService.Stepped:Connect(function()
+        charRoot.Velocity = Vector3.new(0, 0, 0)
+        charRoot.RotVelocity = Vector3.new(0, 0, 0)
+        freezeConnection:Disconnect()
+    end)
+    
+    -- 🚀 TELEPORTA (DASH)
+    charRoot.CFrame = CFrame.new(targetPos)
+    charRoot.Velocity = moveDirection * 30  -- Impulso residual
+    
+    -- 🌌 VFX NO DESTINO
+    local endVFX = Instance.new("Part")
+    endVFX.Name = "SelfEraseEnd"
+    endVFX.Size = Vector3.new(0.5, 0.5, 0.5)
+    endVFX.Position = targetPos
+    endVFX.Anchored = true
+    endVFX.CanCollide = false
+    endVFX.Transparency = 1
+    endVFX.Parent = workspace
+    Debris:AddItem(endVFX, 2)
+    
+    local attach2 = Instance.new("Attachment", endVFX)
+    local pe2 = Instance.new("ParticleEmitter", attach2)
+    pe2.Texture = "rbxassetid://14317181033"
+    pe2.Color = ColorSequence.new(Color3.fromRGB(0, 200, 255))
+    pe2.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 5), NumberSequenceKeypoint.new(1, 0)})
+    pe2.Lifetime = NumberRange.new(0.3, 0.5)
+    pe2.Rate = 100
+    pe2.Speed = NumberRange.new(2, 5)
+    pe2.SpreadAngle = Vector2.new(180, 180)
+    pe2.LightEmission = 1
+    pe2.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
+    pe2.Acceleration = Vector3.new(0, 10, 0)
+    task.delay(0.5, function() pe2.Enabled = false end)
+    
+    -- 🌫️ Trail entre os dois pontos (linha de apagamento)
+    local trailPart = Instance.new("Part")
+    trailPart.Name = "DashTrail"
+    trailPart.Size = Vector3.new(1, 1, dashDistance)
+    trailPart.Position = (startPos + targetPos) / 2
+    trailPart.Anchored = true
+    trailPart.CanCollide = false
+    trailPart.Transparency = 0.7
+    trailPart.Material = Enum.Material.Neon
+    trailPart.Color = Color3.fromRGB(0, 150, 255)
+    trailPart.Parent = workspace
+    
+    -- Alinha o trail com a direção do dash
+    local trailCFrame = CFrame.new((startPos + targetPos) / 2, targetPos)
+    trailPart.CFrame = trailCFrame * CFrame.Angles(0, math.rad(0), 0)
+    
+    -- Fade out do trail
+    TweenService:Create(trailPart, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Transparency = 1
+    }):Play()
+    Debris:AddItem(trailPart, 1)
+    
+    -- ✅ Finaliza
+    lastUsed["SelfErase"] = tick()
+    isAttacking = false
+    showCooldownOnButton(selfEraseBtn, "SelfErase")
+    
+    print("💨 Self Erase Dash realizado!")
+end
+
+-- ============================================================
 -- HABILIDADE DO THE HAND - ERASE (COM FLING)
 -- ============================================================
 
@@ -1379,7 +1557,7 @@ local function performErase()
     
     if not targetRoot then
         -- 🗯️ Balão de fala "KUSO!"
-        showSpeechBubble(ASSETS.KUSO_IMAGE, "right", 2.5)
+        showSpeechBubble(ASSETS.KUSO_IMAGE, "right", 1.3)
         
         -- 🔊 Som de erro/grunhido
         local noTargetSound = Instance.new("Sound")
@@ -1411,7 +1589,7 @@ local function performErase()
         return
     end
     
-    showSpeechBubble("94794505267303", "right", 1)
+    showSpeechBubble("119730997112794", "right", 1)
     
     -- STAND VAI ATÉ O ALVO
     if idleTrack and idleTrack.IsPlaying then idleTrack:Stop() end
@@ -1439,7 +1617,7 @@ local function performErase()
 
     local animLength = eraseTrack.Length
     local startTime = tick()
-    local reverseSpeed = 4
+    local reverseSpeed = 10
 
     -- TRAIL 2D
     local sRightHand = findRightHand(currentStand)
@@ -1657,7 +1835,7 @@ task.wait(0.5)
 -- ═══════════════════════════════════════
 local targetChar = targetRoot.Parent  -- Mantém a referência já existente
 local anchoredParts = {}
-local SYNC_DURATION = 2  -- Duração total: 2 segundos
+local SYNC_DURATION = 1.3 -- Duração total: 2 segundos
 
 -- FASE 1: TELEPORTE INICIAL
 task.wait(0.1)
@@ -1759,79 +1937,78 @@ end)
 print("💥 NaN Fling iniciado")
 StartFling(targetRoot)
 
--- FASE 5: CRONÔMETRO ÚNICO (2 SEGUNDOS)
-task.delay(SYNC_DURATION, function()
-    print("⏰ 2s - Restaurando tudo...")
-    
-    -- Para o teleporte contínuo
-    if teleportConnection then
-        teleportConnection:Disconnect()
-        teleportConnection = nil
-    end
-    
-    CleanUpFling()
-    
-    -- Restaura aparência se o alvo sobreviveu
-    local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
-    if targetHumCheck and targetHumCheck.Health > 0 and targetChar then
-        local restoreInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-        for part, originalSize in pairs(originalSizes) do
-            if part and part.Parent then
-                pcall(function() TweenService:Create(part, restoreInfo, { Size = originalSize, Transparency = 0 }):Play() end)
+    -- FASE 5: CRONÔMETRO ÚNICO (2 SEGUNDOS)
+    task.delay(SYNC_DURATION, function()
+        print("⏰ 2s - Restaurando tudo...")
+        
+        -- Para o teleporte contínuo
+        if teleportConnection then
+            teleportConnection:Disconnect()
+            teleportConnection = nil
+        end
+        
+        CleanUpFling()
+        
+        -- Restaura aparência se o alvo sobreviveu
+        local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+        if targetHumCheck and targetHumCheck.Health > 0 and targetChar then
+            local restoreInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            for part, originalSize in pairs(originalSizes) do
+                if part and part.Parent then
+                    pcall(function() TweenService:Create(part, restoreInfo, { Size = originalSize, Transparency = 0 }):Play() end)
+                end
+            end
+            for mesh, originalScale in pairs(originalMeshScales) do
+                if mesh and mesh.Parent then
+                    pcall(function() TweenService:Create(mesh, restoreInfo, { Scale = originalScale }):Play() end)
+                end
             end
         end
-        for mesh, originalScale in pairs(originalMeshScales) do
-            if mesh and mesh.Parent then
-                pcall(function() TweenService:Create(mesh, restoreInfo, { Scale = originalScale }):Play() end)
+        
+        -- Restaura partes ancoradas
+        for _, data in ipairs(anchoredParts) do
+            if data.part and data.part.Parent then
+                pcall(function() 
+                    if data.originalCanCollide ~= nil then
+                        data.part.CanCollide = data.originalCanCollide
+                    end
+                    if data.originalAnchored ~= nil then
+                        data.part.Anchored = data.originalAnchored
+                    end
+                end)
             end
         end
-    end
-    
-    -- Restaura partes ancoradas
-    for _, data in ipairs(anchoredParts) do
-        if data.part and data.part.Parent then
-            pcall(function() 
-                if data.originalCanCollide ~= nil then
-                    data.part.CanCollide = data.originalCanCollide
-                end
-                if data.originalAnchored ~= nil then
-                    data.part.Anchored = data.originalAnchored
-                end
+        
+        -- Restaura Humanoid
+        local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+        if targetHum then
+            pcall(function()
+                targetHum.CollisionType = Enum.HumanoidCollisionType.InnerBox
+                targetHum.AutoRotate = true
             end)
         end
-    end
-    
-    -- Restaura Humanoid
-    local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
-    if targetHum then
-        pcall(function()
-            targetHum.CollisionType = Enum.HumanoidCollisionType.InnerBox
-            targetHum.AutoRotate = true
-        end)
-    end
-    
-    -- Remove NoCollisionConstraints
-    for _, constraint in ipairs(flingNoclipConstraints) do
-        if constraint and constraint.Parent then
-            pcall(function() constraint:Destroy() end)
+        
+        -- Remove NoCollisionConstraints
+        for _, constraint in ipairs(flingNoclipConstraints) do
+            if constraint and constraint.Parent then
+                pcall(function() constraint:Destroy() end)
+            end
         end
-    end
-    flingNoclipConstraints = {}
-    
-    print("✅ Tudo restaurado")
-end)
-    
-    -- Restauração da animação do stand
-    task.wait(0.2)
-    if eraseTrack then eraseTrack:Stop() end
-    idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
-    
-    TweenService:Create(sRoot, TweenInfo.new(0.3), {CFrame = charRoot.CFrame * CFrame.new(STAND_OFFSET)}):Play()
-    
-    lastUsed["Erase"] = tick()
-    isAttacking = false
-    
-    showCooldownOnButton(eraseBtn, "Erase")
+        flingNoclipConstraints = {}
+        
+        print("✅ Tudo restaurado")
+        
+        task.wait(0.2)
+        if eraseTrack then eraseTrack:Stop() end
+        idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
+        
+        TweenService:Create(sRoot, TweenInfo.new(0.3), {CFrame = charRoot.CFrame * CFrame.new(STAND_OFFSET)}):Play()
+        
+        lastUsed["Erase"] = tick()
+        isAttacking = false
+        
+        showCooldownOnButton(eraseBtn, "Erase")
+    end)
 end
 
 -- ============================================================
@@ -1978,26 +2155,79 @@ end
 
 print("✅ VFX de Spawn carregado!")
 
--- ============================================================
--- TOGGLE STAND (Ativar/Desativar)
--- ============================================================
+local firstActivation = true   
+
+-- ==================== CUTSCENE OKUYASU (SIMPLIFICADA) ====================
+local function playOkuyasuCutscene()
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local root = character.HumanoidRootPart
+    isAttacking = true
+
+    -- ==================== FRAME PRETO RÁPIDO ====================
+    local blackFrame = Instance.new("Frame")
+    blackFrame.Name = "BlackFlash"
+    blackFrame.Size = UDim2.new(1, 120, 1, 120)
+    blackFrame.Position = UDim2.new(0, -60, 0, -60)
+    blackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    blackFrame.BackgroundTransparency = 1
+    blackFrame.ZIndex = 1500
+    blackFrame.Parent = screenGui
+
+    TweenService:Create(blackFrame, TweenInfo.new(0.1), {BackgroundTransparency = 0.04}):Play()
+    task.delay(0.22, function()
+        TweenService:Create(blackFrame, TweenInfo.new(0.1), {BackgroundTransparency = 1}):Play()
+        task.delay(0.15, function() blackFrame:Destroy() end)
+    end)
+
+    -- ==================== SOM DO OKUYASU ====================
+    local okuyasuVoice = Instance.new("Sound")
+    okuyasuVoice.SoundId = "rbxassetid://5375544504"
+    okuyasuVoice.Volume = 1.9
+    okuyasuVoice.PlaybackSpeed = 1.0
+    okuyasuVoice.Parent = workspace
+    okuyasuVoice:Play()
+    Debris:AddItem(okuyasuVoice, 5)
+
+    cameraShakePremium(3.5, 2.0)
+    showSpeechBubble("94794505267303", "right", 3.0)
+
+    spawnTemporalVFX()
+
+    -- Stand aparece normalmente
+    task.delay(0.5, function()
+        if currentStand then
+            local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
+            if sRoot then
+                sRoot.CFrame = root.CFrame * CFrame.new(12, 6, -6) * CFrame.Angles(0, math.rad(130), 0)
+                TweenService:Create(sRoot, TweenInfo.new(1.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                    CFrame = root.CFrame * CFrame.new(STAND_OFFSET)
+                }):Play()
+            end
+        end
+    end)
+
+    task.delay(3.5, function()
+        isAttacking = false
+    end)
+end
+
+-- ==================== TOGGLE STAND ====================
 local function toggleStand()
     if isStandActive then
-        -- DESATIVAR STAND
+        -- DESATIVAR
         isStandActive = false
         isAttacking = false
         activateBtn.Text = "STAND"
-        
         activateBtn.Size = UDim2.fromOffset(95, 95)
-        
-        -- Para o fling se estiver ativo
-        CleanUpFling()
 
+        CleanUpFling()
         spawn(function() animateButtonIn(eraseBtn, 0) end)
+        spawn(function() animateButtonIn(selfEraseBtn, 0) end)
 
         if idleTrack then idleTrack:Stop(0.1) end
-if walkTrack then walkTrack:Stop(0.1) end
-if runTrack then runTrack:Stop(0.1) end  
+        if walkTrack then walkTrack:Stop(0.1) end
+        if runTrack then runTrack:Stop(0.1) end  
 
         if currentStand then
             local root = currentStand:FindFirstChild("HumanoidRootPart")
@@ -2016,69 +2246,93 @@ if runTrack then runTrack:Stop(0.1) end
             currentStand = nil
         end
     else
-    -- ATIVAR STAND
-isStandActive = true
-startStandPulse()
-activateBtn.Text = "OFF"
-activateBtn.Size = UDim2.fromOffset(95, 95)
+        -- ATIVAR STAND
+        isStandActive = true
+        startStandPulse()
+        activateBtn.Text = "OFF"
+        activateBtn.Size = UDim2.fromOffset(95, 95)
 
-local eraseTarget = UDim2.new(0.63, 0, 0.78, 0)
+        spawn(function() animateButtonOut(eraseBtn, UDim2.new(0.63, 0, 0.78, 0), 0.12) end)
+        spawn(function() animateButtonOut(selfEraseBtn, UDim2.new(0.37, 0, 0.78, 0), 0.24) end)
 
-spawn(function() animateButtonOut(eraseBtn, eraseTarget, 0.12) end)
+        if firstActivation then
+            firstActivation = false
+            print("🎬 Primeira ativação - Iniciando cutscene")
+            
+            task.spawn(function()
+                currentStand = getStandModel()
+                if not currentStand then return end
+                currentStand.Parent = workspace
+                
+                local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+                local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
 
--- 🌌 VFX TEMPORAL: Esfera de vidro + Camera Shake
-spawnTemporalVFX()
-
--- Delay para sincronizar com o VFX
-task.wait(0.15)
-
-showSpeechBubble(ASSETS.OI_IMAGE, "right", 1)
-
-    local sound = Instance.new("Sound", workspace)
-sound.SoundId = ASSETS.STAND_ACTIVATE_SFX
-sound.Volume = 2
-sound.PlaybackSpeed = 2 
-sound:Play()
-    Debris:AddItem(sound, 5)
-
-    task.spawn(function()
-        currentStand = getStandModel()
-
-            currentStand.Parent = workspace
-            local sHum = currentStand:FindFirstChildOfClass("Humanoid")
-            local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
-
-            if sHum then
-                sHum.PlatformStand = true
-                sHum.AutoRotate = false
-                sHum.HipHeight = 0
-            end
-            if sRoot then
-                sRoot.Anchored = true
-                sRoot.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(STAND_OFFSET)
-            end
-
-            for _, p in ipairs(currentStand:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    if p.Name == "HumanoidRootPart" then
-                        p.Transparency = 1
-                    else
-                        p.Transparency = 1
-                        p.Color = p.Color:Lerp(COLORS.Blue, 0.1)
-                        TweenService:Create(p, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                            Transparency = 0
-                        }):Play()
-                    end
-                elseif p:IsA("Decal") then
-                    p.Transparency = 1
-                    TweenService:Create(p, TweenInfo.new(0.45), {Transparency = 0}):Play()
+                if sHum then
+                    sHum.PlatformStand = true
+                    sHum.AutoRotate = false
                 end
-            end
+                if sRoot then
+                    sRoot.Anchored = true
+                    sRoot.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(STAND_OFFSET)
+                end
 
-            if sHum then
-                idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
-            end
-        end)
+                playOkuyasuCutscene()
+
+                task.delay(1.3, function()
+                    if currentStand then
+                        for _, p in ipairs(currentStand:GetDescendants()) do
+                            if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                                TweenService:Create(p, TweenInfo.new(0.6), {Transparency = 0}):Play()
+                            elseif p:IsA("Decal") then
+                                TweenService:Create(p, TweenInfo.new(0.6), {Transparency = 0}):Play()
+                            end
+                        end
+                        if sHum then
+                            idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
+                        end
+                    end
+                end)
+            end)
+        else
+            -- Ativação normal
+            spawnTemporalVFX()
+            showSpeechBubble(ASSETS.OI_IMAGE, "right", 1)
+
+            local sound = Instance.new("Sound", workspace)
+            sound.SoundId = ASSETS.STAND_ACTIVATE_SFX
+            sound.Volume = 1.5
+            sound:Play()
+            Debris:AddItem(sound, 5)
+
+            task.spawn(function()
+                currentStand = getStandModel()
+                currentStand.Parent = workspace
+                local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+                local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
+
+                if sHum then 
+                    sHum.PlatformStand = true
+                    sHum.AutoRotate = false 
+                end
+                if sRoot then 
+                    sRoot.Anchored = true 
+                    sRoot.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(STAND_OFFSET)
+                end
+
+                for _, p in ipairs(currentStand:GetDescendants()) do
+                    if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                        p.Transparency = 1
+                        TweenService:Create(p, TweenInfo.new(0.45), {Transparency = 0}):Play()
+                    elseif p:IsA("Decal") then
+                        TweenService:Create(p, TweenInfo.new(0.45), {Transparency = 0}):Play()
+                    end
+                end
+
+                if sHum then
+                    idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
+                end
+            end)
+        end
     end
 end
 
@@ -2337,8 +2591,30 @@ end
 -- ============================================================
 -- CONEXÕES
 -- ============================================================
-activateBtn.MouseButton1Click:Connect(toggleStand)
-eraseBtn.MouseButton1Click:Connect(performErase)
+
+activateBtn.MouseButton1Click:Connect(function()
+    if buttonDebounce then return end
+    buttonDebounce = true
+    toggleStand()
+    task.wait(0.3)
+    buttonDebounce = false
+end)
+
+eraseBtn.MouseButton1Click:Connect(function()
+    if buttonDebounce then return end
+    buttonDebounce = true
+    performErase()
+    task.wait(0.3)
+    buttonDebounce = false
+end)
+
+selfEraseBtn.MouseButton1Click:Connect(function()
+    if buttonDebounce then return end
+    buttonDebounce = true
+    performSelfErase()
+    task.wait(0.3)
+    buttonDebounce = false
+end)
 
 player.Chatted:Connect(function(message)
     if message:lower() == "-changer" then
