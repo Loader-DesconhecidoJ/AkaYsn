@@ -558,7 +558,7 @@ local ASSETS = {
     STAND_ACTIVATE_SFX = "rbxassetid://125886305197484",
     ERASE_SOUND = "rbxassetid://140225325762905",
     STAND_IDLE = "rbxassetid://98789048056989",
-    STAND_WALK = "rbxassetid://139307201297469",
+    STAND_WALK = "rbxassetid://132783162476851",
     STAND_RUN = "rbxassetid://99823081022996",  
     ERASE_ANIM = "rbxassetid://139217391004393",
     STAND_IMAGE = "rbxassetid://71063600838165",
@@ -1565,8 +1565,17 @@ local function performErase()
     
     task.wait(0.2)
     
-    -- HIGHLIGHT NO ALVO
-    local targetChar = targetRoot.Parent
+    -- ═══════════════════════════════════════════
+-- 🌌 VFX DE APAGAMENTO (VÓRTICE + ENCOLHIMENTO)
+-- ═══════════════════════════════════════════
+
+local targetChar = targetRoot.Parent
+local originalSizes = {}
+local originalMeshScales = {}
+
+if targetChar then
+    
+    -- 1. HIGHLIGHT
     local highlight = Instance.new("Highlight")
     highlight.Name = "EraseHighlight"
     highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
@@ -1575,26 +1584,68 @@ local function performErase()
     highlight.FillTransparency = 1
     highlight.Parent = targetChar
     
-    local fadeIn = TweenService:Create(highlight, 
-        TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
-        {
-            OutlineTransparency = 0.5,
-            FillTransparency = 0.5
-        }
-    )
-    fadeIn:Play()
-    fadeIn.Completed:Wait()
+    TweenService:Create(highlight, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+        { OutlineTransparency = 0.5, FillTransparency = 0.5 }
+    ):Play()
+
+    -- 2. VÓRTICE
+    local corePart = Instance.new("Part")
+    corePart.Name = "ErasureVortex"
+    corePart.Size = Vector3.new(1, 1, 1)
+    corePart.Position = targetRoot.Position
+    corePart.Anchored = true
+    corePart.CanCollide = false
+    corePart.Transparency = 1
+    corePart.Parent = workspace
+    Debris:AddItem(corePart, 3)
+
+    local attachmentVortex = Instance.new("Attachment", corePart)
+
+    local pe_dark = Instance.new("ParticleEmitter", attachmentVortex)
+    pe_dark.Texture = "rbxassetid://14317181033"
+    pe_dark.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
+    pe_dark.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 5), NumberSequenceKeypoint.new(1, 0)})
+    pe_dark.Lifetime = NumberRange.new(0.5, 0.8)
+    pe_dark.Rate = 150
+    pe_dark.Speed = NumberRange.new(0, 2)
+    pe_dark.SpreadAngle = Vector2.new(180, 180)
+    pe_dark.RotSpeed = NumberRange.new(-100, 100)
+    pe_dark.Acceleration = Vector3.new(0, 5, 0)
+    pe_dark.ZOffset = 1
+
+    local pe_blue = pe_dark:Clone()
+    pe_blue.Parent = attachmentVortex
+    pe_blue.Color = ColorSequence.new(Color3.fromRGB(0, 150, 255))
+    pe_blue.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 3), NumberSequenceKeypoint.new(1, 0)})
+    pe_blue.LightEmission = 1
+    pe_blue.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
+
+    task.delay(0.6, function()
+        pe_dark.Enabled = false
+        pe_blue.Enabled = false
+    end)
+
+    -- 3. ENCOLHIMENTO
+    local tweenInfoErasure = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    for _, part in ipairs(targetChar:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            originalSizes[part] = part.Size
+            TweenService:Create(part, tweenInfoErasure, { Size = Vector3.new(0.05, 0.05, 0.05), Transparency = 1 }):Play()
+        elseif part:IsA("SpecialMesh") then
+            originalMeshScales[part] = part.Scale
+            TweenService:Create(part, tweenInfoErasure, { Scale = Vector3.new(0, 0, 0) }):Play()
+        end
+    end
     
-    task.wait(0.35)
-    
-    local fadeOut = TweenService:Create(highlight, 
-        TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
-        {
-            OutlineTransparency = 1,
-            FillTransparency = 1
-        }
-    )
-    fadeOut:Play()
+    -- 4. FADE OUT HIGHLIGHT
+    task.delay(1.8, function()
+        if highlight and highlight.Parent then
+            highlight:Destroy()
+        end
+    end)
+end
+
+task.wait(0.5)
     
 -- ═══════════════════════════════════════
 -- ⚡ SISTEMA SINCRONIZADO: TELEPORTE + NOCLIP + ÂNCORA + FLING
@@ -1664,6 +1715,22 @@ task.delay(SYNC_DURATION, function()
     print("⏰ 2s - Restaurando tudo...")
     CleanUpFling()
     
+    -- Restaura aparência se o alvo sobreviveu
+local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+if targetHumCheck and targetHumCheck.Health > 0 and targetChar then
+    local restoreInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    for part, originalSize in pairs(originalSizes) do
+        if part and part.Parent then
+            pcall(function() TweenService:Create(part, restoreInfo, { Size = originalSize, Transparency = 0 }):Play() end)
+        end
+    end
+    for mesh, originalScale in pairs(originalMeshScales) do
+        if mesh and mesh.Parent then
+            pcall(function() TweenService:Create(mesh, restoreInfo, { Scale = originalScale }):Play() end)
+        end
+    end
+end
+    
     for _, data in ipairs(anchoredParts) do
         if data.part and data.part.Parent then
             pcall(function() 
@@ -1694,11 +1761,6 @@ task.delay(SYNC_DURATION, function()
     
     print("✅ Tudo restaurado")
 end)
-    
-        -- Restauração do highlight
-    task.delay(0.3, function()
-        if highlight and highlight.Parent then highlight:Destroy() end
-    end)
     
     -- Restauração da animação do stand
     task.wait(0.2)
