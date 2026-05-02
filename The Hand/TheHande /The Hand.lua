@@ -636,18 +636,18 @@ local function findRightHand(model)
 end
 
 -- ============================================================
--- SISTEMA DE NOCLIP CORRIGIDO (ATRAVESSA HUMANOID) - v2
+-- SISTEMA DE NOCLIP CORRIGIDO (COM PROTEÇÃO NAN) - v3
 -- ============================================================
 local flingNoclipParts = {}  
 local flingNoclipHumans = {}
-local flingNoclipConstraints = {}  -- NOVO: armazena NoCollisionConstraints
+local flingNoclipConstraints = {}
 
 local FlingActive = false
 local FlingTargetRoot = nil
 local FloorPart = nil
 local flingConnection = nil
 
--- ✅ NOVA FUNÇÃO: Força noclip entre dois personagens inteiros
+-- ✅ Função de noclip entre personagens (mantida igual)
 local function forceNoclipBetweenChars(char1, char2)
     if not char1 or not char2 then return end
     
@@ -670,11 +670,9 @@ local function forceNoclipBetweenChars(char1, char2)
     return constraintsCreated
 end
 
--- Função para ativar noclip em um modelo (PARTES + HUMANOID)
 local function setNoclip(model, enabled)
     if not model then return end
     
-    -- Noclip nas partes físicas
     for _, part in ipairs(model:GetDescendants()) do
         if part:IsA("BasePart") and part.CanCollide == true then
             if enabled then
@@ -689,7 +687,6 @@ local function setNoclip(model, enabled)
         end
     end
     
-    -- NOCLIP NO HUMANOID
     local targetHumanoid = model:FindFirstChildOfClass("Humanoid")
     if targetHumanoid then
         if enabled then
@@ -699,13 +696,10 @@ local function setNoclip(model, enabled)
                 originalCollisionType = targetHumanoid.CollisionType,
                 originalState = originalState
             })
-            
-            -- ⚡ Tenta OuterBox (mais agressivo que InnerBox)
             targetHumanoid.CollisionType = Enum.HumanoidCollisionType.OuterBox
         end
     end
     
-    -- ✅ FORÇA NOCOLISÃO ENTRE OS DOIS PERSONAGENS INTEIROS
     if enabled and character then
         local constraints = forceNoclipBetweenChars(character, model)
         for _, c in ipairs(constraints) do
@@ -714,9 +708,7 @@ local function setNoclip(model, enabled)
     end
 end
 
--- Função para restaurar noclip (ATUALIZADA)
 local function restoreNoclip()
-    -- Restaura partes físicas
     for _, data in ipairs(flingNoclipParts) do
         if data.part and data.part.Parent then
             pcall(function()
@@ -727,7 +719,6 @@ local function restoreNoclip()
     end
     flingNoclipParts = {}
     
-    -- Restaura Humanoids
     for _, data in ipairs(flingNoclipHumans) do
         if data.humanoid and data.humanoid.Parent then
             pcall(function()
@@ -737,7 +728,6 @@ local function restoreNoclip()
     end
     flingNoclipHumans = {}
     
-    -- ✅ Remove NoCollisionConstraints
     for _, constraint in ipairs(flingNoclipConstraints) do
         if constraint and constraint.Parent then
             pcall(function()
@@ -752,10 +742,8 @@ local function CleanUpFling()
     FlingActive = false
     FlingTargetRoot = nil
     
-    -- ✅ Restaura noclip de todas as partes e humanoids
     restoreNoclip()
     
-    -- Destruição segura do piso fantasma
     if FloorPart then
         pcall(function()
             if FloorPart.Parent then
@@ -765,7 +753,6 @@ local function CleanUpFling()
         FloorPart = nil
     end
     
-    -- Limpeza adicional: remove qualquer FloorPart órfão
     for _, obj in ipairs(workspace:GetChildren()) do
         if obj.Name == "SimFloor_Fling" or obj:GetAttribute("TheHand_FlingPart") then
             pcall(function() obj:Destroy() end)
@@ -777,14 +764,14 @@ local function CleanUpFling()
         flingConnection = nil
     end
     
-    -- Verificação segura do sethiddenproperty
+    -- ✅ Verificação segura do sethiddenproperty com timeout
     if character and character:FindFirstChild("HumanoidRootPart") then
         pcall(function()
             sethiddenproperty(character.HumanoidRootPart, "PhysicsRepRootPart", nil)
         end)
     end
     
-    if hum then
+    if hum and hum.Parent then
         pcall(function()
             sethiddenproperty(hum, "MoveDirectionInternal", Vector3.new(0, 0, 0))
         end)
@@ -792,18 +779,16 @@ local function CleanUpFling()
 end
 
 local function StartFling(targetRoot)
-    local charRoot = character:FindFirstChild("HumanoidRootPart")
+    local charRoot = character and character:FindFirstChild("HumanoidRootPart")
     if not charRoot or not hum or hum.Health <= 0 then return end
     
     FlingActive = true
     FlingTargetRoot = targetRoot
     
-    -- ✅ ATIVA NOCLIP NO ALVO (IMEDIATAMENTE)
     if targetRoot and targetRoot.Parent then
         setNoclip(targetRoot.Parent, true)
     end
     
-    -- Piso fantasma
     FloorPart = Instance.new("Part")
     FloorPart.Size = Vector3.new(8, 0.2, 8)
     FloorPart.Transparency = 1
@@ -813,15 +798,17 @@ local function StartFling(targetRoot)
     FloorPart.Parent = workspace
     FloorPart:SetAttribute("TheHand_FlingPart", true)
     
-    -- Posiciona o piso abaixo do alvo
-    FloorPart.CFrame = targetRoot.CFrame * CFrame.new(0, -3.2, 0)
+    if targetRoot and targetRoot.Parent then
+        FloorPart.CFrame = targetRoot.CFrame * CFrame.new(0, -3.2, 0)
+    end
     
-    -- Timeout de segurança
     local startFlingTime = tick()
     local MAX_FLING_TIME = 3
+    local nanFlingAttempts = 0
+    local MAX_NAN_ATTEMPTS = 10 -- ✅ Limite de tentativas com NaN
     
     flingConnection = RunService.Stepped:Connect(function()
-        -- Verificação de timeout
+        -- ✅ Timeout de segurança
         if tick() - startFlingTime > MAX_FLING_TIME then
             warn("⏰ Timeout do Fling atingido - limpando")
             CleanUpFling()
@@ -844,35 +831,52 @@ local function StartFling(targetRoot)
             return
         end
         
-        -- 🔗 FORÇA O ALVO A FICAR DENTRO DO SEU BONECO (PhysicsRepRootPart)
-        local success1 = pcall(function()
-            sethiddenproperty(charRoot, "PhysicsRepRootPart", FlingTargetRoot)
-        end)
-        
-        -- 💥 NaN Fling (impulso caótico)
-        local success2 = pcall(function()
-            local Nan = 0/0
-            local NanVec = Vector3.new(Nan, Nan, Nan)
-            sethiddenproperty(hum, "MoveDirectionInternal", NanVec)
-            charRoot.AssemblyLinearVelocity = NanVec
-            charRoot.AssemblyAngularVelocity = NanVec
-            FloorPart.AssemblyLinearVelocity = NanVec
-        end)
-        
-        if not success1 or not success2 then
-            warn("⚠️ sethiddenproperty falhou - usando fallback de impulso")
-            -- Fallback: Impulso forte normal
-            local randomDirection = Vector3.new(
-                math.random(-1000, 1000) / 100,
-                math.random(500, 1000) / 100,
-                math.random(-1000, 1000) / 100
-            )
+        -- ✅ Limita tentativas com NaN para evitar corrupção
+        if nanFlingAttempts < MAX_NAN_ATTEMPTS then
+            local success1 = pcall(function()
+                sethiddenproperty(charRoot, "PhysicsRepRootPart", FlingTargetRoot)
+            end)
+            
+            local success2 = pcall(function()
+                local Nan = 0/0
+                local NanVec = Vector3.new(Nan, Nan, Nan)
+                sethiddenproperty(hum, "MoveDirectionInternal", NanVec)
+                charRoot.AssemblyLinearVelocity = NanVec
+                charRoot.AssemblyAngularVelocity = NanVec
+                FloorPart.AssemblyLinearVelocity = NanVec
+            end)
+            
+            nanFlingAttempts = nanFlingAttempts + 1
+            
+            if not success1 or not success2 then
+                warn("⚠️ sethiddenproperty falhou após " .. nanFlingAttempts .. " tentativas - usando fallback")
+                local randomDirection = Vector3.new(
+                    math.random(-1000, 1000) / 100,
+                    math.random(500, 1000) / 100,
+                    math.random(-1000, 1000) / 100
+                )
+                pcall(function()
+                    if FlingTargetRoot and FlingTargetRoot.Parent then
+                        local targetHum2 = FlingTargetRoot.Parent:FindFirstChildOfClass("Humanoid")
+                        if targetHum2 then
+                            targetHum2:TakeDamage(5)
+                        end
+                        FlingTargetRoot.Velocity = randomDirection * 50
+                    end
+                end)
+                CleanUpFling()
+                return
+            end
+        else
+            -- ✅ Fallback seguro após muitas tentativas
+            warn("⚠️ Limite de NaN atingido - usando fallback de impulso")
             pcall(function()
                 if FlingTargetRoot and FlingTargetRoot.Parent then
-                    local targetHum2 = FlingTargetRoot.Parent:FindFirstChildOfClass("Humanoid")
-                    if targetHum2 then
-                        targetHum2:TakeDamage(5)
-                    end
+                    FlingTargetRoot.Velocity = Vector3.new(
+                        math.random(-500, 500), 
+                        math.random(300, 600), 
+                        math.random(-500, 500)
+                    )
                 end
             end)
             CleanUpFling()
@@ -880,25 +884,30 @@ local function StartFling(targetRoot)
         end
         
         -- Atualiza posição do piso fantasma
-        if FloorPart and FloorPart.Parent then
+        if FloorPart and FloorPart.Parent and FlingTargetRoot and FlingTargetRoot.Parent then
             FloorPart.CFrame = FlingTargetRoot.CFrame * CFrame.new(0, -3.2, 0)
         end
     end)
     
-    -- Conexão de segurança extra
+    -- ✅ Conexão de segurança extra
     if character then
         local destroyConn
         destroyConn = character.Destroying:Connect(function()
             CleanUpFling()
-            if destroyConn then destroyConn:Disconnect() end
+            if destroyConn then 
+                pcall(function() destroyConn:Disconnect() end) 
+            end
         end)
     end
 end
 
 -- ============================================================
--- SISTEMA DE STAND MODEL
+-- SISTEMA DE STAND MODEL (CORRIGIDO - Cache + Segurança)
 -- ============================================================
 local ACCESSORY_TAG = "TheHandAccessory"
+
+-- ✅ Cache do modelo para evitar recriação desnecessária
+local cachedStandModel = nil
 
 local function getStandModel(depth)
     depth = depth or 0
@@ -909,7 +918,14 @@ local function getStandModel(depth)
         return nil
     end
     
+    -- ✅ Se já tem um modelo em cache e é o mesmo UserId, reutiliza
     local targetUserId = customStandUserId or player.UserId
+    if cachedStandModel and cachedStandModel:GetAttribute("CachedUserId") == targetUserId then
+        local clone = cachedStandModel:Clone()
+        clone:SetAttribute("CachedUserId", nil) -- Remove o atributo do clone
+        return clone
+    end
+    
     local success, model = pcall(function()
         local description = Players:GetHumanoidDescriptionFromUserId(targetUserId)
         local standModel = Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
@@ -919,20 +935,32 @@ local function getStandModel(depth)
     if not success or not model then
         warn("❌ Falha ao criar Stand (tentativa " .. depth .. "). Usando fallback...")
         customStandUserId = nil
-        return getStandModel(depth + 1)  -- ✅ Agora tem limite de profundidade
+        return getStandModel(depth + 1)
     end
     
     model.Name = "TheHand"
     model.Archivable = true
-    
-    -- Marca o modelo com tag para identificação
     model:SetAttribute(ACCESSORY_TAG, true)
+    model:SetAttribute("CachedUserId", targetUserId) -- ✅ Marca o UserId no cache
     
-    for _, child in ipairs(model:GetChildren()) do
-        if child:GetAttribute(ACCESSORY_TAG) then child:Destroy() end
+    -- ✅ Armazena no cache para reutilização
+    if cachedStandModel then
+        pcall(function() cachedStandModel:Destroy() end)
     end
+    cachedStandModel = model:Clone()
+    cachedStandModel:SetAttribute("CachedUserId", targetUserId)
+    
+    -- Limpeza inicial do modelo
+    for _, child in ipairs(model:GetChildren()) do
+        if child:GetAttribute(ACCESSORY_TAG) then 
+            pcall(function() child:Destroy() end) 
+        end
+    end
+    
     for _, obj in ipairs(model:GetDescendants()) do
-        if obj:GetAttribute(ACCESSORY_TAG) then obj:Destroy() end
+        if obj:GetAttribute(ACCESSORY_TAG) then 
+            pcall(function() obj:Destroy() end) 
+        end
         if obj:IsA("BasePart") then
             obj.CanCollide = false
             obj.CastShadow = false
@@ -944,7 +972,7 @@ local function getStandModel(depth)
         elseif obj:IsA("Decal") then
             obj.Transparency = 1
         elseif obj:IsA("LuaSourceContainer") then
-            obj:Destroy()
+            pcall(function() obj:Destroy() end)
         end
     end
     
@@ -1147,16 +1175,26 @@ local function createCooldownBar(button, abilityName, duration)
     
     task.spawn(function()
     while barContainer and barContainer.Parent do
+        if not barContainer.Parent then break end
+        
+        pcall(function()
             TweenService:Create(border, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
                 Transparency = 0.6
             }):Play()
-            task.wait(0.5)
+        end)
+        
+        task.wait(0.5)
+        if not barContainer.Parent then break end
+        
+        pcall(function()
             TweenService:Create(border, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
                 Transparency = 0.2
             }):Play()
-            task.wait(0.5)
-        end
-    end)
+        end)
+        
+        task.wait(0.5)
+    end
+end)
     
     return barContainer, fill, countText, gradient
 end
@@ -2157,63 +2195,280 @@ print("✅ VFX de Spawn carregado!")
 
 local firstActivation = true   
 
--- ==================== CUTSCENE OKUYASU (SIMPLIFICADA) ====================
+-- ==================== CUTSCENE OKUYASU - THE HAND (VERSÃO ANIME) ====================
 local function playOkuyasuCutscene()
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
     
     local root = character.HumanoidRootPart
+    local head = character:FindFirstChild("Head")
+    local camera = workspace.CurrentCamera
+    
+    if not head or not camera then return end
+    
     isAttacking = true
-
-    -- ==================== FRAME PRETO RÁPIDO ====================
-    local blackFrame = Instance.new("Frame")
-    blackFrame.Name = "BlackFlash"
-    blackFrame.Size = UDim2.new(1, 120, 1, 120)
-    blackFrame.Position = UDim2.new(0, -60, 0, -60)
-    blackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    blackFrame.BackgroundTransparency = 1
-    blackFrame.ZIndex = 1500
-    blackFrame.Parent = screenGui
-
-    TweenService:Create(blackFrame, TweenInfo.new(0.1), {BackgroundTransparency = 0.04}):Play()
-    task.delay(0.22, function()
-        TweenService:Create(blackFrame, TweenInfo.new(0.1), {BackgroundTransparency = 1}):Play()
-        task.delay(0.15, function() blackFrame:Destroy() end)
-    end)
-
+    
+    -- ==================== CONGELA O PLAYER ====================
+    if hum then
+        hum.WalkSpeed = 0
+        hum.JumpPower = 0
+        hum.AutoRotate = false
+    end
+    
+    -- Força pose parada (sem idle)
+    local animate = character:FindFirstChild("Animate")
+    if animate then
+        animate.Disabled = true
+    end
+    
+    -- ==================== SALVA CONFIGURAÇÃO ORIGINAL DA CÂMERA ====================
+    local originalCameraType = camera.CameraType
+    local originalCameraSubject = camera.CameraSubject
+    
+    camera.CameraType = Enum.CameraType.Scriptable
+    
     -- ==================== SOM DO OKUYASU ====================
     local okuyasuVoice = Instance.new("Sound")
     okuyasuVoice.SoundId = "rbxassetid://5375544504"
-    okuyasuVoice.Volume = 1.9
+    okuyasuVoice.Volume = 2.5
     okuyasuVoice.PlaybackSpeed = 1.0
-    okuyasuVoice.Parent = workspace
+    okuyasuVoice.Parent = head
     okuyasuVoice:Play()
-    Debris:AddItem(okuyasuVoice, 5)
+    Debris:AddItem(okuyasuVoice, 6)
+    
+    -- ==================== FASE 0: POSIÇÃO INICIAL DA CÂMERA ====================
+    -- Câmera começa perto do chão, olhando levemente pra cima (estilo anime)
+    camera.CFrame = CFrame.new(
+        root.Position + Vector3.new(0, 0.5, -8),
+        root.Position + Vector3.new(0, 2, 0)
+    )
+    task.wait(0.2)
+    
+    -- ==================== FASE 1: BALÃO DE FALA APARECE + ZOOM FRENTE A FRENTE ====================
+    showSpeechBubble("94794505267303", "right", 5.0)
+    
+    -- Espera o balão aparecer
+    task.wait(0.4)
+    
+    -- Posição exata do balão (lado ESQUERDO da cabeça)
+local balloonPos = head.Position + Vector3.new(-2, 2.2, 0)
 
-    cameraShakePremium(3.5, 2.0)
-    showSpeechBubble("94794505267303", "right", 3.0)
-
-    spawnTemporalVFX()
-
-    -- Stand aparece normalmente
-    task.delay(0.5, function()
-        if currentStand then
-            local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
-            if sRoot then
-                sRoot.CFrame = root.CFrame * CFrame.new(12, 6, -6) * CFrame.Angles(0, math.rad(130), 0)
-                TweenService:Create(sRoot, TweenInfo.new(1.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-                    CFrame = root.CFrame * CFrame.new(STAND_OFFSET)
-                }):Play()
+-- Câmera vai pra FRENTE do balão (lado esquerdo), olhando DIRETAMENTE pra ele
+local tween_zoom_balloon = TweenService:Create(camera, 
+    TweenInfo.new(1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), 
+    {CFrame = CFrame.new(
+        balloonPos + Vector3.new(0, 0, -3.5),  -- Frente do balão (3.5 studs de distância)
+        balloonPos                                -- Olhando pro centro do balão
+    )}
+)
+    tween_zoom_balloon:Play()
+    tween_zoom_balloon.Completed:Wait()
+    
+    -- Pequena pausa dramática no balão
+    task.wait(0.8)
+    
+    -- ==================== FASE 2: CÂMERA VAI PRO ROSTO DO BONECO (FRENTE A FRENTE) ====================
+    local facePos = head.Position + Vector3.new(0, 0.3, 0)
+    
+    -- Câmera fica NA FRENTE do rosto do player
+    local tween_face = TweenService:Create(camera, 
+        TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), 
+        {CFrame = CFrame.new(
+            facePos + Vector3.new(0, 0, -2.5),  -- 2.5 studs na frente do rosto
+            facePos                                -- Olhando diretamente pro rosto
+        )}
+    )
+    tween_face:Play()
+    tween_face.Completed:Wait()
+    
+    -- Pausa olhando pro rosto (close-up)
+    task.wait(0.6)
+    
+    -- ==================== FASE 3: CORTE 1 - FRAME BLACK ====================
+    local blackFrame1 = Instance.new("Frame")
+    blackFrame1.Name = "BlackFlash1"
+    blackFrame1.Size = UDim2.new(1, 120, 1, 120)
+    blackFrame1.Position = UDim2.new(0, -60, 0, -60)
+    blackFrame1.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    blackFrame1.BackgroundTransparency = 1
+    blackFrame1.ZIndex = 1500
+    blackFrame1.Parent = screenGui
+    
+    -- Fade in rápido do preto
+    TweenService:Create(blackFrame1, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+        {BackgroundTransparency = 0}
+    ):Play()
+    task.wait(0.2)
+    
+    -- ==================== DURANTE O PRETO: PREPARA STAND E CÂMERA ====================
+    if currentStand then
+        local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
+        if sRoot then
+            sRoot.CFrame = root.CFrame * CFrame.new(STAND_OFFSET)
+            sRoot.Anchored = true
+        end
+        
+        -- Stand começa transparente
+        for _, p in ipairs(currentStand:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                p.Transparency = 1
+            elseif p:IsA("Decal") then
+                p.Transparency = 1
             end
         end
-    end)
+    end
+    
+    -- Posição do Stand
+    local standBasePos = root.CFrame * CFrame.new(STAND_OFFSET)
+    
+    -- Câmera vai pra BAIXO do Stand, FRENTE A FRENTE, olhando pra CIMA
+    camera.CFrame = CFrame.new(
+        standBasePos.Position + Vector3.new(0, -2.5, -4),  -- Embaixo e na frente
+        standBasePos.Position + Vector3.new(0, 1, 0)        -- Olhando pra cima (peito do Stand)
+    )
+    
+    -- ==================== FASE 4: FADE OUT DO PRETO + STAND APARECE ====================
+    spawnTemporalVFX()
+    
+    -- Fade out do preto
+    TweenService:Create(blackFrame1, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+        {BackgroundTransparency = 1}
+    ):Play()
+    
+    -- Fade in do Stand (bem suave)
+    for _, p in ipairs(currentStand:GetDescendants()) do
+        if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+            TweenService:Create(p, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+                {Transparency = 0}
+            ):Play()
+        elseif p:IsA("Decal") then
+            TweenService:Create(p, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+                {Transparency = 0}
+            ):Play()
+        end
+    end
+    
+    task.wait(0.5)
+    blackFrame1:Destroy()
+    
+    -- ==================== FASE 5: CÂMERA SOBE REVELANDO O STAND (DE BAIXO PRA CIMA) ====================
+    local revealDuration = 2.5
+    local revealStart = tick()
+    
+    -- Altura do Stand (aproximadamente 5 studs de altura)
+local standHeight = 5
 
-    task.delay(3.5, function()
-        isAttacking = false
+local camStartY = standBasePos.Position.Y - 2       -- Começa abaixo dos pés
+local camEndY = standBasePos.Position.Y + standHeight + 0.5  -- Para no topo da cabeça
+local lookStartY = standBasePos.Position.Y - 0.5     -- Olha pro joelho
+local lookEndY = standBasePos.Position.Y + standHeight - 0.5  -- Olha pro rosto
+    
+    local revealConnection
+    revealConnection = RunService.RenderStepped:Connect(function()
+        local elapsed = tick() - revealStart
+        local progress = math.clamp(elapsed / revealDuration, 0, 1)
+        
+        -- Easing suave (começa devagar, acelera no meio, desacelera no fim)
+        local easedProgress
+        
+        if progress < 0.5 then
+            -- Primeira metade: acelera (ease in)
+            easedProgress = 2 * progress * progress
+        else
+            -- Segunda metade: desacelera (ease out)
+            easedProgress = -1 + (4 - 2 * progress) * progress
+        end
+        
+        local currentCamY = camStartY + (camEndY - camStartY) * easedProgress
+        local currentLookY = lookStartY + (lookEndY - lookStartY) * easedProgress
+        
+        -- Câmera FRENTE A FRENTE do Stand, subindo
+        camera.CFrame = CFrame.new(
+            Vector3.new(standBasePos.Position.X, currentCamY, standBasePos.Position.Z - 5),
+            Vector3.new(standBasePos.Position.X, currentLookY, standBasePos.Position.Z)
+        )
+        
+        if progress >= 1 then
+            revealConnection:Disconnect()
+        end
     end)
+    
+    task.wait(revealDuration + 0.4)
+    
+    -- ==================== FASE 6: CORTE 2 - FRAME BLACK ====================
+    local blackFrame2 = Instance.new("Frame")
+    blackFrame2.Name = "BlackFlash2"
+    blackFrame2.Size = UDim2.new(1, 120, 1, 120)
+    blackFrame2.Position = UDim2.new(0, -60, 0, -60)
+    blackFrame2.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    blackFrame2.BackgroundTransparency = 1
+    blackFrame2.ZIndex = 1500
+    blackFrame2.Parent = screenGui
+    
+    -- Fade in rápido
+    TweenService:Create(blackFrame2, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+        {BackgroundTransparency = 0}
+    ):Play()
+    task.wait(0.25)
+    
+    -- ==================== DURANTE O PRETO: CÂMERA VAI PRA COSTA DO BONECO ====================
+    -- Câmera atrás do player, vendo o Stand na frente
+    camera.CFrame = CFrame.new(
+        root.Position + Vector3.new(0, 4, 10),  -- Atrás e acima do player
+        root.Position + Vector3.new(0, 2, 0)     -- Olhando pro player (e o Stand aparece na frente)
+    )
+    
+    -- ==================== FASE 7: FADE OUT DO PRETO - VISÃO DA COSTA ====================
+    TweenService:Create(blackFrame2, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+        {BackgroundTransparency = 1}
+    ):Play()
+    
+    task.wait(0.4)
+    blackFrame2:Destroy()
+    
+    -- Câmera se ajusta suavemente pra posição final (atrás do player, mostrando o Stand)
+    local finalCamPos = root.Position + Vector3.new(0, 5, 8)
+    local finalLookPos = root.Position + Vector3.new(0, 3, 0)
+    
+    local tween_final = TweenService:Create(camera, 
+        TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), 
+        {CFrame = CFrame.new(finalCamPos, finalLookPos)}
+    )
+    tween_final:Play()
+    tween_final.Completed:Wait()
+    
+    task.wait(0.3)
+    
+    -- ==================== FASE 8: RETORNO SUAVE PRA CÂMERA NORMAL ====================
+    camera.CameraType = originalCameraType
+    camera.CameraSubject = originalCameraSubject
+    
+    -- ==================== DESCONGELA O PLAYER ====================
+    if hum then
+        hum.WalkSpeed = originalWalkSpeed_anim
+        hum.JumpPower = SETTINGS.JumpPower
+        hum.AutoRotate = true
+    end
+    
+    -- Reativa animações
+    if animate then
+        animate.Disabled = false
+    end
+    
+    isAttacking = false
+    
+    cameraShakePremium(0.4, 1.2)
+    print("🎬 Cutscene THE HAND - Estilo Okuyasu finalizada!")
 end
 
--- ==================== TOGGLE STAND ====================
+-- ============================================================
+-- TOGGLE STAND (CORRIGIDO - Proteção contra dupla ativação)
+-- ============================================================
+local standToggleDebounce = false -- ✅ Debounce dedicado para toggle
+
 local function toggleStand()
+    if standToggleDebounce then return end -- ✅ Previne spam
+    standToggleDebounce = true
+    
     if isStandActive then
         -- DESATIVAR
         isStandActive = false
@@ -2225,18 +2480,21 @@ local function toggleStand()
         spawn(function() animateButtonIn(eraseBtn, 0) end)
         spawn(function() animateButtonIn(selfEraseBtn, 0) end)
 
-        if idleTrack then idleTrack:Stop(0.1) end
-        if walkTrack then walkTrack:Stop(0.1) end
-        if runTrack then runTrack:Stop(0.1) end  
+        if idleTrack then pcall(function() idleTrack:Stop(0.1) end) end
+        if walkTrack then pcall(function() walkTrack:Stop(0.1) end) end
+        if runTrack then pcall(function() runTrack:Stop(0.1) end) end  
 
         if currentStand then
             local root = currentStand:FindFirstChild("HumanoidRootPart")
-            if root then
+            local charRoot = character and character:FindFirstChild("HumanoidRootPart")
+            
+            if root and charRoot then
                 root.Anchored = false
                 TweenService:Create(root, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
-                    CFrame = character.HumanoidRootPart.CFrame
+                    CFrame = charRoot.CFrame
                 }):Play()
             end
+            
             for _, p in ipairs(currentStand:GetDescendants()) do
                 if p:IsA("BasePart") then
                     TweenService:Create(p, TweenInfo.new(0.4), {Transparency = 1}):Play()
@@ -2245,6 +2503,12 @@ local function toggleStand()
             Debris:AddItem(currentStand, 0.6)
             currentStand = nil
         end
+        
+        -- ✅ Limpa cache
+        cachedCharRoot = nil
+        cachedSRoot = nil
+        cachedSHum = nil
+        
     else
         -- ATIVAR STAND
         isStandActive = true
@@ -2261,19 +2525,24 @@ local function toggleStand()
             
             task.spawn(function()
                 currentStand = getStandModel()
-                if not currentStand then return end
+                if not currentStand then 
+                    isStandActive = false
+                    standToggleDebounce = false
+                    return 
+                end
                 currentStand.Parent = workspace
                 
                 local sHum = currentStand:FindFirstChildOfClass("Humanoid")
                 local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
+                local charRoot = character and character:FindFirstChild("HumanoidRootPart")
 
                 if sHum then
                     sHum.PlatformStand = true
                     sHum.AutoRotate = false
                 end
-                if sRoot then
+                if sRoot and charRoot then
                     sRoot.Anchored = true
-                    sRoot.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(STAND_OFFSET)
+                    sRoot.CFrame = charRoot.CFrame * CFrame.new(STAND_OFFSET)
                 end
 
                 playOkuyasuCutscene()
@@ -2287,7 +2556,7 @@ local function toggleStand()
                                 TweenService:Create(p, TweenInfo.new(0.6), {Transparency = 0}):Play()
                             end
                         end
-                        if sHum then
+                        if sHum and sHum.Parent then
                             idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
                         end
                     end
@@ -2306,17 +2575,23 @@ local function toggleStand()
 
             task.spawn(function()
                 currentStand = getStandModel()
+                if not currentStand then 
+                    isStandActive = false
+                    standToggleDebounce = false
+                    return 
+                end
                 currentStand.Parent = workspace
                 local sHum = currentStand:FindFirstChildOfClass("Humanoid")
                 local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
+                local charRoot = character and character:FindFirstChild("HumanoidRootPart")
 
                 if sHum then 
                     sHum.PlatformStand = true
                     sHum.AutoRotate = false 
                 end
-                if sRoot then 
+                if sRoot and charRoot then 
                     sRoot.Anchored = true 
-                    sRoot.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(STAND_OFFSET)
+                    sRoot.CFrame = charRoot.CFrame * CFrame.new(STAND_OFFSET)
                 end
 
                 for _, p in ipairs(currentStand:GetDescendants()) do
@@ -2328,71 +2603,90 @@ local function toggleStand()
                     end
                 end
 
-                if sHum then
+                if sHum and sHum.Parent then
                     idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
                 end
             end)
         end
     end
+    
+    -- ✅ Libera o debounce após um tempo
+    task.delay(0.5, function()
+        standToggleDebounce = false
+    end)
 end
 
+-- ✅ Atualiza o clique do botão para usar o debounce dedicado
+activateBtn.MouseButton1Click:Connect(function()
+    toggleStand()
+end)
+
 -- ============================================================
--- ANIMAÇÃO DO STAND SEGUINDO (IDLE / WALK / RUN)
+-- ANIMAÇÃO DO STAND SEGUINDO (CORRIGIDO - Cache + Heartbeat)
 -- ============================================================
 local lastStandState = "Idle"
 
--- ✅ Configurações das animações
 local STAND_ANIM_SPEEDS = {
     Idle = 1.0,
-    Walk = 1.5,   -- Velocidade da animação de walk
-    Run = 0.8,    -- Velocidade da animação de run (ajuste conforme necessário)
+    Walk = 1.5,
+    Run = 0.8,
 }
 
--- ✅ Limiares de velocidade
-local WALK_THRESHOLD = 5   -- Acima de 5 studs/s = Walk
-local RUN_THRESHOLD = 14   -- Acima de 14 studs/s = Run
+local WALK_THRESHOLD = 5
+local RUN_THRESHOLD = 14
 
-RunService.RenderStepped:Connect(function()
-    if not isStandActive or not currentStand or isAttacking then return end
+-- ✅ Cache de referências para evitar buscas repetidas
+local cachedCharRoot = nil
+local cachedSRoot = nil
+local cachedSHum = nil
+
+RunService.Heartbeat:Connect(function() -- ✅ Mudado para Heartbeat (mais eficiente)
+    if not isStandActive or not currentStand or isAttacking then
+        -- Limpa cache quando o Stand não está ativo
+        cachedCharRoot = nil
+        cachedSRoot = nil
+        cachedSHum = nil
+        return
+    end
     
-    local root = character:FindFirstChild("HumanoidRootPart")
-    local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
-    local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+    -- ✅ Atualiza cache apenas se necessário
+    if not cachedCharRoot or not cachedCharRoot.Parent then
+        cachedCharRoot = character and character:FindFirstChild("HumanoidRootPart")
+    end
+    if not cachedSRoot or not cachedSRoot.Parent then
+        cachedSRoot = currentStand and currentStand:FindFirstChild("HumanoidRootPart")
+    end
+    if not cachedSHum or not cachedSHum.Parent then
+        cachedSHum = currentStand and currentStand:FindFirstChildOfClass("Humanoid")
+    end
     
-    if not root or not sRoot or not sHum then return end
+    if not cachedCharRoot or not cachedSRoot or not cachedSHum then return end
     
-    -- Movimento suave do Stand seguindo o player
-    local targetPos = root.CFrame * CFrame.new(STAND_OFFSET)
-    sRoot.CFrame = sRoot.CFrame:Lerp(targetPos, 0.12)
+    -- Movimento suave do Stand
+    local targetPos = cachedCharRoot.CFrame * CFrame.new(STAND_OFFSET)
+    cachedSRoot.CFrame = cachedSRoot.CFrame:Lerp(targetPos, 0.12)
     
-    -- Velocidade horizontal do player
-    local velocity = root.Velocity
+    -- Velocidade horizontal
+    local velocity = cachedCharRoot.Velocity
     local horizSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
     
-    -- ═══════════════════════════════════════
-    -- LÓGICA DE TRANSIÇÃO DE ANIMAÇÕES
-    -- ═══════════════════════════════════════
-    
+    -- ✅ Transições de animação com verificação de existência
     if horizSpeed >= RUN_THRESHOLD then
-        -- 🏃‍♂️ VELOCIDADE ALTA = ANIMAÇÃO DE RUN
         if lastStandState ~= "Run" then
             lastStandState = "Run"
             
-            -- Para Idle
             if idleTrack and idleTrack.IsPlaying then 
-                idleTrack:Stop(0.15) 
+                pcall(function() idleTrack:Stop(0.15) end) 
             end
-            
-            -- Para Walk
             if walkTrack and walkTrack.IsPlaying then 
-                walkTrack:Stop(0.1) 
+                pcall(function() walkTrack:Stop(0.1) end) 
             end
             
-            -- Toca Run
-            runTrack = playAnim(sHum, ASSETS.STAND_RUN, STAND_ANIM_SPEEDS.Run, true, Enum.AnimationPriority.Movement)
+            pcall(function()
+                runTrack = playAnim(cachedSHum, ASSETS.STAND_RUN, STAND_ANIM_SPEEDS.Run, true, Enum.AnimationPriority.Movement)
+            end)
         end
         
-        -- ✅ Ajusta a velocidade da animação de run baseado na velocidade do player
         if runTrack and runTrack.IsPlaying then
             local speedMultiplier = math.clamp(horizSpeed / RUN_THRESHOLD, 0.8, 2.0)
             pcall(function()
@@ -2401,26 +2695,22 @@ RunService.RenderStepped:Connect(function()
         end
         
     elseif horizSpeed >= WALK_THRESHOLD then
-        -- 🚶‍♂️ VELOCIDADE MÉDIA = ANIMAÇÃO DE WALK
         if lastStandState ~= "Walk" then
             lastStandState = "Walk"
             
-            -- Para Idle
             if idleTrack and idleTrack.IsPlaying then 
-                idleTrack:Stop(0.15) 
+                pcall(function() idleTrack:Stop(0.15) end) 
             end
-            
-            -- Para Run
             if runTrack and runTrack.IsPlaying then 
-                runTrack:Stop(0.1) 
+                pcall(function() runTrack:Stop(0.1) end) 
                 runTrack = nil
             end
             
-            -- Toca Walk
-            walkTrack = playAnim(sHum, ASSETS.STAND_WALK, STAND_ANIM_SPEEDS.Walk, true, Enum.AnimationPriority.Movement)
+            pcall(function()
+                walkTrack = playAnim(cachedSHum, ASSETS.STAND_WALK, STAND_ANIM_SPEEDS.Walk, true, Enum.AnimationPriority.Movement)
+            end)
         end
         
-        -- ✅ Ajusta a velocidade da animação de walk baseado na velocidade do player
         if walkTrack and walkTrack.IsPlaying then
             local speedMultiplier = math.clamp(horizSpeed / WALK_THRESHOLD, 0.8, 1.8)
             pcall(function()
@@ -2429,23 +2719,20 @@ RunService.RenderStepped:Connect(function()
         end
         
     else
-        -- 🧍‍♂️ PARADO OU MUITO DEVAGAR = ANIMAÇÃO DE IDLE
         if lastStandState ~= "Idle" then
             lastStandState = "Idle"
             
-            -- Para Walk
             if walkTrack and walkTrack.IsPlaying then 
-                walkTrack:Stop(0.2) 
+                pcall(function() walkTrack:Stop(0.2) end) 
             end
-            
-            -- Para Run
             if runTrack and runTrack.IsPlaying then 
-                runTrack:Stop(0.2) 
+                pcall(function() runTrack:Stop(0.2) end) 
                 runTrack = nil
             end
             
-            -- Toca Idle
-            idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, STAND_ANIM_SPEEDS.Idle, true, Enum.AnimationPriority.Idle)
+            pcall(function()
+                idleTrack = playAnim(cachedSHum, ASSETS.STAND_IDLE, STAND_ANIM_SPEEDS.Idle, true, Enum.AnimationPriority.Idle)
+            end)
         end
     end
 end)
@@ -2592,14 +2879,6 @@ end
 -- CONEXÕES
 -- ============================================================
 
-activateBtn.MouseButton1Click:Connect(function()
-    if buttonDebounce then return end
-    buttonDebounce = true
-    toggleStand()
-    task.wait(0.3)
-    buttonDebounce = false
-end)
-
 eraseBtn.MouseButton1Click:Connect(function()
     if buttonDebounce then return end
     buttonDebounce = true
@@ -2616,12 +2895,11 @@ selfEraseBtn.MouseButton1Click:Connect(function()
     buttonDebounce = false
 end)
 
+-- ============================================================
+-- COMANDO -CHANGER CORRIGIDO
+-- ============================================================
 player.Chatted:Connect(function(message)
     if message:lower() == "-changer" then
-        if standChangerGui and standChangerGui.Parent then
-            standChangerGui:Destroy()
-            standChangerGui = nil
-        end
         createStandChangerGui()
     end
 end)
@@ -2854,52 +3132,69 @@ end)
 
 print("✅ Sistema de Noclip Permanente carregado!")
 
+-- ============================================================
+-- FULL CLEANUP CORRIGIDO (Mais seguro e completo)
+-- ============================================================
 local function fullCleanup()
     warn("🧹 Executando limpeza global...")
     
-    -- Limpa Fling
+    -- ✅ 1. Limpa Fling primeiro
     CleanUpFling()
     
-    -- Limpa animações customizadas
+    -- ✅ 2. Limpa animações customizadas
     cleanupCustomAnims()
     
-    -- Destrói Stand ativo
+    -- ✅ 3. Destrói Stand ativo com segurança
     if currentStand then
         pcall(function()
-            if currentStand.Parent then
-                for _, child in ipairs(currentStand:GetDescendants()) do
-                    if child:IsA("Trail") then
-                        child.Enabled = false
-                    end
+            -- Desabilita trails primeiro
+            for _, child in ipairs(currentStand:GetDescendants()) do
+                if child:IsA("Trail") then
+                    child.Enabled = false
                 end
+            end
+            
+            -- Para animações
+            local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+            if sHum then
+                for _, track in ipairs(sHum:GetPlayingAnimationTracks()) do
+                    pcall(function() track:Stop(0) end)
+                end
+            end
+            
+            -- Remove da workspace
+            if currentStand.Parent then
                 currentStand:Destroy()
             end
         end)
         currentStand = nil
     end
     
-    -- Reseta variáveis de animação
+    -- ✅ 4. Reseta variáveis de animação
     if idleTrack then pcall(function() idleTrack:Stop() end) idleTrack = nil end
     if walkTrack then pcall(function() walkTrack:Stop() end) walkTrack = nil end
     if runTrack then pcall(function() runTrack:Stop() end) runTrack = nil end
     
-    -- RESETA O ESTADO DO STAND E BOTÕES
+    -- ✅ 5. Limpa cache do Stand
+    cachedCharRoot = nil
+    cachedSRoot = nil
+    cachedSHum = nil
+    
+    -- ✅ 6. Reseta estado e botões
     isStandActive = false
     isAttacking = false
     
-    -- Reseta o botão principal para "STAND"
     if activateBtn and activateBtn.Parent then
         activateBtn.Text = "STAND"
         activateBtn.Size = UDim2.fromOffset(95, 95)
     end
     
-    -- Para o pulso do botão
     if standPulseConnection then
-        standPulseConnection:Disconnect()
+        pcall(function() standPulseConnection:Disconnect() end)
         standPulseConnection = nil
     end
     
-    -- Esconde o botão de ERASE
+    -- ✅ 7. Esconde botões de habilidade
     if eraseBtn and eraseBtn.Parent then
         pcall(function()
             eraseBtn.Visible = false
@@ -2908,36 +3203,56 @@ local function fullCleanup()
         end)
     end
     
-    -- Limpa sons
-    for _, sound in ipairs(workspace:GetDescendants()) do
-        if sound:IsA("Sound") and (sound.SoundId:find("9114330698") or sound.SoundId:find("140225325762905")) then
-            pcall(function() sound:Destroy() end)
+    if selfEraseBtn and selfEraseBtn.Parent then
+        pcall(function()
+            selfEraseBtn.Visible = false
+            selfEraseBtn.Size = UDim2.fromOffset(0, 0)
+            selfEraseBtn.BackgroundTransparency = 1
+        end)
+    end
+    
+    -- ✅ 8. Limpa sons órfãos
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Sound") then
+            local soundId = obj.SoundId
+            if soundId:find("9114330698") or soundId:find("140225325762905") or 
+               soundId:find("129674320502853") or soundId:find("5375544504") then
+                pcall(function() obj:Destroy() end)
+            end
         end
     end
     
-    -- Limpa partes fantasmas
+    -- ✅ 9. Limpa partes fantasmas
     for _, obj in ipairs(workspace:GetChildren()) do
         if obj:GetAttribute("TheHand_FlingPart") or obj.Name == "SimFloor_Fling" then
             pcall(function() obj:Destroy() end)
         end
     end
     
+        -- ✅ 10. Reseta cooldown bars
+    for abilityName, bar in pairs(cooldownBars) do
+        if bar and bar.Parent and bar:IsA("Instance") then
+            pcall(function() bar:Destroy() end)
+        end
+    end
+    cooldownBars = {}
+    
     print("✅ Limpeza global concluída - Stand resetado")
-end
+end  -- ✅ ESTE END FECHA A FUNÇÃO fullCleanup()
 
--- Conecta a limpeza quando o personagem for removido
+-- ✅ Conexões de limpeza melhoradas
 player.CharacterRemoving:Connect(function()
+    if character then
+        character = nil
+    end
     fullCleanup()
 end)
 
--- Também limpa quando o jogador sair do jogo
 player.Destroying:Connect(function()
     fullCleanup()
+    -- ✅ Limpa cache global também
+    if cachedStandModel then
+        pcall(function() cachedStandModel:Destroy() end)
+        cachedStandModel = nil
+    end
 end)
-
--- Limpeza imediata se o personagem atual for destruído
-if character then
-    character.Destroying:Connect(function()
-        fullCleanup()
-    end)
-end
