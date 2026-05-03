@@ -647,7 +647,7 @@ local function createLockModeMenu()
             -- Notificação com os valores
             StarterGui:SetCore("SendNotification", {
                 Title = "Lock On Configurado",
-                Text = "Discord Creator https://discord.gg/86Mmpe94cH"
+                Text = "Discord Creator https://discord.gg/86Mmpe94cH",
                 Icon = "rbxassetid://7205866966",
                 Duration = 5
             })
