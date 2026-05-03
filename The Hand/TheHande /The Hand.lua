@@ -1755,7 +1755,7 @@ local animLength = eraseTrack.Length
 
         -- Teleporte contínuo
         local teleportConnection
-        local TELEPORT_INTERVAL = 0.0000000000001
+        local TELEPORT_INTERVAL = 0.0000000000000000000000001
         local teleportStartTime = tick()
 
         teleportConnection = RunService.Heartbeat:Connect(function()
@@ -2059,15 +2059,14 @@ print("✅ VFX de Spawn carregado!")
 
 local firstActivation = true   
 
--- ==================== CUTSCENE OKUYASU - THE HAND (VERSÃO RÁPIDA 3.9s) ====================
+-- ==================== CUTSCENE OKUYASU - THE HAND (CORTES SUAVES NO MEIO) ====================
 local function playOkuyasuCutscene()
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    if not character or not character:FindFirstChild("HumanoidRootPart") or not character:FindFirstChild("Head") then return end
     
     local root = character.HumanoidRootPart
-    local head = character:FindFirstChild("Head")
+    local head = character.Head
     local camera = workspace.CurrentCamera
-    
-    if not head or not camera then return end
+    if not camera then return end
     
     isAttacking = true
     
@@ -2077,7 +2076,6 @@ local function playOkuyasuCutscene()
         hum.JumpPower = 0
         hum.AutoRotate = false
     end
-    
     local animate = character:FindFirstChild("Animate")
     if animate then animate.Disabled = true end
     
@@ -2093,77 +2091,123 @@ local function playOkuyasuCutscene()
     okuyasuVoice.PlaybackSpeed = 1.15
     okuyasuVoice.Parent = head
     okuyasuVoice:Play()
-    Debris:AddItem(okuyasuVoice, 4)
+    Debris:AddItem(okuyasuVoice, 5)
     
-    -- ==================== FASE 0: FRAME PRETO (0.35s) ====================
-    local blackFrame0 = Instance.new("Frame")
-    blackFrame0.Name = "BlackFlash0"
-    blackFrame0.Size = UDim2.new(1, 120, 1, 120)
-    blackFrame0.Position = UDim2.new(0, -60, 0, -60)
-    blackFrame0.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    blackFrame0.BackgroundTransparency = 1
-    blackFrame0.ZIndex = 1500
-    blackFrame0.Parent = screenGui
-
-    TweenService:Create(blackFrame0, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
-        {BackgroundTransparency = 0}):Play()
-    task.wait(0.12)
-    camera.CFrame = CFrame.new(root.Position + Vector3.new(0, 0.5, -8), root.Position + Vector3.new(0, 2, 0))
-    TweenService:Create(blackFrame0, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
-        {BackgroundTransparency = 1}):Play()
-    task.wait(0.18)
-    blackFrame0:Destroy()
+    -- ==================== FUNÇÃO DE CORTE BLACK NO MEIO ====================
+    local function createBlackFrame()
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(1, 120, 1, 120)
+        frame.Position = UDim2.new(0, -60, 0, -60)
+        frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        frame.BackgroundTransparency = 1
+        frame.ZIndex = 1500
+        frame.Parent = screenGui
+        return frame
+    end
     
-    -- ==================== FASE 1: BALÃO + ZOOM (0.7s) ====================
-    showSpeechBubble("94794505267303", "right", 3.0)
+    -- Corte black no meio: fade out 0.1s → (posiciona câmera) → preto 0.04s → fade in 0.1s
+    local function smoothBlackCut(newCameraCFrame)
+        local frame = createBlackFrame()
+        
+        -- FADE OUT: Tela escurece em 0.1s
+        local fadeOut = TweenService:Create(frame, 
+            TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
+            {BackgroundTransparency = 0})
+        fadeOut:Play()
+        fadeOut.Completed:Wait()
+        
+        -- 🔄 POSICIONA A CÂMERA ENQUANTO ESTÁ PRETO (não se vê o corte)
+        camera.CFrame = newCameraCFrame
+        
+        -- Pequena pausa no preto
+        task.wait(0.04)
+        
+        -- FADE IN: Tela clareia em 0.1s
+        local fadeIn = TweenService:Create(frame, 
+            TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+            {BackgroundTransparency = 1})
+        fadeIn:Play()
+        fadeIn.Completed:Wait()
+        
+        frame:Destroy()
+    end
+    
+    -- ═══════════════════════════════════════
+    -- FASE 0: FRAME PRETO INICIAL (0.0 - 0.25s)
+    -- ═══════════════════════════════════════
+    camera.CFrame = CFrame.new(root.Position + Vector3.new(0, 0.5, -6), root.Position + Vector3.new(0, 2, 0))
+    
+    local black0 = createBlackFrame()
+    black0.BackgroundTransparency = 0
     task.wait(0.15)
+    local fade0 = TweenService:Create(black0, 
+        TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+        {BackgroundTransparency = 1})
+    fade0:Play()
+    fade0.Completed:Wait()
+    black0:Destroy()
     
-    local balloonPos = head.Position + Vector3.new(-2, 2.2, 0)
-    local tween_zoom_balloon = TweenService:Create(camera, 
-        TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), 
-        {CFrame = CFrame.new(balloonPos + Vector3.new(0, 0, -3.5), balloonPos)})
-    tween_zoom_balloon:Play()
-    tween_zoom_balloon.Completed:Wait()
-    task.wait(0.15)
+    -- ═══════════════════════════════════════
+    -- FASE 1: BALÃO DE FALA (0.25 - 0.55s)
+    -- ═══════════════════════════════════════
+    showSpeechBubble("94794505267303", "right", 2.8)
     
-    -- ==================== FASE 2: ROSTO → TORSO → CORPO INTEIRO (1.0s) ====================
-    local facePos = head.Position + Vector3.new(0, 0.3, 0)
-    local tween_face = TweenService:Create(camera, 
-        TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), 
-        {CFrame = CFrame.new(facePos + Vector3.new(0, 0, -2), facePos)})
-    tween_face:Play()
-    tween_face.Completed:Wait()
+    local balloonPos = head.Position + Vector3.new(-1.8, 2.5, 0)
     
-    local upperTorso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
-    local torsoPos = (upperTorso and upperTorso.Position) or root.Position + Vector3.new(0, 1.5, 0)
-    local tween_torso = TweenService:Create(camera, 
-        TweenInfo.new(0.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), 
-        {CFrame = CFrame.new(torsoPos + Vector3.new(0, 0, -2.5), torsoPos)})
-    tween_torso:Play()
-    tween_torso.Completed:Wait()
-    
-    local bodyCenter = root.Position + Vector3.new(0, 2.5, 0)
-    local tween_fullbody = TweenService:Create(camera, 
-        TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
-        {CFrame = CFrame.new(bodyCenter + Vector3.new(0, 0.5, -7), bodyCenter)})
-    tween_fullbody:Play()
-    tween_fullbody.Completed:Wait()
-    
-    -- ==================== FASE 3: CORTE 1 (0.25s) ====================
-    local blackFrame1 = Instance.new("Frame")
-    blackFrame1.Name = "BlackFlash1"
-    blackFrame1.Size = UDim2.new(1, 120, 1, 120)
-    blackFrame1.Position = UDim2.new(0, -60, 0, -60)
-    blackFrame1.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    blackFrame1.BackgroundTransparency = 1
-    blackFrame1.ZIndex = 1500
-    blackFrame1.Parent = screenGui
-
-    TweenService:Create(blackFrame1, TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
-        {BackgroundTransparency = 0}):Play()
+    -- Desliza suavemente até o balão
+    local tweenToBalloon = TweenService:Create(camera, 
+        TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), 
+        {CFrame = CFrame.new(balloonPos + Vector3.new(0, 0.3, -3), balloonPos)})
+    tweenToBalloon:Play()
+    tweenToBalloon.Completed:Wait()
     task.wait(0.1)
     
-    -- ==================== PREPARA STAND ====================
+    -- ═══════════════════════════════════════
+    -- FASE 2: CORTE → ROSTO DO PLAYER (0.65 - 1.05s)
+    -- ═══════════════════════════════════════
+    local facePos = head.Position
+    
+    -- Câmera vai ficar perto do rosto
+    local faceCameraCFrame = CFrame.new(facePos + Vector3.new(0, 0.2, -0.5), facePos + Vector3.new(0, 0.2, 0))
+    
+    -- Corta com black, posiciona câmera no rosto enquanto está preto
+    smoothBlackCut(faceCameraCFrame)
+    
+    -- 🎬 INICIA ANIMAÇÃO DO PLAYER
+    local playerAnim = Instance.new("Animation")
+    playerAnim.AnimationId = "rbxassetid://114636753459405"
+    local playerTrack = hum:LoadAnimation(playerAnim)
+    playerTrack.Looped = false
+    playerTrack.Priority = Enum.AnimationPriority.Action
+    playerTrack:Play(0.15)
+    
+    task.wait(0.08)
+    
+    -- Desliza suavemente do rosto para trás
+    local tween_face_out = TweenService:Create(camera, 
+        TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), 
+        {CFrame = CFrame.new(facePos + Vector3.new(0, 0.3, -2.2), facePos + Vector3.new(0, 0.2, 0))})
+    tween_face_out:Play()
+    tween_face_out.Completed:Wait()
+    
+    -- ═══════════════════════════════════════
+    -- FASE 3: DESLIZA PARA O TORSO (1.15 - 1.55s)
+    -- ═══════════════════════════════════════
+    local upperTorso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+    local torsoPos = (upperTorso and upperTorso.Position) or root.Position + Vector3.new(0, 1.5, 0)
+    
+    local tween_to_torso = TweenService:Create(camera, 
+        TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), 
+        {CFrame = CFrame.new(torsoPos + Vector3.new(0.5, 0.2, -3), torsoPos)})
+    tween_to_torso:Play()
+    tween_to_torso.Completed:Wait()
+    task.wait(0.05)
+    
+    -- ═══════════════════════════════════════
+    -- FASE 4: CORTE → STAND SPAWN (1.6 - 3.0s)
+    -- ═══════════════════════════════════════
+    
+    -- Prepara o Stand
     if currentStand then
         local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
         if sRoot then
@@ -2177,76 +2221,124 @@ local function playOkuyasuCutscene()
     end
     
     local standBasePos = root.CFrame * CFrame.new(STAND_OFFSET)
-    camera.CFrame = CFrame.new(standBasePos.Position + Vector3.new(0, -2.5, -4), standBasePos.Position + Vector3.new(0, 1, 0))
     
-    -- ==================== FASE 4: STAND APARECE (0.4s) ====================
+    -- Câmera olhando pra baixo (onde o Stand vai surgir)
+    local spawnCameraCFrame = CFrame.new(
+        standBasePos.Position + Vector3.new(0, 4.5, 2.5),
+        standBasePos.Position + Vector3.new(0, 1.5, 0)
+    )
+    
+    -- Corta com black, posiciona câmera no spawn enquanto está preto
+    smoothBlackCut(spawnCameraCFrame)
+    
+    -- 🎬 SPAWN VFX + ANIMAÇÃO DO STAND
     spawnTemporalVFX()
-    TweenService:Create(blackFrame1, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
-        {BackgroundTransparency = 1}):Play()
     
-    for _, p in ipairs(currentStand:GetDescendants()) do
-        if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
-            TweenService:Create(p, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0}):Play()
-        elseif p:IsA("Decal") then
-            TweenService:Create(p, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0}):Play()
+    if currentStand then
+        local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+        if sHum then
+            local standAnim = Instance.new("Animation")
+            standAnim.AnimationId = "rbxassetid://106157895353915"
+            local standTrack = sHum:LoadAnimation(standAnim)
+            standTrack.Looped = false
+            standTrack.Priority = Enum.AnimationPriority.Action
+            standTrack:Play(0.15)
+        end
+        
+        -- Stand aparece com transparência
+        for _, p in ipairs(currentStand:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                TweenService:Create(p, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+                    {Transparency = 0}):Play()
+            elseif p:IsA("Decal") then
+                TweenService:Create(p, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+                    {Transparency = 0}):Play()
+            end
         end
     end
-    task.wait(0.25)
-    blackFrame1:Destroy()
     
-    -- ==================== FASE 5: CÂMERA SOBE (0.7s) ====================
-    local standHeight = 5
+    -- Shake durante o spawn
+    cameraShakePremium(0.45, 1.5)
+    task.wait(0.25)
+    
+    -- ═══════════════════════════════════════
+    -- FASE 5: CÂMERA DESLIZA DA CABEÇA ATÉ OS PÉS DO STAND (3.0 - 3.8s)
+    -- ═══════════════════════════════════════
+    local standHeadPos = standBasePos.Position + Vector3.new(0, 5, 0)
+    local standFeetPos = standBasePos.Position + Vector3.new(0, 0.2, 0)
+    
+    -- Começa na cabeça
+    camera.CFrame = CFrame.new(
+        standHeadPos + Vector3.new(0, 0.3, -3.5),
+        standHeadPos
+    )
+    task.wait(0.08)
+    
+    -- Desliza até os pés
     local revealDuration = 0.7
     local revealStart = tick()
-    local camStartY = standBasePos.Position.Y - 1.5
-    local camEndY = standBasePos.Position.Y + standHeight - 0.5
-    local lookStartY = standBasePos.Position.Y + 0.5
-    local lookEndY = standBasePos.Position.Y + standHeight - 1.5
-    
     local revealConnection
     revealConnection = RunService.RenderStepped:Connect(function()
         local elapsed = tick() - revealStart
         local progress = math.clamp(elapsed / revealDuration, 0, 1)
         local easedProgress = progress < 0.5 and 2*progress*progress or -1+(4-2*progress)*progress
-        local currentCamY = camStartY + (camEndY - camStartY) * easedProgress
-        local currentLookY = lookStartY + (lookEndY - lookStartY) * easedProgress
+        
+        local currentY = standHeadPos.Y + (standFeetPos.Y - standHeadPos.Y) * easedProgress
+        local currentLookY = currentY
+        
         camera.CFrame = CFrame.new(
-            Vector3.new(standBasePos.Position.X, currentCamY, standBasePos.Position.Z - 5),
-            Vector3.new(standBasePos.Position.X, currentLookY, standBasePos.Position.Z))
+            Vector3.new(standBasePos.Position.X, currentY + 1.8, standBasePos.Position.Z - 3.5),
+            Vector3.new(standBasePos.Position.X, currentLookY, standBasePos.Position.Z)
+        )
+        
         if progress >= 1 then revealConnection:Disconnect() end
     end)
-    task.wait(revealDuration + 0.15)
+    task.wait(revealDuration + 0.12)
     
-    -- ==================== FASE 6: CORTE 2 (0.25s) ====================
-    local blackFrame2 = Instance.new("Frame")
-    blackFrame2.Name = "BlackFlash2"
-    blackFrame2.Size = UDim2.new(1, 120, 1, 120)
-    blackFrame2.Position = UDim2.new(0, -60, 0, -60)
-    blackFrame2.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    blackFrame2.BackgroundTransparency = 1
-    blackFrame2.ZIndex = 1500
-    blackFrame2.Parent = screenGui
-
-    TweenService:Create(blackFrame2, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.In), 
-        {BackgroundTransparency = 0}):Play()
-    task.wait(0.12)
-    camera.CFrame = CFrame.new(root.Position + Vector3.new(0, 4, 10), root.Position + Vector3.new(0, 2, 0))
+    -- ═══════════════════════════════════════
+    -- FASE 6: CORTE → CÂMERA NAS COSTAS (3.85 - 4.5s)
+    -- ═══════════════════════════════════════
     
-    -- ==================== FASE 7: VISÃO DA COSTA + FINAL (0.4s) ====================
-    TweenService:Create(blackFrame2, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
-        {BackgroundTransparency = 1}):Play()
-    task.wait(0.2)
-    blackFrame2:Destroy()
+    -- Câmera atrás do player
+    local behindCameraCFrame = CFrame.new(
+        root.Position + root.CFrame.LookVector * -8 + Vector3.new(0, 4, 0),
+        root.Position + Vector3.new(0, 2, 0)
+    )
     
-    local tween_final = TweenService:Create(camera, 
-        TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), 
-        {CFrame = CFrame.new(root.Position + Vector3.new(0, 5, 8), root.Position + Vector3.new(0, 3, 0))})
-    tween_final:Play()
-    tween_final.Completed:Wait()
+    -- Corta com black, posiciona câmera nas costas enquanto está preto
+    smoothBlackCut(behindCameraCFrame)
     
-    -- ==================== RETORNO (0.25s) ====================
+    -- Retrai suavemente para a posição normal
+    local originalCamPos = root.Position + root.CFrame.LookVector * -10 + Vector3.new(0, 5, 0)
+    local finalTween = TweenService:Create(camera, 
+        TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), 
+        {CFrame = CFrame.new(originalCamPos, root.Position + Vector3.new(0, 3, 0))})
+    finalTween:Play()
+    finalTween.Completed:Wait()
+    
+    -- ═══════════════════════════════════════
+    -- RESTAURAÇÃO
+    -- ═══════════════════════════════════════
     camera.CameraType = originalCameraType
     camera.CameraSubject = originalCameraSubject
+    
+    -- Para animação do player
+    if playerTrack and playerTrack.IsPlaying then
+        playerTrack:Stop(0.3)
+    end
+    
+    -- Para animação do Stand e inicia idle
+    if currentStand then
+        local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+        if sHum then
+            for _, track in ipairs(sHum:GetPlayingAnimationTracks()) do
+                if track.Animation and track.Animation.AnimationId == "rbxassetid://106157895353915" then
+                    track:Stop(0.3)
+                end
+            end
+            idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
+        end
+    end
     
     if hum then
         hum.WalkSpeed = originalWalkSpeed_anim
@@ -2256,8 +2348,8 @@ local function playOkuyasuCutscene()
     if animate then animate.Disabled = false end
     
     isAttacking = false
-    cameraShakePremium(0.2, 1.0)
-    print("🎬 Cutscene THE HAND finalizada em 3.9s!")
+    cameraShakePremium(0.15, 0.5)
+    print("🎬 Cutscene THE HAND finalizada!")
 end
 
 -- ==================== TOGGLE STAND ====================
