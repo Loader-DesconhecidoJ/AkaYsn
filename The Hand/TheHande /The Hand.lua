@@ -1477,7 +1477,7 @@ local function performErase()
         return
     end
     
-    -- ⏱️ Trava a habilidade (quando tem alvo)
+    -- ⏱️ Trava a habilidade
     lockAbility("Erase")
     
     isAttacking = true
@@ -1492,8 +1492,15 @@ local function performErase()
     
     showSpeechBubble("119730997112794", "right", 1)
     
-    -- STAND VAI ATÉ O ALVO
+    -- Guarda a posição de retorno
+    local returnCFrame = charRoot.CFrame * CFrame.new(STAND_OFFSET)
+    
+    -- =============================================
+    -- FASE 1: STAND VAI ATÉ O ALVO
+    -- =============================================
     if idleTrack and idleTrack.IsPlaying then idleTrack:Stop() end
+    if walkTrack and walkTrack.IsPlaying then walkTrack:Stop() end
+    if runTrack and runTrack.IsPlaying then runTrack:Stop() end
     
     local targetPos = targetRoot.Position
     local directionToTarget = (targetPos - charRoot.Position).Unit
@@ -1508,19 +1515,23 @@ local function performErase()
     moveTween:Play()
     moveTween.Completed:Wait()
     
-    -- ANIMAÇÃO DE ERASE
-    local eraseAnim = Instance.new("Animation")
-    eraseAnim.AnimationId = ASSETS.ERASE_ANIM
-    local eraseTrack = sHum:LoadAnimation(eraseAnim)
-    eraseTrack.Looped = false
-    eraseTrack.Priority = Enum.AnimationPriority.Action
-    eraseTrack:Play(0)
+-- =============================================
+-- FASE 2: ANIMAÇÃO DE ERASE (TOCA NORMALMENTE)
+-- =============================================
+local eraseAnim = Instance.new("Animation")
+eraseAnim.AnimationId = ASSETS.ERASE_ANIM
+local eraseTrack = sHum:LoadAnimation(eraseAnim)
+eraseTrack.Looped = false
+eraseTrack.Priority = Enum.AnimationPriority.Action
+eraseTrack:Play(0)
 
-    local animLength = eraseTrack.Length
-    local startTime = tick()
-    local reverseSpeed = 4
+-- ⚡ AJUSTE DE VELOCIDADE AQUI
+local ERASE_ANIM_SPEED = 5.45
+eraseTrack:AdjustSpeed(ERASE_ANIM_SPEED)
 
-    -- TRAIL 2D
+local animLength = eraseTrack.Length
+    
+    -- Trail na mão direita
     local sRightHand = findRightHand(currentStand)
     local trailMain, trailOutline, att0, att1, trailPart
 
@@ -1543,7 +1554,6 @@ local function performErase()
 
         att0 = Instance.new("Attachment", trailPart)
         att0.Position = Vector3.new(0, handSize.Y * 0.56, 0)
-
         att1 = Instance.new("Attachment", trailPart)
         att1.Position = Vector3.new(0, -handSize.Y * 0.56, 0)
 
@@ -1559,9 +1569,7 @@ local function performErase()
         trailOutline.FaceCamera = true
         trailOutline.Enabled = true
         trailOutline.Texture = ""
-
         trailOutline.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
-
         trailOutline.WidthScale = NumberSequence.new({
             NumberSequenceKeypoint.new(0.00, 7.4),
             NumberSequenceKeypoint.new(0.48, 5.9),
@@ -1569,7 +1577,6 @@ local function performErase()
             NumberSequenceKeypoint.new(0.95, 1.3),
             NumberSequenceKeypoint.new(1.00, 0.0)
         })
-
         trailOutline.Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0.00, 0.20),
             NumberSequenceKeypoint.new(0.58, 0.48),
@@ -1588,7 +1595,6 @@ local function performErase()
         trailMain.FaceCamera = true
         trailMain.Enabled = true
         trailMain.Texture = ""
-
         trailMain.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0.00, Color3.fromRGB(140, 255, 255)),
             ColorSequenceKeypoint.new(0.25, Color3.fromRGB(50, 255, 240)),
@@ -1596,7 +1602,6 @@ local function performErase()
             ColorSequenceKeypoint.new(0.80, Color3.fromRGB(0, 155, 255)),
             ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 95, 210))
         })
-
         trailMain.WidthScale = NumberSequence.new({
             NumberSequenceKeypoint.new(0.00, 4.4),
             NumberSequenceKeypoint.new(0.35, 3.6),
@@ -1604,7 +1609,6 @@ local function performErase()
             NumberSequenceKeypoint.new(0.89, 0.65),
             NumberSequenceKeypoint.new(1.00, 0.0)
         })
-
         trailMain.Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0.00, 0.0),
             NumberSequenceKeypoint.new(0.40, 0.06),
@@ -1613,31 +1617,6 @@ local function performErase()
         })
     end
 
-    spawn(function()
-        while eraseTrack and eraseTrack.IsPlaying and tick() - startTime < animLength / reverseSpeed do
-            local elapsed = (tick() - startTime) * reverseSpeed
-            local reversePos = animLength - elapsed
-            if reversePos > 0 then
-                pcall(function()
-                    eraseTrack.TimePosition = reversePos
-                end)
-            end
-            task.wait(0.016)
-        end
-        
-        if trailMain then
-            trailMain.Enabled = false
-            Debris:AddItem(trailMain, 1)
-        end
-        if trailOutline then
-            trailOutline.Enabled = false
-            Debris:AddItem(trailOutline, 1.1)
-        end
-        if trailPart then
-            Debris:AddItem(trailPart, 1.3)
-        end
-    end)
-    
     -- Som
     local eraseSound = Instance.new("Sound", workspace)
     eraseSound.SoundId = ASSETS.ERASE_SOUND
@@ -1648,245 +1627,291 @@ local function performErase()
     cameraShake(0.6, 3)
     
     task.wait(0.2)
-    
-    -- ═══════════════════════════════════════════
--- 🌌 VFX DE APAGAMENTO (VÓRTICE + ENCOLHIMENTO)
--- ═══════════════════════════════════════════
 
-local targetChar = targetRoot.Parent
-local originalSizes = {}
-local originalMeshScales = {}
+    -- =============================================
+    -- FASE 3: VFX E FLING (RODA EM PARALELO!)
+    -- =============================================
+    task.spawn(function()
+        -- VFX DE APAGAMENTO
+        local targetChar = targetRoot.Parent
+        local originalSizes = {}
+        local originalMeshScales = {}
 
-if targetChar then
-    
-    -- 1. HIGHLIGHT
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "EraseHighlight"
-    highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
-    highlight.OutlineTransparency = 1
-    highlight.FillColor = Color3.fromRGB(0, 80, 200)
-    highlight.FillTransparency = 1
-    highlight.Parent = targetChar
-    
-    TweenService:Create(highlight, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
-        { OutlineTransparency = 0.5, FillTransparency = 0.5 }
-    ):Play()
+        if targetChar then
+            -- Highlight
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "EraseHighlight"
+            highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
+            highlight.OutlineTransparency = 1
+            highlight.FillColor = Color3.fromRGB(0, 80, 200)
+            highlight.FillTransparency = 1
+            highlight.Parent = targetChar
+            
+            TweenService:Create(highlight, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+                { OutlineTransparency = 0.5, FillTransparency = 0.5 }
+            ):Play()
 
-    -- 2. VÓRTICE
-    local corePart = Instance.new("Part")
-    corePart.Name = "ErasureVortex"
-    corePart.Size = Vector3.new(1, 1, 1)
-    corePart.Position = targetRoot.Position
-    corePart.Anchored = true
-    corePart.CanCollide = false
-    corePart.Transparency = 1
-    corePart.Parent = workspace
-    Debris:AddItem(corePart, 3)
+            -- Vórtice
+            local corePart = Instance.new("Part")
+            corePart.Name = "ErasureVortex"
+            corePart.Size = Vector3.new(1, 1, 1)
+            corePart.Position = targetRoot.Position
+            corePart.Anchored = true
+            corePart.CanCollide = false
+            corePart.Transparency = 1
+            corePart.Parent = workspace
+            Debris:AddItem(corePart, 3)
 
-    local attachmentVortex = Instance.new("Attachment", corePart)
+            local attachmentVortex = Instance.new("Attachment", corePart)
 
-    local pe_dark = Instance.new("ParticleEmitter", attachmentVortex)
-    pe_dark.Texture = "rbxassetid://14317181033"
-    pe_dark.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
-    pe_dark.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 5), NumberSequenceKeypoint.new(1, 0)})
-    pe_dark.Lifetime = NumberRange.new(0.5, 0.8)
-    pe_dark.Rate = 150
-    pe_dark.Speed = NumberRange.new(0, 2)
-    pe_dark.SpreadAngle = Vector2.new(180, 180)
-    pe_dark.RotSpeed = NumberRange.new(-100, 100)
-    pe_dark.Acceleration = Vector3.new(0, 5, 0)
-    pe_dark.ZOffset = 1
+            local pe_dark = Instance.new("ParticleEmitter", attachmentVortex)
+            pe_dark.Texture = "rbxassetid://14317181033"
+            pe_dark.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
+            pe_dark.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 5), NumberSequenceKeypoint.new(1, 0)})
+            pe_dark.Lifetime = NumberRange.new(0.5, 0.8)
+            pe_dark.Rate = 150
+            pe_dark.Speed = NumberRange.new(0, 2)
+            pe_dark.SpreadAngle = Vector2.new(180, 180)
+            pe_dark.RotSpeed = NumberRange.new(-100, 100)
+            pe_dark.Acceleration = Vector3.new(0, 5, 0)
+            pe_dark.ZOffset = 1
 
-    local pe_blue = pe_dark:Clone()
-    pe_blue.Parent = attachmentVortex
-    pe_blue.Color = ColorSequence.new(Color3.fromRGB(0, 150, 255))
-    pe_blue.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 3), NumberSequenceKeypoint.new(1, 0)})
-    pe_blue.LightEmission = 1
-    pe_blue.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
+            local pe_blue = pe_dark:Clone()
+            pe_blue.Parent = attachmentVortex
+            pe_blue.Color = ColorSequence.new(Color3.fromRGB(0, 150, 255))
+            pe_blue.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 3), NumberSequenceKeypoint.new(1, 0)})
+            pe_blue.LightEmission = 1
+            pe_blue.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
 
-    task.delay(0.6, function()
-        pe_dark.Enabled = false
-        pe_blue.Enabled = false
-    end)
+            task.delay(0.6, function()
+                pe_dark.Enabled = false
+                pe_blue.Enabled = false
+            end)
 
-    -- 3. ENCOLHIMENTO
-    local tweenInfoErasure = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-    for _, part in ipairs(targetChar:GetDescendants()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            originalSizes[part] = part.Size
-            TweenService:Create(part, tweenInfoErasure, { Size = Vector3.new(0.05, 0.05, 0.05), Transparency = 1 }):Play()
-        elseif part:IsA("SpecialMesh") then
-            originalMeshScales[part] = part.Scale
-            TweenService:Create(part, tweenInfoErasure, { Scale = Vector3.new(0, 0, 0) }):Play()
-        end
-    end
-    
-    -- 4. FADE OUT HIGHLIGHT
-    task.delay(1.8, function()
-        if highlight and highlight.Parent then
-            highlight:Destroy()
-        end
-    end)
-end
-
-task.wait(0.5)
-    
--- ═══════════════════════════════════════
--- ⚡ SISTEMA SINCRONIZADO: TELEPORTE CONTÍNUO + FLING
--- ═══════════════════════════════════════
-local targetChar = targetRoot.Parent
-local anchoredParts = {}
-local SYNC_DURATION = 1.5
-
--- FASE 1: TELEPORTE INICIAL
-task.wait(0.1)
-local insidePos = charRoot.Position + charRoot.CFrame.LookVector * 0
-targetRoot.CFrame = CFrame.new(insidePos)
-targetRoot.Velocity = Vector3.new(0, 0, 0)
-targetRoot.RotVelocity = Vector3.new(0, 0, 0)
-
--- FASE 2: NOCLIP HUMANOID + HUMANOIDROOTPART
-local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
-if targetHum then
-    targetHum.CollisionType = Enum.HumanoidCollisionType.OuterBox
-    targetHum.AutoRotate = false
-    table.insert(flingNoclipHumans, {
-        humanoid = targetHum,
-        originalCollisionType = Enum.HumanoidCollisionType.InnerBox,
-        originalAutoRotate = true
-    })
-end
-
-if charRoot then
-    charRoot.CanCollide = false
-    table.insert(anchoredParts, {part = charRoot, originalCanCollide = true})
-end
-
-if targetChar then
-    for _, part in ipairs(targetChar:GetDescendants()) do
-        if part:IsA("BasePart") and part.CanCollide == true then
-            part.CanCollide = false
-            table.insert(anchoredParts, {part = part, originalCanCollide = true})
-        end
-    end
-end  -- ✅ END ADICIONADO
-
--- FASE 3: ÂNCORA O ALVO
-if targetChar then
-    for _, part in ipairs(targetChar:GetDescendants()) do
-        if part:IsA("BasePart") and not part.Anchored then
-            part.Anchored = true
-            table.insert(anchoredParts, {part = part, originalAnchored = false})
-        end
-    end
-end
-
-print("🔒 Teleporte + Noclip")
-
--- FASE 4: TELEPORTE CONTÍNUO (LOOP)
-local teleportConnection
-local TELEPORT_INTERVAL = 0.0000000000001
-local teleportStartTime = tick()
-
-teleportConnection = RunService.Heartbeat:Connect(function()
-    -- Verifica se o alvo ainda existe
-    if not targetRoot or not targetRoot.Parent then
-        if teleportConnection then teleportConnection:Disconnect() end
-        return
-    end
-    
-    -- Verifica se o alvo ainda está vivo
-    local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
-    if targetHumCheck and targetHumCheck.Health <= 0 then
-        if teleportConnection then teleportConnection:Disconnect() end
-        return
-    end
-    
-    -- Verifica timeout (para o teleporte após SYNC_DURATION)
-    if tick() - teleportStartTime > SYNC_DURATION then
-        if teleportConnection then teleportConnection:Disconnect() end
-        return
-    end
-    
-    -- Teleporta o alvo para DENTRO do seu boneco
-    local myPos = charRoot.Position
-    
-    -- Variação aleatória pequena para dar efeito de "vibração"
-    local offsetX = math.random(-50, 50) / 100  -- -0.5 a 0.5 studs
-    local offsetY = math.random(-30, 30) / 100  -- -0.3 a 0.3 studs
-    local offsetZ = math.random(-50, 50) / 100  -- -0.5 a 0.5 studs
-    
-    targetRoot.CFrame = CFrame.new(
-        myPos.X + offsetX,
-        myPos.Y + offsetY,
-        myPos.Z + offsetZ
-    )
-    targetRoot.Velocity = Vector3.new(0, 0, 0)
-    targetRoot.RotVelocity = Vector3.new(0, 0, 0)
-end)
-
--- FASE 5: ATIVA O FLING
-print("💥 NaN Fling iniciado")
-StartFling(targetRoot)
-
--- FASE 6: RESTAURAÇÃO APÓS SYNC_DURATION
-task.delay(SYNC_DURATION, function()
-    print("⏰ Restaurando tudo...")
-    
-    if teleportConnection then
-        teleportConnection:Disconnect()
-        teleportConnection = nil
-    end
-    
-    CleanUpFling()
-    
-    local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
-    if targetHumCheck and targetHumCheck.Health > 0 and targetChar then
-        local restoreInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-        for part, originalSize in pairs(originalSizes) do
-            if part and part.Parent then
-                pcall(function() TweenService:Create(part, restoreInfo, { Size = originalSize, Transparency = 0 }):Play() end)
-            end
-        end
-        for mesh, originalScale in pairs(originalMeshScales) do
-            if mesh and mesh.Parent then
-                pcall(function() TweenService:Create(mesh, restoreInfo, { Scale = originalScale }):Play() end)
-            end
-        end
-    end
-    
-    for _, data in ipairs(anchoredParts) do
-        if data.part and data.part.Parent then
-            pcall(function() 
-                if data.originalCanCollide ~= nil then
-                    data.part.CanCollide = data.originalCanCollide
+            -- Encolhimento
+            local tweenInfoErasure = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+            for _, part in ipairs(targetChar:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    originalSizes[part] = part.Size
+                    TweenService:Create(part, tweenInfoErasure, { Size = Vector3.new(0.05, 0.05, 0.05), Transparency = 1 }):Play()
+                elseif part:IsA("SpecialMesh") then
+                    originalMeshScales[part] = part.Scale
+                    TweenService:Create(part, tweenInfoErasure, { Scale = Vector3.new(0, 0, 0) }):Play()
                 end
-                if data.originalAnchored ~= nil then
-                    data.part.Anchored = data.originalAnchored
+            end
+            
+            task.delay(1.8, function()
+                if highlight and highlight.Parent then
+                    highlight:Destroy()
                 end
             end)
         end
-    end
-    
-    local targetHumRestore = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
-    if targetHumRestore then
-        pcall(function()
-            targetHumRestore.CollisionType = Enum.HumanoidCollisionType.InnerBox
-            targetHumRestore.AutoRotate = true
-        end)
-    end
 
-    task.wait(0.2)
-    if eraseTrack then eraseTrack:Stop() end
-    idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
-    TweenService:Create(sRoot, TweenInfo.new(0.3), {CFrame = charRoot.CFrame * CFrame.new(STAND_OFFSET)}):Play()
+        task.wait(0.5)
+        
+        -- FLING
+        local anchoredParts = {}
+        local SYNC_DURATION = 1.5
+
+        task.wait(0.1)
+        local insidePos = charRoot.Position
+        targetRoot.CFrame = CFrame.new(insidePos)
+        targetRoot.Velocity = Vector3.new(0, 0, 0)
+        targetRoot.RotVelocity = Vector3.new(0, 0, 0)
+
+        local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+        if targetHum then
+            targetHum.CollisionType = Enum.HumanoidCollisionType.OuterBox
+            targetHum.AutoRotate = false
+            table.insert(flingNoclipHumans, {
+                humanoid = targetHum,
+                originalCollisionType = Enum.HumanoidCollisionType.InnerBox,
+                originalAutoRotate = true
+            })
+        end
+
+        if charRoot then
+            charRoot.CanCollide = false
+            table.insert(anchoredParts, {part = charRoot, originalCanCollide = true})
+        end
+
+        if targetChar then
+            for _, part in ipairs(targetChar:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide == true then
+                    part.CanCollide = false
+                    table.insert(anchoredParts, {part = part, originalCanCollide = true})
+                end
+            end
+        end
+
+        if targetChar then
+            for _, part in ipairs(targetChar:GetDescendants()) do
+                if part:IsA("BasePart") and not part.Anchored then
+                    part.Anchored = true
+                    table.insert(anchoredParts, {part = part, originalAnchored = false})
+                end
+            end
+        end
+
+        -- Teleporte contínuo
+        local teleportConnection
+        local TELEPORT_INTERVAL = 0.0000000000001
+        local teleportStartTime = tick()
+
+        teleportConnection = RunService.Heartbeat:Connect(function()
+            if not targetRoot or not targetRoot.Parent then
+                if teleportConnection then teleportConnection:Disconnect() end
+                return
+            end
+            
+            local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+            if targetHumCheck and targetHumCheck.Health <= 0 then
+                if teleportConnection then teleportConnection:Disconnect() end
+                return
+            end
+            
+            if tick() - teleportStartTime > SYNC_DURATION then
+                if teleportConnection then teleportConnection:Disconnect() end
+                return
+            end
+            
+            local myPos = charRoot.Position
+            local offsetX = math.random(-50, 50) / 100
+            local offsetY = math.random(-30, 30) / 100
+            local offsetZ = math.random(-50, 50) / 100
+            
+            targetRoot.CFrame = CFrame.new(
+                myPos.X + offsetX,
+                myPos.Y + offsetY,
+                myPos.Z + offsetZ
+            )
+            targetRoot.Velocity = Vector3.new(0, 0, 0)
+            targetRoot.RotVelocity = Vector3.new(0, 0, 0)
+        end)
+
+        print("💥 NaN Fling iniciado")
+        StartFling(targetRoot)
+
+        -- Restauração
+        task.delay(SYNC_DURATION, function()
+            print("⏰ Restaurando Fling...")
+            
+            if teleportConnection then
+                teleportConnection:Disconnect()
+                teleportConnection = nil
+            end
+            
+            CleanUpFling()
+            
+            local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+            if targetHumCheck and targetHumCheck.Health > 0 and targetChar then
+                local restoreInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                for part, originalSize in pairs(originalSizes) do
+                    if part and part.Parent then
+                        pcall(function() TweenService:Create(part, restoreInfo, { Size = originalSize, Transparency = 0 }):Play() end)
+                    end
+                end
+                for mesh, originalScale in pairs(originalMeshScales) do
+                    if mesh and mesh.Parent then
+                        pcall(function() TweenService:Create(mesh, restoreInfo, { Scale = originalScale }):Play() end)
+                    end
+                end
+            end
+            
+            for _, data in ipairs(anchoredParts) do
+                if data.part and data.part.Parent then
+                    pcall(function() 
+                        if data.originalCanCollide ~= nil then
+                            data.part.CanCollide = data.originalCanCollide
+                        end
+                        if data.originalAnchored ~= nil then
+                            data.part.Anchored = data.originalAnchored
+                        end
+                    end)
+                end
+            end
+            
+            local targetHumRestore = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+            if targetHumRestore then
+                pcall(function()
+                    targetHumRestore.CollisionType = Enum.HumanoidCollisionType.InnerBox
+                    targetHumRestore.AutoRotate = true
+                end)
+            end
+        end)
+    end) -- Fim do task.spawn do Fling
+
+    -- =============================================
+    -- FASE 4: STAND VOLTA IMEDIATAMENTE!
+    -- =============================================
     
+    -- Espera a animação de erase terminar
+    task.wait(animLength / eraseTrack.Speed)
+    
+    -- Para o erase
+    if eraseTrack then eraseTrack:Stop() end
+    
+    -- Limpa trails
+    if trailMain then
+        trailMain.Enabled = false
+        Debris:AddItem(trailMain, 1)
+    end
+    if trailOutline then
+        trailOutline.Enabled = false
+        Debris:AddItem(trailOutline, 1.1)
+    end
+    if trailPart then
+        Debris:AddItem(trailPart, 1.3)
+    end
+    
+    -- 🔊 Som de retorno
+    local returnSound = Instance.new("Sound", workspace)
+    returnSound.SoundId = "rbxassetid://9114330698"
+    returnSound.Volume = 1.2
+    returnSound:Play()
+    Debris:AddItem(returnSound, 2)
+    
+    -- 💨 Partículas de retorno
+    local returnVFX = Instance.new("Part")
+    returnVFX.Name = "ReturnVFX"
+    returnVFX.Size = Vector3.new(0.5, 0.5, 0.5)
+    returnVFX.Position = sRoot.Position
+    returnVFX.Anchored = true
+    returnVFX.CanCollide = false
+    returnVFX.Transparency = 1
+    returnVFX.Parent = workspace
+    Debris:AddItem(returnVFX, 2)
+    
+    local attachReturn = Instance.new("Attachment", returnVFX)
+    local peReturn = Instance.new("ParticleEmitter", attachReturn)
+    peReturn.Texture = "rbxassetid://14317181033"
+    peReturn.Color = ColorSequence.new(Color3.fromRGB(0, 200, 255))
+    peReturn.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 4), NumberSequenceKeypoint.new(1, 0)})
+    peReturn.Lifetime = NumberRange.new(0.3, 0.6)
+    peReturn.Rate = 60
+    peReturn.Speed = NumberRange.new(2, 5)
+    peReturn.SpreadAngle = Vector2.new(180, 180)
+    peReturn.LightEmission = 1
+    task.delay(0.5, function() peReturn.Enabled = false end)
+    
+    -- STAND VOLTA PARA TRÁS DO PLAYER
+    local returnTween = TweenService:Create(sRoot, 
+        TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
+        {CFrame = returnCFrame}
+    )
+    returnTween:Play()
+    returnTween.Completed:Wait()
+    
+    -- Volta ao idle
+    idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
+    
+    -- ✅ Finaliza (não espera o Fling!)
     lastUsed["Erase"] = tick()
     isAttacking = false
     showCooldownOnButton(eraseBtn, "Erase")
-  end)
     
-end  
+    print("✨ Stand já retornou! Fling continua em paralelo...")
+end
 
 -- ============================================================
 -- EFEITO DE PULSAÇÃO NO BOTÃO STAND
