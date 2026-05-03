@@ -860,6 +860,125 @@ local function getStandModel(depth)
 end
 
 -- ============================================================
+-- 🌌 EFEITO FOV ZOOM (RASGANDO O ESPAÇO-TEMPO) - SEM LINHAS
+-- ============================================================
+local FOV_ZOOM_CONFIG = {
+    ZoomIntensity = 15,         -- Quanto o FOV diminui (70 → 55)
+    ZoomSpeed = 0.06,           -- Velocidade do zoom IN (mais rápido)
+    ReturnSpeed = 0.2,          -- Velocidade do zoom OUT (mais lento)
+}
+
+local function playSpaceTimeSlash(dashDirection)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+    
+    local originalFOV = camera.FieldOfView
+    
+    -- =============================================
+    -- EFEITO 1: ZOOM RÁPIDO (FOV diminui e volta)
+    -- =============================================
+    local zoomConnection
+    local zoomStart = tick()
+    local targetFOV = originalFOV - FOV_ZOOM_CONFIG.ZoomIntensity
+    
+    zoomConnection = RunService.RenderStepped:Connect(function()
+        local elapsed = tick() - zoomStart
+        
+        -- Fase 1: Zoom IN rápido
+        if elapsed < FOV_ZOOM_CONFIG.ZoomSpeed then
+            local progress = elapsed / FOV_ZOOM_CONFIG.ZoomSpeed
+            -- Easing Out para dar impacto
+            local eased = 1 - (1 - progress) * (1 - progress)
+            camera.FieldOfView = originalFOV + (targetFOV - originalFOV) * eased
+        
+        -- Fase 2: Zoom OUT lento (recuperação)
+        elseif elapsed < FOV_ZOOM_CONFIG.ZoomSpeed + FOV_ZOOM_CONFIG.ReturnSpeed then
+            local returnElapsed = elapsed - FOV_ZOOM_CONFIG.ZoomSpeed
+            local returnProgress = returnElapsed / FOV_ZOOM_CONFIG.ReturnSpeed
+            -- Easing InOut suave
+            local eased = returnProgress < 0.5 
+                and 2 * returnProgress * returnProgress 
+                or 1 - (-2 * returnProgress + 2) * (-2 * returnProgress + 2) / 2
+            camera.FieldOfView = targetFOV + (originalFOV - targetFOV) * eased
+        
+        -- Fim do efeito
+        else
+            camera.FieldOfView = originalFOV
+            zoomConnection:Disconnect()
+        end
+    end)
+    
+    -- =============================================
+    -- EFEITO 2: CHROMA SHIFT (cores azuladas)
+    -- =============================================
+    local colorCorrection = Instance.new("ColorCorrectionEffect")
+    colorCorrection.Name = "SpaceTimeShift"
+    colorCorrection.Saturation = 0.3
+    colorCorrection.Contrast = 0.4
+    colorCorrection.TintColor = Color3.fromRGB(100, 180, 255)
+    colorCorrection.Parent = Lighting
+    
+    task.spawn(function()
+        -- Fase 1: Cores ficam azuladas rapidamente
+        TweenService:Create(colorCorrection, TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Saturation = -0.6,
+            Contrast = 0.7,
+        }):Play()
+        task.wait(0.1)
+        
+        -- Fase 2: Retorno suave ao normal
+        local fadeBack = TweenService:Create(colorCorrection, 
+            TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            Saturation = 0,
+            Contrast = 0,
+            TintColor = Color3.fromRGB(255, 255, 255),
+        })
+        fadeBack:Play()
+        fadeBack.Completed:Wait()
+        
+        colorCorrection:Destroy()
+    end)
+    
+    -- =============================================
+    -- EFEITO 3: BLUR (borrão nas bordas)
+    -- =============================================
+    local blur = Instance.new("BlurEffect")
+    blur.Name = "SpaceTimeBlur"
+    blur.Size = 0
+    blur.Parent = Lighting
+    
+    task.spawn(function()
+        -- Aparece rápido
+        TweenService:Create(blur, TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = 4,
+        }):Play()
+        task.wait(0.08)
+        
+        -- Desaparece lentamente
+        TweenService:Create(blur, TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            Size = 0,
+        }):Play()
+        task.wait(0.7)
+        
+        blur:Destroy()
+    end)
+    
+    -- Garante que o FOV volte ao normal
+    task.delay(1, function()
+        if zoomConnection then
+            zoomConnection:Disconnect()
+        end
+        if camera then
+            camera.FieldOfView = originalFOV
+        end
+    end)
+    
+    print("🌌 Rasgo espaço-temporal ativado!")
+end
+
+-- ============================================================
 -- FUNÇÕES UTILITÁRIAS
 -- ============================================================
 local function playAnim(target, animId, speed, looped, priority)
@@ -1294,14 +1413,20 @@ local function performSelfErase()
     
     -- 🔊 Som de dash
     local dashSound = Instance.new("Sound", workspace)
-    dashSound.SoundId = "rbxassetid://140225325762905"
+    dashSound.SoundId = "rbxassetid://70940902232180"
     dashSound.Volume = 1.5
-    dashSound.PlaybackSpeed = 1.5
+    dashSound.PlaybackSpeed = 1.1
     dashSound:Play()
     Debris:AddItem(dashSound, 2)
     
     -- 🗯️ Balão de fala
     showSpeechBubble("94794505267303", "right", 1)
+    
+    -- ⚡ DASH NA DIREÇÃO QUE O BONECO ESTÁ OLHANDO
+    local moveDirection = charRoot.CFrame.LookVector
+    
+    -- 🌌 ATIVA EFEITO ESPAÇO-TEMPO
+playSpaceTimeSlash(moveDirection)
     
     -- 💥 Camera shake
     cameraShake(0.4, 2)
@@ -1340,34 +1465,32 @@ local function performSelfErase()
     selfHighlight.FillColor = Color3.fromRGB(0, 150, 255)
     selfHighlight.FillTransparency = 1
 
-    -- Animação de entrada (aparece)
     TweenService:Create(selfHighlight, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         OutlineTransparency = 0.3,
         FillTransparency = 0.7
     }):Play()
 
-    -- Remove após o dash
-    task.delay(0.8, function()
-        if selfHighlight and selfHighlight.Parent then
-            -- Animação de saída (desaparece)
-            TweenService:Create(selfHighlight, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                OutlineTransparency = 1,
-                FillTransparency = 1
-            }):Play()
-            task.delay(0.35, function()
-                if selfHighlight and selfHighlight.Parent then
-                    selfHighlight:Destroy()
-                end
-            end)
-        end
-    end)
+task.delay(0.3, function()
+    if selfHighlight and selfHighlight.Parent then
+        -- Animação rápida de saída
+        TweenService:Create(selfHighlight, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            OutlineTransparency = 1,
+            FillTransparency = 1
+        }):Play()
+        task.delay(0.2, function()
+            if selfHighlight and selfHighlight.Parent then
+                selfHighlight:Destroy()
+            end
+        end)
+    end
+end)
     
     task.wait(0.1)  -- Pequena espera pro VFX
     
     -- ⚡ DASH NA DIREÇÃO QUE O BONECO ESTÁ OLHANDO
     local moveDirection = charRoot.CFrame.LookVector
     
-    local dashDistance = 20  -- Distância do dash em studs
+    local dashDistance = 50
     local targetPos = startPos + (moveDirection * dashDistance)
     
 local rayParams = RaycastParams.new()
@@ -1415,28 +1538,6 @@ end
     pe2.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
     pe2.Acceleration = Vector3.new(0, 10, 0)
     task.delay(0.5, function() pe2.Enabled = false end)
-    
-    -- 🌫️ Trail entre os dois pontos (linha de apagamento)
-    local trailPart = Instance.new("Part")
-    trailPart.Name = "DashTrail"
-    trailPart.Size = Vector3.new(1, 1, dashDistance)
-    trailPart.Position = (startPos + targetPos) / 2
-    trailPart.Anchored = true
-    trailPart.CanCollide = false
-    trailPart.Transparency = 0.7
-    trailPart.Material = Enum.Material.Neon
-    trailPart.Color = Color3.fromRGB(0, 150, 255)
-    trailPart.Parent = workspace
-    
-    -- Alinha o trail com a direção do dash
-    local trailCFrame = CFrame.new((startPos + targetPos) / 2, targetPos)
-    trailPart.CFrame = trailCFrame * CFrame.Angles(0, math.rad(0), 0)
-    
-    -- Fade out do trail
-    TweenService:Create(trailPart, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Transparency = 1
-    }):Play()
-    Debris:AddItem(trailPart, 1)
     
     -- ✅ Finaliza
     lastUsed["SelfErase"] = tick()
