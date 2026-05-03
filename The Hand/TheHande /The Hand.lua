@@ -589,6 +589,9 @@ local walkTrack = nil
 local runTrack = nil  
 local standChangerGui = nil   
 local buttonDebounce = false
+local flingNoclipHumans = {}
+local flingNoclipConstraints = {}
+local FlingTargetRoot = nil
 
 local COOLDOWNS = {
     Erase = 1.7,
@@ -636,148 +639,133 @@ local function findRightHand(model)
 end
 
 -- ============================================================
--- SISTEMA DE NOCLIP CORRIGIDO (ATRAVESSA HUMANOID) - v2
+-- 🌊 SISTEMA DE NOCLIP (NOVO - STEPPED)
 -- ============================================================
-local flingNoclipParts = {}  
-local flingNoclipHumans = {}
-local flingNoclipConstraints = {}  -- NOVO: armazena NoCollisionConstraints
+local noclipConnection = nil
+local localPlayer = Players.LocalPlayer  
 
-local FlingActive = false
-local FlingTargetRoot = nil
-local FloorPart = nil
-local flingConnection = nil
+-- Função para desativar colisão de um modelo inteiro
+local function desativarColisaoModelo(model)
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+        end
+    end
+end
 
--- ✅ NOVA FUNÇÃO: Força noclip entre dois personagens inteiros
-local function forceNoclipBetweenChars(char1, char2)
-    if not char1 or not char2 then return end
-    
-    local constraintsCreated = {}
-    
-    for _, part1 in ipairs(char1:GetDescendants()) do
-        if part1:IsA("BasePart") and not part1.Anchored then
-            for _, part2 in ipairs(char2:GetDescendants()) do
-                if part2:IsA("BasePart") and not part2.Anchored then
-                    local constraint = Instance.new("NoCollisionConstraint")
-                    constraint.Part0 = part1
-                    constraint.Part1 = part2
-                    constraint.Parent = part1
-                    table.insert(constraintsCreated, constraint)
+local function ativarNoClip(character)
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+
+    local humanoid = character:WaitForChild("Humanoid", 10)
+    if not humanoid then return end
+
+    -- Usamos Stepped porque ele roda antes da simulação física de cada frame
+    noclipConnection = RunService.Stepped:Connect(function()
+        -- 1. Varre todos os jogadores do servidor
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= localPlayer and player.Character then
+                desativarColisaoModelo(player.Character)
+            end
+        end
+
+        -- 2. Varre o Workspace inteiro em busca de NPCs (R6, R15 e Ancorados)
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            -- Se encontrarmos um Humanoid, significa que o "Pai" dele é um ser vivo/NPC
+            if obj:IsA("Humanoid") then
+                local npc = obj.Parent
+                if npc and npc:IsA("Model") and npc ~= character then
+                    -- Verifica se tem a RootPart como você pediu
+                    if npc:FindFirstChild("HumanoidRootPart") then
+                        desativarColisaoModelo(npc)
+                    end
                 end
             end
         end
-    end
-    
-    return constraintsCreated
+    end)
+
+    -- Para de funcionar ao morrer
+    humanoid.Died:Connect(function()
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+    end)
 end
 
--- Função para ativar noclip em um modelo (PARTES + HUMANOID)
-local function setNoclip(model, enabled)
-    if not model then return end
-    
-    -- Noclip nas partes físicas
-    for _, part in ipairs(model:GetDescendants()) do
-        if part:IsA("BasePart") and part.CanCollide == true then
-            if enabled then
-                part.CanCollide = false
-                part.Massless = true
-                table.insert(flingNoclipParts, {
-                    part = part, 
-                    originalCanCollide = true, 
-                    originalMassless = false
-                })
-            end
-        end
-    end
-    
-    -- NOCLIP NO HUMANOID
-    local targetHumanoid = model:FindFirstChildOfClass("Humanoid")
-    if targetHumanoid then
-        if enabled then
-            local originalState = targetHumanoid:GetState()
-            table.insert(flingNoclipHumans, {
-                humanoid = targetHumanoid,
-                originalCollisionType = targetHumanoid.CollisionType,
-                originalState = originalState
-            })
-            
-            -- ⚡ Tenta OuterBox (mais agressivo que InnerBox)
-            targetHumanoid.CollisionType = Enum.HumanoidCollisionType.OuterBox
-        end
-    end
-    
-    -- ✅ FORÇA NOCOLISÃO ENTRE OS DOIS PERSONAGENS INTEIROS
-    if enabled and character then
-        local constraints = forceNoclipBetweenChars(character, model)
-        for _, c in ipairs(constraints) do
-            table.insert(flingNoclipConstraints, c)
-        end
-    end
+-- Inicialização e Auto-Respawn
+if player.Character then
+    ativarNoClip(player.Character)
 end
 
--- Função para restaurar noclip (ATUALIZADA)
-local function restoreNoclip()
-    -- Restaura partes físicas
-    for _, data in ipairs(flingNoclipParts) do
-        if data.part and data.part.Parent then
-            pcall(function()
-                data.part.CanCollide = data.originalCanCollide
-                data.part.Massless = data.originalMassless
-            end)
-        end
-    end
-    flingNoclipParts = {}
+player.CharacterAdded:Connect(function(novoCharacter)
+    -- Pequeno delay para garantir que o motor de física carregou o novo corpo
+    task.wait(0.1)
+    ativarNoClip(novoCharacter)
+end)
+
+print("✅ Sistema de Noclip (Stepped) carregado!")
+
+local function StartFling(targetRoot)
+    local charRoot = character:FindFirstChild("HumanoidRootPart")
+    if not charRoot or not hum or hum.Health <= 0 then return end
     
-    -- Restaura Humanoids
-    for _, data in ipairs(flingNoclipHumans) do
-        if data.humanoid and data.humanoid.Parent then
-            pcall(function()
-                data.humanoid.CollisionType = data.originalCollisionType
-            end)
-        end
-    end
-    flingNoclipHumans = {}
+    FlingTargetRoot = targetRoot
     
-    -- ✅ Remove NoCollisionConstraints
-    for _, constraint in ipairs(flingNoclipConstraints) do
-        if constraint and constraint.Parent then
-            pcall(function()
-                constraint:Destroy()
-            end)
+    local flingConnection
+    local startFlingTime = tick()
+    local MAX_FLING_TIME = 3
+    
+    flingConnection = RunService.Stepped:Connect(function()
+        if tick() - startFlingTime > MAX_FLING_TIME then
+            if flingConnection then flingConnection:Disconnect() end
+            return
         end
+        
+        if not character or not charRoot or hum.Health <= 0 then
+            if flingConnection then flingConnection:Disconnect() end
+            return
+        end
+        
+        if not FlingTargetRoot or not FlingTargetRoot.Parent then
+            if flingConnection then flingConnection:Disconnect() end
+            return
+        end
+        
+        local targetHum = FlingTargetRoot.Parent:FindFirstChildOfClass("Humanoid")
+        if targetHum and targetHum.Health <= 0 then
+            if flingConnection then flingConnection:Disconnect() end
+            return
+        end
+        
+        pcall(function()
+            sethiddenproperty(charRoot, "PhysicsRepRootPart", FlingTargetRoot)
+        end)
+        
+        pcall(function()
+            local Nan = 0/0
+            local NanVec = Vector3.new(Nan, Nan, Nan)
+            sethiddenproperty(hum, "MoveDirectionInternal", NanVec)
+            charRoot.AssemblyLinearVelocity = NanVec
+            charRoot.AssemblyAngularVelocity = NanVec
+        end)
+    end)
+    
+    if character then
+        local destroyConn
+        destroyConn = character.Destroying:Connect(function()
+            FlingTargetRoot = nil
+            if flingConnection then flingConnection:Disconnect() end
+            if destroyConn then destroyConn:Disconnect() end
+        end)
     end
-    flingNoclipConstraints = {}
 end
 
 local function CleanUpFling()
-    FlingActive = false
     FlingTargetRoot = nil
     
-    -- ✅ Restaura noclip de todas as partes e humanoids
-    restoreNoclip()
-    
-    -- Destruição segura do piso fantasma
-    if FloorPart then
-        pcall(function()
-            if FloorPart.Parent then
-                FloorPart:Destroy()
-            end
-        end)
-        FloorPart = nil
-    end
-    
-    -- Limpeza adicional: remove qualquer FloorPart órfão
-    for _, obj in ipairs(workspace:GetChildren()) do
-        if obj.Name == "SimFloor_Fling" or obj:GetAttribute("TheHand_FlingPart") then
-            pcall(function() obj:Destroy() end)
-        end
-    end
-    
-    if flingConnection then
-        pcall(function() flingConnection:Disconnect() end)
-        flingConnection = nil
-    end
-    
-    -- Verificação segura do sethiddenproperty
     if character and character:FindFirstChild("HumanoidRootPart") then
         pcall(function()
             sethiddenproperty(character.HumanoidRootPart, "PhysicsRepRootPart", nil)
@@ -787,110 +775,6 @@ local function CleanUpFling()
     if hum then
         pcall(function()
             sethiddenproperty(hum, "MoveDirectionInternal", Vector3.new(0, 0, 0))
-        end)
-    end
-end
-
-local function StartFling(targetRoot)
-    local charRoot = character:FindFirstChild("HumanoidRootPart")
-    if not charRoot or not hum or hum.Health <= 0 then return end
-    
-    FlingActive = true
-    FlingTargetRoot = targetRoot
-    
-    -- ✅ ATIVA NOCLIP NO ALVO (IMEDIATAMENTE)
-    if targetRoot and targetRoot.Parent then
-        setNoclip(targetRoot.Parent, true)
-    end
-    
-    -- Piso fantasma
-    FloorPart = Instance.new("Part")
-    FloorPart.Size = Vector3.new(8, 0.2, 8)
-    FloorPart.Transparency = 1
-    FloorPart.CanCollide = true
-    FloorPart.Anchored = true
-    FloorPart.Name = "SimFloor_Fling"
-    FloorPart.Parent = workspace
-    FloorPart:SetAttribute("TheHand_FlingPart", true)
-    
-    -- Posiciona o piso abaixo do alvo
-    FloorPart.CFrame = targetRoot.CFrame * CFrame.new(0, -3.2, 0)
-    
-    -- Timeout de segurança
-    local startFlingTime = tick()
-    local MAX_FLING_TIME = 3
-    
-    flingConnection = RunService.Stepped:Connect(function()
-        -- Verificação de timeout
-        if tick() - startFlingTime > MAX_FLING_TIME then
-            warn("⏰ Timeout do Fling atingido - limpando")
-            CleanUpFling()
-            return
-        end
-        
-        if not FlingActive or not character or not charRoot or hum.Health <= 0 then
-            CleanUpFling()
-            return
-        end
-        
-        if not FlingTargetRoot or not FlingTargetRoot.Parent then
-            CleanUpFling()
-            return
-        end
-        
-        local targetHum = FlingTargetRoot.Parent:FindFirstChildOfClass("Humanoid")
-        if targetHum and targetHum.Health <= 0 then
-            CleanUpFling()
-            return
-        end
-        
-        -- 🔗 FORÇA O ALVO A FICAR DENTRO DO SEU BONECO (PhysicsRepRootPart)
-        local success1 = pcall(function()
-            sethiddenproperty(charRoot, "PhysicsRepRootPart", FlingTargetRoot)
-        end)
-        
-        -- 💥 NaN Fling (impulso caótico)
-        local success2 = pcall(function()
-            local Nan = 0/0
-            local NanVec = Vector3.new(Nan, Nan, Nan)
-            sethiddenproperty(hum, "MoveDirectionInternal", NanVec)
-            charRoot.AssemblyLinearVelocity = NanVec
-            charRoot.AssemblyAngularVelocity = NanVec
-            FloorPart.AssemblyLinearVelocity = NanVec
-        end)
-        
-        if not success1 or not success2 then
-            warn("⚠️ sethiddenproperty falhou - usando fallback de impulso")
-            -- Fallback: Impulso forte normal
-            local randomDirection = Vector3.new(
-                math.random(-1000, 1000) / 100,
-                math.random(500, 1000) / 100,
-                math.random(-1000, 1000) / 100
-            )
-            pcall(function()
-                if FlingTargetRoot and FlingTargetRoot.Parent then
-                    local targetHum2 = FlingTargetRoot.Parent:FindFirstChildOfClass("Humanoid")
-                    if targetHum2 then
-                        targetHum2:TakeDamage(5)
-                    end
-                end
-            end)
-            CleanUpFling()
-            return
-        end
-        
-        -- Atualiza posição do piso fantasma
-        if FloorPart and FloorPart.Parent then
-            FloorPart.CFrame = FlingTargetRoot.CFrame * CFrame.new(0, -3.2, 0)
-        end
-    end)
-    
-    -- Conexão de segurança extra
-    if character then
-        local destroyConn
-        destroyConn = character.Destroying:Connect(function()
-            CleanUpFling()
-            if destroyConn then destroyConn:Disconnect() end
         end)
     end
 end
@@ -1834,7 +1718,7 @@ task.wait(0.5)
 -- ═══════════════════════════════════════
 -- ⚡ SISTEMA SINCRONIZADO: TELEPORTE CONTÍNUO + FLING
 -- ═══════════════════════════════════════
-local targetChar = targetRoot.Parent  -- Mantém a referência já existente
+local targetChar = targetRoot.Parent
 local anchoredParts = {}
 local SYNC_DURATION = 1.3 
 
@@ -1845,7 +1729,7 @@ targetRoot.CFrame = CFrame.new(insidePos)
 targetRoot.Velocity = Vector3.new(0, 0, 0)
 targetRoot.RotVelocity = Vector3.new(0, 0, 0)
 
--- FASE 2: NOCLIP HUMANOID + HUMANOIDROOTPART (IMEDIATAMENTE)
+-- FASE 2: NOCLIP HUMANOID + HUMANOIDROOTPART
 local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
 if targetHum then
     targetHum.CollisionType = Enum.HumanoidCollisionType.OuterBox
@@ -1857,13 +1741,11 @@ if targetHum then
     })
 end
 
--- Noclip no seu HumanoidRootPart
 if charRoot then
     charRoot.CanCollide = false
     table.insert(anchoredParts, {part = charRoot, originalCanCollide = true})
 end
 
--- Noclip nas partes do alvo + NoCollisionConstraint
 if targetChar then
     for _, part in ipairs(targetChar:GetDescendants()) do
         if part:IsA("BasePart") and part.CanCollide == true then
@@ -1871,14 +1753,9 @@ if targetChar then
             table.insert(anchoredParts, {part = part, originalCanCollide = true})
         end
     end
-    
-    local constraints = forceNoclipBetweenChars(character, targetChar)
-    for _, c in ipairs(constraints) do
-        table.insert(flingNoclipConstraints, c)
-    end
-end
+end  -- ✅ END ADICIONADO
 
--- FASE 3: ÂNCORA O ALVO (pra não escapar)
+-- FASE 3: ÂNCORA O ALVO
 if targetChar then
     for _, part in ipairs(targetChar:GetDescendants()) do
         if part:IsA("BasePart") and not part.Anchored then
@@ -1888,129 +1765,96 @@ if targetChar then
     end
 end
 
-print("🔒 Teleporte + Noclip ")
+print("🔒 Teleporte + Noclip")
 
--- ═══════════════════════════════════════
--- 🔄 TELEPORTE CONTÍNUO (LOOP)
--- ═══════════════════════════════════════
+-- FASE 4: TELEPORTE CONTÍNUO (LOOP) - VERSÃO INSTANTÂNEA
 local teleportConnection
-local TELEPORT_INTERVAL = 0.01  
 local teleportStartTime = tick()
 
 teleportConnection = RunService.Heartbeat:Connect(function()
-    -- Verifica se o alvo ainda existe
     if not targetRoot or not targetRoot.Parent then
         if teleportConnection then teleportConnection:Disconnect() end
         return
     end
     
-    -- Verifica se o alvo ainda está vivo
     local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
     if targetHumCheck and targetHumCheck.Health <= 0 then
         if teleportConnection then teleportConnection:Disconnect() end
         return
     end
     
-    -- Verifica timeout (para o teleporte após SYNC_DURATION)
     if tick() - teleportStartTime > SYNC_DURATION then
         if teleportConnection then teleportConnection:Disconnect() end
         return
     end
     
-    -- Teleporta o alvo para DENTRO do seu boneco
-    local myPos = charRoot.Position
-    
-    -- Variação aleatória pequena para dar efeito de "vibração"
-    local offsetX = math.random(-50, 50) / 100  -- -0.5 a 0.5 studs
-    local offsetY = math.random(-30, 30) / 100  -- -0.3 a 0.3 studs
-    local offsetZ = math.random(-50, 50) / 100  -- -0.5 a 0.5 studs
-    
-    targetRoot.CFrame = CFrame.new(
-        myPos.X + offsetX,
-        myPos.Y + offsetY,
-        myPos.Z + offsetZ
-    )
+    -- 🎯 Teleporta EXATAMENTE para dentro do seu corpo (sem vibração)
+    targetRoot.CFrame = charRoot.CFrame  
     targetRoot.Velocity = Vector3.new(0, 0, 0)
     targetRoot.RotVelocity = Vector3.new(0, 0, 0)
 end)
 
--- FASE 4: ATIVA O FLING (NaN Fling)
+-- FASE 5: ATIVA O FLING
 print("💥 NaN Fling iniciado")
 StartFling(targetRoot)
 
-    -- FASE 5: CRONÔMETRO ÚNICO (2 SEGUNDOS)
-    task.delay(SYNC_DURATION, function()
-        print("⏰ 2s - Restaurando tudo...")
-        
-        -- Para o teleporte contínuo
-        if teleportConnection then
-            teleportConnection:Disconnect()
-            teleportConnection = nil
-        end
-        
-        CleanUpFling()
-        
-        -- Restaura aparência se o alvo sobreviveu
-        local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
-        if targetHumCheck and targetHumCheck.Health > 0 and targetChar then
-            local restoreInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-            for part, originalSize in pairs(originalSizes) do
-                if part and part.Parent then
-                    pcall(function() TweenService:Create(part, restoreInfo, { Size = originalSize, Transparency = 0 }):Play() end)
-                end
-            end
-            for mesh, originalScale in pairs(originalMeshScales) do
-                if mesh and mesh.Parent then
-                    pcall(function() TweenService:Create(mesh, restoreInfo, { Scale = originalScale }):Play() end)
-                end
-            end
-        end
-        
-        -- Restaura partes ancoradas
-for _, data in ipairs(anchoredParts) do
-    if data.part and data.part.Parent then
-        pcall(function() 
-            if data.originalCanCollide ~= nil then
-                data.part.CanCollide = data.originalCanCollide
-            end
-            if data.originalAnchored ~= nil then
-                data.part.Anchored = data.originalAnchored
-            end
-        end)
+-- FASE 6: RESTAURAÇÃO APÓS SYNC_DURATION
+task.delay(SYNC_DURATION, function()
+    print("⏰ Restaurando tudo...")
+    
+    if teleportConnection then
+        teleportConnection:Disconnect()
+        teleportConnection = nil
     end
-end
-        
-        -- Restaura Humanoid
-        local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
-        if targetHum then
-            pcall(function()
-                targetHum.CollisionType = Enum.HumanoidCollisionType.InnerBox
-                targetHum.AutoRotate = true
+    
+    CleanUpFling()
+    
+    local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+    if targetHumCheck and targetHumCheck.Health > 0 and targetChar then
+        local restoreInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        for part, originalSize in pairs(originalSizes) do
+            if part and part.Parent then
+                pcall(function() TweenService:Create(part, restoreInfo, { Size = originalSize, Transparency = 0 }):Play() end)
+            end
+        end
+        for mesh, originalScale in pairs(originalMeshScales) do
+            if mesh and mesh.Parent then
+                pcall(function() TweenService:Create(mesh, restoreInfo, { Scale = originalScale }):Play() end)
+            end
+        end
+    end
+    
+    for _, data in ipairs(anchoredParts) do
+        if data.part and data.part.Parent then
+            pcall(function() 
+                if data.originalCanCollide ~= nil then
+                    data.part.CanCollide = data.originalCanCollide
+                end
+                if data.originalAnchored ~= nil then
+                    data.part.Anchored = data.originalAnchored
+                end
             end)
         end
-        
-        -- Remove NoCollisionConstraints
-        for _, constraint in ipairs(flingNoclipConstraints) do
-            if constraint and constraint.Parent then
-                pcall(function() constraint:Destroy() end)
-            end
-        end
-        flingNoclipConstraints = {}
-        
-       print("✅ Tudo restaurado")
+    end
+    
+    local targetHumRestore = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+    if targetHumRestore then
+        pcall(function()
+            targetHumRestore.CollisionType = Enum.HumanoidCollisionType.InnerBox
+            targetHumRestore.AutoRotate = true
+        end)
+    end
 
-task.wait(0.2)
-if eraseTrack then eraseTrack:Stop() end
-idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
-
-TweenService:Create(sRoot, TweenInfo.new(0.3), {CFrame = charRoot.CFrame * CFrame.new(STAND_OFFSET)}):Play()
+    task.wait(0.2)
+    if eraseTrack then eraseTrack:Stop() end
+    idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
+    TweenService:Create(sRoot, TweenInfo.new(0.3), {CFrame = charRoot.CFrame * CFrame.new(STAND_OFFSET)}):Play()
     
     lastUsed["Erase"] = tick()
     isAttacking = false
-    
     showCooldownOnButton(eraseBtn, "Erase")
-end)
-end
+end)  
+end  
 
 -- ============================================================
 -- EFEITO DE PULSAÇÃO NO BOTÃO STAND
@@ -3005,57 +2849,6 @@ player.CharacterAdded:Connect(function()
     task.wait(2) 
     AnexarTudo()
 end)
-
--- ============================================================
--- 🔵 NOCLIP DE HUMANOID PERMANENTE (SEMPRE ATIVO)
--- ============================================================
-
-local function aplicarNoclipPermanente()
-    if hum and hum.Parent then
-        -- Define o noclip de Humanoid para OuterBox (atravessa outros jogadores)
-        hum.CollisionType = Enum.HumanoidCollisionType.OuterBox
-        print("🔵 Noclip de Humanoid ativado!")
-    end
-end
-
-local function removerNoclipPermanente()
-    if hum and hum.Parent then
-        -- Restaura o CollisionType padrão
-        hum.CollisionType = Enum.HumanoidCollisionType.InnerBox
-        print("🔴 Noclip de Humanoid desativado!")
-    end
-end
-
--- Aplica o noclip no personagem atual
-aplicarNoclipPermanente()
-
--- Quando morrer, remove o noclip (para evitar bugs)
-hum.Died:Connect(function()
-    removerNoclipPermanente()
-    print("💀 Morreu - Noclip desativado temporariamente")
-end)
-
--- Quando renascer, reaplica o noclip no novo personagem
-player.CharacterAdded:Connect(function(newChar)
-    task.wait(0.5) -- Pequena espera para o personagem carregar
-    
-    -- Atualiza as referências
-    character = newChar
-    hum = newChar:WaitForChild("Humanoid")
-    
-    -- Reaplica o noclip
-    aplicarNoclipPermanente()
-    
-    -- Reconecta o evento de morte no novo Humanoid
-    hum.Died:Connect(function()
-        removerNoclipPermanente()
-        print("💀 Morreu - Noclip desativado temporariamente")
-    end)
-    
-    print("🔄 Renasceu - Noclip reaplicado!")
-end)
-
-print("✅ Sistema de Noclip Permanente carregado!")
 
 local function fullCleanup()
     warn("🧹 Executando limpeza global...")
