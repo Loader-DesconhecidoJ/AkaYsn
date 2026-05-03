@@ -660,12 +660,11 @@ local function findRightHand(model)
 end
 
 -- ============================================================
--- 🌊 SISTEMA DE NOCLIP (NOVO - STEPPED)
+-- 🧱 NOCLIP TEMPORÁRIO (SÓ ATIVA NO ERASE POR 3 SEGUNDOS)
 -- ============================================================
-local noclipConnection = nil
-local localPlayer = Players.LocalPlayer  
+local tempNoclipConnection = nil
+local tempNoclipEndTime = 0
 
--- Função para desativar colisão de um modelo inteiro
 local function desativarColisaoModelo(model)
     for _, part in ipairs(model:GetDescendants()) do
         if part:IsA("BasePart") then
@@ -674,60 +673,63 @@ local function desativarColisaoModelo(model)
     end
 end
 
-local function ativarNoClip(character)
-    if noclipConnection then
-        noclipConnection:Disconnect()
-        noclipConnection = nil
+local function ativarNoClipTemporario()
+    -- Se já existe uma conexão, limpa
+    if tempNoclipConnection then
+        tempNoclipConnection:Disconnect()
+        tempNoclipConnection = nil
     end
-
-    local humanoid = character:WaitForChild("Humanoid", 10)
-    if not humanoid then return end
-
-    -- Usamos Stepped porque ele roda antes da simulação física de cada frame
-    noclipConnection = RunService.Stepped:Connect(function()
-        -- 1. Varre todos os jogadores do servidor
+    
+    -- Marca o tempo de início
+    tempNoclipEndTime = tick() + 3  -- 3 segundos
+    
+    local localPlayer = Players.LocalPlayer
+    
+    tempNoclipConnection = RunService.Stepped:Connect(function()
+        -- Verifica se passou 3 segundos
+        if tick() >= tempNoclipEndTime then
+            if tempNoclipConnection then
+                tempNoclipConnection:Disconnect()
+                tempNoclipConnection = nil
+                print("🔓 Noclip temporário desativado")
+            end
+            return
+        end
+        
+        -- Desativa colisão de outros jogadores
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= localPlayer and player.Character then
-                desativarColisaoModelo(player.Character)
+                pcall(function()
+                    desativarColisaoModelo(player.Character)
+                end)
             end
         end
-
-        -- 2. Varre o Workspace inteiro em busca de NPCs (R6, R15 e Ancorados)
+        
+        -- Desativa colisão de NPCs
         for _, obj in ipairs(workspace:GetDescendants()) do
-            -- Se encontrarmos um Humanoid, significa que o "Pai" dele é um ser vivo/NPC
             if obj:IsA("Humanoid") then
                 local npc = obj.Parent
                 if npc and npc:IsA("Model") and npc ~= character then
-                    -- Verifica se tem a RootPart como você pediu
                     if npc:FindFirstChild("HumanoidRootPart") then
-                        desativarColisaoModelo(npc)
+                        pcall(function()
+                            desativarColisaoModelo(npc)
+                        end)
                     end
                 end
             end
         end
     end)
-
-    -- Para de funcionar ao morrer
-    humanoid.Died:Connect(function()
-        if noclipConnection then
-            noclipConnection:Disconnect()
-            noclipConnection = nil
-        end
-    end)
+    
+    print("🔒 Noclip temporário ativado (3 segundos)")
 end
 
--- Inicialização e Auto-Respawn
-if player.Character then
-    ativarNoClip(player.Character)
+local function desativarNoClipTemporario()
+    if tempNoclipConnection then
+        tempNoclipConnection:Disconnect()
+        tempNoclipConnection = nil
+        print("🔓 Noclip temporário desativado manualmente")
+    end
 end
-
-player.CharacterAdded:Connect(function(novoCharacter)
-    -- Pequeno delay para garantir que o motor de física carregou o novo corpo
-    task.wait(0.1)
-    ativarNoClip(novoCharacter)
-end)
-
-print("✅ Sistema de Noclip (Stepped) carregado!")
 
 local function StartFling(targetRoot)
     local charRoot = character:FindFirstChild("HumanoidRootPart")
@@ -1735,13 +1737,15 @@ local animLength = eraseTrack.Length
     task.wait(0.2)
 
     -- =============================================
-    -- FASE 3: VFX E FLING (RODA EM PARALELO!)
-    -- =============================================
-    task.spawn(function()
-        -- VFX DE APAGAMENTO
-        local targetChar = targetRoot.Parent
-        local originalSizes = {}
-        local originalMeshScales = {}
+-- FASE 3: VFX E FLING (RODA EM PARALELO!)
+-- =============================================
+task.spawn(function()
+    
+    ativarNoClipTemporario()
+    
+    local targetChar = targetRoot.Parent
+    local originalSizes = {}
+    local originalMeshScales = {}
 
         if targetChar then
             -- Highlight
@@ -1898,11 +1902,12 @@ local animLength = eraseTrack.Length
         print("💥 NaN Fling iniciado")
         StartFling(targetRoot)
 
-        -- Restauração
-        task.delay(SYNC_DURATION, function()
-            print("⏰ Restaurando Fling...")
-            
-            if teleportConnection then
+task.delay(SYNC_DURATION, function()
+    print("⏰ Restaurando Fling...")
+    
+    desativarNoClipTemporario()
+    
+    if teleportConnection then
                 teleportConnection:Disconnect()
                 teleportConnection = nil
             end
@@ -3138,10 +3143,10 @@ end)
 local function fullCleanup(preserveStand)
     warn("🧹 Executando limpeza...")
     
-    -- Limpa Fling
+    desativarNoClipTemporario()
+    
     CleanUpFling()
     
-    -- Limpa animações customizadas
     cleanupCustomAnims()
     
     -- ⚠️ SÓ DESTRÓI O STAND SE NÃO FOR PRA PRESERVAR
