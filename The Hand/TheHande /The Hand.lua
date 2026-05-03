@@ -81,6 +81,11 @@ local SETTINGS = {
     SRunRestartInterval = 1.3
 }
 
+local function isR15()
+    if not hum then return false end
+    return hum.RigType == Enum.HumanoidRigType.R15
+end
+
 local originalIDs_anim = {}
 local originalWalkSpeed_anim = 16
 local jumpingConnection_anim = nil
@@ -284,6 +289,7 @@ local function checkIdleStatus(deltaTime)
 end
 
 RunService.Heartbeat:Connect(function(deltaTime)
+    if not isR15() then return end
     checkIdleStatus(deltaTime)
 end)
 
@@ -467,6 +473,13 @@ local function onCharacterAddedCustomAnims(char)
     
     originalWalkSpeed_anim = hum.WalkSpeed
 
+    -- ==================== SÓ APLICAR EM R15 ====================
+    if not isR15() then
+        print("🛑 Custom Anims, IdleVariant e Footprints desativados (R6 detectado)")
+        return
+    end
+    -- ========================================================
+
     local animate = char:WaitForChild("Animate", 5)
 
     if animate then
@@ -501,7 +514,7 @@ local function onCharacterAddedCustomAnims(char)
 
     if jumpingConnection_anim then jumpingConnection_anim:Disconnect() end
     jumpingConnection_anim = hum.Jumping:Connect(function()
-        if not SETTINGS.Enabled then return end
+        if not SETTINGS.Enabled or not isR15() then return end
         local root = character:FindFirstChild("HumanoidRootPart")
         if not root then return end
         local speed = Vector3.new(root.Velocity.X, 0, root.Velocity.Z).Magnitude
@@ -521,6 +534,7 @@ local function onCharacterAddedCustomAnims(char)
 
     if jumpStateConnection_anim then jumpStateConnection_anim:Disconnect() end
     jumpStateConnection_anim = hum.StateChanged:Connect(function(oldState, newState)
+        if not isR15() then return end
         if activeJumpTrack_anim and activeJumpTrack_anim.IsPlaying then
             if newState ~= Enum.HumanoidStateType.Jumping and newState ~= Enum.HumanoidStateType.Freefall then
                 activeJumpTrack_anim:Stop(0.15)
@@ -530,6 +544,8 @@ local function onCharacterAddedCustomAnims(char)
 
     if footprintConnection_anim then footprintConnection_anim:Disconnect() end
     footprintConnection_anim = RunService.Heartbeat:Connect(function()
+        if not isR15() then return end
+        
         updateRunAnimation_anim()
         updateNormalRunSpeed_anim()
         
@@ -1502,7 +1518,7 @@ local function performErase()
 
     local animLength = eraseTrack.Length
     local startTime = tick()
-    local reverseSpeed = 10
+    local reverseSpeed = 4.5
 
     -- TRAIL 2D
     local sRightHand = findRightHand(currentStand)
@@ -1720,7 +1736,7 @@ task.wait(0.5)
 -- ═══════════════════════════════════════
 local targetChar = targetRoot.Parent
 local anchoredParts = {}
-local SYNC_DURATION = 1.3 
+local SYNC_DURATION = 1.5
 
 -- FASE 1: TELEPORTE INICIAL
 task.wait(0.1)
