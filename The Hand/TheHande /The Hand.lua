@@ -2826,6 +2826,33 @@ player.CharacterAdded:Connect(function(newChar)
     character = newChar
     hum = newChar:WaitForChild("Humanoid")
     CleanUpFling()
+    
+    -- Se o Stand estava ativo, mantém ativo com o novo corpo
+    if isStandActive and currentStand then
+        task.wait(0.3)
+        
+        local charRoot = character:FindFirstChild("HumanoidRootPart")
+        local sRoot = currentStand:FindFirstChild("HumanoidRootPart")
+        local sHum = currentStand:FindFirstChildOfClass("Humanoid")
+        
+        if charRoot and sRoot and sHum then
+            sRoot.Anchored = true
+            sRoot.CFrame = charRoot.CFrame * CFrame.new(STAND_OFFSET)
+            
+            if idleTrack then pcall(function() idleTrack:Stop() end) end
+            idleTrack = playAnim(sHum, ASSETS.STAND_IDLE, 1, true, Enum.AnimationPriority.Idle)
+            
+            for _, p in ipairs(currentStand:GetDescendants()) do
+                if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                    p.Transparency = 0
+                elseif p:IsA("Decal") then
+                    p.Transparency = 0
+                end
+            end
+            
+            print("🔄 Stand reconectado ao novo personagem!")
+        end
+    end
 end)
 
 -- ============================================================
@@ -2999,8 +3026,8 @@ player.CharacterAdded:Connect(function()
     AnexarTudo()
 end)
 
-local function fullCleanup()
-    warn("🧹 Executando limpeza global...")
+local function fullCleanup(preserveStand)
+    warn("🧹 Executando limpeza...")
     
     -- Limpa Fling
     CleanUpFling()
@@ -3008,83 +3035,86 @@ local function fullCleanup()
     -- Limpa animações customizadas
     cleanupCustomAnims()
     
-    -- Destrói Stand ativo
-    if currentStand then
-        pcall(function()
-            if currentStand.Parent then
-                for _, child in ipairs(currentStand:GetDescendants()) do
-                    if child:IsA("Trail") then
-                        child.Enabled = false
+    -- ⚠️ SÓ DESTRÓI O STAND SE NÃO FOR PRA PRESERVAR
+    if not preserveStand then
+        -- Destrói Stand ativo
+        if currentStand then
+            pcall(function()
+                if currentStand.Parent then
+                    for _, child in ipairs(currentStand:GetDescendants()) do
+                        if child:IsA("Trail") then
+                            child.Enabled = false
+                        end
                     end
+                    currentStand:Destroy()
                 end
-                currentStand:Destroy()
-            end
-        end)
-        currentStand = nil
-    end
-    
-    -- Reseta variáveis de animação
-if idleTrack then pcall(function() idleTrack:Stop() end) idleTrack = nil end
-if walkTrack then pcall(function() walkTrack:Stop() end) walkTrack = nil end
-if runTrack then pcall(function() runTrack:Stop() end) runTrack = nil end
+            end)
+            currentStand = nil
+        end
+        
+        -- Reseta variáveis de animação
+        if idleTrack then pcall(function() idleTrack:Stop() end) idleTrack = nil end
+        if walkTrack then pcall(function() walkTrack:Stop() end) walkTrack = nil end
+        if runTrack then pcall(function() runTrack:Stop() end) runTrack = nil end
 
-if FlingTargetRoot then FlingTargetRoot = nil end
-    
-    -- RESETA O ESTADO DO STAND E BOTÕES
-    isStandActive = false
-    isAttacking = false
-    
-    -- Reseta o botão principal para "STAND"
-    if activateBtn and activateBtn.Parent then
-        activateBtn.Text = "STAND"
-        activateBtn.Size = UDim2.fromOffset(95, 95)
+        if FlingTargetRoot then FlingTargetRoot = nil end
+        
+        -- RESETA O ESTADO DO STAND E BOTÕES
+        isStandActive = false
+        isAttacking = false
+        
+        -- Reseta o botão principal para "STAND"
+        if activateBtn and activateBtn.Parent then
+            activateBtn.Text = "STAND"
+            activateBtn.Size = UDim2.fromOffset(95, 95)
+        end
+        
+        -- Para o pulso do botão
+        if standPulseConnection then
+            standPulseConnection:Disconnect()
+            standPulseConnection = nil
+        end
+        
+        -- Esconde o botão de ERASE
+        if eraseBtn and eraseBtn.Parent then
+            pcall(function()
+                eraseBtn.Visible = false
+                eraseBtn.Size = UDim2.fromOffset(0, 0)
+                eraseBtn.BackgroundTransparency = 1
+            end)
+        end
     end
     
-    -- Para o pulso do botão
-    if standPulseConnection then
-        standPulseConnection:Disconnect()
-        standPulseConnection = nil
-    end
-    
-    -- Esconde o botão de ERASE
-    if eraseBtn and eraseBtn.Parent then
-        pcall(function()
-            eraseBtn.Visible = false
-            eraseBtn.Size = UDim2.fromOffset(0, 0)
-            eraseBtn.BackgroundTransparency = 1
-        end)
-    end
-    
-    -- Limpa sons
+    -- Limpa sons (sempre)
     for _, sound in ipairs(workspace:GetDescendants()) do
         if sound:IsA("Sound") and (sound.SoundId:find("9114330698") or sound.SoundId:find("140225325762905")) then
             pcall(function() sound:Destroy() end)
         end
     end
     
-    -- Limpa partes fantasmas
+    -- Limpa partes fantasmas (sempre)
     for _, obj in ipairs(workspace:GetChildren()) do
         if obj:GetAttribute("TheHand_FlingPart") or obj.Name == "SimFloor_Fling" then
             pcall(function() obj:Destroy() end)
         end
     end
     
-    print("✅ Limpeza global concluída - Stand resetado")
+    print("✅ Limpeza concluída - Stand " .. (preserveStand and "preservado" or "resetado"))
 end
 
--- Conecta a limpeza quando o personagem for removido
+-- Quando morrer, preserva o Stand
 player.CharacterRemoving:Connect(function()
-    fullCleanup()
+    fullCleanup(true)
 end)
 
--- Também limpa quando o jogador sair do jogo
+-- Limpa tudo quando sair do jogo
 player.Destroying:Connect(function()
-    fullCleanup()
+    fullCleanup(false)
 end)
 
 if character then
     local currentChar = character
     currentChar.Destroying:Connect(function()
-        fullCleanup()
+        fullCleanup(true)
     end)
 end
