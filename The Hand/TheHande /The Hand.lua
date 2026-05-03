@@ -870,9 +870,9 @@ end
 -- 🌌 EFEITO FOV ZOOM (RASGANDO O ESPAÇO-TEMPO) - SEM LINHAS
 -- ============================================================
 local FOV_ZOOM_CONFIG = {
-    ZoomIntensity = 15,         -- Quanto o FOV diminui (70 → 55)
-    ZoomSpeed = 0.06,           -- Velocidade do zoom IN (mais rápido)
-    ReturnSpeed = 0.2,          -- Velocidade do zoom OUT (mais lento)
+    ZoomIntensity = 20,         -- Zoom mais intenso (sensação de "puxão")
+    ZoomSpeed = 0.04,           -- Zoom IN quase instantâneo
+    ReturnSpeed = 0.35,         -- Zoom OUT mais lento (espaço se "curando")	
 }
 
 local function playSpaceTimeSlash(dashDirection)
@@ -1405,7 +1405,7 @@ eraseBtn.Size = UDim2.fromOffset(0, 0)
 eraseBtn.BackgroundTransparency = 1
 
 -- ============================================================
--- HABILIDADE SELF ERASE (DASH DE APAGAMENTO)
+-- HABILIDADE SELF ERASE (DASH DE APAGAMENTO) - VELOCITY
 -- ============================================================
 
 local function performSelfErase()
@@ -1429,11 +1429,11 @@ local function performSelfErase()
     -- 🗯️ Balão de fala
     showSpeechBubble("94794505267303", "right", 1)
     
-    -- ⚡ DASH NA DIREÇÃO QUE O BONECO ESTÁ OLHANDO
+    -- ⚡ Direção do dash
     local moveDirection = charRoot.CFrame.LookVector
     
     -- 🌌 ATIVA EFEITO ESPAÇO-TEMPO
-playSpaceTimeSlash(moveDirection)
+    playSpaceTimeSlash(moveDirection)
     
     -- 💥 Camera shake
     cameraShake(0.4, 2)
@@ -1464,7 +1464,7 @@ playSpaceTimeSlash(moveDirection)
     pe1.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
     task.delay(0.5, function() pe1.Enabled = false end)
     
-    -- 🔸 Highlight com animação pulsante no seu personagem
+    -- 🔸 Highlight no personagem
     local selfHighlight = Instance.new("Highlight", character)
     selfHighlight.Name = "SelfEraseHighlight"
     selfHighlight.OutlineColor = Color3.fromRGB(0, 200, 255)
@@ -1477,81 +1477,112 @@ playSpaceTimeSlash(moveDirection)
         FillTransparency = 0.7
     }):Play()
 
-task.delay(0.3, function()
-    if selfHighlight and selfHighlight.Parent then
-        -- Animação rápida de saída
-        TweenService:Create(selfHighlight, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            OutlineTransparency = 1,
-            FillTransparency = 1
-        }):Play()
-        task.delay(0.2, function()
-            if selfHighlight and selfHighlight.Parent then
-                selfHighlight:Destroy()
-            end
-        end)
-    end
-end)
-    
-    task.wait(0.1)  -- Pequena espera pro VFX
-    
-    -- ⚡ DASH NA DIREÇÃO QUE O BONECO ESTÁ OLHANDO
-    local moveDirection = charRoot.CFrame.LookVector
-    
-    local dashDistance = 50
-    local targetPos = startPos + (moveDirection * dashDistance)
-    
-local rayParams = RaycastParams.new()
-rayParams.FilterType = Enum.RaycastFilterType.Exclude
-rayParams.FilterDescendantsInstances = {character}
-
-local rayResult = workspace:Raycast(startPos, moveDirection * dashDistance, rayParams)
-if rayResult then
-    targetPos = rayResult.Position - (moveDirection * 2)
-end
-    
-    -- ❄️ Congela o personagem por um frame (efeito de apagamento)
-    local freezeConnection
-    freezeConnection = RunService.Stepped:Connect(function()
-        charRoot.Velocity = Vector3.new(0, 0, 0)
-        charRoot.RotVelocity = Vector3.new(0, 0, 0)
-        freezeConnection:Disconnect()
+    task.delay(0.3, function()
+        if selfHighlight and selfHighlight.Parent then
+            TweenService:Create(selfHighlight, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                OutlineTransparency = 1,
+                FillTransparency = 1
+            }):Play()
+            task.delay(0.2, function()
+                if selfHighlight and selfHighlight.Parent then
+                    selfHighlight:Destroy()
+                end
+            end)
+        end
     end)
     
-    -- 🚀 TELEPORTA (DASH)
-    charRoot.CFrame = CFrame.new(targetPos)
-    charRoot.Velocity = moveDirection * 30  -- Impulso residual
+    -- ═══════════════════════════════════════
+    -- 🚀 DASH COM VELOCITY (70 STUDS)
+    -- ═══════════════════════════════════════
     
-    -- 🌌 VFX NO DESTINO
-    local endVFX = Instance.new("Part")
-    endVFX.Name = "SelfEraseEnd"
-    endVFX.Size = Vector3.new(0.5, 0.5, 0.5)
-    endVFX.Position = targetPos
-    endVFX.Anchored = true
-    endVFX.CanCollide = false
-    endVFX.Transparency = 1
-    endVFX.Parent = workspace
-    Debris:AddItem(endVFX, 2)
+    -- Congela controles por 0.25s (efeito de dash)
+    if hum then
+        hum.WalkSpeed = 0
+        hum.JumpPower = 0
+    end
     
-    local attach2 = Instance.new("Attachment", endVFX)
-    local pe2 = Instance.new("ParticleEmitter", attach2)
-    pe2.Texture = "rbxassetid://14317181033"
-    pe2.Color = ColorSequence.new(Color3.fromRGB(0, 200, 255))
-    pe2.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 5), NumberSequenceKeypoint.new(1, 0)})
-    pe2.Lifetime = NumberRange.new(0.3, 0.5)
-    pe2.Rate = 100
-    pe2.Speed = NumberRange.new(2, 5)
-    pe2.SpreadAngle = Vector2.new(180, 180)
-    pe2.LightEmission = 1
-    pe2.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
-    pe2.Acceleration = Vector3.new(0, 10, 0)
-    task.delay(0.5, function() pe2.Enabled = false end)
+    -- Aplica o impulso
+    local DASH_POWER = 70  -- Studs percorridos
+    local DASH_SPEED = 350  -- Velocidade do impulso (studs/s)
+    
+    charRoot.Velocity = moveDirection * DASH_SPEED
+    
+    -- Força o boneco a ir reto (sem cair)
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Name = "DashForce"
+    bodyVelocity.Velocity = moveDirection * DASH_SPEED
+    bodyVelocity.MaxForce = Vector3.new(100000, 0, 100000)  -- Só empurra no X e Z
+    bodyVelocity.P = 10000
+    bodyVelocity.Parent = charRoot
+    
+    -- Mantém a altura constante durante o dash
+    local bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.Name = "DashGyro"
+    bodyGyro.CFrame = charRoot.CFrame
+    bodyGyro.MaxTorque = Vector3.new(0, 100000, 0)
+    bodyGyro.P = 10000
+    bodyGyro.Parent = charRoot
+    
+    -- Remove as forças após percorrer a distância
+    local dashDuration = DASH_POWER / DASH_SPEED  -- Tempo calculado
+    task.delay(dashDuration, function()
+        if bodyVelocity and bodyVelocity.Parent then
+            bodyVelocity:Destroy()
+        end
+        if bodyGyro and bodyGyro.Parent then
+            bodyGyro:Destroy()
+        end
+        
+        -- Restaura controles
+        if hum then
+            hum.WalkSpeed = originalWalkSpeed_anim
+            hum.JumpPower = SETTINGS.JumpPower
+        end
+        
+        -- Pequeno freio pra parada brusca
+        charRoot.Velocity = Vector3.new(0, 0, 0)
+    end)
+    
+    -- 🌌 VFX NO DESTINO (calculado)
+    local targetPos = startPos + (moveDirection * DASH_POWER)
+    
+    task.delay(0.05, function()
+        local endVFX = Instance.new("Part")
+        endVFX.Name = "SelfEraseEnd"
+        endVFX.Size = Vector3.new(0.5, 0.5, 0.5)
+        endVFX.Position = targetPos
+        endVFX.Anchored = true
+        endVFX.CanCollide = false
+        endVFX.Transparency = 1
+        endVFX.Parent = workspace
+        Debris:AddItem(endVFX, 2)
+        
+        local attach2 = Instance.new("Attachment", endVFX)
+        local pe2 = Instance.new("ParticleEmitter", attach2)
+        pe2.Texture = "rbxassetid://14317181033"
+        pe2.Color = ColorSequence.new(Color3.fromRGB(0, 200, 255))
+        pe2.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 5), NumberSequenceKeypoint.new(1, 0)})
+        pe2.Lifetime = NumberRange.new(0.3, 0.5)
+        pe2.Rate = 100
+        pe2.Speed = NumberRange.new(2, 5)
+        pe2.SpreadAngle = Vector2.new(180, 180)
+        pe2.LightEmission = 1
+        pe2.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
+        pe2.Acceleration = Vector3.new(0, 10, 0)
+        task.delay(0.5, function() pe2.Enabled = false end)
+    end)
     
     -- ✅ Finaliza
     lastUsed["SelfErase"] = tick()
-    isAttacking = false
+    
+    -- Libera o ataque após o dash terminar
+    task.delay(dashDuration + 0.05, function()
+        isAttacking = false
+    end)
+    
     showCooldownOnButton(selfEraseBtn, "SelfErase")
     
-    print("💨 Self Erase Dash realizado!")
+    print("💨 Self Erase Dash (Velocity) realizado!")
 end
 
 -- ============================================================
