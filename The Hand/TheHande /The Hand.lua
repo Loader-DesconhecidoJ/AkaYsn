@@ -2876,7 +2876,7 @@ TweenService:Create(notifFrame, TweenInfo.new(0.6, Enum.EasingStyle.Elastic, Enu
     Size = UDim2.fromOffset(380, 180)
 }):Play()
 
-task.delay(5, function()
+task.delay(2, function()
     if notifFrame and notifFrame.Parent then
         TweenService:Create(notifFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
             Size = UDim2.fromOffset(500, 0.01),
