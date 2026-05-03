@@ -2088,7 +2088,7 @@ local function playOkuyasuCutscene()
     local okuyasuVoice = Instance.new("Sound")
     okuyasuVoice.SoundId = "rbxassetid://5375544504"
     okuyasuVoice.Volume = 2.5
-    okuyasuVoice.PlaybackSpeed = 1.15
+    okuyasuVoice.PlaybackSpeed = 1
     okuyasuVoice.Parent = head
     okuyasuVoice:Play()
     Debris:AddItem(okuyasuVoice, 5)
