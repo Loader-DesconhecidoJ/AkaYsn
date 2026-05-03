@@ -1518,7 +1518,7 @@ local function performErase()
 
     local animLength = eraseTrack.Length
     local startTime = tick()
-    local reverseSpeed = 4.5
+    local reverseSpeed = 4
 
     -- TRAIL 2D
     local sRightHand = findRightHand(currentStand)
@@ -1884,7 +1884,8 @@ task.delay(SYNC_DURATION, function()
     lastUsed["Erase"] = tick()
     isAttacking = false
     showCooldownOnButton(eraseBtn, "Erase")
-end)  
+  end)
+    
 end  
 
 -- ============================================================
