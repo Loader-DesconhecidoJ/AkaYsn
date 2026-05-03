@@ -1767,29 +1767,44 @@ end
 
 print("🔒 Teleporte + Noclip")
 
--- FASE 4: TELEPORTE CONTÍNUO (LOOP) - VERSÃO INSTANTÂNEA
+-- FASE 4: TELEPORTE CONTÍNUO (LOOP)
 local teleportConnection
+local TELEPORT_INTERVAL = 0.0000000000001
 local teleportStartTime = tick()
 
 teleportConnection = RunService.Heartbeat:Connect(function()
+    -- Verifica se o alvo ainda existe
     if not targetRoot or not targetRoot.Parent then
         if teleportConnection then teleportConnection:Disconnect() end
         return
     end
     
+    -- Verifica se o alvo ainda está vivo
     local targetHumCheck = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
     if targetHumCheck and targetHumCheck.Health <= 0 then
         if teleportConnection then teleportConnection:Disconnect() end
         return
     end
     
+    -- Verifica timeout (para o teleporte após SYNC_DURATION)
     if tick() - teleportStartTime > SYNC_DURATION then
         if teleportConnection then teleportConnection:Disconnect() end
         return
     end
     
-    -- 🎯 Teleporta EXATAMENTE para dentro do seu corpo (sem vibração)
-    targetRoot.CFrame = charRoot.CFrame  
+    -- Teleporta o alvo para DENTRO do seu boneco
+    local myPos = charRoot.Position
+    
+    -- Variação aleatória pequena para dar efeito de "vibração"
+    local offsetX = math.random(-50, 50) / 100  -- -0.5 a 0.5 studs
+    local offsetY = math.random(-30, 30) / 100  -- -0.3 a 0.3 studs
+    local offsetZ = math.random(-50, 50) / 100  -- -0.5 a 0.5 studs
+    
+    targetRoot.CFrame = CFrame.new(
+        myPos.X + offsetX,
+        myPos.Y + offsetY,
+        myPos.Z + offsetZ
+    )
     targetRoot.Velocity = Vector3.new(0, 0, 0)
     targetRoot.RotVelocity = Vector3.new(0, 0, 0)
 end)
