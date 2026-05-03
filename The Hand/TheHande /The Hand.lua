@@ -580,6 +580,11 @@ local ASSETS = {
     ERASE_IMAGE = "rbxassetid://107526909795121",
     OI_IMAGE = "94794505267303",
     KUSO_IMAGE = "83774881013358",
+ 
+    DEACTIVATE_BUBBLES = {
+        "84402000641079",   -- He arrives
+        "120879643794125",   -- Rest
+    },
 }
 
 local COLORS = {
@@ -2456,13 +2461,16 @@ end
 -- ==================== TOGGLE STAND ====================
 local function toggleStand()
     if isStandActive then
-        -- DESATIVAR
-        isStandActive = false
-        isAttacking = false
-        activateBtn.Text = "STAND"
-        activateBtn.Size = UDim2.fromOffset(95, 95)
+    -- DESATIVAR
+    isStandActive = false
+    isAttacking = false
+    activateBtn.Text = "Show"
+    activateBtn.Size = UDim2.fromOffset(95, 95)
 
-        CleanUpFling()
+    CleanUpFling()
+    
+    local randomBubble = ASSETS.DEACTIVATE_BUBBLES[math.random(1, #ASSETS.DEACTIVATE_BUBBLES)]
+    showSpeechBubble(randomBubble, "right", 1)
         
         -- Anima o Erase saindo
         spawn(function() animateButtonIn(eraseBtn, 0) end)
@@ -2499,7 +2507,7 @@ local function toggleStand()
         -- ATIVAR STAND
         isStandActive = true
         startStandPulse()
-        activateBtn.Text = "OFF"
+        activateBtn.Text = "Rest"
         activateBtn.Size = UDim2.fromOffset(95, 95)
 
         -- Anima o Erase aparecendo
